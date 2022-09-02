@@ -59,10 +59,10 @@ public:
     double* moi = nullptr;  ///< Moment of inertia
 
 
-    double get_soc()
-    {
-        return soc;
-    }
+    // double get_soc()
+    // {
+    //     return soc;
+    // }
 
     void parse_input_file(char const* location)
     {

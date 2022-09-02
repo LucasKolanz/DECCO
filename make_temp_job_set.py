@@ -14,7 +14,7 @@ if __name__ == '__main__':
 	job_set_name = "tempVariance_attempt"
 	folder_name_scheme = "T_"
 
-	attempts = [18,19,20,21,22,23,24,25,26,27,28,29,30,31,32] 
+	attempts = [21,22,23,24,25,26,27,28,29,30,31,32] 
 	attempts_at_once = 3
 	for i in range(0,len(attempts),attempts_at_once):
 		folders = []
