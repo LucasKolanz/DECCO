@@ -145,7 +145,7 @@ if __name__ == '__main__':
 
 	ax2 = ax.twinx()
 	ax2.errorbar(temps,FD_dataavg,yerr=yerr2,label="Frac Dim",color='r',zorder=0)
-	ax2.invert_yaxis()
+	# ax2.invert_yaxis()
 	ax2.set_ylabel('Avg Fractal Dimension')
 
 	fig.legend()
