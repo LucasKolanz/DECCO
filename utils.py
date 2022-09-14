@@ -366,12 +366,42 @@ class o3doctree(object):
 		oct_file = self.data_folder + "octree_ppb-{}".format(self.ppb)
 		fractdim_data_file = self.data_folder + "fractdim_ppb-{}.csv".format(self.ppb)
 		
-		if not os.path.isfile(fractdim_data_file) or self.overwrite_data:
+		make_data = False
+		try:
+			print("Loading FD data for :{}".format(fractdim_data_file))
+			d = np.loadtxt(fractdim_data_file, delimiter=',')
+			# print(d)
+			# print(np.sum(d[:,1]))
+			if np.sum(d[:,1]) == 0:
+				print("Data needs recomputing")
+				os.remove(fractdim_data_file)
+				make_data = True
+			else:
+				with open(fractdim_data_file,'r') as f:
+					header = f.readline()
+				self.octree_size = float(header.strip('\n').strip('# '))
+				self.s_data = d[:,0]
+				self.Ns_data = d[:,1]
+
+			# with open(fractdim_data_file,'r') as f:
+			# 	data = f.readlines()
+			# 	print(data)
+			# if len(data) == 0:
+			# 	make_data = True
+			# if np.sum(d[:,0]) == 0:
+		# except IOError:
+		except:
+			# print("Computing data for :{}".format(fractdim_data_file))
+			make_data = True
+
+		octree = []
+		if make_data or self.overwrite_data:
 			octverb = ''
+			print("Generating FD data for :{}".format(fractdim_data_file))
 			if os.path.isfile(oct_file) and not self.overwrite_data:
 				octstart = time.process_time()
 				octverb = 'Getting'
-				self.octree = o3d.io.read_octree(oct_file)
+				octree = o3d.io.read_octree(oct_file)
 				if self.visualize_octree:
 					self.show_octree(self.verbose)
 			else:
@@ -380,11 +410,22 @@ class o3doctree(object):
 				
 				pcdverb = ''
 				# if os.path.isfile(pcd_file):
-				if os.path.isfile(pcd_file) and not self.overwrite_data:
+				pcd = []
+				make_pcd_data = False
+				try:
+					with open(pcd_file,'r') as f:
+						data = f.readlines()
+						if len(data) == 0:
+							make_pcd_data = True
+							os.remove(pcd_file)
+				# except IOError:
+				except:
+					make_pcd_data = True
+				if not make_pcd_data and not self.overwrite_data:
 					pcdverb = 'Getting'
-					self.pcd = o3d.io.read_point_cloud(pcd_file)
+					pcd = o3d.io.read_point_cloud(pcd_file)
 					if self.visualize_pcd:
-						self.show_pcd(self.verbose)
+						self.show_pcd(pcd,self.verbose)
 				else:
 					pcdverb = 'Making'
 					# radii = np.linspace(self.dm.radius/100,self.dm.radius,100)
@@ -393,13 +434,12 @@ class o3doctree(object):
 					# accum = np.where(accum < 100, 100, accum)
 					point_cloud = self.dm.gen_whole_pt_cloud()
 					# point_cloud = point_cloud[:sum(accum)]
-					self.pcd = o3d.geometry.PointCloud()
-					self.pcd.points = o3d.utility.Vector3dVector(point_cloud)
-					self.pcd.colors = o3d.utility.Vector3dVector(np.random.uniform(0, 1, size=point_cloud.shape))
-					o3d.io.write_point_cloud(pcd_file, self.pcd)
+					pcd = o3d.geometry.PointCloud()
+					pcd.points = o3d.utility.Vector3dVector(point_cloud)
+					pcd.colors = o3d.utility.Vector3dVector(np.random.uniform(0, 1, size=point_cloud.shape))
+					o3d.io.write_point_cloud(pcd_file, pcd)
 					if self.visualize_pcd:
-						self.show_pcd(self.verbose)
-					# o3d.visualization.draw_geometries([self.pcd])
+						self.show_pcd(pcd,self.verbose)
 					# exit(0)
 			
 				if self.verbose:
@@ -409,12 +449,12 @@ class o3doctree(object):
 				octverb = 'Making'
 				octstart = time.process_time()
 
-				self.octree = o3d.geometry.Octree(max_depth=self.max_depth)
+				octree = o3d.geometry.Octree(max_depth=self.max_depth)
 				if self.visualize_octree:
-					self.show_octree(self.verbose)
-				self.octree.convert_from_point_cloud(self.pcd, size_expand=0.01)
+					self.show_octree(octree,self.verbose)
+				octree.convert_from_point_cloud(pcd, size_expand=0.01)
 
-				o3d.io.write_octree(oct_file, self.octree)
+				o3d.io.write_octree(oct_file, octree)
 
 
 			if self.verbose:
@@ -430,7 +470,7 @@ class o3doctree(object):
 			if self.verbose:
 				end = time.process_time()
 				print("Traversing octree took {:.2f}s".format(end-start))
-			self.octree.traverse(self.f_traverse)
+			octree.traverse(self.f_traverse)
 
 			self.s_data = np.zeros((self.max_depth))
 			self.Ns_data = np.zeros((self.max_depth))
@@ -440,15 +480,10 @@ class o3doctree(object):
 			save_data = np.zeros((self.max_depth,2))
 			save_data[:,0] = self.s_data
 			save_data[:,1] = self.Ns_data
-			np.savetxt(fractdim_data_file,save_data, delimiter=',',header=str(self.octree.size))
-			self.octree_size = self.octree.size
-		else:
-			with open(fractdim_data_file,'r') as f:
-				header = f.readline()
-			self.octree_size = float(header.strip('\n').strip('# '))
-			d = np.loadtxt(fractdim_data_file, delimiter=',')
-			self.s_data = d[:,0]
-			self.Ns_data = d[:,1]
+			np.savetxt(fractdim_data_file,save_data, delimiter=',',header=str(octree.size))
+			self.octree_size = octree.size
+		# else:
+			
 
 
 	# def add_menger_points(self,data):
@@ -474,12 +509,12 @@ class o3doctree(object):
 		pcd.points = o3d.utility.Vector3dVector(menger_points)
 		pcd.colors = o3d.utility.Vector3dVector(np.random.uniform(0, 1, size=menger_points.shape))
 
-		self.octree = o3d.geometry.Octree(max_depth=max_depth)
-		self.octree.convert_from_point_cloud(pcd, size_expand=0.01)
-		# o3d.visualization.draw_geometries([self.octree])
+		octree = o3d.geometry.Octree(max_depth=max_depth)
+		octree.convert_from_point_cloud(pcd, size_expand=0.01)
+		# o3d.visualization.draw_geometries([octree])
 		# exit(0)
 
-		self.octree.traverse(self.f_traverse)
+		octree.traverse(self.f_traverse)
 		for i in range(max_depth):
 			self.s_data[i] = (2**-(i+1))
 			self.Ns_data[i] = self.tree_info[i]
@@ -489,24 +524,23 @@ class o3doctree(object):
 		print(np.log(self.Ns_data)/np.log(1/self.s_data))
 
 
-	def show_octree(self,verbose):
+	def show_octree(self,octree,verbose):
 		if verbose:
 			start = time.process_time()
-		o3d.visualization.draw_geometries([self.octree])
+		o3d.visualization.draw_geometries([octree])
 		if verbose:
 			end = time.process_time()
 			print("Visualizing octree took {}".format(end-start))
 
-	def show_pcd(self,verbose):
+	def show_pcd(self,pcd,verbose):
 		if verbose:
 			start = time.process_time()
-		o3d.visualization.draw_geometries([self.pcd])
+		o3d.visualization.draw_geometries([pcd])
 		if verbose:
 			end = time.process_time()
 			print("Visualizing pcd took {}".format(end-start))	
 
 	def bestfit(self,x_data,y_data,length,min_rang=None,max_range=None):
-
 		acceptable_indicies = []
 		if min_rang is not None and max_range is not None:
 			for i in range(len(x_data)):
@@ -555,7 +589,6 @@ class o3doctree(object):
 		
 		# x_IO = np.zeros((self.max_depth))
 		
-
 		fract_dim_fit = self.bestfit(self.s_data,self.Ns_data,self.bestfitlen)
 		# fract_dim_fit = self.bestfit(self.s_data,self.Ns_data,self.bestfitlen,1,self.dm.radius/OIsize)
 

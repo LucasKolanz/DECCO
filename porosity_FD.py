@@ -82,10 +82,12 @@ def porosity_measure2(data_folder):
 	return porosity
 
 if __name__ == '__main__':
-	data_prefolder = '/home/kolanzl/Desktop/SpaceLab/jobs/tempVariance_attempt'
+	data_prefolder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab/jobs/tempVariance_attempt'
 
+	# temps = [10]
 	temps = [3,10,30,100,300,1000]
-	attempts = [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]
+	# attempts = [19]
+	attempts = [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]
 	std_dev = []
 	std_err = []
 	# attempts = [attempts[3]]
@@ -149,9 +151,4 @@ if __name__ == '__main__':
 	fig.legend()
 	plt.savefig("FractDimandPorosity.png")
 	plt.show()
-	#still need to do lots of other porosity measures
 
-
-	'''
-	Add standard deviation and standard error (std error / sqrt(N))
-	'''
