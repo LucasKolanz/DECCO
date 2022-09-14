@@ -4,7 +4,8 @@ import multiprocessing as mp
 import subprocess
 
 def run_job(location):
-	cmd = ["python3", "{}run_sim.py".format(location), location, '7']
+	cmd = ["python3", "{}run_sim.py".format(location), location, '5']
+	# print(cmd)
 	# exit(0)
 	subprocess.run(cmd)
 
@@ -14,7 +15,7 @@ if __name__ == '__main__':
 	job_set_name = "test"
 	folder_name_scheme = "T_"
 
-	attempts = [18] 
+	attempts = [0] 
 	attempts_at_once = 1
 	for i in range(0,len(attempts),attempts_at_once):
 		folders = []

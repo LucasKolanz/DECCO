@@ -1,7 +1,9 @@
 #pragma once
 #include "dust_const_init.hpp"
+#include "graph_group.hpp"
 // #include "dust_const.hpp"
-#include "json/single_include/nlohmann/json.hpp"
+#include "../../json/single_include/nlohmann/json.hpp"
+// #include "json/single_include/nlohmann/json.hpp"
 #include "vec3.hpp"
 #include "linalg.hpp"
 #include "Utils.hpp"
@@ -58,6 +60,9 @@ public:
     double* m = nullptr;    ///< Mass
     double* moi = nullptr;  ///< Moment of inertia
 
+    graph g;
+
+    // graph *g = &gr;
 
     // double get_soc()
     // {
@@ -165,6 +170,7 @@ public:
     explicit Ball_group(const int nBalls)
     {
         allocate_group(nBalls);
+
         for (size_t i = 0; i < nBalls; i++) {
             R[i] = 1;
             m[i] = 1;
@@ -872,6 +878,12 @@ public:
         calc_helpfuls();
     }
 
+    void print_graph(std::string file)
+    {
+        std::cout<<"File: "<<file<<std::endl;
+        g.printGraph(file);
+    }
+
 private:
     // String buffers to hold data in memory until worth writing to file:
     std::stringstream ballBuffer;
@@ -896,6 +908,9 @@ private:
             R = new double[num_particles];
             m = new double[num_particles];
             moi = new double[num_particles];
+
+            g.init(num_particles);
+            std::cout<<"g is set with num_particles: "<<num_particles<<std::endl;
         } catch (const std::exception& e) {
             std::cerr << "Failed trying to allocate group. " << e.what() << '\n';
         }
@@ -916,6 +931,7 @@ private:
         delete[] R;
         delete[] m;
         delete[] moi;
+        // delete[] g;
     }
 
 
@@ -950,7 +966,7 @@ private:
                     } else {
                         k = kin;
                     }
-
+                    g.addEdge(A,B);
                     // Cohesion (in contact) h must always be h_min:
                     // constexpr double h = h_min;
                     const double h = h_min;

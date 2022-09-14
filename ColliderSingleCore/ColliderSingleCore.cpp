@@ -73,8 +73,10 @@ main(const int argc, char const* argv[])
         num_balls = 100;
     }
     Ball_group O = make_group(argv[1],restart);
+    // Ball_group O(true, v_custom, argv[1]);
+    std::string file(argv[1]);
+    file += "graph.out";
     
-
     // std::cout<<"Total number of monomers accreted: "<<num_balls<<std::endl;
 
     // O.zeroAngVel();
@@ -95,6 +97,8 @@ main(const int argc, char const* argv[])
         O = O.add_projectile();
         O.sim_init_write(ori_output_prefix);
         sim_looper(O);
+        std::cout<<"CALLING PRINT_GRAPH"<<std::endl;
+        O.g.printGraph();
         simTimeElapsed = 0;
     }
 }  // end main
