@@ -2,26 +2,136 @@
 #include <vector>
 #include <fstream>
 #include <queue>
-#include "vec3.hpp"
-
+// #include "vec3.hpp"
 
 class graph
 {
 public:
+	bool initialized = false;
 	int numVerts;
-	std::vector<int>* adj = nullptr;
+	std::vector<int> *adj = nullptr;
+	int *groups = nullptr;
+
+	// bool *visited = nullptr;
+	// std::
+
+	void resetGroups()
+	{
+		for (int i = 0; i < numVerts; i++)
+		{
+			groups[i] = -1;
+		}
+	}
 
 	graph() = default;
 
-	// graph(int num_balls)
-	void init(int num_balls)
+	graph(int num_balls)
 	{
-		adj = new std::vector<int>[num_balls];
 		numVerts = num_balls;
-		std::cout<<"numVerts in init: "<<numVerts<<std::endl;
-		std::cout<<"num_balls in init: "<<num_balls<<std::endl;
+		adj = new std::vector<int>[num_balls];
+
+		//To see what group a ball belongs to
+		//index into groups with ball index and 
+		//the value is what group that ball belongs to.
+		//Groups also acts as a visited list.
+		//If group[index] = -1 then it hasnt been visited
+		groups = new int[num_balls];
+		findGroups();
+		initialized = true;
 		return;
 	}
+
+	~graph() 
+	{
+		delete[] adj;
+		delete[] groups;
+ 	}
+
+	//Copy constructor
+	graph(const graph& copyme)
+	{
+		numVerts = copyme.numVerts;
+		adj = copyme.adj;
+		groups = copyme.groups;
+		initialized = copyme.initialized;
+	}
+
+	//Assignment operator
+	graph& operator=(const graph& src)
+	{
+		if (this != &src)
+		{
+			groups = src.groups;
+			adj = src.adj;
+			numVerts = src.numVerts;
+			initialized = src.initialized;
+		}
+		return *this;
+	}
+
+	// int sumVisited()
+	// {
+	// 	int accum = 0;
+	// 	for (int i = 0; i < numVerts; i++)
+	// 	{
+	// 		accum += visited[i];
+	// 	}
+	// 	return accum;
+	// }
+
+	int notVisited()
+	{
+		for (int i = 0; i < numVerts; i++)
+		{
+			if (groups[i] == -1)
+			{
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	void findGroups(int start=0)
+	{
+  		resetGroups();
+		int curr = start;
+		int group_id = 0;
+  		do {
+  			getWalk(curr, group_id);
+  			group_id++;
+  			curr = notVisited();
+  			// printGroups();
+  		}while(curr != -1);
+  		return;
+	}
+
+	void getWalk(int start,int group_id)
+	{
+  		std::queue<int> q;
+		q.push(start); 
+  		while (!q.empty())
+  		{
+  			int front = q.front();
+  			q.pop();
+  			if (adj[front].size() == 0)
+  			{
+  				groups[front] = group_id;
+  			}
+  			else
+  			{
+	  			for (auto it = begin(adj[front]); it != end(adj[front]); ++it) 
+				{	
+
+					if (groups[*it] == -1) 
+					{
+						q.push(*it);
+						groups[*it] = group_id;
+					}
+				}
+			}
+		}
+	}
+
 
 	void addEdge(int n1, int n2)
 	{
@@ -50,46 +160,64 @@ public:
 		}
 		return;
 	}
+	
+	void printGroups()
+	{
+		std::cout<<"================Groups================"<<std::endl;
+		for (int i = 0; i < numVerts; i++)
+		{
+			std::cout<<"(ball; group): "<<i<<"; "<<groups[i]<<std::endl;
+		}
+		std::cout<<"======================================"<<std::endl;
+		return;
+	}
 
 	void printGraph() 
 	{
-		std::cout<<"numVerts in gg: "<<numVerts<<std::endl;
-    	for (int d = 0; d < numVerts; ++d) 
-    	{
-    		std::cout << "\n Vertex "<< d << ":";
-    		for (auto x : adj[d])
-      		{
-      			std::cout << "-> " << x;
-  			}
-    		std::cout<<std::endl;
-  		}
+		if (initialized)
+		{
+	    	for (int d = 0; d < numVerts; ++d) 
+	    	{
+	    		std::cout << "\n Vertex "<< d << ":";
+	    		for (auto x : adj[d])
+	      		{
+	      			std::cout << "-> " << x;
+	  			}
+	    		std::cout<<std::endl;
+	  		}
+	  	}
+	  	else
+	  	{
+	  		std::cout<<"ERROR: graph not initalized"<<std::endl;
+	  	}
   		return;
   	}
 
   	void printGraph(std::string file) 
 	{
-  		std::cout<<"numVerts in printGraph: "<<numVerts<<std::endl;
-		std::string to_file = "";
-    	for (int d = 0; d < numVerts; ++d) 
-    	{
-      		// std::cout<<"d: "<<d<<std::endl;
-      		// std::cout<<"what is this: "<< "Vertex " + std::to_string(d) + ":"<<std::endl;
-    		to_file += "\n Vertex " + std::to_string(d) + ":";
-    		for (auto x : adj[d])
-      		{
-      			to_file += "-> " + std::to_string(x);
-  			}
-    		to_file += '\n';
-  		}
-  		// std::cout<<"HERERERERERER0"<<std::endl;
-		std::ofstream write;
-  		// std::cout<<"HERERERERERER1"<<std::endl;
-		write.open(file,std::ofstream::out);
-  		// std::cout<<"HERERERERERER2"<<std::endl;
-		write << to_file;
-  		// std::cout<<"HERERERERERER3"<<std::endl;
-		write.close();
-  		// std::cout<<"HERERERERERER4"<<std::endl;
+		if (initialized)
+		{
+			std::string to_file = "";
+	    	for (int d = 0; d < numVerts; ++d) 
+	    	{
+	      		// std::cout<<"d: "<<d<<std::endl;
+	      		// std::cout<<"what is this: "<< "Vertex " + std::to_string(d) + ":"<<std::endl;
+	    		to_file += "\n Vertex " + std::to_string(d) + ":";
+	    		for (auto x : adj[d])
+	      		{
+	      			to_file += "-> " + std::to_string(x);
+	  			}
+	    		to_file += '\n';
+	  		}
+			std::ofstream write;
+			write.open(file,std::ofstream::out);
+			write << to_file;
+			write.close();
+		}
+	  	else
+	  	{
+	  		std::cout<<"ERROR: graph not initalized"<<std::endl;
+	  	}
   		return;
   	}
 
@@ -98,10 +226,13 @@ public:
   	{
   		for (auto it = begin(vec); it != end(vec); ++it) 
 		{
-			std::cout<<*it<<std::endl;
+			std::cout<<*it<<", ";
 		}	
+		std::cout<<std::endl;
 		return;
   	}
+
+  	// void mergeGraphs(const graph src)
 
   	std::vector<int> nNearestNeighbors(int start, int numNeighbor)
   	{
@@ -109,11 +240,8 @@ public:
   		std::queue<int> q;
   		int n = 0;
   		q.push(start);
-  		int safety_net = 100000;
-  		int i = 0;
   		while (!q.empty())
   		{
-  			i++;
   			int front = q.front();
   			q.pop();
   			for (auto it = begin(adj[front]); it != end(adj[front]); ++it) 
@@ -131,7 +259,6 @@ public:
 						{
 							return NN;
 						}
-						// }
 					}
 				}
 			}
@@ -139,43 +266,32 @@ public:
   		return NN;
   	}
 
-
-	// int getNodeIndex(node n);
-	// {
-	// 	for (auto it = begin (nodes); it != end (nodes); ++it) 
-	// 	{
-	// 		if (it -> ball_index == n.ball_index)
-	// 		{
-	// 			return node
-	// 		}
-	// 	}
-	// 	return -1
-	// }
-	~graph() { delete [] adj; }
 };
+
+
+
+
+
+
 
 // class graph_group
 // {
 // public:
-// 	std::vector<graph> graphs;
-// 	int num_graphs = 0;
+
+// 	int groups = -1;
+// 	graph *g = nullptr;
+
 // 	graph_group() = default;
-// 	~graph_group() {};
-	
-// 	void addGraph(graph g)
+
+// 	void init(int *adj_matrix, int num_particles)
 // 	{
-// 		graphs.push_back(g)
-// 		num_graphs++;
-// 		// for (auto it = begin (graphs); it != end (graphs); ++it) 
-// 		// {
-//   //   		it->doSomething ();
-// 		// }
-// 		return;
+
+// 		// g = make_graphs()
 // 	}
 
+// 	~graph_group()
+// 	{
+// 		delete[] g;
+// 	}
 	
-
-	
-// 	// mergeGroups(graph_group gg);
-// private:	
 // };

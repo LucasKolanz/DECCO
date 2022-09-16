@@ -2,7 +2,7 @@
 #include "dust_const_init.hpp"
 #include "graph_group.hpp"
 // #include "dust_const.hpp"
-#include "../../json/single_include/nlohmann/json.hpp"
+#include "json/single_include/nlohmann/json.hpp"
 // #include "json/single_include/nlohmann/json.hpp"
 #include "vec3.hpp"
 #include "linalg.hpp"
@@ -27,6 +27,7 @@ class Ball_group
 {
 public:
     int num_particles = 0;
+    int num_groups = -1;
     int num_particles_added = 0;
 
     // Useful values:
@@ -60,9 +61,8 @@ public:
     double* m = nullptr;    ///< Mass
     double* moi = nullptr;  ///< Moment of inertia
 
-    graph g;
+    graph *g = nullptr;
 
-    // graph *g = &gr;
 
     // double get_soc()
     // {
@@ -262,6 +262,8 @@ public:
         m = rhs.m;      ///< Mass
         moi = rhs.moi;  ///< Moment of inertia
 
+        g = rhs.g; ///graph class
+
         return *this;
     }
 
@@ -298,8 +300,9 @@ public:
         R = rhs.R;      ///< Radius
         m = rhs.m;      ///< Mass
         moi = rhs.moi;  ///< Moment of inertia
-    }
 
+        g = rhs.g; ///graph class
+    }
 
     void calc_helpfuls()
     {
@@ -729,6 +732,7 @@ public:
 
         new_group.merge_ball_group(*this);
         new_group.merge_ball_group(projectile);
+        // new_group.init_graph();
 
         // new_group.calibrate_dt(0, 1);
         // new_group.init_conditions();
@@ -778,6 +782,7 @@ public:
     {
         // Random particle to origin
         Ball_group projectile(1);
+
         // Particle random position at twice radius of target:
         // We want the farthest from origin since we are offsetting form origin. Not com.
         const auto cluster_radius = get_radius(vec3(0, 0, 0));
@@ -849,9 +854,11 @@ public:
         new_group.calibrate_dt(0, v_custom);
         new_group.calibrate_dt(0, 1);
         new_group.init_conditions();
+        // new_group.g.printGraph();
 
         new_group.to_origin();
 
+        // new_group.g.printGraph();
         return new_group;
     }
 
@@ -873,15 +880,24 @@ public:
         std::memcpy(&m[num_particles_added], src.m, sizeof(src.m[0]) * src.num_particles);
         std::memcpy(&moi[num_particles_added], src.moi, sizeof(src.moi[0]) * src.num_particles);
 
+        //TODO 
+        // g = new graph(num_particles_added);
+
         // Keep track of now loaded ball set to start next set after it:
         num_particles_added += src.num_particles;
         calc_helpfuls();
     }
 
-    void print_graph(std::string file)
+    void printGraph(std::string file)
     {
         std::cout<<"File: "<<file<<std::endl;
-        g.printGraph(file);
+        g -> printGraph(file);
+    }
+
+    void printGraph()
+    {
+        // std::cout<<"File: "<<file<<std::endl;
+        g -> printGraph();
     }
 
 private:
@@ -889,6 +905,25 @@ private:
     std::stringstream ballBuffer;
     std::stringstream energyBuffer;
 
+    // void init_graph()
+    // {
+    //     for (int A = 1; A < num_particles; A++) 
+    //     {
+    //         for (int B = 0; B < A; B++) 
+    //         {
+    //             const double sumRaRb = R[A] + R[B];
+    //             const double dist = (pos[A] - pos[B]).norm();
+    //             const double overlap = sumRaRb - dist;
+
+    //             // Check for collision between Ball and otherBall.
+    //             // Collision exists
+    //             if (overlap >= 0) 
+    //             {
+    //                 g.addEdge(A,B);  
+    //             } 
+    //         }
+    //     }
+    // }
 
     /// Allocate balls
     void allocate_group(const int nBalls)
@@ -898,6 +933,8 @@ private:
         try {
             distances = new double[(num_particles * num_particles / 2) - (num_particles / 2)];
 
+            g = new graph(num_particles);
+            
             pos = new vec3[num_particles];
             vel = new vec3[num_particles];
             velh = new vec3[num_particles];
@@ -909,8 +946,8 @@ private:
             m = new double[num_particles];
             moi = new double[num_particles];
 
-            g.init(num_particles);
-            std::cout<<"g is set with num_particles: "<<num_particles<<std::endl;
+
+            // init(num_particles);
         } catch (const std::exception& e) {
             std::cerr << "Failed trying to allocate group. " << e.what() << '\n';
         }
@@ -931,7 +968,9 @@ private:
         delete[] R;
         delete[] m;
         delete[] moi;
-        // delete[] g;
+
+        delete g;
+
     }
 
 
@@ -959,6 +998,7 @@ private:
 
                 // Check for collision between Ball and otherBall.
                 if (overlap > 0) {
+                    g -> addEdge(A,B);
                     double k;
                     // Apply coefficient of restitution to balls leaving collision.
                     if (dist >= oldDist) {
@@ -966,7 +1006,6 @@ private:
                     } else {
                         k = kin;
                     }
-                    g.addEdge(A,B);
                     // Cohesion (in contact) h must always be h_min:
                     // constexpr double h = h_min;
                     const double h = h_min;
@@ -1237,6 +1276,7 @@ private:
                       << '\n';
             exit(EXIT_FAILURE);
         }
+        return "-1";
     }
 
 

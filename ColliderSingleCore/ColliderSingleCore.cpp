@@ -76,6 +76,8 @@ main(const int argc, char const* argv[])
     // Ball_group O(true, v_custom, argv[1]);
     std::string file(argv[1]);
     file += "graph.out";
+    // std::cout<<"graph init status: "<<O.g -> initialized<<std::endl;
+    // O.g -> printGraph(file);
     
     // std::cout<<"Total number of monomers accreted: "<<num_balls<<std::endl;
 
@@ -89,6 +91,7 @@ main(const int argc, char const* argv[])
 
     // Add projectile: For dust formation BPCA
     std::string ori_output_prefix = output_prefix;
+    // O.printGraph(file);
     for (int i = *restart; i < num_balls; i++) {
     // for (int i = 0; i < 250; i++) {
 
@@ -97,8 +100,9 @@ main(const int argc, char const* argv[])
         O = O.add_projectile();
         O.sim_init_write(ori_output_prefix);
         sim_looper(O);
-        std::cout<<"CALLING PRINT_GRAPH"<<std::endl;
-        O.g.printGraph();
+        O.printGraph();
+        // std::cout<<"CALLING PRINT_GRAPH with numVerts: "<<O.g.numVerts<<std::endl;
+        // O.g.printGraph();
         simTimeElapsed = 0;
     }
 }  // end main
@@ -249,11 +253,17 @@ sim_one_step(const bool write_step, Ball_group O)
         O.aacc[Ball] = {0, 0, 0};
     }
 
+    int A,B;
+    std::vector<int> nearest_neighbors; 
     /// SECOND PASS - Check for collisions, apply forces and torques:
-    for (int A = 1; A < O.num_particles; A++)  // cuda
+    for (A = 1; A < O.num_particles; A++)  // cuda
     {
+        nearest_neighbors = O.g -> nNearestNeighbors(A,30);
         /// DONT DO ANYTHING HERE. A STARTS AT 1.
-        for (int B = 0; B < A; B++) {
+        // for (int B = 0; B < A; B++) 
+        for (auto it = begin(nearest_neighbors); it != end(nearest_neighbors); ++it)
+        {
+            B = *it;
             const double sumRaRb = O.R[A] + O.R[B];
             const vec3 rVecab = O.pos[B] - O.pos[A];  // Vector from a to b.
             const vec3 rVecba = -rVecab;
