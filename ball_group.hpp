@@ -977,6 +977,7 @@ private:
     // Initialize accelerations and energy calculations:
     void init_conditions()
     {
+        std::cout<<"INIT COND CALLED"<<std::endl;
         // SECOND PASS - Check for collisions, apply forces and torques:
         for (int A = 1; A < num_particles; A++)  // cuda
         {

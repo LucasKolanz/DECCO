@@ -174,6 +174,7 @@ public:
 
 	void printGraph() 
 	{
+		std::cout<<"================Graph================"<<std::endl;
 		if (initialized)
 		{
 	    	for (int d = 0; d < numVerts; ++d) 
@@ -190,6 +191,7 @@ public:
 	  	{
 	  		std::cout<<"ERROR: graph not initalized"<<std::endl;
 	  	}
+		std::cout<<"====================================="<<std::endl;
   		return;
   	}
 
@@ -224,11 +226,14 @@ public:
 
   	void printVector(std::vector<int> vec)
   	{
+		std::cout<<"================Vector================"<<std::endl;
+
   		for (auto it = begin(vec); it != end(vec); ++it) 
 		{
 			std::cout<<*it<<", ";
 		}	
 		std::cout<<std::endl;
+		std::cout<<"======================================"<<std::endl;
 		return;
   	}
 
@@ -251,8 +256,7 @@ public:
 					if (std::find(NN.begin(), NN.end(), *it) == NN.end()) 
 					{
 						q.push(*it);
-						// if (std::find(NN.begin(), NN.end(), start) == NN.end()) 
-						// {
+
 						NN.push_back(*it);
 						n++;
 						if (n >= numNeighbor)

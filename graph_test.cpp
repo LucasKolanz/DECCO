@@ -65,7 +65,27 @@ void test_NN()
 	g.addEdge(5,8);
 	g.addEdge(5,9);
 
-	g.printVector(g.nNearestNeighbors(3,20));
+	g.printVector(g.nNearestNeighbors(3,4));
+
+}
+
+void test_sparse_NN()
+{
+	graph g(10);
+
+	// g.addEdge(0,1);
+	// g.addEdge(1,2);
+	// g.addEdge(1,3);
+	// g.addEdge(1,4);
+	// g.addEdge(1,9);
+	// g.addEdge(3,4);
+	// g.addEdge(3,5);
+	// g.addEdge(3,6);
+	// g.addEdge(3,7);
+	// g.addEdge(5,8);
+	// g.addEdge(5,9);
+
+	g.printVector(g.nNearestNeighbors(3,4));
 
 }
 
@@ -148,7 +168,8 @@ void test_wrapper_methods()
 
 int main(int argc, char const *argv[])
 {
-	test_wrapper_methods();
+	// test_wrapper_methods();
+	test_sparse_NN();
 	// test_NN();
 
 	return 0;

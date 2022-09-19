@@ -256,9 +256,23 @@ sim_one_step(const bool write_step, Ball_group O)
     int A,B;
     std::vector<int> nearest_neighbors; 
     /// SECOND PASS - Check for collisions, apply forces and torques:
-    for (A = 1; A < O.num_particles; A++)  // cuda
+    // for (A = 1; A < O.num_particles; A++)  // cuda
+    for (A = 0; A < O.num_particles; A++)  // cuda
     {
+        // if (O.num_particles > 5)
+        // {
         nearest_neighbors = O.g -> nNearestNeighbors(A,30);
+
+        if (nearest_neighbors.size() == 0)
+        {   
+            std::vector<int> nn;
+            std::iota (std::begin(nn),std::end(nn),0);
+            nearest_neighbors = nn;
+        }
+        // O.g -> printVector(nearest_neighbors);
+            // exit(0);
+        // }
+
         /// DONT DO ANYTHING HERE. A STARTS AT 1.
         // for (int B = 0; B < A; B++) 
         for (auto it = begin(nearest_neighbors); it != end(nearest_neighbors); ++it)
