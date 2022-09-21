@@ -2,7 +2,8 @@
 #include <vector>
 #include <fstream>
 #include <queue>
-// #include "vec3.hpp"
+#include <numeric>
+#include "vec3.hpp"
 
 class graph
 {
@@ -241,31 +242,54 @@ public:
 
   	std::vector<int> nNearestNeighbors(int start, int numNeighbor)
   	{
-  		std::vector<int> NN;
-  		std::queue<int> q;
-  		int n = 0;
-  		q.push(start);
-  		while (!q.empty())
-  		{
-  			int front = q.front();
-  			q.pop();
-  			for (auto it = begin(adj[front]); it != end(adj[front]); ++it) 
-			{	
-				if (*it != front and *it != start)
-				{
-					if (std::find(NN.begin(), NN.end(), *it) == NN.end()) 
-					{
-						q.push(*it);
 
-						NN.push_back(*it);
-						n++;
-						if (n >= numNeighbor)
-						{
-							return NN;
-						}
-					}
-				}
-			}
+  		//If there are no balls touching the start ball
+  		//TODO: return group information for non-contact forces
+  		//At the moment: return all balls besides start ball 
+  		std::vector<int> NN;
+  		if (adj[start].size() == 0)
+  		{
+  			NN.resize(numVerts);
+  			std::iota (std::begin(NN),std::end(NN),0);
+  			NN.erase(NN.begin() + start);
+  			// std::cout<<start<<": "<<numVerts<<std::endl;
+  			// printVector(NN);
+  			// exit(0);
+  		}
+  		else
+  		{
+  			for (auto it = begin(adj[start]); it != end(adj[start]); ++it)
+  			{
+  				if (it != begin(adj[start]))
+  				{
+  					NN.push_back(*it);
+  				}
+  			}
+  		// 	int n = 0;
+	  	// 	std::queue<int> q;
+	  	// 	q.push(start);
+	  	// 	while (!q.empty())
+	  	// 	{
+	  	// 		int front = q.front();
+	  	// 		q.pop();
+	  	// 		for (auto it = begin(adj[front]); it != end(adj[front]); ++it) 
+				// {	
+				// 	if (*it != front and *it != start)
+				// 	{
+				// 		if (std::find(NN.begin(), NN.end(), *it) == NN.end()) 
+				// 		{
+				// 			q.push(*it);
+
+				// 			NN.push_back(*it);
+				// 			n++;
+				// 			if (n >= numNeighbor)
+				// 			{
+				// 				return NN;
+				// 			}
+				// 		}
+				// 	}
+				// }
+	  		// }
   		}
   		return NN;
   	}
