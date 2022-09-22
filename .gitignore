@@ -17,6 +17,8 @@ RenderOption*
 /*errors.txt
 /*output.txt
 
+enclosingSphere.txt
+
 **/*.png
 *.png
 **/*.pcd
