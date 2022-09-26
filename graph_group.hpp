@@ -5,46 +5,231 @@
 #include <numeric>
 #include "vec3.hpp"
 
+//Facilitates a SINGLE group of balls
+class group
+{
+public:
+	double init_rad = -0.1; //radius of spheres
+	int id = -1;
+	vec3 com = {-1,-1,-1};
+	int numBalls = -1;
+	std::vector<vec3> pos;
+	vec3 center = {-1,-1,-1};
+	double radius = -1.0;
+
+	group() = default;
+
+	group(double rad, int group_id, vec3 center_of_mass, 
+		int num_balls, std::vector<vec3> positions)
+	{
+		init_rad = rad;
+		id = group_id;
+		com = center_of_mass;
+		numBalls = num_balls;
+		// pos = new vec3[numBalls];
+		pos = positions;
+	}
+
+	// init(int *pos)
+	// {
+
+	// }
+
+	//This function uses Ritter Bounding Sphere
+	//Ritter, Jack. "An efficient bounding sphere." Graphics gems 1 (1990): 301-303.
+	void enclosingSphere()
+	{
+		double minx, miny, minz, maxx, maxy, maxz;
+		int minxi, minyi, minzi, maxxi, maxyi, maxzi;
+		minxi = -1;
+		minyi = -1;
+		minzi = -1;
+		maxxi = -1;
+		maxyi = -1;
+		maxzi = -1;
+
+		minx = 9999;
+		miny = 9999;
+		minz = 9999;
+		maxx = -1;
+		maxy = -1;
+		maxz = -1;
+
+		//find max and min x,y,z
+		for (int i = 0; i < numBalls; i++)
+		{
+			if (pos[i][0] < minx)
+			{
+				minx = pos[i][0];
+				minxi = i;
+			}
+			else if (pos[i][0] > maxx)
+			{
+				maxx = pos[i][0];
+				maxxi = i;
+			}
+
+			if (pos[i][1] < miny)
+			{
+				miny = pos[i][1];
+				minyi = i;
+			}
+			else if (pos[i][1] > maxy)
+			{
+				maxy = pos[i][1];
+				maxyi = i;
+			}
+
+			if (pos[i][2] < minz)
+			{
+				minz = pos[i][2];
+				minzi = i;
+			}
+			else if (pos[i][2] > maxz)
+			{
+				maxz = pos[i][2];
+				maxzi = i;
+			}
+		}
+
+		//which two of these six points are farthest apart?
+		int indices[6] = {maxxi, minxi, maxyi, minyi, maxzi, minzi};
+		double max_dist = -1;
+		double dist;
+		int max_indi = -1;
+		int max_indj = -1;
+
+		for (int i = 1; i < 6; i++)
+		{
+			for (int j = 0; j < i; j++)
+			{
+				dist = (pos[i]-pos[j]).norm();
+				if (dist > max_dist)
+				{
+					max_dist = dist;
+					max_indi = i;
+					max_indj = j;
+				}
+			}
+		}
+		//distance between farthest points is the initial diameter
+		radius = dist/2;
+		center = (pos[max_indi] + pos[max_indj]) / 2;
+		
+		//Check if points are inside circle and update circle if not
+		double old_to_p_sq,old_to_p,radius_sq,old_to_new;
+		vec3 dxyz;
+		radius_sq = radius*radius;
+		for (int i = 0; i < numBalls; i++)
+		{
+			dxyz = (pos[i] - center);
+			old_to_p_sq = dxyz.normsquared();
+			if (old_to_p_sq > radius_sq)
+			{
+				old_to_p = sqrt(old_to_p_sq);
+				radius = (radius + old_to_p)/2.0;
+				radius_sq = radius * radius;
+				old_to_new = old_to_p - radius;
+				center = (radius*center + old_to_new*pos[i])/old_to_p;
+			}
+		}
+		radius += init_rad;
+		return;
+
+	}
+	
+	~group()
+	{
+		delete[] pos;
+		delete[] com;
+		delete[] id;
+	}
+	
+};
+
 class graph
 {
 public:
 	bool initialized = false;
+	double radius = -1.0;
 	int numVerts;
+	int numGroups = -1;
 	std::vector<int> *adj = nullptr;
-	int *groups = nullptr;
 
+	int *group_ids = nullptr;
+	group *groups = nullptr;
+
+	vec3 *pos = nullptr;
 	// bool *visited = nullptr;
 	// std::
 
-	void resetGroups()
-	{
-		for (int i = 0; i < numVerts; i++)
-		{
-			groups[i] = -1;
-		}
-	}
+	
 
 	graph() = default;
 
-	graph(int num_balls)
+	graph(int num_balls, double rad,vec3 *positions)
 	{
 		numVerts = num_balls;
 		adj = new std::vector<int>[num_balls];
+		radius = rad;
+		pos = positions;
 
+		///TAKE THIS OUT FOR REAL THING
+		//This is just meant to make multiple groups out of a single group
+		srand(0);
+		for (int i = 0; i < 4; i++)
+		{
+			double x,y,z;
+			x = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+			y = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+			z = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+			vec3 offset = {x,y,z};
+			for (int j = 0; j < 25; j++)
+			{
+				pos[i*25+j] += offset;					
+			}
+		}
+		///
+
+		graph_init();
 		//To see what group a ball belongs to
-		//index into groups with ball index and 
+		//index into group_ids with ball index and 
 		//the value is what group that ball belongs to.
 		//Groups also acts as a visited list.
-		//If group[index] = -1 then it hasnt been visited
-		groups = new int[num_balls];
+		//If group_id[index] = -1 then it hasnt been visited
+		group_ids = new int[num_balls];
 		findGroups();
+
 		initialized = true;
 		return;
+	}
+
+	void graph_init()
+	{
+		for (int A = 1; A < numVerts; A++)
+		{
+			for (int B = 0; B < A; B++)
+			{
+				const double sumRaRb = 2*radius;
+                const double dist = (pos[A] - pos[B]).norm();
+                const double overlap = dist - sumRaRb;
+                //TODO: check overlap conditions
+                if (overlap <= 0)
+                {
+                	addEdge(A,B);
+                }
+                // else
+                // {
+                // 	std::cout<<"EDGE not ADDED: "<<overlap<<std::endl;
+                // }
+			}
+		}
 	}
 
 	~graph() 
 	{
 		delete[] adj;
+		delete[] group_ids;
 		delete[] groups;
  	}
 
@@ -53,7 +238,7 @@ public:
 	{
 		numVerts = copyme.numVerts;
 		adj = copyme.adj;
-		groups = copyme.groups;
+		group_ids = copyme.group_ids;
 		initialized = copyme.initialized;
 	}
 
@@ -62,7 +247,7 @@ public:
 	{
 		if (this != &src)
 		{
-			groups = src.groups;
+			group_ids = src.group_ids;
 			adj = src.adj;
 			numVerts = src.numVerts;
 			initialized = src.initialized;
@@ -84,7 +269,7 @@ public:
 	{
 		for (int i = 0; i < numVerts; i++)
 		{
-			if (groups[i] == -1)
+			if (group_ids[i] == -1)
 			{
 				return i;
 			}
@@ -99,11 +284,70 @@ public:
 		int group_id = 0;
   		do {
   			getWalk(curr, group_id);
+  		// std::cout<<group_id<<std::endl;
   			group_id++;
   			curr = notVisited();
   			// printGroups();
   		}while(curr != -1);
+  		std::cout<<group_id<<std::endl;
+  		numGroups = group_id;
+  		groups = new group[numGroups];
+
+  		int lengths[numGroups] = {0};
+  		// printArray(lengths,numGroups);
+  		for (int i = 0; i < numVerts; i++)
+  		{
+  			lengths[group_ids[i]]++;
+  		}
+
+  		// printArray(lengths,numGroups);
+  		// printArray(group_ids,numVerts);
+
+
+
+  		for (int groupnum = 0; groupnum < numGroups; groupnum++)
+  		{
+  			std::vector<vec3> group_pos[lengths[groupnum]];
+  			vec3 center_of_mass = {0,0,0}
+  			int gpid = 0;
+	  		for (int i = 0; i < numVerts; i++)
+	  		{
+	  			if (group_ids[i] == groupnum)
+	  			{
+	  				center_of_mass += pos[i]
+	  				group_pos[gpid] = pos[i];
+	  				gpid++;
+	  			}
+	  		}
+	  		groups[groupnum] = group(init_rad,groupnum,com);
+	  		group(double rad, int group_id, vec3 center_of_mass, 
+		int num_balls, std::vector<vec3> positions)
+	  	}
+
+
+  		exit(0);
+
+
+  		// groups = new group[numGroups];
+  		// for (int i = 0; i < numGroups; i++)
+  		// {
+  		// 	groups[i].init();
+  		// }
   		return;
+	}
+
+
+	
+
+	void resetGroups()
+	{
+		for (int i = 0; i < numVerts; i++)
+		{
+			group_ids[i] = -1;
+		}
+		numGroups = -1;
+		// delete[] groups;
+		return;
 	}
 
 	void getWalk(int start,int group_id)
@@ -116,17 +360,17 @@ public:
   			q.pop();
   			if (adj[front].size() == 0)
   			{
-  				groups[front] = group_id;
+  				group_ids[front] = group_id;
   			}
   			else
   			{
 	  			for (auto it = begin(adj[front]); it != end(adj[front]); ++it) 
 				{	
 
-					if (groups[*it] == -1) 
+					if (group_ids[*it] == -1) 
 					{
 						q.push(*it);
-						groups[*it] = group_id;
+						group_ids[*it] = group_id;
 					}
 				}
 			}
@@ -167,9 +411,22 @@ public:
 		std::cout<<"================Groups================"<<std::endl;
 		for (int i = 0; i < numVerts; i++)
 		{
-			std::cout<<"(ball; group): "<<i<<"; "<<groups[i]<<std::endl;
+			std::cout<<"(ball; group): "<<i<<"; "<<group_ids[i]<<std::endl;
 		}
 		std::cout<<"======================================"<<std::endl;
+		return;
+	}
+
+	template <typename T>
+	void printArray(T arr[], int size)
+	{
+		std::cout<<"================Array================"<<std::endl;
+		for (int i = 0; i < size; i++)
+		{
+			std::cout<<arr[i]<<", ";
+		}
+		std::cout<<std::endl;
+		std::cout<<"====================================="<<std::endl;
 		return;
 	}
 
@@ -297,29 +554,3 @@ public:
 };
 
 
-
-
-
-
-
-// class graph_group
-// {
-// public:
-
-// 	int groups = -1;
-// 	graph *g = nullptr;
-
-// 	graph_group() = default;
-
-// 	void init(int *adj_matrix, int num_particles)
-// 	{
-
-// 		// g = make_graphs()
-// 	}
-
-// 	~graph_group()
-// 	{
-// 		delete[] g;
-// 	}
-	
-// };
