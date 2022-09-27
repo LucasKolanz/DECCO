@@ -9,11 +9,12 @@
 class group
 {
 public:
-	double init_rad = -0.1; //radius of spheres
+	double ball_rad = -0.1; //radius of spheres
+	double ball_mass = -0.1
 	int id = -1;
 	vec3 com = {-1,-1,-1};
 	int numBalls = -1;
-	std::vector<vec3> pos;
+	vec3 *pos = nullptr;
 	vec3 center = {-1,-1,-1};
 	double radius = -1.0;
 	std::vector<int> ball_indices;
@@ -22,15 +23,17 @@ public:
 
 
 
-	group(double rad, int group_id, vec3 center_of_mass, 
-		int num_balls, std::vector<vec3> positions)
+	group(double rad, double mass, int group_id, vec3 center_of_mass, 
+		int num_balls, std::vector<vec3> ball_inds, vec3* positions)
 	{
-		init_rad = rad;
+		ball_rad = rad;
+		ball_mass = mass;
 		id = group_id;
 		com = center_of_mass;
 		numBalls = num_balls;
 		// pos = new vec3[numBalls];
 		pos = positions;
+		ball_indices = ball_inds;
 		enclosingSphere();
 	}
 
@@ -50,7 +53,8 @@ class graph
 public:
 	bool initialized = false;
 	double rad = -1.0;
-	int numVerts;
+	double mass = -1.0;
+	int numVerts = -1;
 	int numGroups = -1;
 	std::vector<int> *adj = nullptr;
 
@@ -202,24 +206,24 @@ public:
   		// printArray(group_ids,numVerts);
 
 
-  		int gpid;
-  		for (int groupnum = 0; groupnum < numGroups; groupnum++)
-  		{
-  			// std::vector<vec3> group_pos[lengths[groupnum]];
-  			std::vector<vec3> group_pos;
-  			vec3 center_of_mass = {0,0,0};
-  			gpid = 0;
-	  		for (int i = 0; i < numVerts; i++)
-	  		{
-	  			if (group_ids[i] == groupnum)
-	  			{
-	  				center_of_mass += pos[i];
-	  				group_pos.push_back(pos[i]);
-	  				gpid++;
-	  			}
-	  		}
-	  		groups[groupnum] = group(rad,groupnum,center_of_mass, numVerts,group_pos);
-	  	}
+  		// int gpid;
+  		// for (int groupnum = 0; groupnum < numGroups; groupnum++)
+  		// {
+  		// 	// std::vector<vec3> group_pos[lengths[groupnum]];
+  		// 	std::vector<vec3> group_pos;
+  		// 	vec3 center_of_mass = {0,0,0};
+  		// 	gpid = 0;
+	  	// 	for (int i = 0; i < numVerts; i++)
+	  	// 	{
+	  	// 		if (group_ids[i] == groupnum)
+	  	// 		{
+	  	// 			center_of_mass += pos[i];
+	  	// 			group_pos.push_back(pos[i]);
+	  	// 			gpid++;
+	  	// 		}
+	  	// 	}
+	  	// 	groups[groupnum] = group(rad,groupnum,center_of_mass, numVerts,group_pos);
+	  	// }
 
   		return;
 	}
@@ -242,6 +246,7 @@ public:
 	{
 		std::vector<vec3> positions;
 		vec3 center_of_mass = {0,0,0};
+		double tot_mass = 0.0;
 		int group_size = 0;
   		std::queue<int> q;
 		q.push(start); 
@@ -251,6 +256,8 @@ public:
   			q.pop();
   			if (adj[front].size() == 0)
   			{
+  				///Is this ever actually happening??
+  				std::cout<<"IT HAPPENED"<<std::endl;
   				group_ids[front] = group_id;
   			}
   			else
@@ -260,9 +267,11 @@ public:
 
 					if (group_ids[*it] == -1) 
 					{
+						tot_mass += mass;
+						center_of_mass += pos[*it]*mass;
 						q.push(*it);
 						group_size++;
-						positions.push_back(pos[*it])
+						// positions.push_back(pos[*it])
 						ball_indices.push_back(*it)
 						// group_ids[*it] = group_id;
 
@@ -270,7 +279,8 @@ public:
 				}
 			}
 		}
-		group new_group(rad,group_id,center_of_mass,group_size,positions);
+		center_of_mass = center_of_mass/tot_mass;
+		group new_group(rad,mass,group_id,center_of_mass,group_size,ball_indices,pos);
 		groups.push_back(new_group);
 	}
 
@@ -549,7 +559,7 @@ void group::enclosingSphere()
 			center = (radius*center + old_to_new*pos[i])/old_to_p;
 		}
 	}
-	radius += init_rad;
+	radius += ball_rad;
 	return;
 
 }
