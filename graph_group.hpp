@@ -16,8 +16,11 @@ public:
 	std::vector<vec3> pos;
 	vec3 center = {-1,-1,-1};
 	double radius = -1.0;
+	std::vector<int> ball_indices;
 
 	group() = default;
+
+
 
 	group(double rad, int group_id, vec3 center_of_mass, 
 		int num_balls, std::vector<vec3> positions)
@@ -28,121 +31,16 @@ public:
 		numBalls = num_balls;
 		// pos = new vec3[numBalls];
 		pos = positions;
+		enclosingSphere();
 	}
 
-	// init(int *pos)
-	// {
-
-	// }
-
-	//This function uses Ritter Bounding Sphere
-	//Ritter, Jack. "An efficient bounding sphere." Graphics gems 1 (1990): 301-303.
-	void enclosingSphere()
-	{
-		double minx, miny, minz, maxx, maxy, maxz;
-		int minxi, minyi, minzi, maxxi, maxyi, maxzi;
-		minxi = -1;
-		minyi = -1;
-		minzi = -1;
-		maxxi = -1;
-		maxyi = -1;
-		maxzi = -1;
-
-		minx = 9999;
-		miny = 9999;
-		minz = 9999;
-		maxx = -1;
-		maxy = -1;
-		maxz = -1;
-
-		//find max and min x,y,z
-		for (int i = 0; i < numBalls; i++)
-		{
-			if (pos[i][0] < minx)
-			{
-				minx = pos[i][0];
-				minxi = i;
-			}
-			else if (pos[i][0] > maxx)
-			{
-				maxx = pos[i][0];
-				maxxi = i;
-			}
-
-			if (pos[i][1] < miny)
-			{
-				miny = pos[i][1];
-				minyi = i;
-			}
-			else if (pos[i][1] > maxy)
-			{
-				maxy = pos[i][1];
-				maxyi = i;
-			}
-
-			if (pos[i][2] < minz)
-			{
-				minz = pos[i][2];
-				minzi = i;
-			}
-			else if (pos[i][2] > maxz)
-			{
-				maxz = pos[i][2];
-				maxzi = i;
-			}
-		}
-
-		//which two of these six points are farthest apart?
-		int indices[6] = {maxxi, minxi, maxyi, minyi, maxzi, minzi};
-		double max_dist = -1;
-		double dist;
-		int max_indi = -1;
-		int max_indj = -1;
-
-		for (int i = 1; i < 6; i++)
-		{
-			for (int j = 0; j < i; j++)
-			{
-				dist = (pos[i]-pos[j]).norm();
-				if (dist > max_dist)
-				{
-					max_dist = dist;
-					max_indi = i;
-					max_indj = j;
-				}
-			}
-		}
-		//distance between farthest points is the initial diameter
-		radius = dist/2;
-		center = (pos[max_indi] + pos[max_indj]) / 2;
-		
-		//Check if points are inside circle and update circle if not
-		double old_to_p_sq,old_to_p,radius_sq,old_to_new;
-		vec3 dxyz;
-		radius_sq = radius*radius;
-		for (int i = 0; i < numBalls; i++)
-		{
-			dxyz = (pos[i] - center);
-			old_to_p_sq = dxyz.normsquared();
-			if (old_to_p_sq > radius_sq)
-			{
-				old_to_p = sqrt(old_to_p_sq);
-				radius = (radius + old_to_p)/2.0;
-				radius_sq = radius * radius;
-				old_to_new = old_to_p - radius;
-				center = (radius*center + old_to_new*pos[i])/old_to_p;
-			}
-		}
-		radius += init_rad;
-		return;
-
-	}
+	void enclosingSphere();
 	
 	~group()
 	{
-		delete[] pos;
-		delete[] com;
-		delete[] id;
+		// delete[] pos;
+		// delete[] com;
+		// delete[] id;
 	}
 	
 };
@@ -151,27 +49,27 @@ class graph
 {
 public:
 	bool initialized = false;
-	double radius = -1.0;
+	double rad = -1.0;
 	int numVerts;
 	int numGroups = -1;
 	std::vector<int> *adj = nullptr;
 
+
 	int *group_ids = nullptr;
-	group *groups = nullptr;
+	std::vector<group> groups;
 
 	vec3 *pos = nullptr;
 	// bool *visited = nullptr;
 	// std::
 
-	
 
 	graph() = default;
 
-	graph(int num_balls, double rad,vec3 *positions)
+	graph(int num_balls, double radius,vec3 *positions)
 	{
 		numVerts = num_balls;
 		adj = new std::vector<int>[num_balls];
-		radius = rad;
+		rad = radius;
 		pos = positions;
 
 		///TAKE THIS OUT FOR REAL THING
@@ -210,7 +108,7 @@ public:
 		{
 			for (int B = 0; B < A; B++)
 			{
-				const double sumRaRb = 2*radius;
+				const double sumRaRb = 2*rad;
                 const double dist = (pos[A] - pos[B]).norm();
                 const double overlap = dist - sumRaRb;
                 //TODO: check overlap conditions
@@ -289,50 +187,40 @@ public:
   			curr = notVisited();
   			// printGroups();
   		}while(curr != -1);
-  		std::cout<<group_id<<std::endl;
+  		// std::cout<<group_id<<std::endl;
   		numGroups = group_id;
   		groups = new group[numGroups];
 
-  		int lengths[numGroups] = {0};
-  		// printArray(lengths,numGroups);
-  		for (int i = 0; i < numVerts; i++)
-  		{
-  			lengths[group_ids[i]]++;
-  		}
+  		// int lengths[numGroups] = {0};
+  		// // printArray(lengths,numGroups);
+  		// for (int i = 0; i < numVerts; i++)
+  		// {
+  		// 	lengths[group_ids[i]]++;
+  		// }
 
   		// printArray(lengths,numGroups);
   		// printArray(group_ids,numVerts);
 
 
-
+  		int gpid;
   		for (int groupnum = 0; groupnum < numGroups; groupnum++)
   		{
-  			std::vector<vec3> group_pos[lengths[groupnum]];
-  			vec3 center_of_mass = {0,0,0}
-  			int gpid = 0;
+  			// std::vector<vec3> group_pos[lengths[groupnum]];
+  			std::vector<vec3> group_pos;
+  			vec3 center_of_mass = {0,0,0};
+  			gpid = 0;
 	  		for (int i = 0; i < numVerts; i++)
 	  		{
 	  			if (group_ids[i] == groupnum)
 	  			{
-	  				center_of_mass += pos[i]
-	  				group_pos[gpid] = pos[i];
+	  				center_of_mass += pos[i];
+	  				group_pos.push_back(pos[i]);
 	  				gpid++;
 	  			}
 	  		}
-	  		groups[groupnum] = group(init_rad,groupnum,com);
-	  		group(double rad, int group_id, vec3 center_of_mass, 
-		int num_balls, std::vector<vec3> positions)
+	  		groups[groupnum] = group(rad,groupnum,center_of_mass, numVerts,group_pos);
 	  	}
 
-
-  		exit(0);
-
-
-  		// groups = new group[numGroups];
-  		// for (int i = 0; i < numGroups; i++)
-  		// {
-  		// 	groups[i].init();
-  		// }
   		return;
 	}
 
@@ -352,6 +240,9 @@ public:
 
 	void getWalk(int start,int group_id)
 	{
+		std::vector<vec3> positions;
+		vec3 center_of_mass = {0,0,0};
+		int group_size = 0;
   		std::queue<int> q;
 		q.push(start); 
   		while (!q.empty())
@@ -370,11 +261,17 @@ public:
 					if (group_ids[*it] == -1) 
 					{
 						q.push(*it);
-						group_ids[*it] = group_id;
+						group_size++;
+						positions.push_back(pos[*it])
+						ball_indices.push_back(*it)
+						// group_ids[*it] = group_id;
+
 					}
 				}
 			}
 		}
+		group new_group(rad,group_id,center_of_mass,group_size,positions);
+		groups.push_back(new_group);
 	}
 
 
@@ -554,3 +451,105 @@ public:
 };
 
 
+//This function uses Ritter Bounding Sphere
+//Ritter, Jack. "An efficient bounding sphere." Graphics gems 1 (1990): 301-303.
+void group::enclosingSphere()
+{
+	double minx, miny, minz, maxx, maxy, maxz;
+	int minxi, minyi, minzi, maxxi, maxyi, maxzi;
+	minxi = -1;
+	minyi = -1;
+	minzi = -1;
+	maxxi = -1;
+	maxyi = -1;
+	maxzi = -1;
+
+	minx = 9999;
+	miny = 9999;
+	minz = 9999;
+	maxx = -1;
+	maxy = -1;
+	maxz = -1;
+
+	//find max and min x,y,z
+	for (int i = 0; i < numBalls; i++)
+	{
+		if (pos[i][0] < minx)
+		{
+			minx = pos[i][0];
+			minxi = i;
+		}
+		else if (pos[i][0] > maxx)
+		{
+			maxx = pos[i][0];
+			maxxi = i;
+		}
+
+		if (pos[i][1] < miny)
+		{
+			miny = pos[i][1];
+			minyi = i;
+		}
+		else if (pos[i][1] > maxy)
+		{
+			maxy = pos[i][1];
+			maxyi = i;
+		}
+
+		if (pos[i][2] < minz)
+		{
+			minz = pos[i][2];
+			minzi = i;
+		}
+		else if (pos[i][2] > maxz)
+		{
+			maxz = pos[i][2];
+			maxzi = i;
+		}
+	}
+
+	//which two of these six points are farthest apart?
+	int indices[6] = {maxxi, minxi, maxyi, minyi, maxzi, minzi};
+	double max_dist = -1;
+	double dist;
+	int max_indi = -1;
+	int max_indj = -1;
+
+	for (int i = 1; i < 6; i++)
+	{
+		for (int j = 0; j < i; j++)
+		{
+			dist = (pos[i]-pos[j]).norm();
+			if (dist > max_dist)
+			{
+				max_dist = dist;
+				max_indi = i;
+				max_indj = j;
+			}
+		}
+	}
+	//distance between farthest points is the initial diameter
+	radius = dist/2;
+	center = (pos[max_indi] + pos[max_indj]) / 2;
+	
+	//Check if points are inside circle and update circle if not
+	double old_to_p_sq,old_to_p,radius_sq,old_to_new;
+	vec3 dxyz;
+	radius_sq = radius*radius;
+	for (int i = 0; i < numBalls; i++)
+	{
+		dxyz = (pos[i] - center);
+		old_to_p_sq = dxyz.normsquared();
+		if (old_to_p_sq > radius_sq)
+		{
+			old_to_p = sqrt(old_to_p_sq);
+			radius = (radius + old_to_p)/2.0;
+			radius_sq = radius * radius;
+			old_to_new = old_to_p - radius;
+			center = (radius*center + old_to_new*pos[i])/old_to_p;
+		}
+	}
+	radius += init_rad;
+	return;
+
+}

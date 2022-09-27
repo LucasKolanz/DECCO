@@ -48,113 +48,113 @@ public:
 
 	//This function uses Ritter Bounding Sphere
 	//Ritter, Jack. "An efficient bounding sphere." Graphics gems 1 (1990): 301-303.
-	void enclosingSphere(vec3 &center, double &radius)
-	{
-		double minx, miny, minz, maxx, maxy, maxz;
-		int minxi, minyi, minzi, maxxi, maxyi, maxzi;
-		minxi = -1;
-		minyi = -1;
-		minzi = -1;
-		maxxi = -1;
-		maxyi = -1;
-		maxzi = -1;
+	// void enclosingSphere(vec3 &center, double &radius)
+	// {
+	// 	double minx, miny, minz, maxx, maxy, maxz;
+	// 	int minxi, minyi, minzi, maxxi, maxyi, maxzi;
+	// 	minxi = -1;
+	// 	minyi = -1;
+	// 	minzi = -1;
+	// 	maxxi = -1;
+	// 	maxyi = -1;
+	// 	maxzi = -1;
 
-		minx = 9999;
-		miny = 9999;
-		minz = 9999;
-		maxx = -1;
-		maxy = -1;
-		maxz = -1;
+	// 	minx = 9999;
+	// 	miny = 9999;
+	// 	minz = 9999;
+	// 	maxx = -1;
+	// 	maxy = -1;
+	// 	maxz = -1;
 
-		//find max and min x,y,z
-		for (int i = 0; i < num_particles; i++)
-		{
-			if (pos[i][0] < minx)
-			{
-				minx = pos[i][0];
-				minxi = i;
-			}
-			else if (pos[i][0] > maxx)
-			{
-				maxx = pos[i][0];
-				maxxi = i;
-			}
+	// 	//find max and min x,y,z
+	// 	for (int i = 0; i < num_particles; i++)
+	// 	{
+	// 		if (pos[i][0] < minx)
+	// 		{
+	// 			minx = pos[i][0];
+	// 			minxi = i;
+	// 		}
+	// 		else if (pos[i][0] > maxx)
+	// 		{
+	// 			maxx = pos[i][0];
+	// 			maxxi = i;
+	// 		}
 
-			if (pos[i][1] < miny)
-			{
-				miny = pos[i][1];
-				minyi = i;
-			}
-			else if (pos[i][1] > maxy)
-			{
-				maxy = pos[i][1];
-				maxyi = i;
-			}
+	// 		if (pos[i][1] < miny)
+	// 		{
+	// 			miny = pos[i][1];
+	// 			minyi = i;
+	// 		}
+	// 		else if (pos[i][1] > maxy)
+	// 		{
+	// 			maxy = pos[i][1];
+	// 			maxyi = i;
+	// 		}
 
-			if (pos[i][2] < minz)
-			{
-				minz = pos[i][2];
-				minzi = i;
-			}
-			else if (pos[i][2] > maxz)
-			{
-				maxz = pos[i][2];
-				maxzi = i;
-			}
-		}
+	// 		if (pos[i][2] < minz)
+	// 		{
+	// 			minz = pos[i][2];
+	// 			minzi = i;
+	// 		}
+	// 		else if (pos[i][2] > maxz)
+	// 		{
+	// 			maxz = pos[i][2];
+	// 			maxzi = i;
+	// 		}
+	// 	}
 
-		//which two of these six points are farthest apart?
-		int indices[6] = {maxxi, minxi, maxyi, minyi, maxzi, minzi};
-		double max_dist = -1;
-		double dist;
-		int max_indi = -1;
-		int max_indj = -1;
+	// 	//which two of these six points are farthest apart?
+	// 	int indices[6] = {maxxi, minxi, maxyi, minyi, maxzi, minzi};
+	// 	double max_dist = -1;
+	// 	double dist;
+	// 	int max_indi = -1;
+	// 	int max_indj = -1;
 
-		for (int i = 1; i < 6; i++)
-		{
-			for (int j = 0; j < i; j++)
-			{
-				dist = (pos[i]-pos[j]).norm();
-				if (dist > max_dist)
-				{
-					max_dist = dist;
-					max_indi = i;
-					max_indj = j;
-				}
-			}
-		}
-		//distance between farthest points is the initial diameter
-		radius = dist/2;
-		center = (pos[max_indi] + pos[max_indj]) / 2;
-		// std::cout<<"init rad = "<<radius<<std::endl;
-		// std::cout<<"init center = {"<<center<<"}"<<std::endl;
+	// 	for (int i = 1; i < 6; i++)
+	// 	{
+	// 		for (int j = 0; j < i; j++)
+	// 		{
+	// 			dist = (pos[i]-pos[j]).norm();
+	// 			if (dist > max_dist)
+	// 			{
+	// 				max_dist = dist;
+	// 				max_indi = i;
+	// 				max_indj = j;
+	// 			}
+	// 		}
+	// 	}
+	// 	//distance between farthest points is the initial diameter
+	// 	radius = dist/2;
+	// 	center = (pos[max_indi] + pos[max_indj]) / 2;
+	// 	// std::cout<<"init rad = "<<radius<<std::endl;
+	// 	// std::cout<<"init center = {"<<center<<"}"<<std::endl;
 
-		// std::cout<<"min: "<<minx<<", "<<miny<<", "<<minz<<std::endl;
-		// std::cout<<"mini: "<<minxi<<", "<<minyi<<", "<<minzi<<std::endl;
-		// std::cout<<"max: "<<maxx<<", "<<maxy<<", "<<maxz<<std::endl;
-		// std::cout<<"maxi: "<<maxxi<<", "<<maxyi<<", "<<maxzi<<std::endl;
+	// 	// std::cout<<"min: "<<minx<<", "<<miny<<", "<<minz<<std::endl;
+	// 	// std::cout<<"mini: "<<minxi<<", "<<minyi<<", "<<minzi<<std::endl;
+	// 	// std::cout<<"max: "<<maxx<<", "<<maxy<<", "<<maxz<<std::endl;
+	// 	// std::cout<<"maxi: "<<maxxi<<", "<<maxyi<<", "<<maxzi<<std::endl;
 		
-		//Check if points are inside circle and update circle if not
-		double old_to_p_sq,old_to_p,radius_sq,old_to_new;
-		vec3 dxyz;
-		radius_sq = radius*radius;
-		for (int i = 0; i < num_particles; i++)
-		{
-			dxyz = (pos[i] - center);
-			old_to_p_sq = dxyz.normsquared();
-			if (old_to_p_sq > radius_sq)
-			{
-				old_to_p = sqrt(old_to_p_sq);
-				radius = (radius + old_to_p)/2.0;
-				radius_sq = radius * radius;
-				old_to_new = old_to_p - radius;
-				center = (radius*center + old_to_new*pos[i])/old_to_p;
-			}
-		}
-		radius += init_rad;
-		return;
+	// 	//Check if points are inside circle and update circle if not
+	// 	double old_to_p_sq,old_to_p,radius_sq,old_to_new;
+	// 	vec3 dxyz;
+	// 	radius_sq = radius*radius;
+	// 	for (int i = 0; i < num_particles; i++)
+	// 	{
+	// 		dxyz = (pos[i] - center);
+	// 		old_to_p_sq = dxyz.normsquared();
+	// 		if (old_to_p_sq > radius_sq)
+	// 		{
+	// 			old_to_p = sqrt(old_to_p_sq);
+	// 			radius = (radius + old_to_p)/2.0;
+	// 			radius_sq = radius * radius;
+	// 			old_to_new = old_to_p - radius;
+	// 			center = (radius*center + old_to_new*pos[i])/old_to_p;
+	// 		}
+	// 	}
+	// 	radius += init_rad;
+	// 	return;
 
-	}
+	// }
 
 	void parseSimData(std::string line)
     {
@@ -397,7 +397,7 @@ void test_sbs()
 	// vec3 *center = &c;
 	// double *radius = &r;
 
-	w.enclosingSphere(center, radius);
+	// w.g -> enclosingSphere(center, radius);
 	w.writeFile("enclosingSphere.txt", center, radius);
 }
 
