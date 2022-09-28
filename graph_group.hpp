@@ -10,11 +10,12 @@ class group
 {
 public:
 	double ball_rad = -0.1; //radius of spheres
-	double ball_mass = -0.1
+	double ball_mass = -0.1;
 	int id = -1;
 	vec3 com = {-1,-1,-1};
 	int numBalls = -1;
 	vec3 *pos = nullptr;
+	// vec3 *vel
 	vec3 center = {-1,-1,-1};
 	double radius = -1.0;
 	std::vector<int> ball_indices;
@@ -24,7 +25,7 @@ public:
 
 
 	group(double rad, double mass, int group_id, vec3 center_of_mass, 
-		int num_balls, std::vector<vec3> ball_inds, vec3* positions)
+		int num_balls, std::vector<int> ball_inds, vec3* positions)
 	{
 		ball_rad = rad;
 		ball_mass = mass;
@@ -78,7 +79,7 @@ public:
 
 		///TAKE THIS OUT FOR REAL THING
 		//This is just meant to make multiple groups out of a single group
-		srand(0);
+		// srand(0);
 		for (int i = 0; i < 4; i++)
 		{
 			double x,y,z;
@@ -101,7 +102,6 @@ public:
 		//If group_id[index] = -1 then it hasnt been visited
 		group_ids = new int[num_balls];
 		findGroups();
-
 		initialized = true;
 		return;
 	}
@@ -132,7 +132,7 @@ public:
 	{
 		delete[] adj;
 		delete[] group_ids;
-		delete[] groups;
+		// delete[] groups;
  	}
 
 	//Copy constructor
@@ -191,9 +191,9 @@ public:
   			curr = notVisited();
   			// printGroups();
   		}while(curr != -1);
-  		// std::cout<<group_id<<std::endl;
   		numGroups = group_id;
-  		groups = new group[numGroups];
+  		// std::cout<<group_id<<std::endl;
+  		// groups = new group[numGroups];
 
   		// int lengths[numGroups] = {0};
   		// // printArray(lengths,numGroups);
@@ -245,6 +245,7 @@ public:
 	void getWalk(int start,int group_id)
 	{
 		std::vector<vec3> positions;
+		std::vector<int> ball_indices;
 		vec3 center_of_mass = {0,0,0};
 		double tot_mass = 0.0;
 		int group_size = 0;
@@ -255,9 +256,11 @@ public:
   			int front = q.front();
   			q.pop();
   			if (adj[front].size() == 0)
-  			{
-  				///Is this ever actually happening??
-  				std::cout<<"IT HAPPENED"<<std::endl;
+  			{ // No adjacent nodes
+  				tot_mass = mass;
+  				center_of_mass = pos[front]*mass;
+  				group_size = 1;
+  				ball_indices.push_back(front);
   				group_ids[front] = group_id;
   			}
   			else
@@ -272,8 +275,8 @@ public:
 						q.push(*it);
 						group_size++;
 						// positions.push_back(pos[*it])
-						ball_indices.push_back(*it)
-						// group_ids[*it] = group_id;
+						ball_indices.push_back(*it);
+						group_ids[*it] = group_id;
 
 					}
 				}

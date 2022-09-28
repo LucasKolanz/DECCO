@@ -27,9 +27,7 @@ public:
 		num_particles = num;
 		pos = new vec3[num];
 		parseSimData(getLastLine(file));
-		std::cout<<"TEST: "<<pos[0]<<std::endl;
 		g = new graph(num, init_rad, pos);
-		std::cout<<"TEST1: "<<g->pos[0]<<std::endl;
 		// g -> graph_init(init_rad);
 	}
 
@@ -386,19 +384,23 @@ void test_sbs()
 	std::string file = "/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/large_aggregate/N_1000/198_2_R2e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_simData.csv";
 	wrapper w(200, file);
 
-	// for (int i = 0; i < 20; i++)
-	// {
-	// 	std::cout<< w.pos[i] << std::endl;
-	// }
+	std::cout<<w.g -> numGroups<<std::endl;
 
-	vec3 center{0,0,0};
-	double radius = 0; 
+	for (int i = 0; i < w.g -> numGroups; i++)
+	{
+		std::cout<<w.g -> groups[i].com - w.g -> groups[i].center<<" "<<w.g -> groups[i].radius<<std::endl;
+	}
+
+	// std::cout<<
+
+	// vec3 center{0,0,0};
+	// double radius = 0; 
 
 	// vec3 *center = &c;
 	// double *radius = &r;
 
 	// w.g -> enclosingSphere(center, radius);
-	w.writeFile("enclosingSphere.txt", center, radius);
+	// w.writeFile("enclosingSphere.txt", center, radius);
 }
 
 int main(int argc, char const *argv[])

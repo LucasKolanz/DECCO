@@ -232,6 +232,162 @@ std::string check_restart(std::string folder,int* restart)
     }
 }
 
+void ball_interactions(int A, int B, Ball_group& O, bool write_step)
+{
+    const double sumRaRb = O.R[A] + O.R[B];
+    const vec3 rVecab = O.pos[B] - O.pos[A];  // Vector from a to b.
+    const vec3 rVecba = -rVecab;
+    const double dist = (rVecab).norm();
+
+    // Check for collision between Ball and otherBall:
+    double overlap = sumRaRb - dist;
+
+    vec3 totalForceOnA{0, 0, 0};
+
+    // Distance array element: 1,0    2,0    2,1    3,0    3,1    3,2 ...
+    int e = static_cast<unsigned>(A * (A - 1) * .5) + B;  // a^2-a is always even, so this works.
+    double oldDist = O.distances[e];
+
+    // Check for collision between Ball and otherBall.
+    if (overlap > 0) {
+        double k;
+        // Apply coefficient of restitution to balls leaving collision.
+        if (dist >= oldDist) {
+            k = kout;
+        } else {
+            k = kin;
+        }
+
+        // Cohesion (in contact) h must always be h_min:
+        // constexpr double h = h_min;
+        const double h = h_min;
+        const double Ra = O.R[A];
+        const double Rb = O.R[B];
+        const double h2 = h * h;
+        // constexpr double h2 = h * h;
+        const double twoRah = 2 * Ra * h;
+        const double twoRbh = 2 * Rb * h;
+        const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
+                                 ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
+                                                   (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
+                                                   (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
+                                 rVecab.normalized();
+
+        // Elastic force:
+        const vec3 elasticForceOnA = -k * overlap * .5 * (rVecab / dist);
+
+        // Gravity force:
+        const vec3 gravForceOnA = (G * O.m[A] * O.m[B] / (dist * dist)) * (rVecab / dist);
+
+        // Sliding and Rolling Friction:
+        vec3 slideForceOnA{0, 0, 0};
+        vec3 rollForceA{0, 0, 0};
+        vec3 torqueA{0, 0, 0};
+        vec3 torqueB{0, 0, 0};
+
+        // Shared terms:
+        const double elastic_force_A_mag = elasticForceOnA.norm();
+        const vec3 r_a = rVecab * O.R[A] / sumRaRb;  // Center to contact point
+        const vec3 r_b = rVecba * O.R[B] / sumRaRb;
+        const vec3 w_diff = O.w[A] - O.w[B];
+
+        // Sliding friction terms:
+        const vec3 d_vel = O.vel[B] - O.vel[A];
+        const vec3 frame_A_vel_B = d_vel - d_vel.dot(rVecab) * (rVecab / (dist * dist)) -
+                                   O.w[A].cross(r_a) - O.w[B].cross(r_a);
+
+        // Compute sliding friction force:
+        const double rel_vel_mag = frame_A_vel_B.norm();
+        if (rel_vel_mag > 1e-13)  // Divide by zero protection.
+        {
+            // In the frame of A, B applies force in the direction of B's velocity.
+            slideForceOnA = u_s * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
+        }
+
+        // Compute rolling friction force:
+        const double w_diff_mag = w_diff.norm();
+        if (w_diff_mag > 1e-13)  // Divide by zero protection.
+        {
+            rollForceA =
+                -u_r * elastic_force_A_mag * (w_diff).cross(r_a) / (w_diff).cross(r_a).norm();
+        }
+
+        // Total forces on a:
+        totalForceOnA = gravForceOnA + elasticForceOnA + slideForceOnA + vdwForceOnA;
+
+        // Total torque a and b:
+        torqueA = r_a.cross(slideForceOnA + rollForceA);
+        torqueB = r_b.cross(-slideForceOnA + rollForceA);
+
+        O.aacc[A] += torqueA / O.moi[A];
+        O.aacc[B] += torqueB / O.moi[B];
+
+        if (write_step) {
+            // No factor of 1/2. Includes both spheres:
+            // O.PE += -G * O.m[A] * O.m[B] / dist + 0.5 * k * overlap * overlap;
+
+            // Van Der Waals + elastic:
+            const double diffRaRb = O.R[A] - O.R[B];
+            const double z = sumRaRb + h;
+            const double two_RaRb = 2 * O.R[A] * O.R[B];
+            const double denom_sum = z * z - (sumRaRb * sumRaRb);
+            const double denom_diff = z * z - (diffRaRb * diffRaRb);
+            const double U_vdw =
+                -Ha / 6 *
+                (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
+            O.PE += U_vdw + 0.5 * k * overlap * overlap;
+        }
+    } else  // Non-contact forces:
+    {
+        // No collision: Include gravity and vdw:
+        // const vec3 gravForceOnA = (G * O.m[A] * O.m[B] / (dist * dist)) * (rVecab / dist);
+
+        // Cohesion (non-contact) h must be positive or h + Ra + Rb becomes catastrophic cancellation:
+        double h = std::fabs(overlap);
+        if (h < h_min)  // If h is closer to 0 (almost touching), use hmin.
+        {
+            h = h_min;
+        }
+        const double Ra = O.R[A];
+        const double Rb = O.R[B];
+        const double h2 = h * h;
+        const double twoRah = 2 * Ra * h;
+        const double twoRbh = 2 * Rb * h;
+        const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
+                                 ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
+                                                   (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
+                                                   (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
+                                 rVecab.normalized();
+
+        totalForceOnA = vdwForceOnA;  // +gravForceOnA;
+        if (write_step) {
+            // O.PE += -G * O.m[A] * O.m[B] / dist; // Gravitational
+
+            const double diffRaRb = O.R[A] - O.R[B];
+            const double z = sumRaRb + h;
+            const double two_RaRb = 2 * O.R[A] * O.R[B];
+            const double denom_sum = z * z - (sumRaRb * sumRaRb);
+            const double denom_diff = z * z - (diffRaRb * diffRaRb);
+            const double U_vdw =
+                -Ha / 6 *
+                (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
+            O.PE += U_vdw;  // Van Der Waals
+        }
+
+        // todo this is part of push_apart. Not great like this.
+        // For pushing apart overlappers:
+        // O.vel[A] = { 0,0,0 };
+        // O.vel[B] = { 0,0,0 };
+    }
+
+    // Newton's equal and opposite forces applied to acceleration of each ball:
+    O.acc[A] += totalForceOnA / O.m[A];
+    O.acc[B] -= totalForceOnA / O.m[B];
+
+    // So last distance can be known for COR:
+    O.distances[e] = dist;
+}
+
 void
 sim_one_step(const bool write_step, Ball_group O)
 {
@@ -253,6 +409,44 @@ sim_one_step(const bool write_step, Ball_group O)
         O.aacc[Ball] = {0, 0, 0};
     }
 
+    ///Loop through all pairs of groups to see if there is a group collision
+    int i,j,numGs;
+    numGs = O.g -> numGroups;
+    // int group_collisions[numGs][numGs] = {0};
+
+    for (i = 1; i < numGs; i++)
+    {
+        for (j = 0; j < i; j++)
+        {
+            const double sumRgaRgb = O.g->groups[i].radius + O.g->groups[j].radius;
+            const vec3 rVecab = O.g->groups[j].center - O.g->groups[i].center;  // Vector from a to b.
+            const double dist = (rVecab).norm();
+
+            // Check for collision between Ball and otherBall:
+            double overlap = dist - sumRgaRgb;
+            if (overlap <= 0)//group collision
+            {
+                O.collision = true;
+                // group_collisions[i][j] = 1;
+            }
+        }
+    }
+
+    // for (i = 1; i < numGs; i++)
+    // {
+    //     for (j = 0; j < i; j++)
+    //     {
+    //         if (group_collisions[i][j])///group collision -> loop through all balls in each group
+    //         {
+
+    //         }
+    //         else
+    //         {
+
+    //         }
+    //     }
+    // }
+
     int A,B;
     std::vector<int> nearest_neighbors; 
     /// SECOND PASS - Check for collisions, apply forces and torques:
@@ -260,7 +454,17 @@ sim_one_step(const bool write_step, Ball_group O)
     for (A = 0; A < O.num_particles; A++)  // cuda
     {
 
-        nearest_neighbors = O.g -> nNearestNeighbors(A,30);
+        if (O.collision)
+        {
+            for (int i = 0; i < O.num_particles; i++)
+            {
+                nearest_neighbors.push_back(i);
+            }
+        }
+        else
+        {
+            nearest_neighbors = O.g -> nNearestNeighbors(A,30);
+        }
 
 
         /// DONT DO ANYTHING HERE. A STARTS AT 1.
@@ -268,158 +472,7 @@ sim_one_step(const bool write_step, Ball_group O)
         for (auto it = begin(nearest_neighbors); it != end(nearest_neighbors); ++it)
         {
             B = *it;
-            const double sumRaRb = O.R[A] + O.R[B];
-            const vec3 rVecab = O.pos[B] - O.pos[A];  // Vector from a to b.
-            const vec3 rVecba = -rVecab;
-            const double dist = (rVecab).norm();
-
-            // Check for collision between Ball and otherBall:
-            double overlap = sumRaRb - dist;
-
-            vec3 totalForceOnA{0, 0, 0};
-
-            // Distance array element: 1,0    2,0    2,1    3,0    3,1    3,2 ...
-            int e = static_cast<unsigned>(A * (A - 1) * .5) + B;  // a^2-a is always even, so this works.
-            double oldDist = O.distances[e];
-
-            // Check for collision between Ball and otherBall.
-            if (overlap > 0) {
-                double k;
-                // Apply coefficient of restitution to balls leaving collision.
-                if (dist >= oldDist) {
-                    k = kout;
-                } else {
-                    k = kin;
-                }
-
-                // Cohesion (in contact) h must always be h_min:
-                // constexpr double h = h_min;
-                const double h = h_min;
-                const double Ra = O.R[A];
-                const double Rb = O.R[B];
-                const double h2 = h * h;
-                // constexpr double h2 = h * h;
-                const double twoRah = 2 * Ra * h;
-                const double twoRbh = 2 * Rb * h;
-                const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
-                                         ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
-                                                           (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
-                                                           (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
-                                         rVecab.normalized();
-
-                // Elastic force:
-                const vec3 elasticForceOnA = -k * overlap * .5 * (rVecab / dist);
-
-                // Gravity force:
-                const vec3 gravForceOnA = (G * O.m[A] * O.m[B] / (dist * dist)) * (rVecab / dist);
-
-                // Sliding and Rolling Friction:
-                vec3 slideForceOnA{0, 0, 0};
-                vec3 rollForceA{0, 0, 0};
-                vec3 torqueA{0, 0, 0};
-                vec3 torqueB{0, 0, 0};
-
-                // Shared terms:
-                const double elastic_force_A_mag = elasticForceOnA.norm();
-                const vec3 r_a = rVecab * O.R[A] / sumRaRb;  // Center to contact point
-                const vec3 r_b = rVecba * O.R[B] / sumRaRb;
-                const vec3 w_diff = O.w[A] - O.w[B];
-
-                // Sliding friction terms:
-                const vec3 d_vel = O.vel[B] - O.vel[A];
-                const vec3 frame_A_vel_B = d_vel - d_vel.dot(rVecab) * (rVecab / (dist * dist)) -
-                                           O.w[A].cross(r_a) - O.w[B].cross(r_a);
-
-                // Compute sliding friction force:
-                const double rel_vel_mag = frame_A_vel_B.norm();
-                if (rel_vel_mag > 1e-13)  // Divide by zero protection.
-                {
-                    // In the frame of A, B applies force in the direction of B's velocity.
-                    slideForceOnA = u_s * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
-                }
-
-                // Compute rolling friction force:
-                const double w_diff_mag = w_diff.norm();
-                if (w_diff_mag > 1e-13)  // Divide by zero protection.
-                {
-                    rollForceA =
-                        -u_r * elastic_force_A_mag * (w_diff).cross(r_a) / (w_diff).cross(r_a).norm();
-                }
-
-                // Total forces on a:
-                totalForceOnA = gravForceOnA + elasticForceOnA + slideForceOnA + vdwForceOnA;
-
-                // Total torque a and b:
-                torqueA = r_a.cross(slideForceOnA + rollForceA);
-                torqueB = r_b.cross(-slideForceOnA + rollForceA);
-
-                O.aacc[A] += torqueA / O.moi[A];
-                O.aacc[B] += torqueB / O.moi[B];
-
-                if (write_step) {
-                    // No factor of 1/2. Includes both spheres:
-                    // O.PE += -G * O.m[A] * O.m[B] / dist + 0.5 * k * overlap * overlap;
-
-                    // Van Der Waals + elastic:
-                    const double diffRaRb = O.R[A] - O.R[B];
-                    const double z = sumRaRb + h;
-                    const double two_RaRb = 2 * O.R[A] * O.R[B];
-                    const double denom_sum = z * z - (sumRaRb * sumRaRb);
-                    const double denom_diff = z * z - (diffRaRb * diffRaRb);
-                    const double U_vdw =
-                        -Ha / 6 *
-                        (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
-                    O.PE += U_vdw + 0.5 * k * overlap * overlap;
-                }
-            } else  // Non-contact forces:
-            {
-                // No collision: Include gravity and vdw:
-                // const vec3 gravForceOnA = (G * O.m[A] * O.m[B] / (dist * dist)) * (rVecab / dist);
-
-                // Cohesion (non-contact) h must be positive or h + Ra + Rb becomes catastrophic cancellation:
-                double h = std::fabs(overlap);
-                if (h < h_min)  // If h is closer to 0 (almost touching), use hmin.
-                {
-                    h = h_min;
-                }
-                const double Ra = O.R[A];
-                const double Rb = O.R[B];
-                const double h2 = h * h;
-                const double twoRah = 2 * Ra * h;
-                const double twoRbh = 2 * Rb * h;
-                const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
-                                         ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
-                                                           (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
-                                                           (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
-                                         rVecab.normalized();
-
-                totalForceOnA = vdwForceOnA;  // +gravForceOnA;
-                if (write_step) {
-                    // O.PE += -G * O.m[A] * O.m[B] / dist; // Gravitational
-
-                    const double diffRaRb = O.R[A] - O.R[B];
-                    const double z = sumRaRb + h;
-                    const double two_RaRb = 2 * O.R[A] * O.R[B];
-                    const double denom_sum = z * z - (sumRaRb * sumRaRb);
-                    const double denom_diff = z * z - (diffRaRb * diffRaRb);
-                    const double U_vdw =
-                        -Ha / 6 *
-                        (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
-                    O.PE += U_vdw;  // Van Der Waals
-                }
-
-                // todo this is part of push_apart. Not great like this.
-                // For pushing apart overlappers:
-                // O.vel[A] = { 0,0,0 };
-                // O.vel[B] = { 0,0,0 };
-            }
-
-            // Newton's equal and opposite forces applied to acceleration of each ball:
-            O.acc[A] += totalForceOnA / O.m[A];
-            O.acc[B] -= totalForceOnA / O.m[B];
-
-            // So last distance can be known for COR:
-            O.distances[e] = dist;
+            ball_interactions(A,B,O,write_step);
         }
         // DONT DO ANYTHING HERE. A STARTS AT 1.
     }

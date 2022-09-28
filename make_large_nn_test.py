@@ -12,7 +12,7 @@ def run_job(location,num_balls):
 if __name__ == '__main__':
 	#make new output folders
 	curr_folder = os.getcwd() + '/'
-	job_set_name = "large_aggregateNN_30"
+	job_set_name = "large_aggregateNN_30_3"
 	folder_name_scheme = "N_"
 
 	job_set_folder = curr_folder + 'jobs/' + job_set_name + '/'

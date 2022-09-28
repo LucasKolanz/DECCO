@@ -30,6 +30,8 @@ public:
     int num_groups = -1;
     int num_particles_added = 0;
 
+    bool collision = false; //temp, for testing nearest neighbors
+
     // Useful values:
     double r_min = -1;
     double r_max = -1;
@@ -933,7 +935,7 @@ private:
         try {
             distances = new double[(num_particles * num_particles / 2) - (num_particles / 2)];
 
-            g = new graph(num_particles);
+            // g = new graph(num_particles);
             
             pos = new vec3[num_particles];
             vel = new vec3[num_particles];
@@ -977,6 +979,7 @@ private:
     // Initialize accelerations and energy calculations:
     void init_conditions()
     {
+        collision = false;
         std::cout<<"INIT COND CALLED"<<std::endl;
         // SECOND PASS - Check for collisions, apply forces and torques:
         for (int A = 1; A < num_particles; A++)  // cuda
@@ -1437,6 +1440,7 @@ private:
         srand(0);  // srand(seedSave);
 
         oneSizeSphere(nBalls);
+        g = new graph(num_particles, scaleBalls, pos);
         
         calc_helpfuls();
         // threeSizeSphere(nBalls);
