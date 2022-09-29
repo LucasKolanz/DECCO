@@ -884,6 +884,7 @@ public:
 
         //TODO 
         // g = new graph(num_particles_added);
+        std::cout<<"In merge_ball_group pos[0]: "<<pos[0]<<std::endl;
 
         // Keep track of now loaded ball set to start next set after it:
         num_particles_added += src.num_particles;
@@ -935,7 +936,7 @@ private:
         try {
             distances = new double[(num_particles * num_particles / 2) - (num_particles / 2)];
 
-            // g = new graph(num_particles);
+            // g = new graph;
             
             pos = new vec3[num_particles];
             vel = new vec3[num_particles];
@@ -971,7 +972,7 @@ private:
         delete[] m;
         delete[] moi;
 
-        delete g;
+        // delete g;
 
     }
 
@@ -979,8 +980,15 @@ private:
     // Initialize accelerations and energy calculations:
     void init_conditions()
     {
-        collision = false;
         std::cout<<"INIT COND CALLED"<<std::endl;
+        collision = false;
+        if (g != nullptr)
+        {
+            std::cout<<"DELETE G"<<std::endl;
+            delete g;
+        }
+        std::cout<<"NEW GRAPH: scaleBalls: "<<scaleBalls<<" pos[0]: "<<pos[0]<<std::endl;
+        g = new graph(num_particles, scaleBalls, pos);
         // SECOND PASS - Check for collisions, apply forces and torques:
         for (int A = 1; A < num_particles; A++)  // cuda
         {
@@ -1440,7 +1448,7 @@ private:
         srand(0);  // srand(seedSave);
 
         oneSizeSphere(nBalls);
-        g = new graph(num_particles, scaleBalls, pos);
+        
         
         calc_helpfuls();
         // threeSizeSphere(nBalls);

@@ -9,6 +9,8 @@ class wrapper
 public:
 	graph *g = nullptr;
 	vec3 *pos = nullptr;
+	vec3 *vel = nullptr;
+	vec3 *w = nullptr;
 	int num_particles = -1;
 	double init_rad = 1e-5;
 	
@@ -27,7 +29,7 @@ public:
 		num_particles = num;
 		pos = new vec3[num];
 		parseSimData(getLastLine(file));
-		g = new graph(num, init_rad, pos);
+		g = new graph(num, init_rad, pos, vel, w);
 		// g -> graph_init(init_rad);
 	}
 
@@ -175,13 +177,13 @@ public:
             for (int i = 0; i < 3; i++)  // Angular Velocity
             {
                 std::getline(chosenLine, lineElement, ',');
-                // w[A][i] = std::stod(lineElement);
+                w[A][i] = std::stod(lineElement);
             }
             std::getline(chosenLine, lineElement, ',');  // Angular velocity magnitude skipped
             for (int i = 0; i < 3; i++)                  // velocity
             {
                 std::getline(chosenLine, lineElement, ',');
-                // vel[A][i] = std::stod(lineElement);
+                vel[A][i] = std::stod(lineElement);
             }
             for (int i = 0; i < properties - 10; i++)  // We used 10 elements. This skips the rest.
             {
@@ -401,6 +403,20 @@ void test_sbs()
 
 	// w.g -> enclosingSphere(center, radius);
 	// w.writeFile("enclosingSphere.txt", center, radius);
+}
+
+void test_group_energy()
+{
+	std::string file = "/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/large_aggregate/N_1000/198_2_R2e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_simData.csv";
+	wrapper w(200, file);
+
+	for (int i = 0; i < w.g -> numGroups; i++)
+	{
+		w.g -> groups[i].calcEnergy();
+		std::cout<<w.g -> groups[i].total_energy<<std::endl;
+	}
+
+	return;
 }
 
 int main(int argc, char const *argv[])

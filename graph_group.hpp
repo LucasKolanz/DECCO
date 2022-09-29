@@ -11,21 +11,22 @@ class group
 public:
 	double ball_rad = -0.1; //radius of spheres
 	double ball_mass = -0.1;
+	double total_energy = -1.0
 	int id = -1;
-	vec3 com = {-1,-1,-1};
+	vec3 com = {-1.0,-1.0,-1.0};
+	vec3 group_w = {-1.0,-1.0,-1.0};
+	vec3 center = {-1.0,-1.0,-1.0};
 	int numBalls = -1;
 	vec3 *pos = nullptr;
-	// vec3 *vel
-	vec3 center = {-1,-1,-1};
+	vec3 *vel = nullptr;
 	double radius = -1.0;
 	std::vector<int> ball_indices;
 
 	group() = default;
 
-
-
 	group(double rad, double mass, int group_id, vec3 center_of_mass, 
-		int num_balls, std::vector<int> ball_inds, vec3* positions)
+		int num_balls, std::vector<int> ball_inds, vec3* positions, 
+		vec3* velocities, vec3* angular_velocities)
 	{
 		ball_rad = rad;
 		ball_mass = mass;
@@ -34,8 +35,21 @@ public:
 		numBalls = num_balls;
 		// pos = new vec3[numBalls];
 		pos = positions;
+		vel = velocities;
+		w = angular_velocities;
+
 		ball_indices = ball_inds;
 		enclosingSphere();
+	}
+
+	void calcEnergy()
+	{
+		
+		for (auto it = begin(ball_indices); it != end(ball_indices); ++it)
+		{
+
+		}
+		return;
 	}
 
 	void enclosingSphere();
@@ -80,18 +94,20 @@ public:
 		///TAKE THIS OUT FOR REAL THING
 		//This is just meant to make multiple groups out of a single group
 		// srand(0);
-		for (int i = 0; i < 4; i++)
-		{
-			double x,y,z;
-			x = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-			y = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-			z = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-			vec3 offset = {x,y,z};
-			for (int j = 0; j < 25; j++)
-			{
-				pos[i*25+j] += offset;					
-			}
-		}
+		// for (int i = 0; i < 4; i++)
+		// {
+		// 	double x,y,z;
+		// 	x = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+		// 	y = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+		// 	z = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+		// 	vec3 offset = {x,y,z};
+		// 	for (int j = 0; j < 25; j++)
+		// 	{
+		// std::cout<<"pre pos call"<<std::endl;
+		// 		pos[i*25+j] += offset;					
+		// std::cout<<"post pos call"<<std::endl;
+		// 	}
+		// }
 		///
 
 		graph_init();
@@ -126,6 +142,7 @@ public:
                 // }
 			}
 		}
+		return;
 	}
 
 	~graph() 
