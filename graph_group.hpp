@@ -11,22 +11,21 @@ class group
 public:
 	double ball_rad = -0.1; //radius of spheres
 	double ball_mass = -0.1;
-	double total_energy = -1.0
+	// double total_energy = -1.0
 	int id = -1;
 	vec3 com = {-1.0,-1.0,-1.0};
 	vec3 group_w = {-1.0,-1.0,-1.0};
 	vec3 center = {-1.0,-1.0,-1.0};
 	int numBalls = -1;
 	vec3 *pos = nullptr;
-	vec3 *vel = nullptr;
+	// vec3 *vel = nullptr;
 	double radius = -1.0;
 	std::vector<int> ball_indices;
 
 	group() = default;
 
 	group(double rad, double mass, int group_id, vec3 center_of_mass, 
-		int num_balls, std::vector<int> ball_inds, vec3* positions, 
-		vec3* velocities, vec3* angular_velocities)
+		int num_balls, std::vector<int> ball_inds, vec3* positions)
 	{
 		ball_rad = rad;
 		ball_mass = mass;
@@ -35,8 +34,8 @@ public:
 		numBalls = num_balls;
 		// pos = new vec3[numBalls];
 		pos = positions;
-		vel = velocities;
-		w = angular_velocities;
+		// vel = velocities;
+		// w = angular_velocities;
 
 		ball_indices = ball_inds;
 		enclosingSphere();

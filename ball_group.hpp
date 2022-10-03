@@ -884,7 +884,6 @@ public:
 
         //TODO 
         // g = new graph(num_particles_added);
-        std::cout<<"In merge_ball_group pos[0]: "<<pos[0]<<std::endl;
 
         // Keep track of now loaded ball set to start next set after it:
         num_particles_added += src.num_particles;
@@ -984,10 +983,8 @@ private:
         collision = false;
         if (g != nullptr)
         {
-            std::cout<<"DELETE G"<<std::endl;
             delete g;
         }
-        std::cout<<"NEW GRAPH: scaleBalls: "<<scaleBalls<<" pos[0]: "<<pos[0]<<std::endl;
         g = new graph(num_particles, scaleBalls, pos);
         // SECOND PASS - Check for collisions, apply forces and torques:
         for (int A = 1; A < num_particles; A++)  // cuda

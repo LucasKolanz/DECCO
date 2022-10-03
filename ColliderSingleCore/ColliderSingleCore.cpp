@@ -458,6 +458,7 @@ sim_one_step(const bool write_step, Ball_group O)
 
         if (O.collision)
         {
+            std::cout<<"Collision DETECTED"<<std::endl;
             for (int i = 0; i < O.num_particles; i++)
             {
                 if (A != i)
@@ -468,6 +469,7 @@ sim_one_step(const bool write_step, Ball_group O)
         }
         else
         {
+            std::cout<<"NO Collision"<<std::endl;
             nearest_neighbors = O.g -> nNearestNeighbors(A,30);
         }
 
