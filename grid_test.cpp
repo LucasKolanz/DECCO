@@ -18,10 +18,19 @@ public:
 		num_particles = num;
 		pos = new vec3[num];
 		parseSimData(getLastLine(file));
-
 		
 
-		g = new grid(200,1e-5,size,pos);
+		g = new grid(num,1e-5,size,pos);
+	}
+
+	wrapper(int num,double size,vec3* positions)
+	{
+		num_particles = num;
+		// pos = new vec3[num];
+		pos = positions;
+
+
+		g = new grid(num,1e-5,size,pos);
 	}
 
 	void parseSimData(std::string line)
@@ -97,22 +106,97 @@ public:
     }
 };
 
-void test_extrema()
+void test_groups1()
 {
-	std::string file = "/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/large_aggregate/N_1000/198_2_R2e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_simData.csv";
-	wrapper w(200,file,4e-5);
+	// std::string file = "/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/large_aggregate/N_1000/198_2_R2e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_simData.csv";
+	vec3 *pos = nullptr;
+	pos = new vec3[8];
+	// pos[0] = {0.5,0.75,0.88}; // should be ID {0,0,0}
+	// pos[1] = {-0.5,-0.75,-0.88}; // should be ID {-1,-1,-1}
+	// pos[2] = {-0.5,0.75,0.88}; // should be ID {-1,0,0}
+	// pos[3] = {0.5,-0.75,0.88}; // should be ID {0,-1,0}
+	// pos[4] = {0.5,0.75,-0.88}; // should be ID {0,0,-1}
+	// pos[5] = {-0.5,0.75,-0.88}; // should be ID {-1,0,-1}
+	// pos[6] = {0.5,-0.75,-0.88}; // should be ID {0,-1,-1}
+	// pos[7] = {-0.5,-0.75,0.88}; // should be ID {-1,-1,0}
 
+	pos[0] = {1.5,1.75,1.88}; // should be ID {1,1,1}
+	pos[1] = {-1.5,-1.75,-1.88}; // should be ID {-2,-2,-2}
+	pos[2] = {-1.5,1.75,1.88}; // should be ID {-2,1,1}
+	pos[3] = {1.5,-1.75,1.88}; // should be ID {1,-2,1}
+	pos[4] = {1.5,1.75,-1.88}; // should be ID {1,1,-2}
+	pos[5] = {-1.5,1.75,-1.88}; // should be ID {-2,1,-2}
+	pos[6] = {1.5,-1.75,-1.88}; // should be ID {1,-2,-2}
+	pos[7] = {-1.5,-1.75,1.88}; // should be ID {-2,-2,1}
 	
+	wrapper w(8,1,pos);
+
+	w.g -> printGroups();
 
 	// std::cout<<"HEREERER"<<std::endl;
 	// w.g.setMaxGridIndex();
-	std::cout<<"maxGridIndex: "<<w.g -> maxGridIndex<<std::endl;
+	// std::cout<<"maxGridIndex: "<<w.g -> maxGridIndex<<std::endl;
 	//should be 2
+}
+
+void test_groups2()
+{
+	
+	std::string file = "/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/large_aggregate/N_1000/198_2_R2e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_simData.csv";
+	wrapper w(200,file,2e-5);
+
+	w.g -> printGroups();
+
+	// std::cout<<"HEREERER"<<std::endl;
+	// w.g.setMaxGridIndex();
+	// std::cout<<"maxGridIndex: "<<w.g -> maxGridIndex<<std::endl;
+	//should be 2
+}
+
+void test_map1()
+{
+	vec3 *pos = nullptr;
+	pos = new vec3[16];
+	pos[0] = {0.5,0.75,0.88}; // should be ID {0,0,0}
+	pos[1] = {-0.5,-0.75,-0.88}; // should be ID {-1,-1,-1}
+	pos[2] = {-0.5,0.75,0.88}; // should be ID {-1,0,0}
+	pos[3] = {0.5,-0.75,0.88}; // should be ID {0,-1,0}
+	pos[4] = {0.5,0.75,-0.88}; // should be ID {0,0,-1}
+	pos[5] = {-0.5,0.75,-0.88}; // should be ID {-1,0,-1}
+	pos[6] = {0.5,-0.75,-0.88}; // should be ID {0,-1,-1}
+	pos[7] = {-0.5,-0.75,0.88}; // should be ID {-1,-1,0}
+
+	pos[8] = {1.5,1.75,1.88}; // should be ID {1,1,1}
+	pos[9] = {-1.5,-1.75,-1.88}; // should be ID {-2,-2,-2}
+	pos[10] = {-1.5,1.75,1.88}; // should be ID {-2,1,1}
+	pos[11] = {1.5,-1.75,1.88}; // should be ID {1,-2,1}
+	pos[12] = {1.5,1.75,-1.88}; // should be ID {1,1,-2}
+	pos[13] = {-1.5,1.75,-1.88}; // should be ID {-2,1,-2}
+	pos[14] = {1.5,-1.75,-1.88}; // should be ID {1,-2,-2}
+	pos[15] = {-1.5,-1.75,1.88}; // should be ID {-2,-2,1}
+	
+	wrapper w(16,1,pos);
+	// w.g -> printMap();
+	for (int i = 0; i < 16; i++)
+	{
+		w.g -> printVector(w.g -> getGroup(w.g -> gridIDs[i]));
+	}
+	// std::cout<<w.g -> IDToGrid["-2-21"][0]<<std::endl;
+	return;
+}
+
+void test_map2()
+{
+	std::string file = "/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/large_aggregate/N_1000/198_2_R2e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_simData.csv";
+	wrapper w(200,file,2e-5);
+	w.g -> printMap(w.g -> IDToGrid);
+	return;
 }
 
 int main(int argc, char const *argv[])
 {
-	test_extrema();
+	// test_groups2();
+	test_map1();
 
 	return 0;
 }

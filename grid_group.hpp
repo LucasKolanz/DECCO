@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 // #include <fstream>
+#include <unordered_map>
 #include <cmath>
 #include <climits>
 // #include <queue>
@@ -14,8 +15,9 @@ public:
 	int numBalls = -1;
 	double rad = -1.0;
 	double gridSize = -1.0;
-	int maxGridIndex = -1;
+	// int maxGridIndex = -1;
 	std::vector<std::vector<int>> gridIDs;
+	std::unordered_map<std::string,std::vector<int>> IDToGrid;
 	vec3 *pos = nullptr;
 
 	grid() = default;
@@ -30,7 +32,6 @@ public:
 		std::vector<int> index = {INT_MAX,INT_MAX,INT_MAX};
 		for (int i = 0; i < numBalls; i++)
 		{
-
 			gridIDs.push_back(index); 	
 		}
 
@@ -72,6 +73,7 @@ public:
 		//If group_id[index] = -1 then it hasnt been visited
 		// gridIDs = new int[num_balls];
 		findGroups();
+		mapGroups();
 		return;
 	}
 
@@ -108,24 +110,42 @@ public:
 	{
   		// resetGroups();
 		// vec3 *extrema;
-		setMaxGridIndex();
+		// setMaxGridIndex();
 		
 		for (int i = 0; i < numBalls; i++)
 		{	
 			std::vector<int> iID;
-			iID.push_back(pos[i][0]/gridSize);
-			iID.push_back(pos[i][1]/gridSize);
-			iID.push_back(pos[i][2]/gridSize);
+			iID.push_back(floor(pos[i][0]/gridSize));
+			iID.push_back(floor(pos[i][1]/gridSize));
+			iID.push_back(floor(pos[i][2]/gridSize));
 			gridIDs[i] = iID;
 		}
-		printGroups();
-
   		return;
 	}
 
-	int findGroup(int ball_pos)
+	void mapGroups()
 	{
-		return -12;
+		for (int i = 0; i < numBalls; i++)
+		{
+			std::string key = getKey(gridIDs[i]);
+			if (IDToGrid.find(key) == IDToGrid.end()) // key not present
+			{
+				std::vector<int> indices{i};
+				IDToGrid[key] = indices;
+				std::cout<<"key: val  " <<key<<": "<<IDToGrid[key][0]<<std::endl;
+			}
+			else//key present, add to vector
+			{
+				IDToGrid[key].push_back(i);
+			}
+		}
+		printMap();
+		return;
+	}
+
+	std::string getKey(std::vector<int> v)
+	{
+		return std::to_string(v[0]) + std::to_string(v[1]) + std::to_string(v[2]);
 	}
 
 	//@brief finds the necessary size of the overall grid
@@ -145,7 +165,32 @@ public:
 				}
 			}
 		}
-		maxGridIndex = ceil(max/gridSize);
+		// maxGridIndex = ceil(max/gridSize);
+	}
+
+	std::vector<int> getBalls(int ballIndex)
+	{
+		std::vector<std::vector<int>> neededGroups{gridIDs[ballIndex]};
+		//check if ball is too close to a boarder
+		double tolerance = radius*4;
+
+
+		//check 4 verticies first
+
+		//check x value
+		double gridXmin = gridIDs[ballIndex][0]*gridSize; 
+		double gridXmax = (gridIDs[ballIndex][0]+1)*gridSize; 
+		if (abs(pos[ballIndex][0] - gridXmin) <= tolerance) // check if too close to min
+		{
+			//need to add group to neededGroups
+			std::vector<int> tempID = gridIDs[ballIndex]
+			tempID[0]--;
+			neededGroups.push_back(tempID);
+		}
+
+
+
+		return IDToGrid[getKey(in)];
 	}
 
 	void resetGroups()
@@ -170,6 +215,40 @@ public:
 		return;
 	}
 
+	// template<typename K, typename V>
+	// void printMap(std::unordered_map<K, V> const &m)
+	// {
+	//     for (auto const &pair: m) {
+	//         std::cout << "{" << pair.first << ": ";
+	//         for (auto it = begin(pair.second); it != end(pair.second); ++it)
+	//         {
+	//         	std::cout<<pair.second[*it];
+	//         	if (it+1 != end(pair.second))
+	//         	{
+	//         		std::cout<<",";
+	//         	}
+	//         }
+	//         std::cout<<"}" << std::endl;
+	//     }
+	// }
+
+	// void printMap()
+	// {
+	//     for (auto mit = IDToGrid.cbegin(); mit != IDToGrid.cend(); mit++) {
+	//         std::cout << "{" << (*mit).first << ": ";
+	//         for (auto vit = begin((*mit).second); vit != end((*mit).second); ++vit)
+	//         {
+	//         	std::cout<<(*mit).second[*vit];
+	//         	if (vit+1 != end((*mit).second))
+	//         	{
+	//         		std::cout<<",";
+	//         	}
+	//         }
+	//         std::cout<<"}" << std::endl;
+	//     }
+	// }
+
+
 	// template <typename T>
 	// void printArray(T *arr, int size)
 	// {
@@ -183,18 +262,18 @@ public:
 	// 	return;
 	// }
 
- //  	void printVector(std::vector<int> vec)
- //  	{
-	// 	std::cout<<"================Vector================"<<std::endl;
+  	void printVector(std::vector<int> vec)
+  	{
+		std::cout<<"================Vector================"<<std::endl;
 
- //  		for (auto it = begin(vec); it != end(vec); ++it) 
-	// 	{
-	// 		std::cout<<*it<<", ";
-	// 	}	
-	// 	std::cout<<std::endl;
-	// 	std::cout<<"======================================"<<std::endl;
-	// 	return;
- //  	}
+  		for (auto it = begin(vec); it != end(vec); ++it) 
+		{
+			std::cout<<*it<<", ";
+		}	
+		std::cout<<std::endl;
+		std::cout<<"======================================"<<std::endl;
+		return;
+  	}
 
 
 };
