@@ -179,7 +179,7 @@ void test_map1()
 	// w.g -> printMap();
 	for (int i = 0; i < 16; i++)
 	{
-		w.g -> printVector(w.g -> getGroup(w.g -> gridIDs[i]));
+		w.g -> printVector(w.g -> getBalls(i));
 	}
 	// std::cout<<w.g -> IDToGrid["-2-21"][0]<<std::endl;
 	return;
@@ -189,14 +189,22 @@ void test_map2()
 {
 	std::string file = "/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/large_aggregate/N_1000/198_2_R2e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_simData.csv";
 	wrapper w(200,file,2e-5);
-	w.g -> printMap(w.g -> IDToGrid);
+	// w.g -> printMap(w.g -> IDToGrid);
 	return;
+}
+
+void test_balls()
+{
+	std::string file = "/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/large_aggregate/N_1000/198_2_R2e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_simData.csv";
+	wrapper w(200,file,2e-5);
+	w.g -> getBalls(100);
 }
 
 int main(int argc, char const *argv[])
 {
 	// test_groups2();
-	test_map1();
+	// test_map1();
+	test_balls();
 
 	return 0;
 }
