@@ -118,6 +118,8 @@ public:
         assert(0);
     }
 
+    [[nodiscard]] double distsquared(const vec3& v) const { return (x - v.x)*(x - v.x) + (y - v.y)*(y - v.y) + (z - v.z)*(z - v.z); }
+    
     [[nodiscard]] double dot(const vec3& v) const { return x * v.x + y * v.y + z * v.z; }
     [[nodiscard]] vec3 cross(const vec3& v) const
     {

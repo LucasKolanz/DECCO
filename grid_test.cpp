@@ -33,6 +33,16 @@ public:
 		g = new grid(num,1e-5,size,pos);
 	}
 
+	wrapper(int num,double size,double radius,vec3* positions)
+	{
+		num_particles = num;
+		// pos = new vec3[num];
+		pos = positions;
+
+
+		g = new grid(num,radius,size,pos);
+	}
+
 	void parseSimData(std::string line)
     {
         std::string lineElement;
@@ -197,14 +207,81 @@ void test_balls()
 {
 	std::string file = "/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/large_aggregate/N_1000/198_2_R2e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_simData.csv";
 	wrapper w(200,file,2e-5);
-	w.g -> getBalls(100);
+	w.g -> printVector(w.g -> getBalls(100));
+}
+
+void test_balls2()
+{//put one ball in every box and move around pos[0] so it will give appropriate balls 
+	//test v1
+	vec3 *pos = nullptr;
+	pos = new vec3[28];
+	pos[0] = {0.5,0.5,0.5};
+	pos[27] = pos[0];
+	int l = 1;
+
+	for (int i = -1; i < 2; i++)
+	{
+		for (int j = -1; j < 2; j++)
+		{
+			for (int k = -1; k < 2; k++)
+			{
+				if (!(i == 0 && j == 0 && k == 0))
+				{
+					pos[l] = pos[0];
+					pos[l][0] += i;
+					pos[l][1] += j;
+					pos[l][2] += k;
+					// std::cout<<pos[l]<<std::endl;
+					l++;
+				}
+			}
+		}	
+	}
+
+
+	wrapper w(28,1,0.1,pos);
+	w.g -> printVector(w.g -> getBalls(0));
+	//should give [0,27]
+	
+	//all vertex tests should include balls 0 and 27 and should print 9 balls
+	pos[0] = {0,0,0};
+	w.g -> printVector(w.g -> getBalls(0));
+	pos[0] = {1,0,0};
+	w.g -> printVector(w.g -> getBalls(0));
+	pos[0] = {0,1,0};
+	w.g -> printVector(w.g -> getBalls(0));
+	pos[0] = {0,0,1};
+	w.g -> printVector(w.g -> getBalls(0));
+	pos[0] = {1,1,0};
+	w.g -> printVector(w.g -> getBalls(0));
+	pos[0] = {0,1,1};
+	w.g -> printVector(w.g -> getBalls(0));
+	pos[0] = {1,0,1};
+	w.g -> printVector(w.g -> getBalls(0));
+	pos[0] = {1,1,1};
+	w.g -> printVector(w.g -> getBalls(0));
+
+	// all side tests should include balls 0 and 27 and be 3 balls long
+	pos[0] = {1,0.5,0.5};
+	w.g -> printVector(w.g -> getBalls(0));
+	pos[0] = {0,0.5,0.5};
+	w.g -> printVector(w.g -> getBalls(0));
+	pos[0] = {0.5,1,0.5};
+	w.g -> printVector(w.g -> getBalls(0));
+	pos[0] = {0.5,0,0.5};
+	w.g -> printVector(w.g -> getBalls(0));
+	pos[0] = {0.5,0.5,1};
+	w.g -> printVector(w.g -> getBalls(0));
+	pos[0] = {0.5,0.5,0};
+	w.g -> printVector(w.g -> getBalls(0));
+
 }
 
 int main(int argc, char const *argv[])
 {
 	// test_groups2();
 	// test_map1();
-	test_balls();
+	test_balls2();
 
 	return 0;
 }

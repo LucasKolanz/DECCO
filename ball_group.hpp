@@ -1281,7 +1281,7 @@ private:
             std::getline(simDataStream, line);  // Read the current line
             return line;
         } else {
-            std::cerr << "Could not open simData file: " << simDataFilepath << "... Existing program."
+            std::cerr << "Could not open simData file: " << simDataFilepath << "... Exiting program."
                       << '\n';
             exit(EXIT_FAILURE);
         }

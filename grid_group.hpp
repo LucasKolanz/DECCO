@@ -172,8 +172,9 @@ public:
 	{
 		std::vector<std::vector<int>> neededGroups{gridIDs[ballIndex]};
 		//check if ball is too close to a boarder
-		double tolerancesq = rad*4 * rad*4;
-
+		double tolerance = rad;
+		double tolerancesq = tolerance * tolerance;
+		bool addVertex = false;
 
 		//check 8 verticies first
 		// vec3 v1,v2,v3,v4,v5,v6,v7,v8;
@@ -203,11 +204,16 @@ public:
 		v7[0] += gridSize;
 		v7[2] += gridSize;
 
-		vec3 v8 = v1 * gridSize;
+		vec3 v8 = v1;
+		v8[0] += gridSize;
+		v8[1] += gridSize;
+		v8[2] += gridSize;
 
 		///check vertex1
-		if (v1.dot(pos[ballIndex]) <= tolerancesq)
+		if (v1.distsquared(pos[ballIndex]) <= tolerancesq)
 		{
+			// std::cout<<"Adding V1"<<std::endl;
+			addVertex = true;
 			//need 7 surrounding groups
 			std::vector<int> g1 = gridIDs[ballIndex];
 			g1[0]--;
@@ -244,8 +250,10 @@ public:
 		} 
 
 		///check vertex 2
-		if (v2.dot(pos[ballIndex]) <= tolerancesq)
+		if (v2.distsquared(pos[ballIndex]) <= tolerancesq)
 		{
+			// std::cout<<"Adding V2"<<std::endl;
+			addVertex = true;
 			//need 7 surrounding groups
 			std::vector<int> g1 = gridIDs[ballIndex];
 			g1[1]--;
@@ -282,8 +290,10 @@ public:
 		}
 
 		///check vertex 3
-		if (v3.dot(pos[ballIndex]) <= tolerancesq)
+		if (v3.distsquared(pos[ballIndex]) <= tolerancesq)
 		{
+			// std::cout<<"Adding V3"<<std::endl;
+			addVertex = true;
 			//need 7 surrounding groups
 			std::vector<int> g1 = gridIDs[ballIndex];
 			g1[2]--;
@@ -320,8 +330,10 @@ public:
 		}
 
 		///check vertex 4
-		if (v4.dot(pos[ballIndex]) <= tolerancesq)
+		if (v4.distsquared(pos[ballIndex]) <= tolerancesq)
 		{
+			// std::cout<<"Adding V4"<<std::endl;
+			addVertex = true;
 			//need 7 surrounding groups
 			std::vector<int> g1 = gridIDs[ballIndex];
 			g1[0]--;
@@ -358,8 +370,10 @@ public:
 		}
 
 		///check vertex 5
-		if (v5.dot(pos[ballIndex]) <= tolerancesq)
+		if (v5.distsquared(pos[ballIndex]) <= tolerancesq)
 		{
+			// std::cout<<"Adding V5"<<std::endl;
+			addVertex = true;
 			//need 7 surrounding groups
 			std::vector<int> g1 = gridIDs[ballIndex];
 			g1[0]++;
@@ -396,8 +410,10 @@ public:
 		}
 
 		///check vertex 6
-		if (v6.dot(pos[ballIndex]) <= tolerancesq)
+		if (v6.distsquared(pos[ballIndex]) <= tolerancesq)
 		{
+			// std::cout<<"Adding V6"<<std::endl;
+			addVertex = true;
 			//need 7 surrounding groups
 			std::vector<int> g1 = gridIDs[ballIndex];
 			g1[1]++;
@@ -433,98 +449,131 @@ public:
 			neededGroups.push_back(g7);
 		}
 		///check vertex 7
-		if (v7.dot(pos[ballIndex]) <= tolerancesq)
+		if (v7.distsquared(pos[ballIndex]) <= tolerancesq)
 		{
+			// std::cout<<"Adding V7"<<std::endl;
+			addVertex = true;
 			//need 7 surrounding groups
 			std::vector<int> g1 = gridIDs[ballIndex];
-			g1[]--;
+			g1[1]--;
 			neededGroups.push_back(g1);
 
 			std::vector<int> g2 = gridIDs[ballIndex];
-			g2[]--;
-			g2[]--;
+			g2[1]--;
+			g2[0]++;
 			neededGroups.push_back(g2);
 
 			std::vector<int> g3 = gridIDs[ballIndex];
-			g3[]--;
+			g3[0]++;
 			neededGroups.push_back(g3);
 
 			std::vector<int> g4 = gridIDs[ballIndex];
-			g4[]++;
+			g4[2]++;
 			neededGroups.push_back(g4);
 
 			std::vector<int> g5 = gridIDs[ballIndex];
-			g5[]--;
-			g5[]++;
+			g5[1]--;
+			g5[2]++;
 			neededGroups.push_back(g5);
 
 			std::vector<int> g6 = gridIDs[ballIndex];
-			g6[]--;
-			g6[]--;
-			g6[]++;
+			g6[1]--;
+			g6[0]++;
+			g6[2]++;
 			neededGroups.push_back(g6);
 
 			std::vector<int> g7 = gridIDs[ballIndex];
-			g7[]++;
-			g7[]--;
+			g7[2]++;
+			g7[0]++;
 			neededGroups.push_back(g7);
 		}
 		///check vertex 8
-		if (v8.dot(pos[ballIndex]) <= tolerancesq)
+		if (v8.distsquared(pos[ballIndex]) <= tolerancesq)
 		{
+			// std::cout<<"Adding V8"<<std::endl;
+			addVertex = true;
 			//need 7 surrounding groups
 			std::vector<int> g1 = gridIDs[ballIndex];
-			g1[]--;
+			g1[0]++;
 			neededGroups.push_back(g1);
 
 			std::vector<int> g2 = gridIDs[ballIndex];
-			g2[]--;
-			g2[]--;
+			g2[0]++;
+			g2[1]++;
 			neededGroups.push_back(g2);
 
 			std::vector<int> g3 = gridIDs[ballIndex];
-			g3[]--;
+			g3[1]++;
 			neededGroups.push_back(g3);
 
 			std::vector<int> g4 = gridIDs[ballIndex];
-			g4[]++;
+			g4[2]++;
 			neededGroups.push_back(g4);
 
 			std::vector<int> g5 = gridIDs[ballIndex];
-			g5[]--;
-			g5[]++;
+			g5[0]++;
+			g5[2]++;
 			neededGroups.push_back(g5);
 
 			std::vector<int> g6 = gridIDs[ballIndex];
-			g6[]--;
-			g6[]--;
-			g6[]++;
+			g6[2]++;
+			g6[1]++;
+			g6[0]++;
 			neededGroups.push_back(g6);
 
 			std::vector<int> g7 = gridIDs[ballIndex];
-			g7[]++;
-			g7[]--;
+			g7[2]++;
+			g7[1]++;
 			neededGroups.push_back(g7);
 		}	
 
-		//check x value
-		// double gridXmin = gridIDs[ballIndex][0]*gridSize; 
-		// double gridXmax = (gridIDs[ballIndex][0]+1)*gridSize; 
-		// if (abs(pos[ballIndex][0] - gridXmin) <= tolerance) // check if too close to min
-		// {
-		// 	//need to add group to neededGroups
-		// 	std::vector<int> tempID = gridIDs[ballIndex]
-		// 	tempID[0]--;
-		// 	neededGroups.push_back(tempID);
-		// }
 
+		if (!addVertex) 
+		{ 
+			// if we didn't add any groups close to a vertex, 
+			// we might need to add a side group 
+			for (int i = 0; i < 3; i++)
+			{
+				double gridmin = gridIDs[ballIndex][i]*gridSize; 
+				double gridmax = (gridIDs[ballIndex][i]+1)*gridSize; 
+				if (std::abs(pos[ballIndex][i] - gridmin) <= tolerance) // check if too close to min
+				{
+					// std::cout<<std::abs(0.5)<<std::endl;
+					// std::cout<<std::abs(pos[ballIndex][i] - gridmin)<<std::endl;
+					// std::cout<<pos[ballIndex][i] - gridmin<<std::endl;
+					// std::cout<<pos[ballIndex][i]<<std::endl;
+					// std::cout<<gridmin<<std::endl;
+					// std::cout<<"Adding i="<<i<<" min"<<std::endl;
+					//need to add group to neededGroups
+					std::vector<int> tempID = gridIDs[ballIndex];
+					tempID[i]--;
+					neededGroups.push_back(tempID);
+				}
+				if (std::abs(pos[ballIndex][i] - gridmax) <= tolerance)
+				{
+					// std::cout<<"Adding i="<<i<<" max"<<std::endl;
+					//need to add group to neededGroups
+					std::vector<int> tempID = gridIDs[ballIndex];
+					tempID[i]++;
+					neededGroups.push_back(tempID);
+				}
+			}
+		}
 
+		//add all points in the groups in neededGroups to a vector 
+		//of ints and return that
+		std::vector<int> ball_indicies;
+		for (auto it = begin(neededGroups); it != end(neededGroups); ++it)
+		{
+			std::string key = getKey(*it);
+			for (auto ind_it = begin(IDToGrid[key]); ind_it != end(IDToGrid[key]); ++ind_it)
+			{
+				ball_indicies.push_back(*ind_it);
+			}
+		}
 
-		return IDToGrid[getKey(gridIDs[ballIndex])];
+		return ball_indicies;
 	}
-
-
-
 
 	void resetGroups()
 	{
