@@ -1,6 +1,6 @@
 #pragma once
 #include "dust_const_init.hpp"
-#include "graph_group.hpp"
+// #include "grid_group.hpp"
 // #include "dust_const.hpp"
 #include "json/single_include/nlohmann/json.hpp"
 // #include "json/single_include/nlohmann/json.hpp"
@@ -33,14 +33,16 @@ public:
     bool collision = false; //temp, for testing nearest neighbors
 
     // Useful values:
-    double r_min = -1;
-    double r_max = -1;
-    double m_total = -1;
-    double initial_radius = -1;
-    double v_collapse = 0;
-    double v_max = -1;
+    double r_min = -1.0;
+    double r_max = -1.0;
+    double m_total = -1.0;
+    double initial_radius = -1.0;
+    double v_collapse = 0.0;
+    double v_max = -1.0;
     double v_max_prev = HUGE_VAL;
-    double soc = -1;
+    double soc = -1.0;
+    double gridSize = -1.0;
+    double tolerance = -1.0;
 
     vec3 mom = {0, 0, 0};
     vec3 ang_mom = {
@@ -48,7 +50,7 @@ public:
         0,
         0};  // Can be vec3 because they only matter for writing out to file. Can process on host.
 
-    double PE = 0, KE = 0;
+    double PE = 0.0, KE = 0.0;
 
     double* distances = nullptr;
 
@@ -63,7 +65,7 @@ public:
     double* m = nullptr;    ///< Mass
     double* moi = nullptr;  ///< Moment of inertia
 
-    graph *g = nullptr;
+    // grid g;
 
 
     // double get_soc()
@@ -79,6 +81,10 @@ public:
         json inputs = json::parse(ifs);
 
         dynamicTime = inputs["dynamicTime"];
+
+        gridSize = inputs["gridSize"];
+        tolerance = inputs["gridTolerance"];
+        
         G = inputs["G"];
         density = inputs["density"];
         u_s = inputs["u_s"];
@@ -245,6 +251,9 @@ public:
         v_max_prev = rhs.v_max_prev;
         soc = rhs.soc;
 
+        gridSize = rhs.gridSize;
+        tolerance = rhs.tolerance;
+
         mom = rhs.mom;
         ang_mom = rhs.ang_mom;  // Can be vec3 because they only matter for writing out to file. Can process
                                 // on host.
@@ -264,7 +273,7 @@ public:
         m = rhs.m;      ///< Mass
         moi = rhs.moi;  ///< Moment of inertia
 
-        g = rhs.g; ///graph class
+        // g = rhs.g; ///graph class
 
         return *this;
     }
@@ -284,6 +293,9 @@ public:
         v_max_prev = rhs.v_max_prev;
         soc = rhs.soc;
 
+        gridSize = rhs.gridSize;
+        tolerance = rhs.tolerance;
+
         mom = rhs.mom;
         ang_mom = rhs.ang_mom;  // Can be vec3 because they only matter for writing out to file. Can process
                                 // on host.
@@ -303,7 +315,7 @@ public:
         m = rhs.m;      ///< Mass
         moi = rhs.moi;  ///< Moment of inertia
 
-        g = rhs.g; ///graph class
+        // g = rhs.g; ///graph class
     }
 
     void calc_helpfuls()
@@ -860,6 +872,9 @@ public:
 
         new_group.to_origin();
 
+        new_group.gridSize = gridSize;
+        new_group.tolerance = tolerance;
+
         // new_group.g.printGraph();
         return new_group;
     }
@@ -882,6 +897,8 @@ public:
         std::memcpy(&m[num_particles_added], src.m, sizeof(src.m[0]) * src.num_particles);
         std::memcpy(&moi[num_particles_added], src.moi, sizeof(src.moi[0]) * src.num_particles);
 
+        // std::memcpy(&gridSize,src.gridSize,sizeof(src.gridSize));
+        // std::memcpy(&tolerance,src.tolerance,sizeof(src.tolerance));
         //TODO 
         // g = new graph(num_particles_added);
 
@@ -890,17 +907,17 @@ public:
         calc_helpfuls();
     }
 
-    void printGraph(std::string file)
-    {
-        std::cout<<"File: "<<file<<std::endl;
-        g -> printGraph(file);
-    }
+    // void printGraph(std::string file)
+    // {
+    //     std::cout<<"File: "<<file<<std::endl;
+    //     g -> printGraph(file);
+    // }
 
-    void printGraph()
-    {
-        // std::cout<<"File: "<<file<<std::endl;
-        g -> printGraph();
-    }
+    // void printGraph()
+    // {
+    //     // std::cout<<"File: "<<file<<std::endl;
+    //     g -> printGraph();
+    // }
 
 private:
     // String buffers to hold data in memory until worth writing to file:
@@ -979,13 +996,12 @@ private:
     // Initialize accelerations and energy calculations:
     void init_conditions()
     {
-        std::cout<<"INIT COND CALLED"<<std::endl;
         collision = false;
-        if (g != nullptr)
-        {
-            delete g;
-        }
-        g = new graph(num_particles, scaleBalls, pos);
+        // if (g != nullptr)
+        // {
+        //     delete g;
+        // }
+        
         // SECOND PASS - Check for collisions, apply forces and torques:
         for (int A = 1; A < num_particles; A++)  // cuda
         {
@@ -1007,7 +1023,7 @@ private:
 
                 // Check for collision between Ball and otherBall.
                 if (overlap > 0) {
-                    g -> addEdge(A,B);
+
                     double k;
                     // Apply coefficient of restitution to balls leaving collision.
                     if (dist >= oldDist) {
@@ -1149,6 +1165,11 @@ private:
             }
             // DONT DO ANYTHING HERE. A STARTS AT 1.
         }
+
+        // if (num_particles > MIN_FOR_GRID)
+        // {
+        //     g = grid(num_particles, gridSize, scaleBalls, pos);
+        // }
 
         // Calc energy:
         for (int Ball = 0; Ball < num_particles; Ball++) {

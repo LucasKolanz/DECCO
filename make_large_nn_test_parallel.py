@@ -4,7 +4,7 @@ import multiprocessing as mp
 import subprocess
 
 def run_job(location,num_balls):
-	cmd = ["python3", "{}run_sim.py".format(location), location, str(num_balls)]
+	cmd = ["python3", "{}run_sim_parallel.py".format(location), location, str(num_balls)]
 	# print(cmd)
 	# exit(0)
 	subprocess.run(cmd)
@@ -16,12 +16,12 @@ if __name__ == '__main__':
 	#switch directories and make the c++ file
 	try:
 		# os.chdir("{}ColliderSingleCore".format(curr_folder))
-		subprocess.run(["make","-C","ColliderSingleCore"], check=True)
+		subprocess.run(["make","-C","ColliderParallel"], check=True)
 	except:
 		print('compilation failed')
 		exit(-1)
 
-	job_set_name = "test"
+	job_set_name = "parallel_test"
 	folder_name_scheme = "N_"
 
 	job_set_folder = curr_folder + 'jobs/' + job_set_name + '/'
@@ -59,8 +59,8 @@ if __name__ == '__main__':
 			json.dump(input_json,fp,indent=4)
 
 		#add run script and executable to folders
-		os.system("cp default_files/run_sim.py {}run_sim.py".format(folders[index]))
-		os.system("cp ColliderSingleCore/ColliderSingleCore.o {}ColliderSingleCore.o".format(folders[index]))
+		os.system("cp default_files/run_sim_parallel.py {}run_sim_parallel.py".format(folders[index]))
+		os.system("cp ColliderParallel/ColliderSingletoParallel.o {}ColliderSingletoParallel.o".format(folders[index]))
 
 	if len(N) != len(folders):
 		N = [str(N[0]) for i in range(len(folders))]

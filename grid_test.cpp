@@ -214,8 +214,11 @@ void test_balls2()
 {//put one ball in every box and move around pos[0] so it will give appropriate balls 
 	//test v1
 	vec3 *pos = nullptr;
-	pos = new vec3[28];
-	pos[0] = {0.5,0.5,0.5};
+	pos = new vec3[30];
+	double grid_size = 1e-4;
+	double mid = grid_size/2.0;
+	double radius = 1e-5;
+	pos[0] = {mid,mid,mid};
 	pos[27] = pos[0];
 	int l = 1;
 
@@ -228,9 +231,9 @@ void test_balls2()
 				if (!(i == 0 && j == 0 && k == 0))
 				{
 					pos[l] = pos[0];
-					pos[l][0] += i;
-					pos[l][1] += j;
-					pos[l][2] += k;
+					pos[l][0] += i*grid_size;
+					pos[l][1] += j*grid_size;
+					pos[l][2] += k*grid_size;
 					// std::cout<<pos[l]<<std::endl;
 					l++;
 				}
@@ -238,50 +241,80 @@ void test_balls2()
 		}	
 	}
 
+	pos[28] = {0,0,0};
+	pos[29] = {grid_size+mid,0,0};
 
-	wrapper w(28,1,0.1,pos);
+
+	wrapper w(30,grid_size,radius,pos);
 	w.g -> printVector(w.g -> getBalls(0));
 	//should give [0,27]
 	
 	//all vertex tests should include balls 0 and 27 and should print 9 balls
 	pos[0] = {0,0,0};
 	w.g -> printVector(w.g -> getBalls(0));
-	pos[0] = {1,0,0};
+	pos[0] = {grid_size,0,0};
 	w.g -> printVector(w.g -> getBalls(0));
-	pos[0] = {0,1,0};
+	pos[0] = {0,grid_size,0};
 	w.g -> printVector(w.g -> getBalls(0));
-	pos[0] = {0,0,1};
+	pos[0] = {0,0,grid_size};
 	w.g -> printVector(w.g -> getBalls(0));
-	pos[0] = {1,1,0};
+	pos[0] = {grid_size,grid_size,0};
 	w.g -> printVector(w.g -> getBalls(0));
-	pos[0] = {0,1,1};
+	pos[0] = {0,grid_size,grid_size};
 	w.g -> printVector(w.g -> getBalls(0));
-	pos[0] = {1,0,1};
+	pos[0] = {grid_size,0,grid_size};
 	w.g -> printVector(w.g -> getBalls(0));
-	pos[0] = {1,1,1};
+	pos[0] = {grid_size,grid_size,grid_size};
 	w.g -> printVector(w.g -> getBalls(0));
 
 	// all side tests should include balls 0 and 27 and be 3 balls long
-	pos[0] = {1,0.5,0.5};
+	pos[0] = {grid_size,mid,mid};
 	w.g -> printVector(w.g -> getBalls(0));
-	pos[0] = {0,0.5,0.5};
+	pos[0] = {0,mid,mid};
 	w.g -> printVector(w.g -> getBalls(0));
-	pos[0] = {0.5,1,0.5};
+	pos[0] = {mid,grid_size,mid};
 	w.g -> printVector(w.g -> getBalls(0));
-	pos[0] = {0.5,0,0.5};
+	pos[0] = {mid,0,mid};
 	w.g -> printVector(w.g -> getBalls(0));
-	pos[0] = {0.5,0.5,1};
+	pos[0] = {mid,mid,grid_size};
 	w.g -> printVector(w.g -> getBalls(0));
-	pos[0] = {0.5,0.5,0};
+	pos[0] = {mid,mid,0};
 	w.g -> printVector(w.g -> getBalls(0));
 
+}
+
+void test_balls3()
+{
+	vec3 *pos = nullptr;
+	pos = new vec3[3];
+	double grid_size = 1e-4;
+	// double mid = grid_size/2.0;
+	double radius = 1e-5;
+	double tolerance = radius*4;
+
+	// pos[0] = {-7.83584e-06,2.52112e-05,6.49667e-06};
+	// pos[1] = {-7.83584e-06,3.19117e-06,6.49667e-06};
+	// pos[2] = {1.56717e-05,-2.84023e-05,-1.29933e-05};
+
+	// pos[0] = {9.51319e-07,-2.90044e-06,-1.05297e-05};
+	// pos[1] = {9.51319e-07,-2.49204e-05,-1.05297e-05};
+	// pos[2] = {-1.90264e-06,2.78209e-05,2.10594e-05};
+
+	pos[0] = {1.11215e-05,1.85625e-05,1.11596e-05};
+	pos[1] = {1.11215e-05,-3.45745e-06,1.11596e-05};
+	pos[2] = {-2.2243e-05,-1.51051e-05,-2.23191e-05};
+
+	grid g(3,radius,grid_size,pos,tolerance);
+	g.printVector(g.getBalls(0));
+	g.printVector(g.getBalls(1));
+	g.printVector(g.getBalls(2));
 }
 
 int main(int argc, char const *argv[])
 {
 	// test_groups2();
 	// test_map1();
-	test_balls2();
+	test_balls3();
 
 	return 0;
 }

@@ -1,5 +1,7 @@
 {
 	"dynamicTime": false,
+	"gridSize": 1e-4,
+	"gridTolerance": 4e-5,
 	"G": 6.67e-8,
 	"density": 2.25,
 	"u_s": 0.1,

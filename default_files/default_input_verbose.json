@@ -6,6 +6,10 @@
 
 	//IDK, keep false until figure it out
 	"dynamicTime": false,
+	//size of the grid in cm
+	"gridSize": 1e-4,
+	//how close can a ball be to the edge of the grid before it adds the balls from the next grid
+	"gridTolerance": 4e-5,
 	//Gravitiational Constant, don't change unless to give more precision
 	"G": 6.67e-8,
 	//density of constituent balls in g/cm^3
