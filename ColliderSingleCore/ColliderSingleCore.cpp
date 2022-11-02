@@ -1,4 +1,6 @@
 #include "../ball_group.hpp"
+#include "../timing/timing.hpp"
+#include "../grid_group/grid_group.hpp"
 
 #include <cmath>
 #include <iostream>
@@ -44,12 +46,15 @@ make_group(const char *argv1,int* restart);
 // Ball_group O(20, true, v_custom); // Generate
 // Ball_group O(genBalls, true, v_custom); // Generate
 
+timey t;
+
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 int
 main(const int argc, char const* argv[])
 {
+    t.start_event("WholeThing");
 
     energyBuffer.precision(12);  // Need more precision on momentum.
     int num_balls;
@@ -97,11 +102,16 @@ main(const int argc, char const* argv[])
     // for (int i = 0; i < 250; i++) {
         O.zeroAngVel();
         O.zeroVel();
+        t.start_event("add_projectile");
         O = O.add_projectile();
-        O.sim_init_write(ori_output_prefix);
+        t.end_event("add_projectile");
+        O.sim_init_write(ori_output_prefix, i);
         sim_looper(O);
         simTimeElapsed = 0;
     }
+    t.end_event("WholeThing");
+    t.print_events();
+    t.save_events(output_folder + "timing.txt");
 }  // end main
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
@@ -151,7 +161,7 @@ std::string check_restart(std::string folder,int* restart)
     // int tot_count = 0;
     // int file_count = 0;
     int largest_file_index = -1;
-    int file_index;
+    int file_index = -100;
     std::string largest_index_name;
     for (const auto & entry : fs::directory_iterator(folder))
     {
@@ -161,12 +171,10 @@ std::string check_restart(std::string folder,int* restart)
         // tot_count++;
         if (file.substr(file.size()-4,file.size()) == ".csv")
         {
-            // file_count++;
-            if (file[3] == '_')
-            {
-                file_index = stoi(file.substr(0,file.find("_")));
-            }
-            else if (file[1] == '_' and file[3] != '_')
+            size_t pos = file.find('_');
+            file_index = stoi(file.substr(0,pos));
+            
+            if (file[pos+2] != '_')
             {
                 file_index = 0;
             }
@@ -229,7 +237,7 @@ std::string check_restart(std::string folder,int* restart)
     }
 }
 
-void ball_interactions(int A, int B, Ball_group& O, bool write_step)
+inline void ball_interactions(int A, int B, Ball_group& O, bool write_step)
 {
     const double sumRaRb = O.R[A] + O.R[B];
     const vec3 rVecab = O.pos[B] - O.pos[A];  // Vector from a to b.
@@ -394,6 +402,7 @@ sim_one_step(const bool write_step, Ball_group& O)
     // std::cout<<"pre first pass of one step pos: "<<O.pos[0]<<std::endl;
     // std::cout<<"pre first pass of one step vel: "<<O.vel[0]<<std::endl;
     // std::cout<<"pre first pass of one step acc: "<<O.acc[0]<<std::endl;
+    t.start_event("UpdateKinPar");
     for (int Ball = 0; Ball < O.num_particles; Ball++) {
         // Update velocity half step:
         O.velh[Ball] = O.vel[Ball] + .5 * O.acc[Ball] * dt;
@@ -410,14 +419,18 @@ sim_one_step(const bool write_step, Ball_group& O)
         // Reinitialize angular acceleration to be recalculated:
         O.aacc[Ball] = {0, 0, 0};
     }
+    t.end_event("UpdateKinPar");
 
     // int A,B; 
     // auto t1 = std::chrono::high_resolution_clock::now();
+    t.start_event("CalcForces");
     if (O.num_particles > MIN_FOR_GRID)
     {
 
         // safetyChecks(O);
+        t.start_event("INITgrid");
         grid g(O.num_particles, O.R[0], O.gridSize, O.pos, O.tolerance);
+        t.end_event("INITgrid");
 
         // std::cout<<"num_particles: "<<O.num_particles<<'\n';
         // std::cout<<"gridSize: "<<O.gridSize<<'\n';
@@ -429,16 +442,22 @@ sim_one_step(const bool write_step, Ball_group& O)
         for (int A = 0; A < O.num_particles; ++A)  // cuda
         {
             // std::cout<<"pos: "<<O.pos[A]<<'\n';
+            t.start_event("getNearestNeighbors");
             std::vector<int> nearest_neighbors = g.getBalls(A);
+            t.end_event("getNearestNeighbors");
             // g.printVector(nearest_neighbors);
             // g.printVector(g.getBalls(A));
+            t.start_event("loopApplicablePairs");
             for (int B : nearest_neighbors)
             {
                 if (A != B)
                 {
+                    t.start_event("ballInteractions");
                     ball_interactions(A,B,O,write_step);
+                    t.end_event("ballInteractions");
                 }
             }
+            t.end_event("loopApplicablePairs");
         }
     }
     else
@@ -451,6 +470,7 @@ sim_one_step(const bool write_step, Ball_group& O)
             }   
         }
     }
+    t.end_event("CalcForces");
     // auto t2 = std::chrono::high_resolution_clock::now();
     // std::cout << "grid init took "
     //   << std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count()
@@ -493,6 +513,7 @@ sim_one_step(const bool write_step, Ball_group& O)
     }
 
     // THIRD PASS - Calculate velocity for next step:
+    t.start_event("CalcVelocityforNextStep");
     for (int Ball = 0; Ball < O.num_particles; Ball++) {
         // Velocity for next step:
         O.vel[Ball] = O.velh[Ball] + .5 * O.acc[Ball] * dt;
@@ -518,7 +539,7 @@ sim_one_step(const bool write_step, Ball_group& O)
             O.ang_mom += O.m[Ball] * O.pos[Ball].cross(O.vel[Ball]) + O.moi[Ball] * O.w[Ball];
         }
     }  // THIRD PASS END
-    // std::cout<<"end of one step: "<<O.pos[0]<<std::endl;
+    t.end_event("CalcVelocityforNextStep");
 }  // one Step end
 
 
@@ -534,6 +555,7 @@ sim_looper(Ball_group& O)
 
         // Check if this is a write step:
         if (Step % skip == 0) {
+            t.start_event("writeProgressReport");
             writeStep = true;
 
             simTimeElapsed += dt * skip;
@@ -558,6 +580,7 @@ sim_looper(Ball_group& O)
             // progress, eta, real, simmed, real / simmed);
             fflush(stdout);
             startProgress = time(nullptr);
+            t.end_event("writeProgressReport");
         } else {
             writeStep = false;
         }
@@ -567,6 +590,7 @@ sim_looper(Ball_group& O)
 
 
         if (writeStep) {
+            t.start_event("writeStep");
             // Write energy to stream:
             energyBuffer << '\n'
                          << simTimeElapsed << ',' << O.PE << ',' << O.KE << ',' << O.PE + O.KE << ','
@@ -609,6 +633,7 @@ sim_looper(Ball_group& O)
 
 
             if (dynamicTime) { O.calibrate_dt(Step, false); }
+            t.end_event("writeStep");
         }  // writestep end
     }
 

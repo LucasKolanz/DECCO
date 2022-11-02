@@ -26,6 +26,7 @@ using json = nlohmann::json;
 class Ball_group
 {
 public:
+    std::string out_folder;
     int num_particles = 0;
     int num_groups = -1;
     int num_particles_added = 0;
@@ -158,9 +159,11 @@ public:
             project_path = s_location;
         }
         output_folder = inputs["output_folder"];
+        out_folder = inputs["output_folder"];
         if (output_folder == std::string("default"))
         {
             output_folder = s_location;
+            out_folder = s_location;
         }
         projectileName = inputs["projectileName"];
         targetName = inputs["targetName"];
@@ -474,8 +477,10 @@ public:
             // This shouldn't apply to extremely destructive collisions because it is possible that no
             // particles are considered, so it will keep pausing.
             if (v_max < 1e-10) {
-                std::cerr << "\nMax velocity in system is less than 1e-10.\n";
-                system("pause");
+                std::cerr << "\nMax velocity in system is less than 1e-10, probably a finished sim.\n";
+                std::cerr << "now exiting sim\n";
+                exit(EXIT_FAILURE);
+                // system("pause");
             }
         }
 
@@ -566,7 +571,16 @@ public:
         // compatibility. What happens without setting output_prefix = filename? Check if file name already
         // exists.
         std::ifstream checkForFile;
-        checkForFile.open(output_folder + filename + "simData.csv", std::ifstream::in);
+        std::string filenum;
+        if (counter != 0)
+        {
+            filenum = std::to_string(counter) + '_';
+        }
+        else
+        {
+            filenum = "";
+        }
+        checkForFile.open(output_folder + filenum + filename + "simData.csv", std::ifstream::in);
         // Add a counter to the file name until it isn't overwriting anything:
         while (checkForFile.is_open()) {
             counter++;
@@ -1609,7 +1623,8 @@ private:
         }
         else
         {
-            std::cerr << "Continuing Sim...\nFile: " << start_file_index << filename << '\n';
+            output_prefix = std::to_string(start_file_index);
+            std::cerr << "Continuing Sim...\nFile: " << start_file_index << '_' << filename << '\n';
             loadSim(path, std::to_string(start_file_index) + "_" + filename);
         }
 

@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
+import os
 sys.path.append("/home/kolanzl/Desktop/SpaceLab")
 import utils as u
 
@@ -83,27 +84,42 @@ def porosity_measure2(data_folder):
 
 if __name__ == '__main__':
 	data_prefolder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab/jobs/tempVariance_attempt'
+	data_prefolder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/tempVarianceRand_attempt'
 
 	# temps = [10]
 	temps = [3,10,30,100,300,1000]
+	Nums = [30,100]
 	# attempts = [19]
-	attempts = [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]
+	attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18]
+	attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
 	std_dev = []
 	std_err = []
 	# attempts = [attempts[3]]
-	porositiesabc = np.zeros((len(temps),len(attempts)),dtype=np.float64)
-	porositiesKBM = np.zeros((len(temps),len(attempts)),dtype=np.float64) 
-	FD_data = np.zeros((len(temps),len(attempts)),dtype=np.float64)
+	porositiesabc = np.zeros((len(Nums),len(temps),len(attempts)),dtype=np.float64)
+	porositiesKBM = np.zeros((len(Nums),len(temps),len(attempts)),dtype=np.float64) 
+	FD_data = np.zeros((len(Nums),len(temps),len(attempts)),dtype=np.float64)
 	for i,temp in enumerate(temps):
-		for j,attempt in enumerate(attempts):
-			data_folder = data_prefolder + str(attempt) + '/' + 'T_' + str(temp) + '/'
-			porositiesabc[i,j] = porosity_measure1(data_folder)
-			porositiesKBM[i,j] = porosity_measure2(data_folder)
+		for n,N in enumerate(Nums):
+			for j,attempt in enumerate(attempts):
+				if N == 100:
+					data_folder = data_prefolder + str(attempt) + '/' + 'T_' + str(temp) + '/'
+				else:
+					data_folder = data_prefolder + str(attempt) + '/' + 'N_' + str(N) + '/T_' + str(temp) + '/'
 
-			o3dv = u.o3doctree(data_folder,overwrite_data=False)
-			o3dv.make_tree()
-			FD_data[i,j] = o3dv.calc_fractal_dimension(show_graph=False)
+				count = 0
+				for root_dir, cur_dir, files in os.walk(data_folder):
+				    count += len(files)
+				if count/3 > N:
+					porositiesabc[n,i,j] = porosity_measure1(data_folder)
+					porositiesKBM[n,i,j] = porosity_measure2(data_folder)
 
+					o3dv = u.o3doctree(data_folder,overwrite_data=False)
+					o3dv.make_tree()
+					FD_data[n,i,j] = o3dv.calc_fractal_dimension(show_graph=False)
+				else:
+					porositiesabc[n,i,j] = np.nan
+					porositiesKBM[n,i,j] = np.nan
+					FD_data[n,i,j] = np.nan
 	# porositiesabc = np.array(porositiesabc,dtype=np.float64)
 	# porositiesKBM = np.array(porositiesKBM,dtype=np.float64)
 	# print(porositiesabc.shape)
@@ -119,36 +135,84 @@ if __name__ == '__main__':
 	# 	plt.xscale('log')
 	# 	plt.show()
 
+	porositiesabcavg = []
+	porositiesKBMavg = []
+	porositiesabcstd = []
+	porositiesKBMstd = []
+	FD_dataavg = []
+	FD_datastd = []
+	yerr_abc = []
+	yerr_KBM = []
+	yerr_FD = []
+	for i,N in enumerate(Nums):
+		porositiesabcavg.append(np.average(porositiesabc[i],axis=1))
+		porositiesKBMavg.append(np.average(porositiesKBM[i],axis=1))
+		porositiesabcstd.append(np.std(porositiesabc[i],axis=1))
+		porositiesKBMstd.append(np.std(porositiesKBM[i],axis=1))
+		FD_dataavg.append(np.average(FD_data[i],axis=1))
+		FD_datastd.append(np.std(FD_data[i],axis=1))
+		# print(porositiesabcavg[i])
+		# print(porositiesKBMavg[i])
 
-	porositiesabcavg = np.average(porositiesabc,axis=1)
-	porositiesKBMavg = np.average(porositiesKBM,axis=1)
-	porositiesabcstd = np.std(porositiesabc,axis=1)
-	porositiesKBMstd = np.std(porositiesKBM,axis=1)
-	FD_dataavg = np.average(FD_data,axis=1)
-	FD_datastd = np.std(FD_data,axis=1)
+		# plotme = np.array([porositiesabcavg,porositiesKBMavg])
+		yerr_abc.append(porositiesabcstd[i]/np.sqrt(len(attempts)))
+		yerr_KBM.append(porositiesKBMstd[i]/np.sqrt(len(attempts)))
+		yerr_FD.append(FD_datastd[i]/np.sqrt(len(attempts)))
+		# print(yerr[0])
 
-	plotme = np.array([porositiesabcavg,porositiesKBMavg])
-	yerr1 = np.array([porositiesabcstd,porositiesKBMstd])/np.sqrt(len(attempts))
-	yerr2 = FD_datastd/np.sqrt(len(attempts))
-	# print(yerr[0])
+	#plot each size separately
+	# for i,N in enumerate(Nums):
+	# 	fig,ax = plt.subplots()
+	# 	# print(porositiesabc[i])
+	# 	ax.errorbar(temps,porositiesabcavg[i],yerr=yerr_abc[i],label="Rabc",zorder=5)
+	# 	ax.errorbar(temps,porositiesKBMavg[i],yerr=yerr_KBM[i],label="RKBM",zorder=5)
+	# 	# ax.errorbar(temps,plotme[1],yerr=yerr1[1],label="RKBM",zorder=10)
+		
+	# 	ax.set_xlabel('Temperature in K')
+	# 	ax.set_title('Porosity average over {} sims N={}'.format(len(attempts),N))
+	# 	ax.set_ylabel('Porosity')
+	# 	# ax.set_legend(['Rabc','RKBM'])
+	# 	# plt.errorbar(temps,)
+	# 	ax.set_xscale('log')
 
+	# 	ax2 = ax.twinx()
+	# 	# ax2.errorbar(temps,FD_dataavg,yerr=yerr2,label="Frac Dim",color='r',zorder=0)
+	# 	# ax2.invert_yaxis()
+	# 	ax2.set_ylabel('Avg Fractal Dimension')
+
+	# 	fig.legend()
+	# 	plt.savefig("figures/FractDimandPorosity_N{}.png".format(N))
+	# 	plt.show()
+
+	#plot all sizes together
 	fig,ax = plt.subplots()
-	ax.errorbar(temps,plotme[0],yerr=yerr1[0],label="Rabc",zorder=5)
-	ax.errorbar(temps,plotme[1],yerr=yerr1[1],label="RKBM",zorder=10)
-	# plt.errorbar(x, y + 3, yerr=yerr, label='both limits (default)')
+	ax2 = ax.twinx()
+	# print(porositiesabc[i])
+	styles = ['-','--','-.']
+	colors = ['g','b','r']
+	for i,N in enumerate(Nums):
+		ax.errorbar(temps,porositiesabcavg[i],yerr=yerr_abc[i],label="Rabc,N={}".format(N),\
+			linestyle=styles[i],color="g",zorder=5)
+		ax.errorbar(temps,porositiesKBMavg[i],yerr=yerr_KBM[i],label="RKBM,N={}".format(N),\
+			linestyle=styles[i],color="b",zorder=5)
+		ax2.errorbar(temps,FD_dataavg[i],yerr=yerr_FD[i],label="FD, N={}".format(N),\
+			linestyle=styles[i],color="r",zorder=5)
+
+	# ax.errorbar(temps,plotme[1],yerr=yerr1[1],label="RKBM",zorder=10)
+	
 	ax.set_xlabel('Temperature in K')
-	ax.set_title('Porosity average over {} sims'.format(len(attempts)))
+	ax.set_title('Porosity average over {} sims'.format(len(attempts),N))
 	ax.set_ylabel('Porosity')
 	# ax.set_legend(['Rabc','RKBM'])
 	# plt.errorbar(temps,)
 	ax.set_xscale('log')
 
-	ax2 = ax.twinx()
-	ax2.errorbar(temps,FD_dataavg,yerr=yerr2,label="Frac Dim",color='r',zorder=0)
+	# ax2 = ax.twinx()
+	# ax2.errorbar(temps,FD_dataavg,yerr=yerr2,label="Frac Dim",color='r',zorder=0)
 	# ax2.invert_yaxis()
 	ax2.set_ylabel('Avg Fractal Dimension')
 
 	fig.legend()
-	plt.savefig("FractDimandPorosity.png")
+	plt.savefig("figures/FractDimandPorosity_allN.png")
 	plt.show()
 

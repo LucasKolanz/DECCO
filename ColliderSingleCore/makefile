@@ -2,8 +2,8 @@
 # std=c++2a
 # CFLAGS=-I.
 
-ColliderSingleCore.o: ColliderSingleCore.cpp ../dust_const.hpp ../ball_group.hpp ../grid_group.hpp
-	g++-10 -std=c++2a -o ColliderSingleCore.o ColliderSingleCore.cpp
+ColliderSingleCore.o: ColliderSingleCore.cpp ../dust_const.hpp ../ball_group.hpp ../grid_group/grid_group.hpp
+	g++-10 -O3 -std=c++2a -o ColliderSingleCore.o ColliderSingleCore.cpp
 
 
 test: ColliderSingleCore.cpp 
