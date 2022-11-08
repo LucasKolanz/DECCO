@@ -31,6 +31,7 @@ public:
     int num_groups = -1;
     int num_particles_added = 0;
 
+    int seed = -1;
     bool collision = false; //temp, for testing nearest neighbors
 
     // Useful values:
@@ -80,6 +81,15 @@ public:
         std::string json_file = s_location + "input.json";
         std::ifstream ifs(json_file);
         json inputs = json::parse(ifs);
+
+        if (inputs["seed"] == std::string("default"))
+        {
+            seed = static_cast<int>(time(nullptr));
+        }
+        else
+        {
+            seed = static_cast<int>(inputs["seed"]);
+        }
 
         dynamicTime = inputs["dynamicTime"];
 

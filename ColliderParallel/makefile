@@ -2,8 +2,8 @@
 # std=c++2a
 # CFLAGS=-I.
 
-ColliderSingletoParallel.o: ColliderSingletoParallel.cpp ../dust_const.hpp ../ball_group.hpp ../grid_group_parallel.hpp
-	g++-10 -std=c++2a -o ColliderSingletoParallel.o ColliderSingletoParallel.cpp -fopenmp
+ColliderSingletoParallel.o: ColliderSingletoParallel.cpp ../dust_const.hpp ../ball_group.hpp ../grid_group/grid_group_parallel.hpp
+	g++-10 -O3 -std=c++2a -o ColliderSingletoParallel.o ColliderSingletoParallel.cpp -fopenmp
 
 
 test: ColliderSingletoParallel.cpp 

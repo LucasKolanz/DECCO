@@ -3,7 +3,8 @@
 // Initialization (Units are CGS) //
 ////////////////////////////////////
 
-
+	//set to default to seed srand as time(nullptr), otherwise enter a custom seed
+	"seed": "default",
 	//IDK, keep false until figure it out
 	"dynamicTime": false,
 	//size of the grid in cm

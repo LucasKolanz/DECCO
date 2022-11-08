@@ -1,5 +1,6 @@
 #include "../ball_group.hpp"
-#include "../grid_group_parallel.hpp"
+#include "../timing/timing.hpp"
+#include "../grid_group/grid_group.hpp"
 
 #include <cmath>
 #include <iostream>
@@ -9,8 +10,7 @@
 #include <string>
 #include <iomanip>
 #include <filesystem>
-#include <omp.h> 
-// #include <chrono>
+#include <chrono>
 namespace fs = std::filesystem;
 
 
@@ -37,8 +37,6 @@ std::string
 check_restart(std::string folder,int* restart);
 Ball_group 
 make_group(const char *argv1,int* restart);
-void
-update_kinematics(Ball_group& O, int Ball);
 
 /// @brief The ballGroup run by the main sim looper.
 // Ball_group O(output_folder, projectileName, targetName, v_custom); // Collision
@@ -48,12 +46,15 @@ update_kinematics(Ball_group& O, int Ball);
 // Ball_group O(20, true, v_custom); // Generate
 // Ball_group O(genBalls, true, v_custom); // Generate
 
+timey t;
+
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 int
 main(const int argc, char const* argv[])
 {
+    t.start_event("WholeThing");
 
     energyBuffer.precision(12);  // Need more precision on momentum.
     int num_balls;
@@ -97,15 +98,20 @@ main(const int argc, char const* argv[])
     // Add projectile: For dust formation BPCA
     std::string ori_output_prefix = output_prefix;
     // O.printGraph(file);
-    for (int i = *restart; i < num_balls; ++i) {
+    for (int i = *restart; i < num_balls; i++) {
     // for (int i = 0; i < 250; i++) {
         O.zeroAngVel();
         O.zeroVel();
+        t.start_event("add_projectile");
         O = O.add_projectile();
-        O.sim_init_write(ori_output_prefix);
+        t.end_event("add_projectile");
+        O.sim_init_write(ori_output_prefix, i);
         sim_looper(O);
         simTimeElapsed = 0;
     }
+    t.end_event("WholeThing");
+    t.print_events();
+    t.save_events(output_folder + "timing.txt");
 }  // end main
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
@@ -155,7 +161,7 @@ std::string check_restart(std::string folder,int* restart)
     // int tot_count = 0;
     // int file_count = 0;
     int largest_file_index = -1;
-    int file_index;
+    int file_index = -100;
     std::string largest_index_name;
     for (const auto & entry : fs::directory_iterator(folder))
     {
@@ -165,12 +171,10 @@ std::string check_restart(std::string folder,int* restart)
         // tot_count++;
         if (file.substr(file.size()-4,file.size()) == ".csv")
         {
-            // file_count++;
-            if (file[3] == '_')
-            {
-                file_index = stoi(file.substr(0,file.find("_")));
-            }
-            else if (file[1] == '_' and file[3] != '_')
+            size_t pos = file.find('_');
+            file_index = stoi(file.substr(0,pos));
+            
+            if (file[pos+2] != '_')
             {
                 file_index = 0;
             }
@@ -233,7 +237,7 @@ std::string check_restart(std::string folder,int* restart)
     }
 }
 
-void ball_interactions(int A, int B, Ball_group& O, bool write_step)
+inline void ball_interactions(int A, int B, Ball_group& O, bool write_step)
 {
     const double sumRaRb = O.R[A] + O.R[B];
     const vec3 rVecab = O.pos[B] - O.pos[A];  // Vector from a to b.
@@ -394,23 +398,39 @@ void ball_interactions(int A, int B, Ball_group& O, bool write_step)
 void
 sim_one_step(const bool write_step, Ball_group& O)
 {
-    
+    /// FIRST PASS - Update Kinematic Parameters:
+    // std::cout<<"pre first pass of one step pos: "<<O.pos[0]<<std::endl;
+    // std::cout<<"pre first pass of one step vel: "<<O.vel[0]<<std::endl;
+    // std::cout<<"pre first pass of one step acc: "<<O.acc[0]<<std::endl;
+    t.start_event("UpdateKinPar");
+    for (int Ball = 0; Ball < O.num_particles; Ball++) {
+        // Update velocity half step:
+        O.velh[Ball] = O.vel[Ball] + .5 * O.acc[Ball] * dt;
+
+        // Update angular velocity half step:
+        O.wh[Ball] = O.w[Ball] + .5 * O.aacc[Ball] * dt;
+
+        // Update position:
+        O.pos[Ball] += O.velh[Ball] * dt;
+
+        // Reinitialize acceleration to be recalculated:
+        O.acc[Ball] = {0, 0, 0};
+
+        // Reinitialize angular acceleration to be recalculated:
+        O.aacc[Ball] = {0, 0, 0};
+    }
+    t.end_event("UpdateKinPar");
+
     // int A,B; 
     // auto t1 = std::chrono::high_resolution_clock::now();
-    if (O.num_particles > MIN_FOR_GRID)
+    t.start_event("CalcForces");
+    if (O.num_particles > 5)
     {
 
-        #pragma omp parallel default(none) shared(O)
-        {
-            #pragma omp for
-            for (int i = 0; i < O.num_particles; ++i)
-            {
-                update_kinematics(O, i);
-            }
-        }
-        // std::cout<<"post parallel\n";
         // safetyChecks(O);
+        t.start_event("INITgrid");
         grid g(O.num_particles, O.R[0], O.gridSize, O.pos, O.tolerance);
+        t.end_event("INITgrid");
 
         // std::cout<<"num_particles: "<<O.num_particles<<'\n';
         // std::cout<<"gridSize: "<<O.gridSize<<'\n';
@@ -419,28 +439,37 @@ sim_one_step(const bool write_step, Ball_group& O)
         // std::cout<<"m_total: "<<O.m_total<<'\n';
 
 
-        for (int A = 0; A < O.num_particles; ++A)  // cuda
-        {
-            // std::cout<<"pos: "<<O.pos[A]<<'\n';
-            std::vector<int> nearest_neighbors = g.getBalls(A);
-            // g.printVector(nearest_neighbors);
-            // g.printVector(g.getBalls(A));
-            for (int B : nearest_neighbors)
+        #pragma omp parallel default(none) private(O) shared(g,write_step)
+        {   
+            #pragma omp for 
+            for (int A = 0; A < O.num_particles; ++A)  // cuda
             {
-                if (A != B)
+                // std::cout<<"pos: "<<O.pos[A]<<'\n';
+                // t.start_event("getNearestNeighbors");
+                std::vector<int> nearest_neighbors = g.getBalls(A);
+                // t.end_event("getNearestNeighbors");
+                // g.printVector(nearest_neighbors);
+                // g.printVector(g.getBalls(A));
+                // t.start_event("loopApplicablePairs");
+                // #pragma omp parallel default(none) private(A) shared(nearest_neighbors,O,write_step)
+                // {
+                // #pragma omp for 
+                for (int B : nearest_neighbors)
                 {
-                    ball_interactions(A,B,O,write_step);
+                    if (A != B)
+                    {
+                        // t.start_event("ballInteractions");
+                        ball_interactions(A,B,O,write_step);
+                        // t.end_event("ballInteractions");
+                    }
                 }
+                // }
+                // t.end_event("loopApplicablePairs");
             }
         }
     }
     else
     {
-        for (int i = 0; i < O.num_particles; ++i)
-        {
-            update_kinematics(O, i);
-        }
-
         for (int A = 1; A < O.num_particles; ++A)  // cuda
         {
             for (int B = 0; B < A; ++B) 
@@ -449,14 +478,50 @@ sim_one_step(const bool write_step, Ball_group& O)
             }   
         }
     }
+    t.end_event("CalcForces");
     // auto t2 = std::chrono::high_resolution_clock::now();
-  
+    // std::cout << "grid init took "
+    //   << std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count()
+    //   << " milliseconds"<<std::endl;
+    /// SECOND PASS - Check for collisions, apply forces and torques:
+    // for (A = 1; A < O.num_particles; A++)  // cuda
+    // for (A = 0; A < O.num_particles; A++)  // cuda
+    // {
+
+
+    //     /// DONT DO ANYTHING HERE. A STARTS AT 1.
+    //     if (O.num_particles > MIN_FOR_GRID)
+    //     {
+    //         std::vector<int> nearest_neighbors = g.getBalls(A);
+    //         // O.g -> printVector(nearest_neighbors);
+    //         for (auto it = begin(nearest_neighbors); it != end(nearest_neighbors); ++it)
+    //         {
+    //             B = *it;
+    //             if (A != B)
+    //             {
+    //                 ball_interactions(A,B,O,write_step);
+    //             }
+    //         }
+    //     }
+    //     else
+    //     {
+    //         for (int B = 0; B < A; B++) 
+    //         {
+    //             if (A != B)
+    //             {
+    //                 ball_interactions(A,B,O,write_step);
+    //             }
+    //         }   
+
+    //     }
+    // }
 
     if (write_step) {
         ballBuffer << '\n';  // Prepares a new line for incoming data.
     }
 
     // THIRD PASS - Calculate velocity for next step:
+    t.start_event("CalcVelocityforNextStep");
     for (int Ball = 0; Ball < O.num_particles; Ball++) {
         // Velocity for next step:
         O.vel[Ball] = O.velh[Ball] + .5 * O.acc[Ball] * dt;
@@ -482,28 +547,9 @@ sim_one_step(const bool write_step, Ball_group& O)
             O.ang_mom += O.m[Ball] * O.pos[Ball].cross(O.vel[Ball]) + O.moi[Ball] * O.w[Ball];
         }
     }  // THIRD PASS END
-    // std::cout<<"end of one step: "<<O.pos[0]<<std::endl;
+    t.end_event("CalcVelocityforNextStep");
 }  // one Step end
 
-void update_kinematics(Ball_group& O, int Ball)
-{
-    ///Update Kinematic Parameters:
-    // std::cout<<"In update_kinematics: "<<Ball<<'\n';
-    // Update velocity half step:
-    O.velh[Ball] = O.vel[Ball] + .5 * O.acc[Ball] * dt;
-
-    // Update angular velocity half step:
-    O.wh[Ball] = O.w[Ball] + .5 * O.aacc[Ball] * dt;
-
-    // Update position:
-    O.pos[Ball] += O.velh[Ball] * dt;
-
-    // Reinitialize acceleration to be recalculated:
-    O.acc[Ball] = {0, 0, 0};
-
-    // Reinitialize angular acceleration to be recalculated:
-    O.aacc[Ball] = {0, 0, 0};
-}
 
 void
 sim_looper(Ball_group& O)
@@ -517,6 +563,7 @@ sim_looper(Ball_group& O)
 
         // Check if this is a write step:
         if (Step % skip == 0) {
+            t.start_event("writeProgressReport");
             writeStep = true;
 
             simTimeElapsed += dt * skip;
@@ -541,6 +588,7 @@ sim_looper(Ball_group& O)
             // progress, eta, real, simmed, real / simmed);
             fflush(stdout);
             startProgress = time(nullptr);
+            t.end_event("writeProgressReport");
         } else {
             writeStep = false;
         }
@@ -550,6 +598,7 @@ sim_looper(Ball_group& O)
 
 
         if (writeStep) {
+            t.start_event("writeStep");
             // Write energy to stream:
             energyBuffer << '\n'
                          << simTimeElapsed << ',' << O.PE << ',' << O.KE << ',' << O.PE + O.KE << ','
@@ -592,6 +641,7 @@ sim_looper(Ball_group& O)
 
 
             if (dynamicTime) { O.calibrate_dt(Step, false); }
+            t.end_event("writeStep");
         }  // writestep end
     }
 

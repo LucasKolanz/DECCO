@@ -92,6 +92,8 @@ if __name__ == '__main__':
 	# attempts = [19]
 	attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18]
 	attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
+	attempts = [i for i in range(1,29)]
+
 	std_dev = []
 	std_err = []
 	# attempts = [attempts[3]]
@@ -101,10 +103,10 @@ if __name__ == '__main__':
 	for i,temp in enumerate(temps):
 		for n,N in enumerate(Nums):
 			for j,attempt in enumerate(attempts):
-				if N == 100:
-					data_folder = data_prefolder + str(attempt) + '/' + 'T_' + str(temp) + '/'
-				else:
-					data_folder = data_prefolder + str(attempt) + '/' + 'N_' + str(N) + '/T_' + str(temp) + '/'
+				# if N == 100:
+				# 	data_folder = data_prefolder + str(attempt) + '/' + 'T_' + str(temp) + '/'
+				# else:
+				data_folder = data_prefolder + str(attempt) + '/' + 'N_' + str(N) + '/T_' + str(temp) + '/'
 
 				count = 0
 				for root_dir, cur_dir, files in os.walk(data_folder):

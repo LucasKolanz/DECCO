@@ -52,6 +52,8 @@ if __name__ == '__main__':
 	for index,value in enumerate(folder_values):
 		###########enter input values here###########
 		input_json['temp'] = Temps[index]
+		input_json['gridSize'] = 4e-5
+		input_json['seed'] = 'default'
 		# input_json['gridSize'] = 1.0
 		# input_json['Nballs'] = N[index]
 		#############################################

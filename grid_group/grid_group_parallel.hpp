@@ -6,7 +6,7 @@
 #include <climits>
 // #include <queue>
 // #include <numeric>
-#include "vec3.hpp"
+#include "../vec3.hpp"
 
 #define MIN_FOR_GRID 0
 
