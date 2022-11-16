@@ -12,10 +12,10 @@ def run_job(location):
 if __name__ == '__main__':
 	#make new output folders
 	curr_folder = os.getcwd() + '/'
-	job_set_name = "test"
+	job_set_name = "antilockparalleltest_"
 	folder_name_scheme = "T_"
 
-	attempts = [0] 
+	attempts = [1] 
 	attempts_at_once = 1
 	for i in range(0,len(attempts),attempts_at_once):
 		folders = []
@@ -28,11 +28,11 @@ if __name__ == '__main__':
 				print("Job set '{}' already exists.".format(job_set_folder))
 
 			#Make an array of what you want to vary
-			Temps = [300]
+			Temps = [1000]
 
 			#actually make the folders
 			folder_values = Temps
-			new_folders = [job_set_folder + folder_name_scheme + str(val) + '/' for val in folder_values]
+			new_folders = [job_set_folder + 'N_' + str(1000) + '/' + folder_name_scheme + str(val) + '/' for val in folder_values]
 			for new_folder in new_folders:
 				if not os.path.exists(new_folder):
 					os.mkdir(new_folder)

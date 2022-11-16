@@ -7,6 +7,7 @@
 // #include <queue>
 // #include <numeric>
 #include "../vec3.hpp"
+#include "../timing/timing.hpp"
 
 #define MIN_FOR_GRID 0
 
@@ -43,15 +44,7 @@ public:
 		IDToGrid.max_load_factor(0.25);
 
 		gridIDs.resize(numBalls);
-		// for (int i = 0; i < numBalls; ++i)
-		// {
-		// 	gridIDs[i] = std::vector<int>(3);	
-		// }
 
-		// std::cout<<"grid num_particles: "<<numBalls<<'\n';
-  //       std::cout<<"grid gridSize: "<<gridSize<<'\n';
-  //       std::cout<<"grid tolerance: "<<tolerance<<'\n';
-  //       std::cout<<"grid radius: "<<rad<<'\n';
 
 		init();
 		return;

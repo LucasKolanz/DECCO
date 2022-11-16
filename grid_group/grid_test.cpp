@@ -355,7 +355,12 @@ int main(int argc, char const *argv[])
 {
 	// test_groups2();
 	// test_map1();
-	test_balls2();
+	// test_balls2();
+	timey t;
+	t.start_event("map init");
+	test_map2();
+	t.end_event("map init");
+	t.print_events();
 
 	return 0;
 }

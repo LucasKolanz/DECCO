@@ -83,15 +83,15 @@ public:
         return *this;
     }
 
-    // bool operator==(const vec3& v) const
-    //{
-    //	return ((x == v.x) && (y == v.y) &&
-    //		(z == v.z));
-    //}
-    // bool operator!=(const vec3& v) const
-    //{
-    //	return !(*this == v);
-    //}
+    bool operator==(const vec3& v) const
+    {
+    	return ((x == v.x) && (y == v.y) &&
+    		(z == v.z));
+    }
+    bool operator!=(const vec3& v) const
+    {
+    	return !(*this == v);
+    }
 
     double& operator[](const int i)
     {

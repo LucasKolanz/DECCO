@@ -20,6 +20,7 @@ if __name__ == '__main__':
 		exit(-1)
 
 	job_set_name = "large_aggregate_optO3_smallGrid_"
+	
 	# folder_name_scheme = "T_"
 
 	runs_at_once = 1

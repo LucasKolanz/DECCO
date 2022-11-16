@@ -79,6 +79,7 @@ public:
     {
         std::string s_location(location);
         std::string json_file = s_location + "input.json";
+        std::cout<<json_file<<std::endl;
         std::ifstream ifs(json_file);
         json inputs = json::parse(ifs);
 
@@ -122,6 +123,7 @@ public:
         kConsts = temp_kConst * (fourThirdsPiRho / (maxOverlap * maxOverlap));
         impactParameter = inputs["impactParameter"];
         Ha = inputs["Ha"];
+        // std::cout<<"in Ha: "<<Ha<<'\n';
         double temp_h_min = inputs["h_min"];
         h_min = temp_h_min * scaleBalls;
         if (inputs["cone"] == std::string("default"))
@@ -185,6 +187,22 @@ public:
     }
 
     Ball_group() = default;
+
+    //test constructor
+    explicit Ball_group(const int nBalls,const char* path,const char* filename,bool test)
+    {
+        allocate_group(nBalls);
+        std::cout<<"CALLING TESTING CONSTRUCTOR\n";
+        for (size_t i = 0; i < nBalls; i++) {
+            R[i] = 1e-5;
+            m[i] = 1e-5;
+            moi[i] = calc_moi(R[i], m[i]);
+        }
+        parse_input_file(path);
+        // parseSimData(getLastLine(path, filename));
+        // loadConsts(path, filename);
+
+    }
 
     /// @brief For creating a new ballGroup of size nBalls
     /// @param nBalls Number of balls to allocate.

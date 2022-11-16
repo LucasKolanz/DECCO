@@ -1,5 +1,5 @@
 #include "../ball_group.hpp"
-#include "../timing/timing.hpp"
+// #include "../timing/timing.hpp"
 #include "../grid_group/grid_group.hpp"
 
 #include <cmath>
@@ -11,6 +11,7 @@
 #include <iomanip>
 #include <filesystem>
 #include <chrono>
+#include <omp.h>
 namespace fs = std::filesystem;
 
 
@@ -54,7 +55,7 @@ timey t;
 int
 main(const int argc, char const* argv[])
 {
-    t.start_event("WholeThing");
+    // t.start_event("WholeThing");
 
     energyBuffer.precision(12);  // Need more precision on momentum.
     int num_balls;
@@ -102,16 +103,16 @@ main(const int argc, char const* argv[])
     // for (int i = 0; i < 250; i++) {
         O.zeroAngVel();
         O.zeroVel();
-        t.start_event("add_projectile");
+        // t.start_event("add_projectile");
         O = O.add_projectile();
-        t.end_event("add_projectile");
+        // t.end_event("add_projectile");
         O.sim_init_write(ori_output_prefix, i);
         sim_looper(O);
         simTimeElapsed = 0;
     }
-    t.end_event("WholeThing");
-    t.print_events();
-    t.save_events(output_folder + "timing.txt");
+    // t.end_event("WholeThing");
+    // t.print_events();
+    // t.save_events(output_folder + "timing.txt");
 }  // end main
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
@@ -395,14 +396,14 @@ inline void ball_interactions(int A, int B, Ball_group& O, bool write_step)
     O.distances[e] = dist;
 }
 
-void
-sim_one_step(const bool write_step, Ball_group& O)
+void addptrs(vec3 &a,vec3 &b)
 {
-    /// FIRST PASS - Update Kinematic Parameters:
-    // std::cout<<"pre first pass of one step pos: "<<O.pos[0]<<std::endl;
-    // std::cout<<"pre first pass of one step vel: "<<O.vel[0]<<std::endl;
-    // std::cout<<"pre first pass of one step acc: "<<O.acc[0]<<std::endl;
-    t.start_event("UpdateKinPar");
+    a = a + b;
+}
+
+void
+parallel_accel(const bool write_step, Ball_group& O)
+{
     for (int Ball = 0; Ball < O.num_particles; Ball++) {
         // Update velocity half step:
         O.velh[Ball] = O.vel[Ball] + .5 * O.acc[Ball] * dt;
@@ -419,109 +420,250 @@ sim_one_step(const bool write_step, Ball_group& O)
         // Reinitialize angular acceleration to be recalculated:
         O.aacc[Ball] = {0, 0, 0};
     }
-    t.end_event("UpdateKinPar");
 
-    // int A,B; 
-    // auto t1 = std::chrono::high_resolution_clock::now();
-    t.start_event("CalcForces");
-    if (O.num_particles > 5)
+    grid g(O.num_particles, O.R[0], O.gridSize, O.pos, O.tolerance);
+
+    
+    vec3 *acc = new vec3[O.num_particles]{{0,0,0}};
+    vec3 *aacc = new vec3[O.num_particles]{{0,0,0}};
+    // for (int i = 0; i < )
+    // #pragma omp for 
+    // #pragma omp parallel for default(none) shared(dt,O) reduction(addptrs:pos[0:O.num_particles])
+    #pragma omp declare reduction(addptrs: vec3: addptrs(omp_out,omp_in))
+    #pragma omp parallel for default(none) shared(std::cout,write_step,O,g,h_min,kin,kout,u_s,u_r,Ha) reduction(addptrs:acc[0:O.num_particles],aacc[0:O.num_particles])
+    for (int A = 0; A < O.num_particles; ++A)  // cuda
     {
-
-        // safetyChecks(O);
-        t.start_event("INITgrid");
-        grid g(O.num_particles, O.R[0], O.gridSize, O.pos, O.tolerance);
-        t.end_event("INITgrid");
-
-        // std::cout<<"num_particles: "<<O.num_particles<<'\n';
-        // std::cout<<"gridSize: "<<O.gridSize<<'\n';
-        // std::cout<<"tolerance: "<<O.tolerance<<'\n';
-        // std::cout<<"radius: "<<O.R[0]<<'\n';
-        // std::cout<<"m_total: "<<O.m_total<<'\n';
-
-
-        #pragma omp parallel default(none) private(O) shared(g,write_step)
-        {   
-            #pragma omp for 
-            for (int A = 0; A < O.num_particles; ++A)  // cuda
+        // t.start_event("getNearestNeighbors");
+        std::vector<int> nearest_neighbors = g.getBalls(A);
+        // t.end_event("getNearestNeighbors");
+        // g.printVector(nearest_neighbors);
+        // g.printVector(g.getBalls(A));
+        // t.start_event("loopApplicablePairs");
+        // #pragma omp parallel default(none) private(A) shared(nearest_neighbors,O,write_step)
+        // {
+        // #pragma omp for 
+        for (int B : nearest_neighbors)
+        {
+            if (A != B)
             {
-                // std::cout<<"pos: "<<O.pos[A]<<'\n';
-                // t.start_event("getNearestNeighbors");
-                std::vector<int> nearest_neighbors = g.getBalls(A);
-                // t.end_event("getNearestNeighbors");
-                // g.printVector(nearest_neighbors);
-                // g.printVector(g.getBalls(A));
-                // t.start_event("loopApplicablePairs");
-                // #pragma omp parallel default(none) private(A) shared(nearest_neighbors,O,write_step)
-                // {
-                // #pragma omp for 
-                for (int B : nearest_neighbors)
-                {
-                    if (A != B)
-                    {
-                        // t.start_event("ballInteractions");
-                        ball_interactions(A,B,O,write_step);
-                        // t.end_event("ballInteractions");
+                const double sumRaRb = O.R[A] + O.R[B];
+                const vec3 rVecab = O.pos[B] - O.pos[A];  // Vector from a to b.
+                const vec3 rVecba = -rVecab;
+                const double dist = (rVecab).norm();
+
+                // Check for collision between Ball and otherBall:
+                double overlap = sumRaRb - dist;
+
+                vec3 totalForceOnA{0, 0, 0};
+
+                // Distance array element: 1,0    2,0    2,1    3,0    3,1    3,2 ...
+                int e = static_cast<unsigned>(A * (A - 1) * .5) + B;  // a^2-a is always even, so this works.
+                double oldDist = O.distances[e];
+
+                // Check for collision between Ball and otherBall.
+                if (overlap > 0) {
+                    double k;
+                    // Apply coefficient of restitution to balls leaving collision.
+                    if (dist >= oldDist) {
+                        k = kout;
+                    } else {
+                        k = kin;
                     }
+
+                    // Cohesion (in contact) h must always be h_min:
+                    // constexpr double h = h_min;
+                    const double h = h_min;
+                    const double Ra = O.R[A];
+                    const double Rb = O.R[B];
+                    const double h2 = h * h;
+                    // constexpr double h2 = h * h;
+                    const double twoRah = 2 * Ra * h;
+                    const double twoRbh = 2 * Rb * h;
+                    const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
+                                             ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
+                                                               (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
+                                                               (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
+                                             rVecab.normalized();
+
+                    // Elastic force:
+                    const vec3 elasticForceOnA = -k * overlap * .5 * (rVecab / dist);
+
+                    // Gravity force:
+                    // const vec3 gravForceOnA = (G * O.m[A] * O.m[B] / (dist * dist)) * (rVecab / dist);
+
+                    // Sliding and Rolling Friction:
+                    vec3 slideForceOnA{0, 0, 0};
+                    vec3 rollForceA{0, 0, 0};
+                    vec3 torqueA{0, 0, 0};
+                    vec3 torqueB{0, 0, 0};
+
+                    // Shared terms:
+                    const double elastic_force_A_mag = elasticForceOnA.norm();
+                    const vec3 r_a = rVecab * O.R[A] / sumRaRb;  // Center to contact point
+                    const vec3 r_b = rVecba * O.R[B] / sumRaRb;
+                    const vec3 w_diff = O.w[A] - O.w[B];
+
+                    // Sliding friction terms:
+                    const vec3 d_vel = O.vel[B] - O.vel[A];
+                    const vec3 frame_A_vel_B = d_vel - d_vel.dot(rVecab) * (rVecab / (dist * dist)) -
+                                               O.w[A].cross(r_a) - O.w[B].cross(r_a);
+
+                    // Compute sliding friction force:
+                    const double rel_vel_mag = frame_A_vel_B.norm();
+                    if (rel_vel_mag > 1e-13)  // Divide by zero protection.
+                    {
+                        // In the frame of A, B applies force in the direction of B's velocity.
+                        slideForceOnA = u_s * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
+                    }
+
+                    // Compute rolling friction force:
+                    const double w_diff_mag = w_diff.norm();
+                    if (w_diff_mag > 1e-13)  // Divide by zero protection.
+                    {
+                        rollForceA =
+                            -u_r * elastic_force_A_mag * (w_diff).cross(r_a) / (w_diff).cross(r_a).norm();
+                    }
+
+                    // Total forces on a:
+                    //Took out gravity force
+                    totalForceOnA = elasticForceOnA + slideForceOnA + vdwForceOnA;
+                    // totalForceOnA = gravForceOnA + elasticForceOnA + slideForceOnA + vdwForceOnA;
+
+                    // Total torque a and b:
+                    torqueA = r_a.cross(slideForceOnA + rollForceA);
+                    torqueB = r_b.cross(-slideForceOnA + rollForceA);
+
+                    aacc[A] += torqueA / O.moi[A];
+                    aacc[B] += torqueB / O.moi[B];
+
+                    if (write_step) {
+                        // No factor of 1/2. Includes both spheres:
+                        // O.PE += -G * O.m[A] * O.m[B] / dist + 0.5 * k * overlap * overlap;
+
+                        // Van Der Waals + elastic:
+                        const double diffRaRb = O.R[A] - O.R[B];
+                        const double z = sumRaRb + h;
+                        const double two_RaRb = 2 * O.R[A] * O.R[B];
+                        const double denom_sum = z * z - (sumRaRb * sumRaRb);
+                        const double denom_diff = z * z - (diffRaRb * diffRaRb);
+                        const double U_vdw =
+                            -Ha / 6 *
+                            (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
+                        O.PE += U_vdw + 0.5 * k * overlap * overlap;
+                    }
+                } else  // Non-contact forces:
+                {
+                    // No collision: Include gravity and vdw:
+                    // const vec3 gravForceOnA = (G * O.m[A] * O.m[B] / (dist * dist)) * (rVecab / dist);
+
+                    // Cohesion (non-contact) h must be positive or h + Ra + Rb becomes catastrophic cancellation:
+                    double h = std::fabs(overlap);
+                    if (h < h_min)  // If h is closer to 0 (almost touching), use hmin.
+                    {
+                        h = h_min;
+                    }
+                    const double Ra = O.R[A];
+                    const double Rb = O.R[B];
+                    const double h2 = h * h;
+                    const double twoRah = 2 * Ra * h;
+                    const double twoRbh = 2 * Rb * h;
+                    const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
+                                             ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
+                                                               (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
+                                                               (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
+                                             rVecab.normalized();
+
+                    totalForceOnA = vdwForceOnA;  // +gravForceOnA;
+                    if (write_step) {
+                        // O.PE += -G * O.m[A] * O.m[B] / dist; // Gravitational
+
+                        const double diffRaRb = O.R[A] - O.R[B];
+                        const double z = sumRaRb + h;
+                        const double two_RaRb = 2 * O.R[A] * O.R[B];
+                        const double denom_sum = z * z - (sumRaRb * sumRaRb);
+                        const double denom_diff = z * z - (diffRaRb * diffRaRb);
+                        const double U_vdw =
+                            -Ha / 6 *
+                            (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
+                        O.PE += U_vdw;  // Van Der Waals
+                    }
+
+                    // todo this is part of push_apart. Not great like this.
+                    // For pushing apart overlappers:
+                    // O.vel[A] = { 0,0,0 };
+                    // O.vel[B] = { 0,0,0 };
                 }
-                // }
-                // t.end_event("loopApplicablePairs");
+
+                // Newton's equal and opposite forces applied to acceleration of each ball:
+                acc[A] += totalForceOnA / O.m[A];
+                acc[B] -= totalForceOnA / O.m[B];
+
+                // So last distance can be known for COR:
+                O.distances[e] = dist;
             }
         }
+        // }
+        // t.end_event("loopApplicablePairs");  
+    }
+    // #pragma omp parallel for 
+    for (int i = 0; i < O.num_particles; ++i)
+    {
+
+        O.acc[i] = acc[i];
+        O.aacc[i] = aacc[i];
+    }
+    delete[] acc;
+    delete[] aacc;
+}
+
+void serial_accel(const bool write_step, Ball_group& O)
+{
+    for (int Ball = 0; Ball < O.num_particles; Ball++) {
+        // Update velocity half step:
+        O.velh[Ball] = O.vel[Ball] + .5 * O.acc[Ball] * dt;
+
+        // Update angular velocity half step:
+        O.wh[Ball] = O.w[Ball] + .5 * O.aacc[Ball] * dt;
+
+        // Update position:
+        O.pos[Ball] += O.velh[Ball] * dt;
+
+        // Reinitialize acceleration to be recalculated:
+        O.acc[Ball] = {0, 0, 0};
+
+        // Reinitialize angular acceleration to be recalculated:
+        O.aacc[Ball] = {0, 0, 0};
+    }
+
+    for (int A = 1; A < O.num_particles; ++A)  // cuda
+    {
+        for (int B = 0; B < A; ++B) 
+        {
+            ball_interactions(A,B,O,write_step);
+        }   
+    }
+}
+
+void
+sim_one_step(const bool write_step, Ball_group& O)
+{
+    if (O.num_particles > MIN_FOR_GRID)
+    {
+        parallel_accel(writeStep, O);
     }
     else
     {
-        for (int A = 1; A < O.num_particles; ++A)  // cuda
-        {
-            for (int B = 0; B < A; ++B) 
-            {
-                ball_interactions(A,B,O,write_step);
-            }   
-        }
+        serial_accel(writeStep, O);
     }
-    t.end_event("CalcForces");
-    // auto t2 = std::chrono::high_resolution_clock::now();
-    // std::cout << "grid init took "
-    //   << std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count()
-    //   << " milliseconds"<<std::endl;
-    /// SECOND PASS - Check for collisions, apply forces and torques:
-    // for (A = 1; A < O.num_particles; A++)  // cuda
-    // for (A = 0; A < O.num_particles; A++)  // cuda
-    // {
-
-
-    //     /// DONT DO ANYTHING HERE. A STARTS AT 1.
-    //     if (O.num_particles > MIN_FOR_GRID)
-    //     {
-    //         std::vector<int> nearest_neighbors = g.getBalls(A);
-    //         // O.g -> printVector(nearest_neighbors);
-    //         for (auto it = begin(nearest_neighbors); it != end(nearest_neighbors); ++it)
-    //         {
-    //             B = *it;
-    //             if (A != B)
-    //             {
-    //                 ball_interactions(A,B,O,write_step);
-    //             }
-    //         }
-    //     }
-    //     else
-    //     {
-    //         for (int B = 0; B < A; B++) 
-    //         {
-    //             if (A != B)
-    //             {
-    //                 ball_interactions(A,B,O,write_step);
-    //             }
-    //         }   
-
-    //     }
-    // }
+    // t.end_event("CalcForces");
+    
 
     if (write_step) {
         ballBuffer << '\n';  // Prepares a new line for incoming data.
     }
 
     // THIRD PASS - Calculate velocity for next step:
-    t.start_event("CalcVelocityforNextStep");
+    // t.start_event("CalcVelocityforNextStep");
     for (int Ball = 0; Ball < O.num_particles; Ball++) {
         // Velocity for next step:
         O.vel[Ball] = O.velh[Ball] + .5 * O.acc[Ball] * dt;
@@ -547,7 +689,7 @@ sim_one_step(const bool write_step, Ball_group& O)
             O.ang_mom += O.m[Ball] * O.pos[Ball].cross(O.vel[Ball]) + O.moi[Ball] * O.w[Ball];
         }
     }  // THIRD PASS END
-    t.end_event("CalcVelocityforNextStep");
+    // t.end_event("CalcVelocityforNextStep");
 }  // one Step end
 
 
@@ -563,7 +705,7 @@ sim_looper(Ball_group& O)
 
         // Check if this is a write step:
         if (Step % skip == 0) {
-            t.start_event("writeProgressReport");
+            // t.start_event("writeProgressReport");
             writeStep = true;
 
             simTimeElapsed += dt * skip;
@@ -588,7 +730,7 @@ sim_looper(Ball_group& O)
             // progress, eta, real, simmed, real / simmed);
             fflush(stdout);
             startProgress = time(nullptr);
-            t.end_event("writeProgressReport");
+            // t.end_event("writeProgressReport");
         } else {
             writeStep = false;
         }
@@ -598,7 +740,7 @@ sim_looper(Ball_group& O)
 
 
         if (writeStep) {
-            t.start_event("writeStep");
+            // t.start_event("writeStep");
             // Write energy to stream:
             energyBuffer << '\n'
                          << simTimeElapsed << ',' << O.PE << ',' << O.KE << ',' << O.PE + O.KE << ','
@@ -641,7 +783,7 @@ sim_looper(Ball_group& O)
 
 
             if (dynamicTime) { O.calibrate_dt(Step, false); }
-            t.end_event("writeStep");
+            // t.end_event("writeStep");
         }  // writestep end
     }
 

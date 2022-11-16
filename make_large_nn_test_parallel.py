@@ -21,7 +21,7 @@ if __name__ == '__main__':
 		print('compilation failed')
 		exit(-1)
 
-	job_set_name = "parallel_test"
+	job_set_name = "antilockparalleltest_1"
 	folder_name_scheme = "N_"
 
 	job_set_folder = curr_folder + 'jobs/' + job_set_name + '/'
@@ -36,7 +36,7 @@ if __name__ == '__main__':
 
 	#actually make the folders
 	folder_values = N
-	folders = [job_set_folder + folder_name_scheme + str(val) + '/' for val in folder_values]
+	folders = [job_set_folder + folder_name_scheme + str(val) + '/T_' + str(Temps[i]) + '/' for i,val in enumerate(folder_values)]
 	for new_folder in folders:
 		if not os.path.exists(new_folder):
 			os.mkdir(new_folder)
@@ -53,7 +53,7 @@ if __name__ == '__main__':
 		###########enter input values here###########
 		input_json['temp'] = Temps[index]
 		input_json['gridSize'] = 4e-5
-		input_json['seed'] = 'default'
+		input_json['seed'] = 0
 		# input_json['gridSize'] = 1.0
 		# input_json['Nballs'] = N[index]
 		#############################################
