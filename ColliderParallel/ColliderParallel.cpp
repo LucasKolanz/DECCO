@@ -11,16 +11,19 @@
 #include "../vec3.hpp"
 #include "initializations.hpp"
 
+namespace fs = std::filesystem;
+
+
 // String buffers to hold data in memory until worth writing to file:
-std::stringstream ballBuffer;
-std::stringstream energyBuffer;
+// std::stringstream ballBuffer;
+// std::stringstream energyBuffer;
 
 // These are used within simOneStep to keep track of time.
 // They need to survive outside its scope, and I don't want to have to pass them all.
-const time_t start = time(nullptr);        // For end of program analysis
-time_t startProgress; // For progress reporting (gets reset)
-time_t lastWrite;     // For write control (gets reset)
-bool writeStep;       // This prevents writing to file every step (which is slow).
+// const time_t start = time(nullptr);        // For end of program analysis
+// time_t startProgress; // For progress reporting (gets reset)
+// time_t lastWrite;     // For write control (gets reset)
+// bool writeStep;       // This prevents writing to file every step (which is slow).
 
 //ballGroup O(path, projectileName, targetName, vCustom); // Collision
 //ballGroup O(path, targetName, 0); // Continue
@@ -53,56 +56,127 @@ std::vector<P_pair> make_p_pairs(P_group& O)
 	return p_pairs;
 }
 
-void write_to_buffer(P_group& p_group)
+
+
+std::string check_restart(std::string folder,int* restart)
 {
-	for (size_t i = 0; i < p_group.n; i++)
-	{
-		P& cp = p_group.p_group[i]; // Current particle
+    std::string file;
+    // int tot_count = 0;
+    // int file_count = 0;
+    int largest_file_index = -1;
+    int file_index = -100;
+    std::string largest_index_name;
+    for (const auto & entry : fs::directory_iterator(folder))
+    {
+        file = entry.path();
+        size_t pos = file.find_last_of("/");
+        file = file.erase(0,pos+1);
+        // tot_count++;
+        if (file.substr(file.size()-4,file.size()) == ".csv")
+        {
+            size_t pos = file.find('_');
+            file_index = stoi(file.substr(0,pos));
+            if (file[pos+2] != '_')
+            {
+                file_index = 0;
+            }
+            if (file_index > largest_file_index)
+            {
+                largest_file_index = file_index;
+                largest_index_name = file;
+            }
+        }
+    }
+    *restart = largest_file_index;
+    if (*restart != -1)
+    {
+        size_t start,end;
+        start = largest_index_name.find('_');
+        end = largest_index_name.find_last_of('_');
+        //Delete most recent save file as this is likely only partially 
+        //complete if we are restarting
 
-		// Send positions and rotations to buffer:
-		if (i == 0)
-		{
-			ballBuffer
-				<< cp.pos[0] << ','
-				<< cp.pos[1] << ','
-				<< cp.pos[2] << ','
-				<< cp.w[0] << ','
-				<< cp.w[1] << ','
-				<< cp.w[2] << ','
-				<< cp.w.norm() << ','
-				<< cp.vel.x << ','
-				<< cp.vel.y << ','
-				<< cp.vel.z << ','
-				<< 0;
-		}
-		else
-		{
-			ballBuffer
-				<< ',' << cp.pos[0] << ','
-				<< cp.pos[1] << ','
-				<< cp.pos[2] << ','
-				<< cp.w[0] << ','
-				<< cp.w[1] << ','
-				<< cp.w[2] << ','
-				<< cp.w.norm() << ','
-				<< cp.vel.x << ','
-				<< cp.vel.y << ','
-				<< cp.vel.z << ','
-				<< 0;
-		}
+        std::string remove_file;
 
-		p_group.T += .5 * cp.m * cp.vel.normsquared() + .5 * cp.moi * cp.w.normsquared(); // Now includes rotational kinetic energy.
-		p_group.mom += cp.m * cp.vel;
-		p_group.ang_mom += cp.m * cp.pos.cross(cp.vel) + cp.moi * cp.w;
-	}
+        if (*restart == 0)
+        {
+            remove_file = largest_index_name.substr(0,end+1);
+        }
+        else
+        {
+            remove_file = std::to_string(*restart) + largest_index_name.substr(start,end-start+1);
+        }
+
+        std::string file1 = folder + remove_file + "constants.csv";
+        std::string file2 = folder + remove_file + "energy.csv";
+        std::string file3 = folder + remove_file + "simData.csv";
+        int status1 = remove(file1.c_str());
+        int status2 = remove(file2.c_str());
+        int status3 = remove(file3.c_str());
+
+        if (status1 != 0)
+        {
+            std::cout<<"File: "<<file1<<" could not be removed, now exiting with failure."<<std::endl;
+            exit(EXIT_FAILURE);
+        }
+        else if (status2 != 0)
+        {
+            std::cout<<"File: "<<file2<<" could not be removed, now exiting with failure."<<std::endl;
+            exit(EXIT_FAILURE);
+        }
+        else if (status3 != 0)
+        {
+            std::cout<<"File: "<<file3<<" could not be removed, now exiting with failure."<<std::endl;
+            exit(EXIT_FAILURE);
+        }
+
+        return largest_index_name.substr(start,end-start+1);
+    }
+    else
+    {
+        return "";
+    }
 }
 
+//@brief sets Ball_group object based on the need for a restart or not
+P_group make_group(const char *argv1,int* restart)
+{
+    P_group O;
+    //See if run has already been started
+    std::string filename = check_restart(argv1,restart);
+    if (*restart > -1) //Restart is necessary unless only first write has happended so far
+    {
+        if (*restart > 1)
+        {//TESTED
+            (*restart)--;
+            // filename = std::to_string(*restart) + filename;
+            filename = filename.substr(1,filename.length());
+            O = P_group(argv1,filename,*restart);
+        }
+        else if (*restart == 1) //restart from first write (different naming convension for first write)
+        {//TESTED
+            (*restart)--;
+            filename = filename.substr(1,filename.length());
+            // exit(EXIT_SUCCESS);
+            O = P_group(argv1,filename,*restart);
+        }
+        else //if restart is 0, need to rerun whole thing
+        {//TESTED
+            O = P_group(true, argv1); // Generate new group
+        }
 
-
+    }
+    else // Make new ball group
+    {
+        *restart = 0;
+        O = P_group(true, argv1); // Generate new group
+    }
+    O.energyBuffer.precision(12);  // Need more precision on momentum.
+    return O;
+}
 
 int main(const int argc, char const* argv[])
 {
-	energyBuffer.precision(12);  // Need more precision on momentum.
     int num_balls;
     int rest = -1;
     int *restart = &rest;
@@ -124,28 +198,21 @@ int main(const int argc, char const* argv[])
     {
         num_balls = 100;
     }
-    // P_group O = make_group(argv[1],restart);
+ 
+	P_group O = make_group(argv[1],restart); // Particle system
 
-	// int n = 10000; // Number of particles
-	std::string here = "";
-	P_group O(true,121,here.c_str()); // Particle system
-	std::cout<<O.getMass()<<std::endl;
-	std::string file = "/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab/jobs/restart_test1/N_1000/T_3";
-	// parse_input_file(file.c_str(), O);
-	// parse_input_file(argv[1])
-	// std::vector<P_pair> pairs = make_p_pairs(O);
-
-	// for (int i = *restart; i < num_balls; i++) {
- //    // for (int i = 0; i < 250; i++) {
- //        O.zeroAngVel();
- //        O.zeroVel();
- //        t.start_event("add_projectile");
- //        O = O.add_projectile();
- //        t.end_event("add_projectile");
- //        O.sim_init_write(ori_output_prefix, i);
- //        sim_looper(O);
- //        simTimeElapsed = 0;
- //    }
+	for (int i = *restart; i < num_balls; i++) {
+    // for (int i = 0; i < 250; i++) {
+        O.zeroAngVel();
+        O.zeroVel();
+        // t.start_event("add_projectile");
+        O.add_projectile();
+        O.make_pairs();
+        // t.end_event("add_projectile");
+        O.sim_init_write(O.s_location, i);
+        O.sim_looper();
+        O.simTimeElapsed = 0;
+    }
 
 	// std::for_each(std::execution::par_unseq, O.p_group.begin(), O.p_group.end(), update_kinematics);
 	// std::for_each(std::execution::par, pairs.begin(), pairs.end(), compute_acceleration);
@@ -156,3 +223,4 @@ int main(const int argc, char const* argv[])
 	// 	write_to_buffer(O);
 	// }
 }
+

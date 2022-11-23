@@ -657,10 +657,10 @@ safetyChecks(Ball_group& O)
         exit(EXIT_FAILURE);
     }
 
-    if (O.tolerance <= 0) {
-        fprintf(stderr, "\ngrid tolerance NOT SET\n");
-        exit(EXIT_FAILURE);
-    }
+    // if (O.tolerance <= 0) {
+    //     fprintf(stderr, "\ngrid tolerance NOT SET\n");
+    //     exit(EXIT_FAILURE);
+    // }
 
     if (O.soc <= 0) {
         fprintf(stderr, "\nSOC NOT SET\n");

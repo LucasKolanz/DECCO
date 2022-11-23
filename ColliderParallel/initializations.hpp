@@ -1,6 +1,8 @@
 #include "../json/single_include/nlohmann/json.hpp"
 #include "../Utils.hpp"
 #include <mutex>
+// #include <tbb>
+#include "../vec3.hpp"
 
 std::mutex g_mutex;
 
@@ -10,6 +12,7 @@ using std::numbers::pi;
 struct P;
 struct P_pair;
 struct P_group;
+constexpr double Kb = 1.380649e-16; //in erg/K
 
 struct P
 {
@@ -22,10 +25,25 @@ struct P
         acc,
         aacc;
 
+    std::vector<int> id = std::vector<int> (3);
+
     double
         R = 0,
         m = 0,
         moi = 0;
+
+    bool operator==(const P& p) const
+    {
+        return (pos == p.pos);
+    }
+    bool operator!=(const P& p) const
+    {
+        return !(*this == p);
+    }
+    // P() = default;
+    // P(vec3 p, vec3 v, vec3 ww, 
+    //     double rad, double mass, double moia)
+    //     :pos(p),vel{v},w(ww),R(rad),m(mass),w(ww){}
 };
 
 struct P_pair
@@ -43,10 +61,11 @@ struct P_group
 {
     int n; // Number of particles in the group
     std::vector<P> p_group; // Group of particles
+    std::vector<P_pair> pairs;
     double U; // Potential energy
     double T; // Kinetic Energy
-    vec3 mom;
-    vec3 ang_mom;
+    vec3 mom = {0.0,0.0,0.0};
+    vec3 ang_mom = {0.0,0.0,0.0};
     // Useful values:
     double rMin = -1;
     double rMax = -1;
@@ -64,6 +83,7 @@ struct P_group
     std::string projectileName;
     std::string targetName;
     std::string output_prefix;
+    std::string filenum;
 
     double u_s = -1.0, u_r = -1.0;
     double cor  =-1.0;
@@ -72,7 +92,7 @@ struct P_group
     double fourThirdsPiRho = -1.0;
     double scaleBalls = -1.0; //ball radius
     double maxOverlap = -1.0;
-    double v_custom = -1.0;
+    double v_custom = -10.0;
     double temp = -1.0;
     double kConsts = -1.0;
     double impactParameter = -1.0;
@@ -94,6 +114,13 @@ struct P_group
     int skip = -1;
     int num_particles = -1;
 
+    bool writeStep = false;
+    bool dynamicTime;
+
+    time_t start = time(nullptr);        // For end of program analysis
+    time_t startProgress; // For progress reporting (gets reset)
+    time_t lastWrite;     // For write control (gets reset)
+
     void parse_input_file(char const* location);
     void oneSizeSphere(const int nBalls);
     [[nodiscard]] vec3 getCOM() const;
@@ -105,272 +132,796 @@ struct P_group
     [[nodiscard]] double getRmax();
     [[nodiscard]] double getRmin();
     void calc_helpfuls();
-
+    void simInit_cond_and_center();
+    vec3 calc_momentum(const std::string& of = "") const;
+    void to_origin();
+    void init_conditions();
+    std::vector<P_pair> make_pairs();
+    void compute_acceleration(P_pair& p_pair);
+    void compute_energy(P& P);
+    void compute_velocity(P& P);
+    void update_kinematics(P& P);
+    void generate_ball_field(const int nBalls);
+    double getMass();
+    void sim_looper();
+    void sim_one_step(const bool write_step);
+    void sim_continue(const std::string& path, 
+                    const std::string& filename, int start_file_index=0);
+    void write_to_buffer();
+    void zeroAngVel();
+    void zeroVel();
+    void loadSim(const std::string& path, const std::string& filename);
+    // [[nodiscard]] static std::string getLastLine(const std::string& path, 
+    [[nodiscard]] std::string getLastLine(const std::string& path, 
+                    const std::string& filename);
+    void parseSimData(const std::string& line,
+                    const std::string& path,const std::string& filename);
+    void loadConsts(const std::string& path, const std::string& filename);
+    void sim_init_write(std::string filename, int counter = 0);
+    P dust_agglomeration_particle_init();
+    inline vec3 calc_momentum(const P& partile) const;
+    vec3 calc_momentum(const P_group& group) const;
+    inline double getMass(const P& p);
+    double getMass(const P_group& pg);
+    inline void kick(const vec3& vec, P& p);
+    void kick(const vec3& vec, P_group& pg);
+    void kick(const vec3& vec);
+    void add_projectile();
+    vec3 dust_agglomeration_offset(
+            const double3x3 local_coords, vec3 projectile_pos,
+            vec3 projectile_vel, const double projectile_rad);
+    inline double calc_moi(const double& radius, const double& mass);
+    void findGroup(P &p);
+    void findGroups();
 
     P_group() = default;
     P_group(int n) : n(n) {}
     P_group(std::vector<P> p_group) : p_group(p_group) {}
+    P_group(const bool generate, const char* path);
+    P_group(const std::string& path, const std::string& filename, 
+            const double& customVel, int start_file_index=0);
 
-    P_group(const bool generate, const double& customVel, const char* path)
-    {
-        parse_input_file(path);//should be first in constructor
-        num_particles = genBalls;
-        generate_ball_field(genBalls);
 
-        // calc_v_collapse();
-        calibrate_dt(0, customVel);
-        // simInit_cond_and_center(true);
+    std::stringstream ballBuffer;
+    std::stringstream energyBuffer;
+private:
+};
+
+/// @brief For starting a sim.
+/// @param generate is a bool (Is this necessary???)
+/// @param path is the path to where the sim will save.
+P_group::P_group(const bool generate, const char* path)
+{
+    parse_input_file(path);//should be first in constructor
+    num_particles = genBalls;
+    generate_ball_field(genBalls);
+
+    calc_v_collapse();
+    calibrate_dt(0, v_custom);
+    simInit_cond_and_center();
+}
+
+/// @brief For continuing a sim.
+/// @param fullpath is the filename and path excluding the suffix _simData.csv, _constants.csv, etc.
+/// @param customVel To condition for specific vMax.
+// explicit P_group::P_group(const std::string& path, const std::string& filename, const double& customVel, int start_file_index=0)
+P_group::P_group(const std::string& path, const std::string& filename, const double& customVel, int start_file_index)
+{
+    parse_input_file(path.c_str());
+    sim_continue(path, filename,start_file_index);
+    calc_v_collapse();
+    calibrate_dt(0, v_custom);
+    simInit_cond_and_center();
+}
+
+/// Make ballGroup from file data.
+void P_group::loadSim(const std::string& path, const std::string& filename)
+{
+    parseSimData(getLastLine(path, filename),path,filename);
+
+    calc_helpfuls();
+
+    std::cerr << "Balls: " << num_particles << '\n';
+    std::cerr << "Mass: " << mTotal << '\n';
+    std::cerr << "Approximate radius: " << initialRadius << " cm.\n";
+}
+
+// [[nodiscard]] static std::string P_group::getLastLine(const std::string& path, const std::string& filename)
+[[nodiscard]] std::string P_group::getLastLine(const std::string& path, const std::string& filename)
+{
+    std::string simDataFilepath = path + filename + "_simData.csv";
+    if (auto simDataStream = std::ifstream(simDataFilepath, std::ifstream::in)) {
+        std::cerr << "\nParsing last line of data.\n";
+
+        simDataStream.seekg(-1, std::ios_base::end);  // go to one spot before the EOF
+
+        bool keepLooping = true;
+        while (keepLooping) {
+            char ch = ' ';
+            simDataStream.get(ch);  // Get current byte's data
+
+            if (static_cast<int>(simDataStream.tellg()) <=
+                1) {                     // If the data was at or before the 0th byte
+                simDataStream.seekg(0);  // The first line is the last line
+                keepLooping = false;     // So stop there
+            } else if (ch == '\n') {     // If the data was a newline
+                keepLooping = false;     // Stop at the current position.
+            } else {                     // If the data was neither a newline nor at the 0 byte
+                simDataStream.seekg(-2, std::ios_base::cur);  // Move to the front of that data, then to
+                                                              // the front of the data before it
+            }
+        }
+        std::string line;
+        std::getline(simDataStream, line);  // Read the current line
+        return line;
+    } else {
+        std::cerr << "Could not open simData file: " << simDataFilepath << "... Exiting program."
+                  << '\n';
+        exit(EXIT_FAILURE);
     }
+    return "-1";
+}
 
-    // [[nodiscard]] double getMass()
-    double getMass()
-    {
-        auto lambda = [&](double sum, const P &b){return sum + b.m; };
-        
-        return std::accumulate(p_group.begin(), p_group.end(), 0.0, lambda);        
+ /// Get previous sim constants by filename.
+void P_group::loadConsts(const std::string& path, const std::string& filename)
+{
+    // Get radius, mass, moi:
+    std::string constantsFilename = path + filename + "_constants.csv";
+    if (auto ConstStream = std::ifstream(constantsFilename, std::ifstream::in)) {
+        std::string line, lineElement;
+        for (int A = 0; A < num_particles; A++) {
+            std::getline(ConstStream, line);  // Ball line.
+            std::stringstream chosenLine(line);
+            std::getline(chosenLine, lineElement, ',');  // Radius.
+            p_group[A].R = std::stod(lineElement);
+            std::getline(chosenLine, lineElement, ',');  // Mass.
+            p_group[A].m = std::stod(lineElement);
+            std::getline(chosenLine, lineElement, ',');  // Moment of inertia.
+            p_group[A].moi = std::stod(lineElement);
+        }
+    } else {
+        std::cerr << "Could not open constants file: " << constantsFilename << "... Existing program."
+                  << '\n';
+        exit(EXIT_FAILURE);
     }
+}
 
-    void generate_ball_field(const int nBalls)
-    {
-        std::cerr << "CLUSTER FORMATION\n";
-
-        // allocate_group(nBalls);
-
-        // Create new random number set.
-        //      const int seedSave = static_cast<int>(time(nullptr));
-        srand(seed);  // srand(seedSave);
-
-        oneSizeSphere(nBalls);
-        
-        
-        calc_helpfuls();
-        // threeSizeSphere(nBalls);
-
-        // output_prefix = std::to_string(nBalls) + "_R" + scientific(get_radius(getCOM())) + "_v" +
-        //                 scientific(v_custom) + "_cor" + rounder(sqrtf(cor), 4) + "_mu" + rounder(u_s, 3) +
-        //                 "_rho" + rounder(density, 4);
-    }
-
-    void update_kinematics(P& P)
-    {
-        // Update velocity half step:
-        P.velh = P.vel + .5 * P.acc * dt;
-
-        // Update angular velocity half step:
-        P.wh = P.w + .5 * P.aacc * dt;
-
-        // Update position:
-        P.pos += P.velh * dt;
-
-        // Reinitialize acceleration to be recalculated:
-        P.acc = { 0, 0, 0 };
-
-        // Reinitialize angular acceleration to be recalculated:
-        P.aacc = { 0, 0, 0 };
-    }
-
-    void compute_velocity(P& P)
-    {
-        // Velocity for next step:
-        P.vel = P.velh + .5 * P.acc * dt;
-        P.w = P.wh + .5 * P.aacc * dt;
-    }
-
-    void compute_acceleration(P_pair& p_pair, bool writeStep)
-    {
-        const double Ra = p_pair.A->R;
-        const double Rb = p_pair.B->R;
-        const vec3 rVecab = p_pair.B -> pos - p_pair.A -> pos;
-        const vec3 rVecba = -rVecab;
-        const double m_a = p_pair.A->m;
-        const double m_b = p_pair.B->m;
-        const double sumRaRb = Ra + Rb;
-        vec3 rVec = p_pair.B->pos - p_pair.A->pos; // Start with rVec from a to b.
-        const double dist = (rVec).norm();
-        vec3 totalForce;
-
-        // Cohesion:
-        // h is the "separation" of the particles at particle radius - maxOverlap.
-        // This allows particles to be touching while under vdwForce.
-        // const double h = maxOverlap * 1.01 - overlap;
-        const double h = h_min;
-        const double h2 = h * h;
-        const double twoRah = 2 * Ra * h;
-        const double twoRbh = 2 * Rb * h;
-        const vec3 vdwForce =
-            Ha / 6 *
-            64 * Ra * Ra * Ra * Rb * Rb * Rb *
-            (h + Ra + Rb) /
-            (
-                (h2 + twoRah + twoRbh) *
-                (h2 + twoRah + twoRbh) *
-                (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
-                (h2 + twoRah + twoRbh + 4 * Ra * Rb)
-                ) *
-            rVec.normalized();
-
-
-
-        // Check for collision between Ball and otherBall:
-        double overlap = sumRaRb - dist;
-
-        double oldDist = p_pair.dist;
-
-        // Check for collision between Ball and otherBall.
-        if (overlap > 0)
+void P_group::parseSimData(const std::string& line,const std::string& path,const std::string& filename)
+{
+    std::string lineElement;
+    // Get number of balls in file
+    // int count = 54 / properties;
+    // if (num_particles > 0)
+    // {
+    //     count = num_particles;
+    // }
+    // int count = std::count(line.begin(), line.end(), ',') / properties + 1;
+    // allocate_group(count);
+    std::stringstream chosenLine(line);  // This is the last line of the read file, containing all data
+                                         // for all balls at last time step
+    // Get position and angular velocity data:
+    for (int A = 0; A < num_particles; A++) {
+        P new_p;
+        for (int i = 0; i < 3; i++)  // Position
         {
-            double k;
-            // Apply coefficient of restitution to balls leaving collision.
-            if (dist >= oldDist)
-            {
-                k = kout;
+            std::getline(chosenLine, lineElement, ',');
+            new_p.pos[i] = std::stod(lineElement);
+        }
+        for (int i = 0; i < 3; i++)  // Angular Velocity
+        {
+            std::getline(chosenLine, lineElement, ',');
+            new_p.w[i] = std::stod(lineElement);
+        }
+        std::getline(chosenLine, lineElement, ',');  // Angular velocity magnitude skipped
+        for (int i = 0; i < 3; i++)                  // velocity
+        {
+            std::getline(chosenLine, lineElement, ',');
+            new_p.vel[i] = std::stod(lineElement);
+        }
+        for (int i = 0; i < properties - 10; i++)  // We used 10 elements. This skips the rest.
+        {
+            std::getline(chosenLine, lineElement, ',');
+        }
+        p_group.push_back(new_p);
+    }
+    loadConsts(path, filename);
+}
+
+inline double P_group::getMass(const P& p)
+{
+    return p.m;        
+}
+
+void P_group::zeroVel()
+{
+    auto lambda = [=](P &b){ b.vel = {0,0,0}; };
+    std::for_each(std::execution::par_unseq, p_group.begin(), p_group.end(),
+                lambda);
+
+    // for (int Ball = 0; Ball < num_particles; Ball++) 
+    // { 
+    //     vec3 new_vec = {0,0,0};
+    //     p_group[Ball].vel = new_vec; 
+    // }
+}
+
+// Kick ballGroup (give the whole thing a velocity)
+void P_group::kick(const vec3& vec)
+{
+    for (int Ball = 0; Ball < num_particles; Ball++) 
+    { 
+        p_group[Ball].vel = p_group[Ball].vel + vec; 
+    }
+}
+
+void P_group::kick(const vec3& vec, P_group& pg) 
+{
+    for (int Ball = 0; Ball < num_particles; Ball++) 
+    { 
+        pg.p_group[Ball].vel = pg.p_group[Ball].vel + vec; 
+    }
+}
+
+inline void P_group::kick(const vec3& vec, P& p) 
+{
+    p.vel = p.vel + vec;
+}
+
+void P_group::zeroAngVel()
+{
+    auto lambda = [&](P &b){ b.w = {0,0,0}; };
+    std::for_each(std::execution::par_unseq, p_group.begin(), p_group.end(),
+                lambda);
+    // for (int Ball = 0; Ball < num_particles; Ball++) { p_group[Ball].w = {0, 0, 0}; }
+}
+
+void P_group::to_origin()
+{
+    const vec3 com = getCOM();
+
+    auto lambda = [=](P &p){ p.pos =  p.pos - com; };
+    std::for_each(std::execution::par_unseq, p_group.begin(), p_group.end(),
+                lambda);
+}
+
+// [[nodiscard]] double getMass()
+double P_group::getMass()
+{
+    auto lambda = [&](double sum, const P &b){return sum + b.m; };
+    return std::accumulate(p_group.begin(), p_group.end(), 0.0, lambda);        
+}
+
+double P_group::getMass(const P_group& pg)
+{
+    auto lambda = [&](double sum, const P &b){return sum + b.m; };
+    return std::accumulate(pg.p_group.begin(), pg.p_group.end(), 0.0, lambda);        
+}
+
+vec3 P_group::calc_momentum(const std::string& of) const
+{
+    // vec3 init = p_group[0].m * p_group[0].vel;
+    // auto lambda = [&](vec3& sum, const P &b){return sum + b.m * b.vel; };
+    // return std::accumulate(p_group.begin(), p_group.end(), init, lambda);  
+
+    vec3 pTotal = {0, 0, 0};
+    for (int Ball = 0; Ball < num_particles; Ball++) 
+    { 
+        pTotal += p_group[Ball].m * p_group[Ball].vel; 
+    }
+    // fprintf(stderr, "%s Momentum Check: %.2e, %.2e, %.2e\n", of.c_str(), pTotal.x, pTotal.y, pTotal.z);
+    return pTotal;
+}
+
+vec3 P_group::calc_momentum(const P_group& group) const
+{
+    vec3 pTotal = {0, 0, 0};
+    for (int Ball = 0; Ball < num_particles; Ball++)
+    { 
+        pTotal += group.p_group[Ball].m * group.p_group[Ball].vel;
+    }
+    // fprintf(stderr, "%s Momentum Check: %.2e, %.2e, %.2e\n", of.c_str(), pTotal.x, pTotal.y, pTotal.z);
+    return pTotal;
+}
+
+inline vec3 P_group::calc_momentum(const P& partile) const
+{
+    return partile.m*partile.vel;
+}
+
+
+void P_group::init_conditions()
+{
+    pairs = make_pairs();
+    //calc init accelerations
+    std::for_each(std::execution::par, pairs.begin(), pairs.end(),
+                    std::bind_front(&P_group::compute_acceleration, this));
+    //calc init energy:
+    std::for_each(std::execution::par_unseq, p_group.begin(), p_group.end(),
+                std::bind_front(&P_group::compute_energy, this));
+}
+
+//@brief returns new position of particle after it is given random offset
+//@param local_coords is plane perpendicular to direction of projectile
+//@param projectile_pos is projectile's position before offset is applied
+//@param projectile_vel is projectile's velocity
+//@param projectile_rad is projectile's radius
+vec3 P_group::dust_agglomeration_offset(
+    const double3x3 local_coords,
+    vec3 projectile_pos,
+    vec3 projectile_vel,
+    const double projectile_rad)
+{
+    const auto cluster_radius = get_radius(vec3(0, 0, 0));
+    bool intersect = false;
+    int count = 0;
+    vec3 new_position = vec3(0,0,0);
+    do {
+        const auto rand_y = rand_between(-cluster_radius, cluster_radius);
+        const auto rand_z = rand_between(-cluster_radius, cluster_radius);
+        auto test_pos = projectile_pos + perpendicular_shift(local_coords, rand_y, rand_z);
+
+        count++;
+        for (size_t i = 0; i < num_particles; i++) {
+            // Check that velocity intersects one of the spheres:
+            if (line_sphere_intersect(test_pos, projectile_vel, p_group[i].pos, p_group[i].R + projectile_rad)) {
+                new_position = test_pos;
+                intersect = true;
+                break;
             }
-            else
-            {
-                k = kin;
-            }
+        }
+    } while (!intersect);
+    return new_position;
+}
 
-            
+inline double P_group::calc_moi(const double& radius, const double& mass) 
+    { return .4 * mass * radius * radius; }
 
-            // Elastic a:
-            vec3 elasticForce = -k * overlap * .5 * (rVec / dist);
-            const double elastic_force_A_mag = elasticForce.norm();
-            // Friction a:
-            vec3 dVel = p_pair.B->vel - p_pair.A->vel;
-            vec3 frictionForce = { 0, 0, 0 };
-            const vec3 r_a = rVecab * p_pair.A -> R / sumRaRb;  // Center to contact point
-            const vec3 r_b = rVecba * p_pair.B -> R / sumRaRb;
-            const vec3 w_diff = p_pair.A -> w - p_pair.B -> w;
-            const double w_diff_mag = w_diff.norm();
-            const vec3 relativeVelOfA = dVel - dVel.dot(rVec) * (rVec / (dist * dist)) - 
-                                        p_pair.A->w.cross(p_pair.A->R / sumRaRb * rVec) - 
-                                        p_pair.B->w.cross(p_pair.B->R / sumRaRb * rVec);
-            double relativeVelMag = relativeVelOfA.norm();
-            
-            vec3 slideForceOnA, rollForceA;
-            if (relativeVelMag > 1e-10) // When relative velocity is very low, dividing its vector components by its magnitude below is unstable.
-            {
-                slideForceOnA = u_s * (elasticForce.norm()) *
-                                (relativeVelOfA / relativeVelMag);
-                // frictionForce = mu * (elasticForce.norm() + vdwForce.norm()) *
-                //              (relativeVelOfA / relativeVelMag);
-            }
+P P_group::dust_agglomeration_particle_init()
+{
+    P projectile;
+    const auto cluster_radius = get_radius(vec3(0, 0, 0));
+    const vec3 projectile_direction = rand_unit_vec3();
+    projectile.pos = projectile_direction * (cluster_radius + scaleBalls * 4);
+    projectile.R = scaleBalls;  // rand_between(1,3)*1e-5;
+    projectile.w = {0, 0, 0};
+    projectile.m = density * 4. / 3. * pi * std::pow(projectile.R, 3);
+    // Velocity toward origin:
+    if (temp > 0)
+    {
+        double a = std::sqrt(Kb*temp/projectile.m);
+        v_custom = max_bolt_dist(a); 
+    }
+    projectile.vel = -v_custom * projectile_direction;
+    // projectile.R[0] = 1e-5;  // rand_between(1,3)*1e-5;
+    projectile.moi = calc_moi(projectile.R, projectile.m);
 
-            if (w_diff_mag > 1e-13)  // Divide by zero protection.
-            {
-                rollForceA =
-                    -u_r * elastic_force_A_mag * (w_diff).cross(r_a) / (w_diff).cross(r_a).norm();
-            }
+    const double3x3 local_coords = local_coordinates(to_double3(projectile_direction));
 
-            // Torque a:
-            const vec3 aTorque = (p_pair.A->R) * rVec.cross(slideForceOnA + rollForceA);
-            const vec3 bTorque = (p_pair.B->R) * rVec.cross(-slideForceOnA + rollForceA);
-            // const vec3 aTorque = (p_pair.A->R / sumRaRb) * rVec.cross(slideForceOnA + rollForceA);
-            // const vec3 bTorque = (p_pair.B->R / sumRaRb) * rVec.cross(-slideForceOnA + rollForceA);
+    projectile.pos = dust_agglomeration_offset(local_coords,projectile.pos,projectile.vel,projectile.R);
+    return projectile;
+}
 
-            // Gravity on a:
-            // const vec3 gravForceOnA = (G * p_pair.A->m * p_pair.B->m / (dist * dist)) * (rVec / dist);
+// Uses previous O as target and adds one particle to hit it:
+void P_group::add_projectile()
+{
+    // Load file data:
+    std::cerr << "Add Particle\n";
 
-            // Total forces on a:
-            totalForce = elasticForce + slideForceOnA + vdwForce;
-            // totalForce = gravForceOnA + elasticForce + frictionForce + vdwForce;
+    auto projectile = dust_agglomeration_particle_init();
 
-            // Elastic and Friction b:
-            // Flip direction b -> a:
-            // rVec = -rVec;
-            // dVel = -dVel;
-            // elasticForce = -elasticForce;
+    
+    // Collision velocity calculation:
+    const vec3 p_target{calc_momentum("p_target")};
+    const vec3 p_projectile{calc_momentum(projectile)};
+    const vec3 p_total{p_target + p_projectile};
+    const double m_target{getMass()};
+    const double m_projectile{getMass(projectile)};
+    const double m_total{m_target + m_projectile};
+    const vec3 v_com = p_total / m_total;
 
-            // const vec3 relativeVelOfB = dVel - dVel.dot(rVec) * (rVec / (dist * dist)) - p_pair.B->w.cross(p_pair.B->R / sumRaRb * rVec) - p_pair.A->w.cross(p_pair.A->R / sumRaRb * rVec);
-            // relativeVelMag = relativeVelOfB.norm(); // todo - This should be the same as mag for A. Same speed different direction.
-            // // if (relativeVelMag > 1e-10)
-            // // {
-            // //     frictionForce = mu * (elasticForce.norm() + vdwForce.norm()) * (relativeVelOfB / relativeVelMag);
-            // // }
-            // const vec3 bTorque = (p_pair.B->R / sumRaRb) * rVec.cross(frictionForce);
+    // Negate total system momentum:
+    kick(-v_com,projectile);
+    kick(-v_com);
 
-            {
-                const std::lock_guard<std::mutex> lock(g_mutex);
-                p_pair.A->aacc += aTorque / p_pair.A->moi;
-            }
-            {
-                const std::lock_guard<std::mutex> lock(g_mutex);
-                p_pair.B->aacc += bTorque / p_pair.B->moi;
-            }
+    fprintf(
+        stderr,
+        "\nTarget Velocity: %.2e\nProjectile Velocity: %.2e\n",
+        p_group[0].vel.norm(),
+        projectile.vel.norm());
+
+    std::cerr << '\n';
+    // calc_momentum(projectile);
+    // calc_momentum("Target");
+
+    p_group.push_back(projectile);
+    num_particles = num_particles + 1;
+    // Ball_group new_group{projectile.num_particles + num_particles};
+
+    // new_group.merge_ball_group(*this);
+    // new_group.merge_ball_group(projectile);
+    calc_helpfuls();
+
+    // Hack - Calibrate to vel = 1 so we don't have to reform the pair. Probly fine?
+    calibrate_dt(0, v_custom);
+    // new_group.calibrate_dt(0, 1);
+    init_conditions();
+    // new_group.g.printGraph();
+
+    to_origin();
+
+}
+
+void P_group::generate_ball_field(const int nBalls)
+{
+    std::cerr << "CLUSTER FORMATION\n";
+
+    // allocate_group(nBalls);
+
+    // Create new random number set.
+    //      const int seedSave = static_cast<int>(time(nullptr));
+    srand(seed);  // srand(seedSave);
+
+    oneSizeSphere(nBalls);
+    
+    
+    calc_helpfuls();
+    // threeSizeSphere(nBalls);
+
+    output_prefix = "dataFile";
+    // output_prefix = std::to_string(nBalls) + "_R" + scientific(get_radius(getCOM())) + "_v" +
+    //                 scientific(v_custom) + "_cor" + rounder(sqrtf(cor), 4) + "_mu" + rounder(u_s, 3) +
+    //                 "_rho" + rounder(density, 4);
+}
+
+// void P_group::write_to_buffer()
+// {
+//     for (size_t i = 0; i < num_particles; i++)
+//     {
+//         P& cp = p_group[i]; // Current particle
+
+//         // Send positions and rotations to buffer:
+//         if (i == 0)
+//         {
+//             ballBuffer
+//                 << cp.pos[0] << ','
+//                 << cp.pos[1] << ','
+//                 << cp.pos[2] << ','
+//                 << cp.w[0] << ','
+//                 << cp.w[1] << ','
+//                 << cp.w[2] << ','
+//                 << cp.w.norm() << ','
+//                 << cp.vel.x << ','
+//                 << cp.vel.y << ','
+//                 << cp.vel.z << ','
+//                 << 0;
+//         }
+//         else
+//         {
+//             ballBuffer
+//                 << ',' << cp.pos[0] << ','
+//                 << cp.pos[1] << ','
+//                 << cp.pos[2] << ','
+//                 << cp.w[0] << ','
+//                 << cp.w[1] << ','
+//                 << cp.w[2] << ','
+//                 << cp.w.norm() << ','
+//                 << cp.vel.x << ','
+//                 << cp.vel.y << ','
+//                 << cp.vel.z << ','
+//                 << 0;
+//         }
+
+//         T += .5 * cp.m * cp.vel.normsquared() + .5 * cp.moi * cp.w.normsquared(); // Now includes rotational kinetic energy.
+//         mom += cp.m * cp.vel;
+//         ang_mom += cp.m * cp.pos.cross(cp.vel) + cp.moi * cp.w;
+//     }
+// }
+
+void P_group::update_kinematics(P& P)
+{
+    // Update velocity half step:
+    P.velh = P.vel + .5 * P.acc * dt;
+
+    // Update angular velocity half step:
+    P.wh = P.w + .5 * P.aacc * dt;
+
+    // Update position:
+    P.pos += P.velh * dt;
+
+    // Reinitialize acceleration to be recalculated:
+    P.acc = { 0, 0, 0 };
+
+    // Reinitialize angular acceleration to be recalculated:
+    P.aacc = { 0, 0, 0 };
+}
+
+void P_group::compute_velocity(P& P)
+{
+    // Velocity for next step:
+    P.vel = P.velh + .5 * P.acc * dt;
+    P.w = P.wh + .5 * P.aacc * dt;
+}
+
+void P_group::compute_energy(P& P)
+{
+    KE += .5 * P.m * P.vel.dot(P.vel) + .5 * P.moi * P.w.dot(P.w);
+    mom += P.m * P.vel;
+    ang_mom += P.m * P.pos.cross(P.vel) + P.moi * P.w;
+}
+
+void P_group::compute_acceleration(P_pair& p_pair)
+{
+    const double Ra = p_pair.A->R;
+    const double Rb = p_pair.B->R;
+    const vec3 rVecab = p_pair.B -> pos - p_pair.A -> pos;
+    const vec3 rVecba = -rVecab;
+    const double m_a = p_pair.A->m;
+    const double m_b = p_pair.B->m;
+    const double sumRaRb = Ra + Rb;
+    // vec3 rVec = p_pair.B->pos - p_pair.A->pos; // Start with rVec from a to b.
+    const double dist = (rVecab).norm();
+
+    // Cohesion:
+    // h is the "separation" of the particles at particle radius - maxOverlap.
+    // This allows particles to be touching while under vdwForce.
+    // const double h = maxOverlap * 1.01 - overlap;
+    const double h = h_min;
+    const double h2 = h * h;
+    const double twoRah = 2 * Ra * h;
+    const double twoRbh = 2 * Rb * h;
+    const vec3 vdwForce =
+        Ha / 6 *
+        64 * Ra * Ra * Ra * Rb * Rb * Rb *
+        (h + Ra + Rb) /
+        (
+            (h2 + twoRah + twoRbh) *
+            (h2 + twoRah + twoRbh) *
+            (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
+            (h2 + twoRah + twoRbh + 4 * Ra * Rb)
+            ) *
+        rVecab.normalized();
+    
+
+    vec3 totalForce = vdwForce;
 
 
-            if (writeStep)
-            {
-                // Calculate potential energy. Important to recognize that the factor of 1/2 is not in front of K because this is for the spring potential in each ball and they are the same potential.
-                //O.PE += -G * pair.A->m * pair.B->m / dist + 0.5 * k * overlap * overlap;
-            }
+    // Check for collision between Ball and otherBall:
+    double overlap = sumRaRb - dist;
+
+    double oldDist = p_pair.dist;
+    
+
+    if (writeStep)
+    {
+        const double diffRaRb = Ra - Rb;
+        const double z = sumRaRb + h;
+        const double two_RaRb = 2 * Ra * Rb;
+        const double denom_sum = z * z - (sumRaRb * sumRaRb);
+        const double denom_diff = z * z - (diffRaRb * diffRaRb);
+        const double U_vdw =
+            -Ha / 6 *
+            (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
+        PE = PE + U_vdw;  // Van Der Waals potential
+    }
+
+    // Check for collision between Ball and otherBall.
+    if (overlap > 0)
+    {
+        
+        double k;
+        // Apply coefficient of restitution to balls leaving collision.
+        if (dist >= oldDist)
+        {
+            k = kout;
         }
         else
         {
-            // No collision: Include gravity only:
-            // const vec3 gravForceOnA = (G * p_pair.A->m * p_pair.B->m / (dist * dist)) * (rVec / dist);
-            totalForce = vdwForce;
-            // totalForce = gravForceOnA;
-            if (writeStep)
-            {
-                //O.PE += -G * pair.A->m * pair.B->m / dist;
-            }
-
-        //  // For expanding overlappers:
-        //  //pair.A->vel = { 0,0,0 };
-        //  //pair.B->vel = { 0,0,0 };
+            k = kin;
         }
 
-        // Newton's equal and opposite forces applied to acceleration of each ball:
+        if (writeStep)
+        {
+            PE = PE + 0.5 * k * overlap * overlap;
+        }
+
+        // Elastic a:
+        vec3 elasticForce = -k * overlap * .5 * (rVecab / dist);
+        const double elastic_force_A_mag = elasticForce.norm();
+        // Friction a:
+        vec3 dVel = p_pair.B->vel - p_pair.A->vel;
+        // vec3 frictionForce = { 0, 0, 0 };
+        const vec3 r_a = rVecab * Ra / sumRaRb;  // Center to contact point
+        const vec3 r_b = rVecba * Rb / sumRaRb;
+        const vec3 w_diff = p_pair.A -> w - p_pair.B -> w;
+        const double w_diff_mag = w_diff.norm();
+        const vec3 relativeVelOfA = dVel - dVel.dot(rVecab) * (rVecab / (dist * dist)) - 
+                                    p_pair.A->w.cross(r_a) - 
+                                    p_pair.B->w.cross(r_b);
+        double relativeVelMag = relativeVelOfA.norm();
+        
+        vec3 slideForceOnA, rollForceA;
+        if (relativeVelMag > 1e-10) // When relative velocity is very low, dividing its vector components by its magnitude below is unstable.
+        {
+            slideForceOnA = u_s * (elastic_force_A_mag) *
+                            (relativeVelOfA / relativeVelMag);
+            // frictionForce = mu * (elasticForce.norm() + vdwForce.norm()) *
+            //              (relativeVelOfA / relativeVelMag);
+        }
+
+        if (w_diff_mag > 1e-13)  // Divide by zero protection.
+        {
+            rollForceA = -u_r * elastic_force_A_mag * 
+                        (w_diff).cross(r_a) / (w_diff).cross(r_a).norm();
+        }
+
+        // Torque a:
+        const vec3 aTorque = r_a.cross(slideForceOnA + rollForceA);
+        const vec3 bTorque = r_b.cross(-slideForceOnA + rollForceA);
+
+        // Gravity on a:
+        // const vec3 gravForceOnA = (G * p_pair.A->m * p_pair.B->m / (dist * dist)) * (rVec / dist);
+
+        // Total forces on a:
+        totalForce = totalForce + elasticForce + slideForceOnA;
+
         {
             const std::lock_guard<std::mutex> lock(g_mutex);
-            p_pair.A->acc += totalForce / p_pair.A->m;
+            p_pair.A->aacc += aTorque / p_pair.A->moi;
         }
         {
             const std::lock_guard<std::mutex> lock(g_mutex);
-            p_pair.B->acc -= totalForce / p_pair.B->m;
+            p_pair.B->aacc += bTorque / p_pair.B->moi;
         }
+
     }
 
-    
-};
+    // Newton's equal and opposite forces applied to acceleration of each ball:
+    {
+        const std::lock_guard<std::mutex> lock(g_mutex);
+        p_pair.A->acc += totalForce / m_a;
+    }
+    {
+        const std::lock_guard<std::mutex> lock(g_mutex);
+        p_pair.B->acc -= totalForce / m_b;
+    }
+}
 
-// //@brief sets Ball_group object based on the need for a restart or not
-// P_group make_group(const char *argv1,int* restart)
-// {
-//     P_group O;
-    
-//     //See if run has already been started
-//     std::string filename = check_restart(argv1,restart);
-//     if (*restart > -1) //Restart is necessary unless only first write has happended so far
-//     {
-//         if (*restart > 1)
-//         {//TESTED
-//             (*restart)--;
-//             // filename = std::to_string(*restart) + filename;
-//             filename = filename.substr(1,filename.length());
-//             O = Ball_group(argv1,filename,v_custom,*restart);
-//         }
-//         else if (*restart == 1) //restart from first write (different naming convension for first write)
-//         {//TESTED
-//             (*restart)--;
-//             filename = filename.substr(1,filename.length());
-//             // exit(EXIT_SUCCESS);
-//             O = Ball_group(argv1,filename,v_custom,*restart);
-//         }
-//         else //if restart is 0, need to rerun whole thing
-//         {//TESTED
-//             O = Ball_group(true, v_custom, argv1); // Generate new group
-//         }
+void P_group::sim_one_step(const bool write_step)
+{
+    std::for_each(std::execution::par_unseq, p_group.begin(), p_group.end(),
+                std::bind_front(&P_group::update_kinematics, this));
+    std::for_each(std::execution::par, pairs.begin(), pairs.end(),
+                std::bind_front(&P_group::compute_acceleration, this));
+    std::for_each(std::execution::par_unseq, p_group.begin(), p_group.end(),
+                std::bind_front(&P_group::compute_velocity, this));
+    if (write_step)
+    {
+        ballBuffer << '\n';  // Prepares a new line for incoming data.
+        for (auto p : p_group)  
+        {  
+            if (p != *p_group.begin()) 
+            {
+                ballBuffer << ',' << p.pos[0] << ',' << p.pos[1] << ',' << p.pos[2] << ','
+                           << p.w[0] << ',' << p.w[1] << ',' << p.w[2] << ','
+                           << p.w.norm() << ',' << p.vel.x << ',' << p.vel.y << ','
+                           << p.vel.z << ',' << 0;
+            } 
+            else 
+            {
+                ballBuffer << p.pos[0] << ',' << p.pos[1] << ',' << p.pos[2] << ','
+                           << p.w[0] << ',' << p.w[1] << ',' << p.w[2] << ','
+                           << p.w.norm() << ',' << p.vel.x << ',' << p.vel.y << ','
+                           << p.vel.z << ',' << 0;
+            }
 
-//     }
-//     else // Make new ball group
-//     {
-//         *restart = 0;
-//         O = Ball_group(true, v_custom, argv1); // Generate new group
-//     }
-//     return O;
-// }
+            KE += .5 * p.m * p.vel.normsquared() +
+                    .5 * p.moi * p.w.normsquared();  // Now includes rotational kinetic energy.
+            mom += p.m * p.vel;
+            ang_mom += p.m * p.pos.cross(p.vel) + p.moi * p.w;
+        }
+    }
+}
+
+void P_group::sim_looper()
+{
+    std::cerr << "Beginning simulation...\n";
+
+    startProgress = time(nullptr);
+
+    for (int Step = 1; Step < steps; Step++)  // Steps start at 1 because the 0 step is initial conditions.
+    {
+
+        // Check if this is a write step:
+        if (Step % skip == 0) {
+            // t.start_event("writeProgressReport");
+            writeStep = true;
+
+            simTimeElapsed += dt * skip;
+
+            // Progress reporting:
+            float eta = ((time(nullptr) - startProgress) / static_cast<float>(skip) *
+                         static_cast<float>(steps - Step)) /
+                        3600.f;  // Hours.
+            float real = (time(nullptr) - start) / 3600.f;
+            float simmed = static_cast<float>(simTimeElapsed / 3600.f);
+            float progress = (static_cast<float>(Step) / static_cast<float>(steps) * 100.f);
+            fprintf(
+                stderr,
+                "%u\t%2.0f%%\tETA: %5.2lf\tReal: %5.2f\tSim: %5.2f hrs\tR/S: %5.2f\n",
+                Step,
+                progress,
+                eta,
+                real,
+                simmed,
+                real / simmed);
+            // fprintf(stdout, "%u\t%2.0f%%\tETA: %5.2lf\tReal: %5.2f\tSim: %5.2f hrs\tR/S: %5.2f\n", Step,
+            // progress, eta, real, simmed, real / simmed);
+            fflush(stdout);
+            startProgress = time(nullptr);
+            // t.end_event("writeProgressReport");
+        } else {
+            writeStep = false;
+        }
+
+        // Physics integration step:
+        sim_one_step(writeStep);
+
+
+        if (writeStep) {
+            // Write energy to stream:
+            energyBuffer << '\n'
+                         << simTimeElapsed << ',' << PE << ',' << KE << ',' << PE + KE << ','
+                         << mom.norm() << ','
+                         << ang_mom.norm();  // the two zeros are bound and unbound mass
+
+            // Reinitialize energies for next step:
+            KE = 0;
+            PE = 0;
+            mom = {0, 0, 0};
+            ang_mom = {0, 0, 0};
+            // unboundMass = 0;
+            // boundMass = massTotal;
+
+            // Data Export. Exports every 10 writeSteps (10 new lines of data) and also if the last write was
+            // a long time ago.
+            if (time(nullptr) - lastWrite > 1800 || Step / skip % 10 == 0) {
+                // Report vMax:
+                std::cerr << "vMax = " << getVelMax() << " Steps recorded: " << Step / skip << '\n';
+                std::cerr << "Data Write to "<<s_location<<"\n";
+
+
+                // Write simData to file and clear buffer.
+                std::ofstream ballWrite;
+                ballWrite.open(s_location + filenum + output_prefix + "_simData.csv", std::ofstream::app);
+                ballWrite << ballBuffer.rdbuf();  // Barf buffer to file.
+                ballBuffer.str("");               // Empty the stream for next filling.
+                ballWrite.close();
+
+                // Write Energy data to file and clear buffer.
+                std::ofstream energyWrite;
+                energyWrite.open(s_location + filenum + output_prefix + "_energy.csv", std::ofstream::app);
+                energyWrite << energyBuffer.rdbuf();
+                energyBuffer.str("");  // Empty the stream for next filling.
+                energyWrite.close();
+
+                lastWrite = time(nullptr);
+            }  // Data export end
+
+
+            if (dynamicTime) { calibrate_dt(Step, false); }
+        }  // writestep end
+    }
+
+    const time_t end = time(nullptr);
+
+    std::cerr << "Simulation complete!\n"
+              << num_particles << " Particles and " << steps << " Steps.\n"
+              << "Simulated time: " << steps * dt << " seconds\n"
+              << "Computation time: " << end - start << " seconds\n";
+    std::cerr << "\n===============================================================\n";
+}  // end simLooper
+
+
 
 void P_group::oneSizeSphere(const int nBalls)
 {
@@ -382,6 +933,7 @@ void P_group::oneSizeSphere(const int nBalls)
         new_p.m = density * 4. / 3. * 3.14159 * std::pow(new_p.R, 3);
         new_p.moi = .4 * new_p.m * new_p.R * new_p.R;
         new_p.w = {0,0,0};
+        new_p.vel = {0,0,0};
         new_p.pos = rand_vec3(spaceRange);
         p_group.push_back(new_p);
     }
@@ -458,7 +1010,7 @@ void P_group::parse_input_file(char const* location)
         seed = static_cast<int>(inputs["seed"]);
     }
 
-    // dynamicTime = inputs["dynamicTime"];
+    dynamicTime = inputs["dynamicTime"];
 
     gridSize = inputs["gridSize"];
     // tolerance = inputs["gridTolerance"];
@@ -720,4 +1272,283 @@ void P_group::calc_helpfuls()
     mTotal = getMass();
     initialRadius = get_radius(getCOM());
     soc = 4 * rMax + initialRadius;
+}
+
+void P_group::simInit_cond_and_center()
+{
+    std::cerr << "==================" << '\n';
+    std::cerr << "dt: " << dt << '\n';
+    std::cerr << "k: " << kin << '\n';
+    std::cerr << "Skip: " << skip << '\n';
+    std::cerr << "Steps: " << steps << '\n';
+    std::cerr << "==================" << '\n';
+
+    to_origin();
+
+    calc_momentum("After Zeroing");  // Is total mom zero like it should be?
+
+    // Compute physics between all balls. Distances, collision forces, energy totals, total mass:
+    init_conditions();
+
+    // Name the file based on info above:
+    // if (add_prefix)
+    // {   
+    //     output_prefix += "_k" + scientific(kin) + "_Ha" + scientific(Ha) + "_dt" + scientific(dt) + "_";
+    // }
+}
+
+
+/*
+void mapGroups()
+{
+
+    for (int i = 0; i < numBalls; ++i)
+    {
+        std::string key = getKey(gridIDs[i]);
+        if (IDToGrid.find(key) == IDToGrid.end()) // key not present
+        {
+            std::vector<int> indices{i};
+            IDToGrid[key] = indices;
+            // std::cout<<"key: val  " <<key<<": "<<IDToGrid[key][0]<<std::endl;
+        }
+        else//key present, add to vector
+        {
+            IDToGrid[key].push_back(i);
+        }
+    }
+    // printMap();
+    return;
+}
+
+inline std::string getKey(std::vector<int> v)
+{
+    return std::to_string(v[0]) + std::to_string(v[1]) + std::to_string(v[2]);
+}
+
+inline std::string getKey(int x, int y, int z)
+{
+    return std::to_string(x) + std::to_string(y) + std::to_string(z);
+}
+
+
+std::vector<int> getBalls(int ballIndex)
+{
+
+    int currx, curry, currz;
+    currx = gridIDs[ballIndex][0];
+    curry = gridIDs[ballIndex][1]; 
+    currz = gridIDs[ballIndex][2]; 
+
+
+    std::vector<int> ball_indicies;
+    for (int x = -1; x < 2; ++x)
+    {
+        for (int y = -1; y < 2; ++y)
+        {
+            for (int z = -1; z < 2; ++z)
+            {
+                std::string key = getKey(currx+x,curry+y,currz+z);
+                if (IDToGrid.find(key) != IDToGrid.end())
+                {
+                    for (auto ind_it = begin(IDToGrid[key]); ind_it != end(IDToGrid[key]); ++ind_it)
+                    {
+                        // if (ball_indicies.find(*ind_it) == ball_indicies.end())
+                        if(std::find(ball_indicies.begin(), ball_indicies.end(), *ind_it) == ball_indicies.end())
+                        {
+                            ball_indicies.push_back(*ind_it);
+                        }
+                    }
+                }       
+            }
+        }
+    }       
+    return ball_indicies;
+}
+
+void P_group::findGroup(P &p)
+{
+    p.id[0] = floor(p.pos[0]/gridSize);
+    p.id[1] = floor(p.pos[1]/gridSize);
+    p.id[2] = floor(p.pos[2]/gridSize);
+}
+
+void P_group::findGroups()
+{
+    std::for_each(std::execution::par_unseq,p_group.begin(),p_group.end(), findGroup)
+    // #pragma omp parallel
+    // {
+    //     #pragma omp parallel for default(none) shared(gridIDs)
+    //     for (int i = 0; i < numBalls; ++i)
+    //     {   
+    //         gridIDs[i] = std::vector<int>(3);
+    //         for (int j = 0; j < 3; j++)
+    //         {
+    //             gridIDs[i][j] = floor(pos[i][j]/gridSize);
+    //         }
+    //     }
+    // }
+    // return;
+}
+*/
+
+//TODO::: make this jive with grid_group ideas
+std::vector<P_pair> P_group::make_pairs() 
+{
+    // findGroups();
+    
+    // std::vector<P_pair> p_pairs;
+
+    int n = p_group.size();
+    int n_pairs = n * (n - 1) / 2;
+    std::vector<P_pair> p_pairs(n_pairs); // All particle pairs
+    for (size_t i = 0; i < n_pairs; i++)
+    {
+        // Pair Combinations [A,B] [B,C] [C,D]... [A,C] [B,D] [C,E]... ...
+        int A = i % n;
+        int stride = 1 + i / n; // Stride increases by 1 after each full set of pairs
+        int B = (A + stride) % n;
+
+        // Create particle* pair
+        p_pairs[i] = { &p_group[A], &p_group[B] };
+    }
+    return p_pairs;
+}
+
+void P_group::sim_continue(const std::string& path, const std::string& filename, int start_file_index)
+{
+    // Load file data:
+    num_particles = 3 + start_file_index;
+    if (start_file_index == 0)
+    {
+        std::cerr << "Continuing Sim...\nFile: " << filename << '\n';
+        loadSim(path, filename);
+    }
+    else
+    {
+        output_prefix = std::to_string(start_file_index) + '_';
+        std::cerr << "Continuing Sim...\nFile: " << start_file_index << '_' << filename << '\n';
+        loadSim(path, std::to_string(start_file_index) + filename);
+    }
+
+
+
+    std::cerr << '\n';
+    calc_momentum("O");
+
+    // Name the file based on info above:
+    // output_prefix = std::to_string(num_particles) + "_rho" + rounder(density, 4);
+    output_prefix = filename;
+}
+
+void P_group::sim_init_write(std::string filename, int counter)
+{
+    // Create string for file name identifying spin combination negative is 2, positive is 1 on each axis.
+    // std::string spinCombo = "";
+    // for ( int i = 0; i < 3; i++)
+    //{
+    //  if (spins[i] < 0) { spinCombo += "2"; }
+    //  else if (spins[i] > 0) { spinCombo += "1"; }
+    //  else { spinCombo += "0"; }
+    //}
+
+    // todo - filename is now a copy and this works. Need to consider how old way worked for
+    // compatibility. What happens without setting output_prefix = filename? Check if file name already
+    // exists.
+    std::ifstream checkForFile;
+    if (counter != 0)
+    {
+        filenum = std::to_string(counter) + '_';
+    }
+    else
+    {
+        filenum = "";
+    }
+
+    std::cout<<"filenum: "<<filenum<<"\tnum_particles: "<<num_particles<<'\n';
+
+    checkForFile.open(s_location + filenum + output_prefix + "_simData.csv", std::ifstream::in);
+    // Add a counter to the file name until it isn't overwriting anything:
+    while (checkForFile.is_open()) {
+        counter++;
+        checkForFile.close();
+        checkForFile.open(s_location + std::to_string(counter) + '_' + output_prefix + "_simData.csv", std::ifstream::in);
+    }
+
+    if (counter > 0) { filename.insert(0, std::to_string(counter) + '_'); }
+
+
+    // Complete file names:
+    std::string simDataFilename = s_location + filenum + output_prefix + "_simData.csv";
+    std::string energyFilename = s_location + filenum + output_prefix + "_energy.csv";
+    std::string constantsFilename = s_location + filenum + output_prefix + "_constants.csv";
+
+    std::cerr << "New file tag: " << filename;
+
+    // Open all file streams:
+    std::ofstream energyWrite, ballWrite, constWrite;
+    energyWrite.open(energyFilename, std::ofstream::app);
+    ballWrite.open(simDataFilename, std::ofstream::app);
+    constWrite.open(constantsFilename, std::ofstream::app);
+
+    // Make column headers:
+    energyWrite << "Time,PE,KE,E,p,L";
+    ballWrite << "x0,y0,z0,wx0,wy0,wz0,wmag0,vx0,vy0,vz0,bound0";
+
+    for (int Ball = 1; Ball < num_particles;
+         Ball++)  // Start at 2nd ball because first one was just written^.
+    {
+        std::string thisBall = std::to_string(Ball);
+        ballWrite << ",x" + thisBall << ",y" + thisBall << ",z" + thisBall << ",wx" + thisBall
+                  << ",wy" + thisBall << ",wz" + thisBall << ",wmag" + thisBall << ",vx" + thisBall
+                  << ",vy" + thisBall << ",vz" + thisBall << ",bound" + thisBall;
+    }
+
+    // Write constant data:
+    for (int Ball = 0; Ball < num_particles; Ball++) {
+        constWrite << p_group[Ball].R << ',' << p_group[Ball].m << ',' << 
+                    p_group[Ball].moi << '\n';
+    }
+
+    // Write energy data to buffer:
+    energyBuffer << '\n'
+                 << simTimeElapsed << ',' << PE << ',' << KE << ','
+                 << PE + KE << ',' << mom.norm() << ','
+                 << ang_mom.norm();
+    energyWrite << energyBuffer.rdbuf();
+    energyBuffer.str("");
+
+    // Reinitialize energies for next step:
+    KE = 0;
+    PE = 0;
+    mom = {0, 0, 0};
+    ang_mom = {0, 0, 0};
+
+    // Send position and rotation to buffer:
+    ballBuffer << '\n';  // Necessary new line after header.
+    ballBuffer << p_group[0].pos.x << ',' << p_group[0].pos.y << ',' << p_group[0].pos.z << ',' 
+               << p_group[0].w.x << ',' << p_group[0].w.y << ','
+               << p_group[0].w.z << ',' << p_group[0].w.norm() << ',' 
+               << p_group[0].vel.x << ',' << p_group[0].vel.y << ',' << p_group[0].vel.z
+               << ',' << 0;  // bound[0];
+    for (int Ball = 1; Ball < num_particles; Ball++) {
+        ballBuffer << ',' << p_group[Ball].pos.x
+                   << ','  // Needs comma start so the last bound doesn't have a dangling comma.
+                   << p_group[Ball].pos.y << ',' << p_group[Ball].pos.z << ',' 
+                   << p_group[Ball].w.x << ',' << p_group[Ball].w.y << ',' << p_group[Ball].w.z 
+                   << ',' << p_group[Ball].w.norm() << ',' 
+                   << p_group[Ball].vel.x << ',' << p_group[Ball].vel.y
+                   << ',' << p_group[Ball].vel.z << ',' << 0;  // bound[Ball];
+    }
+    // Write position and rotation data to file:
+    ballWrite << ballBuffer.rdbuf();
+    ballBuffer.str("");  // Resets the stream buffer to blank.
+
+    // Close Streams for user viewing:
+    energyWrite.close();
+    ballWrite.close();
+    constWrite.close();
+
+    std::cerr << "\nSimulating " << steps * dt / 60 / 60 << " hours.\n";
+    std::cerr << "Total mass: " << mTotal << '\n';
+    std::cerr << "\n===============================================================\n";
 }

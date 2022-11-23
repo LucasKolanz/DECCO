@@ -40,6 +40,14 @@ public:
     	return *this;
     }
 
+    // vec3 operator=(vec3& v)
+    // {
+    //     x = v.x;
+    //     y = v.y;
+    //     z = v.z;
+    //     return *this;
+    // }
+
 
     vec3 operator-() const { return vec3(-x, -y, -z); }
 
@@ -62,6 +70,7 @@ public:
         z -= v.z;
         return *this;
     }
+
 
     vec3 operator*(const double scalar) const { return vec3(scalar * x, scalar * y, scalar * z); }
 
