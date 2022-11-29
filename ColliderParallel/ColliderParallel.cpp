@@ -37,26 +37,64 @@ namespace fs = std::filesystem;
 // void write_to_buffer(P_group& p_group);
 
 
-
-std::vector<P_pair> make_p_pairs(P_group& O)
+void
+safetyChecks(P_group &O)
 {
-	int n = O.p_group.size();
-	int n_pairs = n * (n - 1) / 2;
-	std::vector<P_pair> p_pairs(n_pairs); // All particle pairs
-	for (size_t i = 0; i < n_pairs; i++)
-	{
-		// Pair Combinations [A,B] [B,C] [C,D]... [A,C] [B,D] [C,E]... ...
-		int A = i % n;
-		int stride = 1 + i / n; // Stride increases by 1 after each full set of pairs
-		int B = (A + stride) % n;
+    titleBar("SAFETY CHECKS");
 
-		// Create particle* pair
-		p_pairs[i] = { &O.p_group[A], &O.p_group[B] };
-	}
-	return p_pairs;
+    if (O.soc <= 0) {
+        fprintf(stderr, "\nSOC NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.vCollapse <= 0) {
+        fprintf(stderr, "\nvCollapse NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.skip == 0) {
+        fprintf(stderr, "\nSKIP NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.kin < 0) {
+        fprintf(stderr, "\nSPRING CONSTANT NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.dt <= 0) {
+        fprintf(stderr, "\nDT NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.steps == 0) {
+        fprintf(stderr, "\nSTEPS NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.initialRadius <= 0) {
+        fprintf(stderr, "\nCluster initialRadius not set\n");
+        exit(EXIT_FAILURE);
+    }
+
+    for (int Ball = 0; Ball < O.num_particles; Ball++) {
+        if (O.p_group[Ball].pos.norm() < vec3(1e-10, 1e-10, 1e-10).norm()) {
+            fprintf(stderr, "\nA ball position is [0,0,0]. Possibly didn't initialize balls properly.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        if (O.p_group[Ball].R <= 0) {
+            fprintf(stderr, "\nA balls radius <= 0.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        if (O.p_group[Ball].m <= 0) {
+            fprintf(stderr, "\nA balls mass <= 0.\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+    titleBar("SAFETY PASSED");
 }
-
-
 
 std::string check_restart(std::string folder,int* restart)
 {
@@ -74,19 +112,28 @@ std::string check_restart(std::string folder,int* restart)
         // tot_count++;
         if (file.substr(file.size()-4,file.size()) == ".csv")
         {
+        	std::string full_file = file;
             size_t pos = file.find('_');
-            file_index = stoi(file.substr(0,pos));
-            if (file[pos+2] != '_')
-            {
-                file_index = 0;
-            }
+        	file = file.substr(0,pos);
+        	if (file.length() < 4 || file.substr(file.size()-4,file.size()) != ".csv")
+        	{
+	            file_index = stoi(file.substr(0,pos));
+	        }
+	        else
+	        {
+	        	file_index = 0;
+	            // file = file;
+	        }
+
             if (file_index > largest_file_index)
             {
                 largest_file_index = file_index;
-                largest_index_name = file;
+                largest_index_name = full_file;
             }
+
         }
     }
+
     *restart = largest_file_index;
     if (*restart != -1)
     {
@@ -200,6 +247,7 @@ int main(const int argc, char const* argv[])
     }
  
 	P_group O = make_group(argv[1],restart); // Particle system
+	safetyChecks(O);
 
 	for (int i = *restart; i < num_balls; i++) {
     // for (int i = 0; i < 250; i++) {

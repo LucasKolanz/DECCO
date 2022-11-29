@@ -48,7 +48,7 @@ if __name__ == '__main__':
 				######Change input values here######
 				input_json['temp'] = Temp
 				input_json['gridSize'] = 4e-5
-				input_json['seed'] = 'default'
+				input_json['seed'] = 100
 				####################################
 
 				with open(job + "input.json",'w') as fp:

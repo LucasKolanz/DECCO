@@ -90,14 +90,17 @@ if __name__ == '__main__':
 	# temps = [10]
 	temps = [3,10,30,100,300,1000]
 	Nums = [30,100,300]
+	# Nums = [300]
 	# attempts = [19]
-	attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18]
-	attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
+	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18]
+	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
+	# attempts = [i for i in range(1,5)]
 	attempts = [i for i in range(1,29)]
+	attempts300 = [1,2]
 	data = []
 
 
-	new_data = False
+	new_data = True
 
 
 	if new_data:
@@ -107,13 +110,17 @@ if __name__ == '__main__':
 		porositiesabc = np.zeros((len(Nums),len(temps),len(attempts)),dtype=np.float64)
 		porositiesKBM = np.zeros((len(Nums),len(temps),len(attempts)),dtype=np.float64) 
 		FD_data = np.zeros((len(Nums),len(temps),len(attempts)),dtype=np.float64)
+		porositiesabc[:] = np.nan
+		porositiesKBM[:] = np.nan
+		FD_data[:] = np.nan
 		for i,temp in enumerate(temps):
 			for n,N in enumerate(Nums):
-				for j,attempt in enumerate(attempts):
-					if N == 300 and attempt != 1:
-						break
-						# data_folder = data_prefolder + str(attempt) + '/' + 'T_' + str(temp) + '/'
-					# else:
+				if N == 300:
+					a = attempts300
+				else:
+					a = attempts
+				for j,attempt in enumerate(a):
+					
 					data_folder = data_prefolder + str(attempt) + '/' + 'N_' + str(N) + '/T_' + str(temp) + '/'
 
 					count = 0
@@ -154,20 +161,28 @@ if __name__ == '__main__':
 		yerr_abc = []
 		yerr_KBM = []
 		yerr_FD = []
-		for i,N in enumerate(Nums[:2]):
-			porositiesabcavg.append(np.average(porositiesabc[i],axis=1))
-			porositiesKBMavg.append(np.average(porositiesKBM[i],axis=1))
-			porositiesabcstd.append(np.std(porositiesabc[i],axis=1))
-			porositiesKBMstd.append(np.std(porositiesKBM[i],axis=1))
-			FD_dataavg.append(np.average(FD_data[i],axis=1))
-			FD_datastd.append(np.std(FD_data[i],axis=1))
+		for i,N in enumerate(Nums):
+			if N == 300:
+				a = attempts300
+			else:
+				a = attempts
+			# porositiesabcavg.append(np.average(porositiesabc[i],axis=1))
+			# porositiesKBMavg.append(np.average(porositiesKBM[i],axis=1))
+			# FD_dataavg.append(np.average(FD_data[i],axis=1))
+			# print('N={}\n{}'.format(N,np.nanmean(porositiesabc[i],axis=1)))
+			porositiesabcavg.append(np.nanmean(porositiesabc[i],axis=1))
+			porositiesKBMavg.append(np.nanmean(porositiesKBM[i],axis=1))
+			FD_dataavg.append(np.nanmean(FD_data[i],axis=1))
+			porositiesabcstd.append(np.nanstd(porositiesabc[i],axis=1))
+			porositiesKBMstd.append(np.nanstd(porositiesKBM[i],axis=1))
+			FD_datastd.append(np.nanstd(FD_data[i],axis=1))
 			# print(porositiesabcavg[i])
 			# print(porositiesKBMavg[i])
 
 			# plotme = np.array([porositiesabcavg,porositiesKBMavg])
-			yerr_abc.append(porositiesabcstd[i]/np.sqrt(len(attempts)))
-			yerr_KBM.append(porositiesKBMstd[i]/np.sqrt(len(attempts)))
-			yerr_FD.append(FD_datastd[i]/np.sqrt(len(attempts)))
+			yerr_abc.append(porositiesabcstd[i]/np.sqrt(len(a)))
+			yerr_KBM.append(porositiesKBMstd[i]/np.sqrt(len(a)))
+			yerr_FD.append(FD_datastd[i]/np.sqrt(len(a)))
 			# print(yerr[0])
 
 
@@ -179,7 +194,7 @@ if __name__ == '__main__':
 		columns = ['Temperature']
 		data = [temps]
 
-		for i,N in enumerate(Nums[:2]):
+		for i,N in enumerate(Nums):
 			columns.append('N={} abc porositity'.format(N))
 			data.append(porositiesabcavg[i])
 			columns.append('N={} abc std err'.format(N)) 
@@ -193,18 +208,21 @@ if __name__ == '__main__':
 			columns.append('N={} Fractal Dimension std err'.format(N))
 			data.append(yerr_FD[i])
 
-		columns.append('N={} abc porositity'.format(300))
-		data.append(porositiesabc[2,:,0])
-		columns.append('N={} KBM porositity'.format(300))
-		data.append(porositiesKBM[2,:,0])
-		columns.append('N={} Fractal Dimension'.format(300))
-		data.append(FD_data[2,:,0])
+		print(data)
 
-		with open('data/averageData.csv','w') as file:
+		# columns.append('N={} abc porositity'.format(300))
+		# data.append(porositiesabc[2,:,0])
+		# columns.append('N={} KBM porositity'.format(300))
+		# data.append(porositiesKBM[2,:,0])
+		# columns.append('N={} Fractal Dimension'.format(300))
+		# data.append(FD_data[2,:,0])
+		sav = 'data/averageData.csv'
+		with open(sav,'w') as file:
 			write = csv.writer(file)
 			write.writerow(columns)
 			for row in np.transpose(np.array(data)):
 				write.writerow(row)
+			print("Data saved to {}".format(sav))
 	else:
 		data = np.loadtxt('data/averageData.csv',delimiter=',',skiprows=1)
 
@@ -248,11 +266,13 @@ if __name__ == '__main__':
 	# print(porositiesabc[i])
 	styles = ['-','--','-.']
 	colors = ['g','b','r']
-	length = 6
-	data = np.transpose(data)
+	length = len(temps)
+	# data = np.transpose(data)
 
 	# length = data.shape[]
-	for i,N in enumerate(Nums[:2]):
+	for i,N in enumerate(Nums):
+		print('N={}\n{}'.format(N,data[i*length+1]))
+		print('N2={}\n{}'.format(N,data[i*length+2]))
 		ax.errorbar(temps,data[i*length+1],yerr=data[i*length+2],label="Rabc,N={}".format(N),\
 			linestyle=styles[i],color="g",zorder=5)
 		ax.errorbar(temps,data[i*length+3],yerr=data[i*length+4],label="RKBM,N={}".format(N),\
@@ -269,17 +289,17 @@ if __name__ == '__main__':
 	# 		linestyle=styles[i],color="r",zorder=5)
 
 
-	ax.plot(temps,data[13],label='Rabc,N=300',linestyle=styles[2],\
-			color='g',zorder=5)
-	ax.plot(temps,data[14],label='RKBM,N=300',linestyle=styles[2],\
-			color='b',zorder=5)
-	ax2.plot(temps,data[15],label='FD, N=300',linestyle=styles[2],\
-			color='r',zorder=5)
+	# ax.plot(temps,data[13],label='Rabc,N=300',linestyle=styles[2],\
+	# 		color='g',zorder=5)
+	# ax.plot(temps,data[14],label='RKBM,N=300',linestyle=styles[2],\
+	# 		color='b',zorder=5)
+	# ax2.plot(temps,data[15],label='FD, N=300',linestyle=styles[2],\
+	# 		color='r',zorder=5)
 
 	# ax.errorbar(temps,plotme[1],yerr=yerr1[1],label="RKBM",zorder=10)
 	
 	ax.set_xlabel('Temperature in K')
-	ax.set_title('Porosity average over {} sims'.format(len(attempts),N))
+	ax.set_title('Average Porosity')
 	ax.set_ylabel('Porosity')
 	# ax.set_legend(['Rabc','RKBM'])
 	# plt.errorbar(temps,)

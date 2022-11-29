@@ -82,11 +82,11 @@ struct P_group
     std::string s_location;
     std::string projectileName;
     std::string targetName;
-    std::string output_prefix;
+    std::string output_prefix = "dataFile";
     std::string filenum;
 
     double u_s = -1.0, u_r = -1.0;
-    double cor  =-1.0;
+    double cor = -1.0;
     double simTimeSeconds = -1.0;
     double timeResolution = -1.0;
     double fourThirdsPiRho = -1.0;
@@ -171,7 +171,7 @@ struct P_group
             const double3x3 local_coords, vec3 projectile_pos,
             vec3 projectile_vel, const double projectile_rad);
     inline double calc_moi(const double& radius, const double& mass);
-    void findGroup(P &p);
+    void findGroup(P &p); //TODO impliment grid 
     void findGroups();
 
     P_group() = default;
@@ -179,7 +179,7 @@ struct P_group
     P_group(std::vector<P> p_group) : p_group(p_group) {}
     P_group(const bool generate, const char* path);
     P_group(const std::string& path, const std::string& filename, 
-            const double& customVel, int start_file_index=0);
+            int start_file_index=0);
 
 
     std::stringstream ballBuffer;
@@ -193,10 +193,16 @@ private:
 P_group::P_group(const bool generate, const char* path)
 {
     parse_input_file(path);//should be first in constructor
-    num_particles = genBalls;
+    
     generate_ball_field(genBalls);
 
+    // p_group[0].pos = {0, 1.101e-5, 0};
+    // p_group[1].pos = {0, -1.101e-5, 0};
+    // p_group[0].vel = {0, 0, 0};
+    // p_group[1].vel = {0, 0, 0};
+    mTotal = getMass();
     calc_v_collapse();
+
     calibrate_dt(0, v_custom);
     simInit_cond_and_center();
 }
@@ -205,18 +211,25 @@ P_group::P_group(const bool generate, const char* path)
 /// @param fullpath is the filename and path excluding the suffix _simData.csv, _constants.csv, etc.
 /// @param customVel To condition for specific vMax.
 // explicit P_group::P_group(const std::string& path, const std::string& filename, const double& customVel, int start_file_index=0)
-P_group::P_group(const std::string& path, const std::string& filename, const double& customVel, int start_file_index)
+P_group::P_group(const std::string& path, const std::string& filename, int start_file_index)
 {
     parse_input_file(path.c_str());
+    std::cout<<"HERE"<<std::endl;
     sim_continue(path, filename,start_file_index);
+    std::cout<<"HERE"<<std::endl;
     calc_v_collapse();
+    std::cout<<"HERE"<<std::endl;
     calibrate_dt(0, v_custom);
+    std::cout<<"HERE"<<std::endl;
     simInit_cond_and_center();
+    std::cout<<"HERE"<<std::endl;
 }
 
 /// Make ballGroup from file data.
 void P_group::loadSim(const std::string& path, const std::string& filename)
 {
+    std::cout<<path<<std::endl;
+    std::cout<<filename<<std::endl;
     parseSimData(getLastLine(path, filename),path,filename);
 
     calc_helpfuls();
@@ -229,7 +242,7 @@ void P_group::loadSim(const std::string& path, const std::string& filename)
 // [[nodiscard]] static std::string P_group::getLastLine(const std::string& path, const std::string& filename)
 [[nodiscard]] std::string P_group::getLastLine(const std::string& path, const std::string& filename)
 {
-    std::string simDataFilepath = path + filename + "_simData.csv";
+    std::string simDataFilepath = path + filename + "simData.csv";
     if (auto simDataStream = std::ifstream(simDataFilepath, std::ifstream::in)) {
         std::cerr << "\nParsing last line of data.\n";
 
@@ -266,7 +279,7 @@ void P_group::loadSim(const std::string& path, const std::string& filename)
 void P_group::loadConsts(const std::string& path, const std::string& filename)
 {
     // Get radius, mass, moi:
-    std::string constantsFilename = path + filename + "_constants.csv";
+    std::string constantsFilename = path + filename + "constants.csv";
     if (auto ConstStream = std::ifstream(constantsFilename, std::ifstream::in)) {
         std::string line, lineElement;
         for (int A = 0; A < num_particles; A++) {
@@ -379,14 +392,22 @@ void P_group::to_origin()
 {
     const vec3 com = getCOM();
 
-    auto lambda = [=](P &p){ p.pos =  p.pos - com; };
-    std::for_each(std::execution::par_unseq, p_group.begin(), p_group.end(),
-                lambda);
+    for (int Ball = 0; Ball < num_particles; Ball++) { p_group[Ball].pos -= com; }
+    // auto lambda = [=](P &p){ p.pos = p.pos - com; };
+    // std::for_each(std::execution::par_unseq, p_group.begin(), p_group.end(),
+    //             lambda);
 }
 
 // [[nodiscard]] double getMass()
 double P_group::getMass()
 {
+
+    // m_total = 0;
+    // {
+    //     for (int Ball = 0; Ball < num_particles; Ball++) { m_total += m[Ball]; }
+    // }
+    // return m_total;
+
     auto lambda = [&](double sum, const P &b){return sum + b.m; };
     return std::accumulate(p_group.begin(), p_group.end(), 0.0, lambda);        
 }
@@ -433,11 +454,17 @@ void P_group::init_conditions()
 {
     pairs = make_pairs();
     //calc init accelerations
+    writeStep = true;
     std::for_each(std::execution::par, pairs.begin(), pairs.end(),
                     std::bind_front(&P_group::compute_acceleration, this));
+    writeStep = false;
     //calc init energy:
-    std::for_each(std::execution::par_unseq, p_group.begin(), p_group.end(),
-                std::bind_front(&P_group::compute_energy, this));
+    for (int i = 0; i < num_particles; ++i)
+    {
+        compute_energy(p_group[i]);
+    }
+    // std::for_each(std::execution::par_unseq, p_group.begin(), p_group.end(),
+                // std::bind_front(&P_group::compute_energy, this));
 }
 
 //@brief returns new position of particle after it is given random offset
@@ -543,6 +570,7 @@ void P_group::add_projectile()
 
     // Hack - Calibrate to vel = 1 so we don't have to reform the pair. Probly fine?
     calibrate_dt(0, v_custom);
+    calibrate_dt(0, 1); ////???? Leftover from Jobs code
     // new_group.calibrate_dt(0, 1);
     init_conditions();
     // new_group.g.printGraph();
@@ -567,7 +595,7 @@ void P_group::generate_ball_field(const int nBalls)
     calc_helpfuls();
     // threeSizeSphere(nBalls);
 
-    output_prefix = "dataFile";
+    
     // output_prefix = std::to_string(nBalls) + "_R" + scientific(get_radius(getCOM())) + "_v" +
     //                 scientific(v_custom) + "_cor" + rounder(sqrtf(cor), 4) + "_mu" + rounder(u_s, 3) +
     //                 "_rho" + rounder(density, 4);
@@ -651,140 +679,310 @@ void P_group::compute_energy(P& P)
 
 void P_group::compute_acceleration(P_pair& p_pair)
 {
-    const double Ra = p_pair.A->R;
-    const double Rb = p_pair.B->R;
-    const vec3 rVecab = p_pair.B -> pos - p_pair.A -> pos;
+    const double sumRaRb = p_pair.A->R + p_pair.B->R;
+    const vec3 rVecab = p_pair.B->pos - p_pair.A->pos;  // Vector from a to b.
     const vec3 rVecba = -rVecab;
-    const double m_a = p_pair.A->m;
-    const double m_b = p_pair.B->m;
-    const double sumRaRb = Ra + Rb;
-    // vec3 rVec = p_pair.B->pos - p_pair.A->pos; // Start with rVec from a to b.
     const double dist = (rVecab).norm();
-
-    // Cohesion:
-    // h is the "separation" of the particles at particle radius - maxOverlap.
-    // This allows particles to be touching while under vdwForce.
-    // const double h = maxOverlap * 1.01 - overlap;
-    const double h = h_min;
-    const double h2 = h * h;
-    const double twoRah = 2 * Ra * h;
-    const double twoRbh = 2 * Rb * h;
-    const vec3 vdwForce =
-        Ha / 6 *
-        64 * Ra * Ra * Ra * Rb * Rb * Rb *
-        (h + Ra + Rb) /
-        (
-            (h2 + twoRah + twoRbh) *
-            (h2 + twoRah + twoRbh) *
-            (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
-            (h2 + twoRah + twoRbh + 4 * Ra * Rb)
-            ) *
-        rVecab.normalized();
-    
-
-    vec3 totalForce = vdwForce;
-
 
     // Check for collision between Ball and otherBall:
     double overlap = sumRaRb - dist;
 
-    double oldDist = p_pair.dist;
-    
+    vec3 totalForceOnA{0, 0, 0};
 
-    if (writeStep)
-    {
-        const double diffRaRb = Ra - Rb;
-        const double z = sumRaRb + h;
-        const double two_RaRb = 2 * Ra * Rb;
-        const double denom_sum = z * z - (sumRaRb * sumRaRb);
-        const double denom_diff = z * z - (diffRaRb * diffRaRb);
-        const double U_vdw =
-            -Ha / 6 *
-            (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
-        PE = PE + U_vdw;  // Van Der Waals potential
-    }
+    // Distance array element: 1,0    2,0    2,1    3,0    3,1    3,2 ...
+    // int e = static_cast<unsigned>(A * (A - 1) * .5) + B;  // a^2-a is always even, so this works.
+    double oldDist = p_pair.dist;
 
     // Check for collision between Ball and otherBall.
-    if (overlap > 0)
-    {
-        
+    if (overlap > 0) {
         double k;
         // Apply coefficient of restitution to balls leaving collision.
-        if (dist >= oldDist)
-        {
+        if (dist >= oldDist) {
             k = kout;
-        }
-        else
-        {
+        } else {
             k = kin;
         }
 
-        if (writeStep)
+        // Cohesion (in contact) h must always be h_min:
+        // constexpr double h = h_min;
+        const double h = h_min;
+        const double Ra = p_pair.A->R;
+        const double Rb = p_pair.B->R;
+        const double h2 = h * h;
+        // constexpr double h2 = h * h;
+        const double twoRah = 2 * Ra * h;
+        const double twoRbh = 2 * Rb * h;
+        const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
+                                 ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
+                                                   (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
+                                                   (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
+                                 rVecab.normalized();
+
+        // Elastic force:
+        const vec3 elasticForceOnA = -k * overlap * .5 * (rVecab / dist);
+
+        // Gravity force:
+        // const vec3 gravForceOnA = (G * O.m[A] * O.m[B] / (dist * dist)) * (rVecab / dist);
+
+        // Sliding and Rolling Friction:
+        vec3 slideForceOnA{0, 0, 0};
+        vec3 rollForceA{0, 0, 0};
+        vec3 torqueA{0, 0, 0};
+        vec3 torqueB{0, 0, 0};
+
+        // Shared terms:
+        const double elastic_force_A_mag = elasticForceOnA.norm();
+        const vec3 r_a = rVecab * p_pair.A->R / sumRaRb;  // Center to contact point
+        const vec3 r_b = rVecba * p_pair.B->R / sumRaRb;
+        const vec3 w_diff = p_pair.A->w - p_pair.B->w;
+
+        // Sliding friction terms:
+        const vec3 d_vel = p_pair.A->vel - p_pair.A->vel;
+        const vec3 frame_A_vel_B = d_vel - d_vel.dot(rVecab) * (rVecab / (dist * dist)) -
+                                   p_pair.A->w.cross(r_a) - p_pair.B->w.cross(r_a);
+
+        // Compute sliding friction force:
+        const double rel_vel_mag = frame_A_vel_B.norm();
+        if (rel_vel_mag > 1e-13)  // Divide by zero protection.
         {
-            PE = PE + 0.5 * k * overlap * overlap;
+            // In the frame of A, B applies force in the direction of B's velocity.
+            slideForceOnA = u_s * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
         }
 
-        // Elastic a:
-        vec3 elasticForce = -k * overlap * .5 * (rVecab / dist);
-        const double elastic_force_A_mag = elasticForce.norm();
-        // Friction a:
-        vec3 dVel = p_pair.B->vel - p_pair.A->vel;
-        // vec3 frictionForce = { 0, 0, 0 };
-        const vec3 r_a = rVecab * Ra / sumRaRb;  // Center to contact point
-        const vec3 r_b = rVecba * Rb / sumRaRb;
-        const vec3 w_diff = p_pair.A -> w - p_pair.B -> w;
+        // Compute rolling friction force:
         const double w_diff_mag = w_diff.norm();
-        const vec3 relativeVelOfA = dVel - dVel.dot(rVecab) * (rVecab / (dist * dist)) - 
-                                    p_pair.A->w.cross(r_a) - 
-                                    p_pair.B->w.cross(r_b);
-        double relativeVelMag = relativeVelOfA.norm();
-        
-        vec3 slideForceOnA, rollForceA;
-        if (relativeVelMag > 1e-10) // When relative velocity is very low, dividing its vector components by its magnitude below is unstable.
-        {
-            slideForceOnA = u_s * (elastic_force_A_mag) *
-                            (relativeVelOfA / relativeVelMag);
-            // frictionForce = mu * (elasticForce.norm() + vdwForce.norm()) *
-            //              (relativeVelOfA / relativeVelMag);
-        }
-
         if (w_diff_mag > 1e-13)  // Divide by zero protection.
         {
-            rollForceA = -u_r * elastic_force_A_mag * 
-                        (w_diff).cross(r_a) / (w_diff).cross(r_a).norm();
+            rollForceA =
+                -u_r * elastic_force_A_mag * (w_diff).cross(r_a) / (w_diff).cross(r_a).norm();
         }
-
-        // Torque a:
-        const vec3 aTorque = r_a.cross(slideForceOnA + rollForceA);
-        const vec3 bTorque = r_b.cross(-slideForceOnA + rollForceA);
-
-        // Gravity on a:
-        // const vec3 gravForceOnA = (G * p_pair.A->m * p_pair.B->m / (dist * dist)) * (rVec / dist);
 
         // Total forces on a:
-        totalForce = totalForce + elasticForce + slideForceOnA;
+        //Took out gravity force
+        totalForceOnA = elasticForceOnA + slideForceOnA + vdwForceOnA;
+        // totalForceOnA = gravForceOnA + elasticForceOnA + slideForceOnA + vdwForceOnA;
+
+        // Total torque a and b:
+        torqueA = r_a.cross(slideForceOnA + rollForceA);
+        torqueB = r_b.cross(-slideForceOnA + rollForceA);
 
         {
             const std::lock_guard<std::mutex> lock(g_mutex);
-            p_pair.A->aacc += aTorque / p_pair.A->moi;
+            p_pair.A->aacc += torqueA / p_pair.A->moi;
         }
         {
             const std::lock_guard<std::mutex> lock(g_mutex);
-            p_pair.B->aacc += bTorque / p_pair.B->moi;
+            p_pair.B->aacc += torqueB / p_pair.B->moi;
         }
 
+        if (writeStep) {
+            // No factor of 1/2. Includes both spheres:
+            // O.PE += -G * O.m[A] * O.m[B] / dist + 0.5 * k * overlap * overlap;
+
+            // Van Der Waals + elastic:
+            const double diffRaRb = p_pair.A->R - p_pair.B->R;
+            const double z = sumRaRb + h;
+            const double two_RaRb = 2 * p_pair.A->R * p_pair.B->R;
+            const double denom_sum = z * z - (sumRaRb * sumRaRb);
+            const double denom_diff = z * z - (diffRaRb * diffRaRb);
+            const double U_vdw =
+                -Ha / 6 *
+                (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
+            PE += U_vdw + 0.5 * k * overlap * overlap;
+        }
+    } else  // Non-contact forces:
+    {
+        // No collision: Include gravity and vdw:
+        // const vec3 gravForceOnA = (G * O.m[A] * O.m[B] / (dist * dist)) * (rVecab / dist);
+
+        // Cohesion (non-contact) h must be positive or h + Ra + Rb becomes catastrophic cancellation:
+        double h = std::fabs(overlap);
+        if (h < h_min)  // If h is closer to 0 (almost touching), use hmin.
+        {
+            h = h_min;
+        }
+        const double Ra = p_pair.A->R;
+        const double Rb = p_pair.B->R;
+        const double h2 = h * h;
+        const double twoRah = 2 * Ra * h;
+        const double twoRbh = 2 * Rb * h;
+        const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
+                                 ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
+                                                   (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
+                                                   (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
+                                 rVecab.normalized();
+
+        totalForceOnA = vdwForceOnA;  // +gravForceOnA;
+        if (writeStep) {
+            // O.PE += -G * O.m[A] * O.m[B] / dist; // Gravitational
+
+            const double diffRaRb = p_pair.A->R - p_pair.B->R;
+            const double z = sumRaRb + h;
+            const double two_RaRb = 2 * p_pair.A->R * p_pair.B->R;
+            const double denom_sum = z * z - (sumRaRb * sumRaRb);
+            const double denom_diff = z * z - (diffRaRb * diffRaRb);
+            const double U_vdw =
+                -Ha / 6 *
+                (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
+            PE += U_vdw;  // Van Der Waals
+        }
+
+        // todo this is part of push_apart. Not great like this.
+        // For pushing apart overlappers:
+        // O.vel[A] = { 0,0,0 };
+        // O.vel[B] = { 0,0,0 };
     }
 
     // Newton's equal and opposite forces applied to acceleration of each ball:
     {
         const std::lock_guard<std::mutex> lock(g_mutex);
-        p_pair.A->acc += totalForce / m_a;
+        p_pair.A->acc += totalForceOnA / p_pair.A->m;
     }
     {
         const std::lock_guard<std::mutex> lock(g_mutex);
-        p_pair.B->acc -= totalForce / m_b;
+        p_pair.B->acc -= totalForceOnA / p_pair.B->m;
     }
-}
+
+    // So last distance can be known for COR:
+    p_pair.dist = dist;
+} 
+
+// void P_group::compute_acceleration(P_pair& p_pair)
+// {
+//     const double Ra = p_pair.A->R;
+//     const double Rb = p_pair.B->R;
+//     const vec3 rVecab = p_pair.B -> pos - p_pair.A -> pos;
+//     const vec3 rVecba = -rVecab;
+//     const double m_a = p_pair.A->m;
+//     const double m_b = p_pair.B->m;
+//     const double sumRaRb = Ra + Rb;
+//     // vec3 rVec = p_pair.B->pos - p_pair.A->pos; // Start with rVec from a to b.
+//     const double dist = (rVecab).norm();
+
+//     // Cohesion:
+//     // h is the "separation" of the particles at particle radius - maxOverlap.
+//     // This allows particles to be touching while under vdwForce.
+//     // const double h = maxOverlap * 1.01 - overlap;
+//     const double h = h_min;
+//     const double h2 = h * h;
+//     const double twoRah = 2 * Ra * h;
+//     const double twoRbh = 2 * Rb * h;
+//     const vec3 vdwForce =
+//         Ha / 6 *
+//         64 * Ra * Ra * Ra * Rb * Rb * Rb *
+//         (h + Ra + Rb) /
+//         (
+//             (h2 + twoRah + twoRbh) *
+//             (h2 + twoRah + twoRbh) *
+//             (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
+//             (h2 + twoRah + twoRbh + 4 * Ra * Rb)
+//             ) *
+//         rVecab.normalized();
+    
+
+//     vec3 totalForce = vdwForce;
+
+
+//     // Check for collision between Ball and otherBall:
+//     double overlap = sumRaRb - dist;
+
+//     double oldDist = p_pair.dist;
+    
+
+//     if (writeStep)
+//     {
+//         const double diffRaRb = Ra - Rb;
+//         const double z = sumRaRb + h;
+//         const double two_RaRb = 2 * Ra * Rb;
+//         const double denom_sum = z * z - (sumRaRb * sumRaRb);
+//         const double denom_diff = z * z - (diffRaRb * diffRaRb);
+//         const double U_vdw =
+//             -Ha / 6 *
+//             (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
+//         PE = PE + U_vdw;  // Van Der Waals potential
+//     }
+
+//     // Check for collision between Ball and otherBall.
+//     if (overlap > 0)
+//     {
+        
+//         double k;
+//         // Apply coefficient of restitution to balls leaving collision.
+//         if (dist >= oldDist)
+//         {
+//             k = kout;
+//         }
+//         else
+//         {
+//             k = kin;
+//         }
+
+//         if (writeStep)
+//         {
+//             PE = PE + 0.5 * k * overlap * overlap;
+//         }
+
+//         // Elastic a:
+//         vec3 elasticForce = -k * overlap * .5 * (rVecab / dist);
+//         const double elastic_force_A_mag = elasticForce.norm();
+//         // Friction a:
+//         vec3 dVel = p_pair.B->vel - p_pair.A->vel;
+//         // vec3 frictionForce = { 0, 0, 0 };
+//         const vec3 r_a = rVecab * Ra / sumRaRb;  // Center to contact point
+//         const vec3 r_b = rVecba * Rb / sumRaRb;
+//         const vec3 w_diff = p_pair.A -> w - p_pair.B -> w;
+//         const double w_diff_mag = w_diff.norm();
+//         const vec3 relativeVelOfA = dVel - dVel.dot(rVecab) * (rVecab / (dist * dist)) - 
+//                                     p_pair.A->w.cross(r_a) - 
+//                                     p_pair.B->w.cross(r_b);
+//         double relativeVelMag = relativeVelOfA.norm();
+        
+//         vec3 slideForceOnA, rollForceA;
+//         if (relativeVelMag > 1e-10) // When relative velocity is very low, dividing its vector components by its magnitude below is unstable.
+//         {
+//             slideForceOnA = u_s * (elastic_force_A_mag) *
+//                             (relativeVelOfA / relativeVelMag);
+//             // frictionForce = mu * (elasticForce.norm() + vdwForce.norm()) *
+//             //              (relativeVelOfA / relativeVelMag);
+//         }
+
+//         if (w_diff_mag > 1e-13)  // Divide by zero protection.
+//         {
+//             rollForceA = -u_r * elastic_force_A_mag * 
+//                         (w_diff).cross(r_a) / (w_diff).cross(r_a).norm();
+//         }
+
+//         // Torque a:
+//         const vec3 aTorque = r_a.cross(slideForceOnA + rollForceA);
+//         const vec3 bTorque = r_b.cross(-slideForceOnA + rollForceA);
+
+//         // Gravity on a:
+//         // const vec3 gravForceOnA = (G * p_pair.A->m * p_pair.B->m / (dist * dist)) * (rVec / dist);
+
+//         // Total forces on a:
+//         totalForce = totalForce + elasticForce + slideForceOnA;
+
+//         {
+//             const std::lock_guard<std::mutex> lock(g_mutex);
+//             p_pair.A->aacc += aTorque / p_pair.A->moi;
+//         }
+//         {
+//             const std::lock_guard<std::mutex> lock(g_mutex);
+//             p_pair.B->aacc += bTorque / p_pair.B->moi;
+//         }
+
+//     }
+
+//     // Newton's equal and opposite forces applied to acceleration of each ball:
+//     {
+//         const std::lock_guard<std::mutex> lock(g_mutex);
+//         p_pair.A->acc += totalForce / m_a;
+//     }
+//     {
+//         const std::lock_guard<std::mutex> lock(g_mutex);
+//         p_pair.B->acc -= totalForce / m_b;
+//     }
+// }
 
 void P_group::sim_one_step(const bool write_step)
 {
@@ -892,14 +1090,15 @@ void P_group::sim_looper()
 
                 // Write simData to file and clear buffer.
                 std::ofstream ballWrite;
-                ballWrite.open(s_location + filenum + output_prefix + "_simData.csv", std::ofstream::app);
+
+                ballWrite.open(s_location + filenum + output_prefix + "simData.csv", std::ofstream::app);
                 ballWrite << ballBuffer.rdbuf();  // Barf buffer to file.
                 ballBuffer.str("");               // Empty the stream for next filling.
                 ballWrite.close();
 
                 // Write Energy data to file and clear buffer.
                 std::ofstream energyWrite;
-                energyWrite.open(s_location + filenum + output_prefix + "_energy.csv", std::ofstream::app);
+                energyWrite.open(s_location + filenum + output_prefix + "energy.csv", std::ofstream::app);
                 energyWrite << energyBuffer.rdbuf();
                 energyBuffer.str("");  // Empty the stream for next filling.
                 energyWrite.close();
@@ -933,7 +1132,7 @@ void P_group::oneSizeSphere(const int nBalls)
         new_p.m = density * 4. / 3. * 3.14159 * std::pow(new_p.R, 3);
         new_p.moi = .4 * new_p.m * new_p.R * new_p.R;
         new_p.w = {0,0,0};
-        new_p.vel = {0,0,0};
+        new_p.vel = {0,0,0}; //?????
         new_p.pos = rand_vec3(spaceRange);
         p_group.push_back(new_p);
     }
@@ -1054,6 +1253,7 @@ void P_group::parse_input_file(char const* location)
     }
     properties = inputs["properties"];
     genBalls = inputs["genBalls"];
+    num_particles = genBalls;
     attempts = inputs["attempts"];
     skip = inputs["skip"];
     steps = inputs["steps"];
@@ -1409,7 +1609,9 @@ std::vector<P_pair> P_group::make_pairs()
         int B = (A + stride) % n;
 
         // Create particle* pair
-        p_pairs[i] = { &p_group[A], &p_group[B] };
+        double dist = (p_group[B].pos - p_group[A].pos).norm();
+        p_pairs[i] = { &p_group[A], &p_group[B], dist };
+        // p_pairs[i] = { &p_group[A], &p_group[B] };
     }
     return p_pairs;
 }
@@ -1425,9 +1627,10 @@ void P_group::sim_continue(const std::string& path, const std::string& filename,
     }
     else
     {
-        output_prefix = std::to_string(start_file_index) + '_';
+        // output_prefix = std::to_string(start_file_index);
+        // std::cout<<output_prefix<<std::endl;
         std::cerr << "Continuing Sim...\nFile: " << start_file_index << '_' << filename << '\n';
-        loadSim(path, std::to_string(start_file_index) + filename);
+        loadSim(path, std::to_string(start_file_index) + '_' + filename);
     }
 
 
@@ -1437,7 +1640,7 @@ void P_group::sim_continue(const std::string& path, const std::string& filename,
 
     // Name the file based on info above:
     // output_prefix = std::to_string(num_particles) + "_rho" + rounder(density, 4);
-    output_prefix = filename;
+    // output_prefix = filename;
 }
 
 void P_group::sim_init_write(std::string filename, int counter)
@@ -1464,9 +1667,10 @@ void P_group::sim_init_write(std::string filename, int counter)
         filenum = "";
     }
 
-    std::cout<<"filenum: "<<filenum<<"\tnum_particles: "<<num_particles<<'\n';
-
-    checkForFile.open(s_location + filenum + output_prefix + "_simData.csv", std::ifstream::in);
+    // std::cout<<"filenum: "<<filenum<<"\tnum_particles: "<<num_particles<<'\n';
+    // std::cout<<'\n'<<s_location + filenum + output_prefix + "simData.csv"<<std::endl;
+    checkForFile.open(s_location + filenum + output_prefix + "simData.csv", std::ifstream::in);
+    
     // Add a counter to the file name until it isn't overwriting anything:
     while (checkForFile.is_open()) {
         counter++;
@@ -1474,15 +1678,16 @@ void P_group::sim_init_write(std::string filename, int counter)
         checkForFile.open(s_location + std::to_string(counter) + '_' + output_prefix + "_simData.csv", std::ifstream::in);
     }
 
-    if (counter > 0) { filename.insert(0, std::to_string(counter) + '_'); }
+    // if (counter > 0) { filename.insert(0, std::to_string(counter) + '_'); }
 
 
     // Complete file names:
-    std::string simDataFilename = s_location + filenum + output_prefix + "_simData.csv";
-    std::string energyFilename = s_location + filenum + output_prefix + "_energy.csv";
-    std::string constantsFilename = s_location + filenum + output_prefix + "_constants.csv";
+    std::string simDataFilename = s_location + filenum + output_prefix + "simData.csv";
+    std::string energyFilename = s_location + filenum + output_prefix + "energy.csv";
+    std::string constantsFilename = s_location + filenum + output_prefix + "constants.csv";
+    // std::cout<<s_location + filenum + output_prefix + "simData.csv"<<std::endl;
 
-    std::cerr << "New file tag: " << filename;
+    std::cerr << "New file tag: " << filenum + output_prefix;
 
     // Open all file streams:
     std::ofstream energyWrite, ballWrite, constWrite;
