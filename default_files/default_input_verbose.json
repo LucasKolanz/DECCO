@@ -2,7 +2,8 @@
 ////////////////////////////////////
 // Initialization (Units are CGS) //
 ////////////////////////////////////
-
+	//if true, will run in parallel, if false will run sequencially
+	"parallel": "true",
 	//set to default to seed srand as time(nullptr), otherwise enter a custom seed
 	"seed": "default",
 	//IDK, keep false until figure it out

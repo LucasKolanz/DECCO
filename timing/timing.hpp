@@ -65,7 +65,7 @@ public:
 	{
 		for (auto i : events)
 		{
-			std::cout<<"Event '"<<i.first<<"' took "<<i.second.duration<<" ms\n";
+			std::cout<<"Event '"<<i.first<<"' took "<<i.second.duration<<" s\n";
 		}
 		std::cout<<std::endl;
 	}
@@ -76,7 +76,7 @@ public:
 		myfile.open(save_name, std::ios::app);
 		for (auto i : events)
 		{
-			myfile<<"Event '"<<i.first<<"' took "<<i.second.duration<<" ms\n";
+			myfile<<"Event '"<<i.first<<"' took "<<i.second.duration<<" s\n";
 		}
 		myfile<<std::endl;
 

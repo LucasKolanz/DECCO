@@ -4,7 +4,7 @@
 
 
 
-ColliderParallel.o: ColliderParallel.cpp ../vec3.hpp initializations.hpp ../json/single_include/nlohmann/json.hpp
+ColliderParallel.o: ColliderParallel.cpp ../vec3.hpp ballSim.hpp ../json/single_include/nlohmann/json.hpp
 	g++ -O3 -ftree-vectorize -std=c++2a -o ColliderParallel.o ColliderParallel.cpp -ltbb
 
 stp: ColliderSingletoParallel.cpp ../dust_const.hpp ../ball_group.hpp ../grid_group/grid_group_parallel.hpp

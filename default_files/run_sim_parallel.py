@@ -18,7 +18,7 @@ def main():
 	
 	cmd = ["{}ColliderParallel.o".format(location), location, str(num_balls)]
 	print(cmd)
-	with open(output_file,"w") as out, open(error_file,"w") as err:
+	with open(output_file,"a") as out, open(error_file,"a") as err:
 		subprocess.run(cmd,stdout=out,stderr=err)
 
 if __name__ == '__main__':

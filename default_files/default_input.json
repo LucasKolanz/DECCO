@@ -1,4 +1,5 @@
 {
+	"parallel": "true",
 	"seed": "default",
 	"dynamicTime": false,
 	"gridSize": 1e-4,

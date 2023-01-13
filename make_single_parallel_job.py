@@ -19,14 +19,15 @@ if __name__ == '__main__':
 		print('compilation failed')
 		exit(-1)
 
-	job_set_name = "PairParallelTest"
+	job_set_name = "LargePairParallelTest"
+	job_set_name = "comparison_test"
 	
 	# folder_name_scheme = "T_"
 
 	runs_at_once = 1
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	attempts = [1] 
-	N = [1000]
+	N = [100]
 	Temps = [1000]
 	folders = []
 	for attempt in attempts:
@@ -47,7 +48,7 @@ if __name__ == '__main__':
 				####################################
 				######Change input values here######
 				input_json['temp'] = Temp
-				input_json['gridSize'] = 4e-5
+				# input_json['gridSize'] = 4e-5
 				input_json['seed'] = 100
 				####################################
 

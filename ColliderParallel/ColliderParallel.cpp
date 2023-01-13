@@ -9,36 +9,13 @@
 #include <execution>
 
 #include "../vec3.hpp"
-#include "initializations.hpp"
+#include "ballSim.hpp"
+// #include "../timing/timing.hpp"
 
 namespace fs = std::filesystem;
 
-
-// String buffers to hold data in memory until worth writing to file:
-// std::stringstream ballBuffer;
-// std::stringstream energyBuffer;
-
-// These are used within simOneStep to keep track of time.
-// They need to survive outside its scope, and I don't want to have to pass them all.
-// const time_t start = time(nullptr);        // For end of program analysis
-// time_t startProgress; // For progress reporting (gets reset)
-// time_t lastWrite;     // For write control (gets reset)
-// bool writeStep;       // This prevents writing to file every step (which is slow).
-
-//ballGroup O(path, projectileName, targetName, vCustom); // Collision
-//ballGroup O(path, targetName, 0); // Continue
-//ballGroup O(genBalls, true, vCustom); // Generate
-
-
-
-// void update_kinematics(P& P);
-// void compute_acceleration(P_pair& p_pair);
-// void compute_velocity(P& P);
-// void write_to_buffer(P_group& p_group);
-
-
-void
-safetyChecks(P_group &O)
+/// @brief makes sure important parameters have been set and wont error the sim
+void safetyChecks(P_group &O)
 {
     titleBar("SAFETY CHECKS");
 
@@ -96,16 +73,31 @@ safetyChecks(P_group &O)
     titleBar("SAFETY PASSED");
 }
 
+
+/// @brief checks if a simulation needs to be restarted or needs to be a new sim
+/// @param folder is the path to the folder the sim is in
+/// @param restart will be set to a value to indicate the need for a restart.
+///       After running this function... 
+///         if restart = -2 -> Finished sim
+///         if restart = -1 -> Need to start new sim
+///         if restart = 0  -> Only one step has completed and we need to restart a new sim
+///         if restart > 0  -> Continue the sim starting from this step
+/// @returns the name of the file that needs to be restarted, or an empty string if no restart is needed
 std::string check_restart(std::string folder,int* restart)
 {
     std::string file;
-    // int tot_count = 0;
-    // int file_count = 0;
     int largest_file_index = -1;
     int file_index = -100;
     std::string largest_index_name;
+    *restart = -1;
     for (const auto & entry : fs::directory_iterator(folder))
     {
+        if (file.substr(0,file.size()-4) == "timing")
+        {
+            *restart = -2;
+            return "";
+        }
+
         file = entry.path();
         size_t pos = file.find_last_of("/");
         file = file.erase(0,pos+1);
@@ -140,8 +132,8 @@ std::string check_restart(std::string folder,int* restart)
         size_t start,end;
         start = largest_index_name.find('_');
         end = largest_index_name.find_last_of('_');
-        //Delete most recent save file as this is likely only partially 
-        //complete if we are restarting
+        // //Delete most recent save file as this is likely only partially 
+        // //complete if we are restarting
 
         std::string remove_file;
 
@@ -161,6 +153,7 @@ std::string check_restart(std::string folder,int* restart)
         int status2 = remove(file2.c_str());
         int status3 = remove(file3.c_str());
 
+
         if (status1 != 0)
         {
             std::cout<<"File: "<<file1<<" could not be removed, now exiting with failure."<<std::endl;
@@ -177,7 +170,16 @@ std::string check_restart(std::string folder,int* restart)
             exit(EXIT_FAILURE);
         }
 
-        return largest_index_name.substr(start,end-start+1);
+        // std::cout<< largest_index_name <<std::endl;
+        // std::cout<<start<<", "<<end<<std::endl;
+        if (*restart == 0)
+        {
+            return largest_index_name;
+        }
+        else
+        {   
+            return largest_index_name.substr(start,end-start+1);
+        }
     }
     else
     {
@@ -185,38 +187,26 @@ std::string check_restart(std::string folder,int* restart)
     }
 }
 
-//@brief sets Ball_group object based on the need for a restart or not
-P_group make_group(const char *argv1,int* restart)
+//@brief Calls correct P_group constructor based on the need for a restart or not
+P_group make_group(const char *argv1,int* restart,timey &t)
 {
     P_group O;
+
     //See if run has already been started
     std::string filename = check_restart(argv1,restart);
-    if (*restart > -1) //Restart is necessary unless only first write has happended so far
-    {
-        if (*restart > 1)
-        {//TESTED
-            (*restart)--;
-            // filename = std::to_string(*restart) + filename;
-            filename = filename.substr(1,filename.length());
-            O = P_group(argv1,filename,*restart);
-        }
-        else if (*restart == 1) //restart from first write (different naming convension for first write)
-        {//TESTED
-            (*restart)--;
-            filename = filename.substr(1,filename.length());
-            // exit(EXIT_SUCCESS);
-            O = P_group(argv1,filename,*restart);
-        }
-        else //if restart is 0, need to rerun whole thing
-        {//TESTED
-            O = P_group(true, argv1); // Generate new group
-        }
 
+    if (*restart > 0) //Restart is necessary unless only first write has happended so far
+    {
+        O = P_group(argv1,t,*restart);
     }
-    else // Make new ball group
+    else if (*restart > -2) // Make new ball group
     {
         *restart = 0;
-        O = P_group(true, argv1); // Generate new group
+        O = P_group(true, argv1,t); // Generate new group
+    }
+    else
+    {
+        std::cerr<<"Simulation already complete.\n";
     }
     O.energyBuffer.precision(12);  // Need more precision on momentum.
     return O;
@@ -227,6 +217,8 @@ int main(const int argc, char const* argv[])
     int num_balls;
     int rest = -1;
     int *restart = &rest;
+    timey main_t;
+    main_t.start_event("MAIN:Whole Thing");
 
 
     // Runtime arguments:
@@ -243,32 +235,32 @@ int main(const int argc, char const* argv[])
     }
     else
     {
+        //This will be overwritten if the parameter is given in the input file
         num_balls = 100;
     }
  
-	P_group O = make_group(argv[1],restart); // Particle system
+	P_group O = make_group(argv[1],restart,main_t); // Particle system
 	safetyChecks(O);
 
 	for (int i = *restart; i < num_balls; i++) {
-    // for (int i = 0; i < 250; i++) {
+        main_t.start_event("MAIN:Zeroing");
         O.zeroAngVel();
         O.zeroVel();
-        // t.start_event("add_projectile");
+        main_t.end_event("MAIN:Zeroing");
+        main_t.start_event("MAIN:Add Projectile");
         O.add_projectile();
-        O.make_pairs();
-        // t.end_event("add_projectile");
+        main_t.end_event("MAIN:Add Projectile");
+        main_t.start_event("MAIN:Sim init write");
         O.sim_init_write(O.s_location, i);
+        main_t.end_event("MAIN:Sim init write");
+        main_t.start_event("MAIN:Sim Looper");
         O.sim_looper();
+        main_t.end_event("MAIN:Sim Looper");
         O.simTimeElapsed = 0;
-    }
 
-	// std::for_each(std::execution::par_unseq, O.p_group.begin(), O.p_group.end(), update_kinematics);
-	// std::for_each(std::execution::par, pairs.begin(), pairs.end(), compute_acceleration);
-	// //std::ranges::for_each( arr, [i=0](auto &e) mutable { long_function(e,i++); } );
-	// if (writeStep)
-	// {
-	// 	ballBuffer << '\n'; // Prepares a new line for incoming data.
-	// 	write_to_buffer(O);
-	// }
+    }
+    main_t.end_event("MAIN:Whole Thing");
+    main_t.print_events();
+    main_t.save_events(std::string(argv[1])+"timing.txt");
 }
 
