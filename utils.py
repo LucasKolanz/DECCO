@@ -63,7 +63,7 @@ def plot(verts,center,radius):
 	# ax.plot_wireframe(x, y, z, color="r")
 	plt.show()
 
-def get_data_file(data_folder):
+def get_data_file(data_folder,data_index=-1):
 	files = os.listdir(data_folder)
 
 	try:
@@ -77,10 +77,13 @@ def get_data_file(data_folder):
 	# 	file_indicies = 
 	# 	print(files)
 
-	max_index = np.max(file_indicies)
+	if data_index == -1:
+		index = np.max(file_indicies)
+	else:
+		index = data_index
 
 	data_file = [file for file in files \
-				if file.endswith("simData.csv") and file.startswith(str(max_index))]
+				if file.endswith("simData.csv") and file.startswith(str(index))]
 	
 	if len(data_file) == 1:
 		return data_file[0]
@@ -89,14 +92,14 @@ def get_data_file(data_folder):
 		print("Now exiting.")
 		exit(-1)
 
-def get_last_line_data(data_folder):
+def get_last_line_data(data_folder,data_index):
 	# data_headers = np.loadtxt(data_folder + data_file,skiprows=0,dtype=str,delimiter=',')[0]
-	data_file = get_data_file(data_folder)
+	data_file = get_data_file(data_folder,data_index)
 	data = np.loadtxt(data_folder + data_file,skiprows=1,dtype=float,delimiter=',')[-1]
 	return format_data(data)
 
-def get_constants(data_folder):
-	data_file = get_data_file(data_folder)
+def get_constants(data_folder,data_index=-1):
+	data_file = get_data_file(data_folder,data_index)
 	data_file = data_file.replace('simData','constants')	
 	data_constants = np.loadtxt(data_folder+data_file,skiprows=0,dtype=float,delimiter=',')[0]
 	return data_constants[0],data_constants[1],data_constants[2]
@@ -106,27 +109,27 @@ def format_data(data):
 	data = data[:,:3]
 	return data
 
-def get_data(data_folder):
+def get_data(data_folder,data_index=-1):
 	if data_folder == '/home/kolanzl/Desktop/bin/merger.csv':
 		data = np.loadtxt(data_folder,delimiter=',')
 		radius = 1
 		mass = 1
 		moi = 1
 	else:
-		data_file = get_data_file(data_folder)
-		radius,mass,moi = get_constants(data_folder)
-		data = get_last_line_data(data_folder)
+		data_file = get_data_file(data_folder,data_index)
+		radius,mass,moi = get_constants(data_folder,data_index)
+		data = get_last_line_data(data_folder,data_index)
 	return data,radius,mass,moi
 
-def get_data_range(data_folder):
+def get_data_range(data_folder,data_index=-1):
 	if data_folder == '/home/kolanzl/Desktop/bin/merger.csv':
 		data = np.loadtxt(data_folder,delimiter=',')
 		radius = 1
 		mass = 1
 		moi = 1
 	else:
-		data = get_last_line_data(data_folder)
-		radius,m,moi = get_constants(data_folder)
+		data = get_last_line_data(data_folder,data_index)
+		radius,m,moi = get_constants(data_folder,data_index)
 
 	max_x = np.max(data[:,0]) + radius
 	min_x = np.min(data[:,0]) - radius
@@ -294,7 +297,7 @@ class datamgr(object):
 	def shift_to_first_quad(self,data_range=None):
 		if data_range is None:
 			data_range = get_data_range(self.data_folder)
-		print("SHIFTED")
+		# print("SHIFTED")
 
 		self.data[:,0] -= data_range[1] 
 		self.data[:,1] -= data_range[3] 
@@ -348,8 +351,8 @@ class datamgr(object):
 		print(pt2)
 
 	def gen_whole_pt_cloud(self):
-		self.orient_data()
-		exit(0)
+		# self.orient_data()
+		# exit(0)
 		self.shift_to_first_quad()
 
 		radii = np.linspace(self.radius/100,self.radius,100)

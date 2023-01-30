@@ -51,8 +51,8 @@ def get_principal_moi(mass,data):
 	Ip.sort()
 	return Ip
 
-def porosity_measure1(data_folder):
-	data,radius,mass,moi = u.get_data(data_folder)
+def porosity_measure1(data_folder,data_index=-1):
+	data,radius,mass,moi = u.get_data(data_folder,data_index)
 	num_balls = data.shape[0]
 
 	effective_radius = radius*np.power(num_balls,1/3) 
@@ -69,8 +69,8 @@ def porosity_measure1(data_folder):
 
 	return porosity
 
-def porosity_measure2(data_folder):
-	data,radius,mass,moi = u.get_data(data_folder)
+def porosity_measure2(data_folder,data_index=-1):
+	data,radius,mass,moi = u.get_data(data_folder,data_index)
 	num_balls = data.shape[0]
 
 	effective_radius = radius*np.power(num_balls,1/3) 
@@ -85,8 +85,8 @@ def porosity_measure2(data_folder):
 
 # def dist(i,j,)
 
-def number_of_contacts(data_folder):
-	data,radius,mass,moi = u.get_data(data_folder)
+def number_of_contacts(data_folder,data_index=-1):
+	data,radius,mass,moi = u.get_data(data_folder,data_index)
 	data = np.array(data)
 	num_balls = data.shape[0]
 
@@ -113,11 +113,27 @@ if __name__ == '__main__':
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18]
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
 	# attempts = [i for i in range(1,5)]
-	attempts = [i for i in range(1,29)]
-	attempts300 = [1,2,3,4,5,6,7,8,9,10]
-	data = []
+	attempts = [i for i in range(1,43)]
+	# print(attempts)
+	# exit(0)
+	attempts300 = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
+	data = [] 
 
-	new_data = False
+	porositiesabcavg = []
+	porositiesKBMavg = []
+	porositiesabcstd = []
+	porositiesKBMstd = []
+	contactsavg = []
+	contactsstd = []
+	FD_dataavg = []
+	FD_datastd = []
+	yerr_abc = []
+	yerr_KBM = []
+	yerr_FD = []
+	yerr_ca = []
+
+	new_data = True
+	show_plots = False
 
 	if new_data:
 		std_dev = []
@@ -144,9 +160,9 @@ if __name__ == '__main__':
 					for root_dir, cur_dir, files in os.walk(data_folder):
 					    count += len(files)
 					if count/3 > N:
-						porositiesabc[n,i,j] = porosity_measure1(data_folder)
-						porositiesKBM[n,i,j] = porosity_measure2(data_folder)
-						contacts[n,i,j] = number_of_contacts(data_folder)
+						porositiesabc[n,i,j] = porosity_measure1(data_folder,N-1)
+						porositiesKBM[n,i,j] = porosity_measure2(data_folder,N-1)
+						contacts[n,i,j] = number_of_contacts(data_folder,N-1)
 
 						o3dv = u.o3doctree(data_folder,overwrite_data=False)
 						o3dv.make_tree()
@@ -170,18 +186,7 @@ if __name__ == '__main__':
 		# 	plt.xscale('log')
 		# 	plt.show()
 
-		porositiesabcavg = []
-		porositiesKBMavg = []
-		porositiesabcstd = []
-		porositiesKBMstd = []
-		contactsavg = []
-		contactsstd = []
-		FD_dataavg = []
-		FD_datastd = []
-		yerr_abc = []
-		yerr_KBM = []
-		yerr_FD = []
-		yerr_ca = []
+		
 		for i,N in enumerate(Nums):
 			if N == 300:
 				a = attempts300
@@ -257,35 +262,143 @@ if __name__ == '__main__':
 		data = np.loadtxt('data/averageData.csv',delimiter=',',skiprows=1,dtype=np.float64)
 		data = np.transpose(data)
 
+		data_skip = 6
+		porositiesabcavg = np.array([data[1],data[1+data_skip],data[1+2*data_skip]])
+		yerr_abc = np.array([data[2],data[2+data_skip],data[2+2*data_skip]])
+		porositiesKBMavg = np.array([data[3],data[3+data_skip],data[3+2*data_skip]])
+		yerr_KBM = np.array([data[4],data[4+data_skip],data[4+2*data_skip]])
+		FD_dataavg = np.array([data[5],data[5+data_skip],data[5+2*data_skip]])
+		yerr_FD = np.array([data[6],data[6+data_skip],data[6+2*data_skip]])
+		contactsavg = np.array([data[3*data_skip+1],data[3*data_skip+3],data[3*data_skip+5]])
+		yerr_ca = np.array([data[3*data_skip+2],data[3*data_skip+4],data[3*data_skip+6]])
+
+		# print(data[1])
+		# exit(0)
 
 	styles = ['-','--','-.']
 	colors = ['g','b','r']
 	length = len(temps)
 
+	# print(porositiesabcavg)
+	# print(yerr_abc)
 
-	# #plot each size separately for num contacts
+	# #plot porosity vs size for all temps 
+	fig,ax = plt.subplots()
+	for i,t in enumerate(temps):
+		ax.errorbar(Nums,porositiesabcavg[:,i],yerr=yerr_abc[:,i],\
+					label="t={}K".format(t),zorder=5)
+					# label="t={}K".format(t),color=colors[0],linestyle=styles[i],zorder=5)
+
+	ax.set_xlabel('Number of particles')
+	# ax.set_title('Measure of porosity vs agg size')
+	ax.set_ylabel('Rabc Porosity')
+	# ax.set_legend(['Rabc','RKBM'])
+	# plt.errorbar(temps,)
+	ax.set_xscale('log')
+
+	# ax2.errorbar(temps,FD_dataavg,yerr=yerr2,label="Frac Dim",color='r',zorder=0)
+	# ax2.invert_yaxis()
+
+	fig.legend()
+	plt.savefig("figures/abcVsNum.png")
+	if show_plots:
+		plt.show()
+	# exit(0)
+
+	# #plot porosity vs size for all temps 
+	fig,ax = plt.subplots()
+	for i,t in enumerate(temps):
+		ax.errorbar(Nums,porositiesKBMavg[:,i],yerr=yerr_KBM[:,i],\
+					label="t={}K".format(t),zorder=5)
+					# label="t={}K".format(t),color=colors[0],linestyle=styles[i],zorder=5)
+
+	ax.set_xlabel('Number of particles')
+	# ax.set_title('Measure of porosity vs agg size')
+	ax.set_ylabel('RKBM Porosity')
+	# ax.set_legend(['Rabc','RKBM'])
+	# plt.errorbar(temps,)
+	ax.set_xscale('log')
+
+	# ax2.errorbar(temps,FD_dataavg,yerr=yerr2,label="Frac Dim",color='r',zorder=0)
+	# ax2.invert_yaxis()
+
+	fig.legend()
+	plt.savefig("figures/KBMVsNum.png")
+	if show_plots:
+		plt.show()
+
+	# #plot FD vs size for all temps 
+	fig,ax = plt.subplots()
+	for i,t in enumerate(temps):
+		ax.errorbar(Nums,FD_dataavg[:,i],yerr=yerr_FD[:,i],\
+					label="t={}K".format(t),zorder=5)
+					# label="t={}K".format(t),color=colors[0],linestyle=styles[i],zorder=5)
+
+	ax.set_xlabel('Number of particles')
+	# ax.set_title('Measure of Fractal Dimension vs agg size')
+	ax.set_ylabel('FD')
+	# ax.set_legend(['Rabc','RKBM'])
+	# plt.errorbar(temps,)
+	ax.set_xscale('log')
+
+	# ax2.errorbar(temps,FD_dataavg,yerr=yerr2,label="Frac Dim",color='r',zorder=0)
+	# ax2.invert_yaxis()
+
+	fig.legend()
+	plt.savefig("figures/FDVsNum.png")
+	if show_plots:
+		plt.show()
+
+	# print(contactsavg[:,0])
+	# print(yerr_ca[:,0])
+
+	# #plot num contacts vs size for all temps 
+	fig,ax = plt.subplots()
+	for i,t in enumerate(temps):
+		ax.errorbar(Nums,contactsavg[:,i],yerr=yerr_ca[:,i],\
+					label="t={}K".format(t),zorder=5)
+					# label="t={}K".format(t),color=colors[0],linestyle=styles[i],zorder=5)
+
+	ax.set_xlabel('Number of particles')
+	# ax.set_title('Averge contacts vs agg size')
+	ax.set_ylabel('Number of contacts')
+	# ax.set_legend(['Rabc','RKBM'])
+	# plt.errorbar(temps,)
+	ax.set_xscale('log')
+
+	# ax2.errorbar(temps,FD_dataavg,yerr=yerr2,label="Frac Dim",color='r',zorder=0)
+	# ax2.invert_yaxis()
+
+	fig.legend()
+	plt.savefig("figures/ContactsVsNum.png")
+	if show_plots:
+		plt.show()
+
+
+	# #plot each size for num contacts
+	fig,ax = plt.subplots()
 	for i,N in enumerate(Nums):
-		if N == 300:
-			a = attempts300
-		else:
-			a = attempts
-		fig,ax = plt.subplots()
+		# if N == 300:
+		# 	a = attempts300
+		# else:
+		# 	a = attempts
 
 		ax.errorbar(temps,data[len(data)-len(Nums)*2+2*i],yerr=data[len(data)-len(Nums)*2+2*i+1],\
 					label="Avg # contacts N={}".format(N),color=colors[0],linestyle=styles[i],zorder=5)
 
-		ax.set_xlabel('Temperature in K')
-		ax.set_title('Averge number of contacts over {} sims N={}'.format(len(a),N))
-		ax.set_ylabel('# Contacts')
-		# ax.set_legend(['Rabc','RKBM'])
-		# plt.errorbar(temps,)
-		ax.set_xscale('log')
+	ax.set_xlabel('Temperature in K')
+	# ax.set_title('Averge number of contacts over {} sims N={}'.format(len(a),N))
+	ax.set_ylabel('# Contacts')
+	# ax.set_legend(['Rabc','RKBM'])
+	# plt.errorbar(temps,)
+	ax.set_xscale('log')
 
-		# ax2.errorbar(temps,FD_dataavg,yerr=yerr2,label="Frac Dim",color='r',zorder=0)
-		# ax2.invert_yaxis()
+	# ax2.errorbar(temps,FD_dataavg,yerr=yerr2,label="Frac Dim",color='r',zorder=0)
+	# ax2.invert_yaxis()
 
-		fig.legend()
-		plt.savefig("figures/avgContacts_N{}.png".format(N))
+	fig.legend()
+	plt.savefig("figures/avgContacts.png")
+	if show_plots:
 		plt.show()
 
 
@@ -306,7 +419,7 @@ if __name__ == '__main__':
 					label="FD",color=colors[2],linestyle=styles[i],zorder=5)
 		
 		ax.set_xlabel('Temperature in K')
-		ax.set_title('Porosity average over {} sims N={}'.format(len(a),N))
+		# ax.set_title('Porosity average over {} sims N={}'.format(len(a),N))
 		ax.set_ylabel('Porosity')
 		# ax.set_legend(['Rabc','RKBM'])
 		# plt.errorbar(temps,)
@@ -318,7 +431,8 @@ if __name__ == '__main__':
 
 		fig.legend()
 		plt.savefig("figures/FractDimandPorosity_N{}.png".format(N))
-		plt.show()
+		if show_plots:
+			plt.show()
 
 	# plot each porosity measure separately
 	for i,method in enumerate(["Rabc","RKBM","FD"]):
@@ -342,7 +456,7 @@ if __name__ == '__main__':
 				label="N={}".format(Nums[2]),color=colors[i],linestyle=styles[2],zorder=5)
 		
 		ax.set_xlabel('Temperature in K')
-		ax.set_title('Porosity average with {}'.format(method))
+		# ax.set_title('Porosity average with {}'.format(method))
 		# ax.set_legend(['Rabc','RKBM'])
 		# plt.errorbar(temps,)
 		ax.set_xscale('log')
@@ -352,7 +466,8 @@ if __name__ == '__main__':
 
 		fig.legend()
 		plt.savefig("figures/FractDimandPorosity_{}.png".format(method))
-		plt.show()
+		if show_plots:
+			plt.show()
 
 	#plot all sizes together
 	fig,ax = plt.subplots()
@@ -370,7 +485,7 @@ if __name__ == '__main__':
 			linestyle=styles[i],color="r",zorder=5)
 	
 	ax.set_xlabel('Temperature in K')
-	ax.set_title('Average Porosity')
+	# ax.set_title('Average Porosity')
 	ax.set_ylabel('Porosity')
 	# ax.set_legend(['Rabc','RKBM'])
 	# plt.errorbar(temps,)
@@ -383,7 +498,8 @@ if __name__ == '__main__':
 
 	fig.legend()
 	plt.savefig("figures/FractDimandPorosity_all.png")
-	plt.show()
+	if show_plots:
+		plt.show()
 
 
 
