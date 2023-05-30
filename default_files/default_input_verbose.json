@@ -2,6 +2,8 @@
 ////////////////////////////////////
 // Initialization (Units are CGS) //
 ////////////////////////////////////
+	//distribution of radii, default to "constant", other options: "logNormal": 
+	"radiiDistribution": "constant",
 	//if true, will run in parallel, if false will run sequencially
 	"parallel": "true",
 	//set to default to seed srand as time(nullptr), otherwise enter a custom seed
@@ -40,7 +42,7 @@
 	"temp": -1, //If set to value greater than zero, overwrites v_custom with value picked from maxwell boltzmann dist at given tempurature
 	//velocity of projectile in cm/s
 	"v_custom": "default", //default is max probable velocity at T(K) = 3 (0.36301555459799423)
-	//???
+	//??? Has to do with spring constant for compression/decompression
 	"kConsts": 3e3, //will be set to kConsts*(fourThirdsPiRho/maxOverlap^2) in simulation
 	//Impact angle radians
 	"impactParameter": 0, //Careful using this as it isn't same as impact parameter in liturature

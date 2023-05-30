@@ -1,4 +1,5 @@
 {
+	"radiiDistribution": "constant",
 	"parallel": "true",
 	"seed": "default",
 	"dynamicTime": false,

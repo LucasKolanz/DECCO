@@ -82,6 +82,8 @@ def get_data_file(data_folder,data_index=-1):
 	else:
 		index = data_index
 
+	# print("index: {}".format(index))
+
 	data_file = [file for file in files \
 				if file.endswith("simData.csv") and file.startswith(str(index))]
 	
@@ -92,10 +94,16 @@ def get_data_file(data_folder,data_index=-1):
 		print("Now exiting.")
 		exit(-1)
 
-def get_last_line_data(data_folder,data_index):
+def get_last_line_data(data_folder,data_index=-1):
 	# data_headers = np.loadtxt(data_folder + data_file,skiprows=0,dtype=str,delimiter=',')[0]
 	data_file = get_data_file(data_folder,data_index)
-	data = np.loadtxt(data_folder + data_file,skiprows=1,dtype=float,delimiter=',')[-1]
+	try:
+		data = np.loadtxt(data_folder + data_file,skiprows=1,dtype=float,delimiter=',')[-1]
+	except Exception as e:
+		print("ERROR CAUGHT")
+		print(e)
+		return None
+	# print(data)
 	return format_data(data)
 
 def get_constants(data_folder,data_index=-1):
@@ -282,21 +290,24 @@ def dist(pt1,pt2):
 class datamgr(object):
 	"""docstring for datamgr"""
 	# def __init__(self, data_folder,voxel_buffer=5,ppb=3000):
-	def __init__(self, data_folder,ppb=30000):
+	def __init__(self, data_folder,index=-1,ppb=30000,Temp=-1):
 		super(datamgr, self).__init__()
 		self.data_folder = data_folder
-		if data_folder != '/home/kolanzl/Desktop/bin/merger.csv':
+		self.index = index
+		if data_folder != '/home/kolanzl/Desktop/bin/merger.csv' and Temp < 0:
 			self.Temp = int(self.data_folder.split('/')[-2].strip('T_'))
+		else:
+			self.Temp = Temp
 		#how many points in single ball pointcloud shell
 		self.ppb = ppb
-		self.data,self.radius,self.mass,self.moi = get_data(self.data_folder)
+		self.data,self.radius,self.mass,self.moi = get_data(self.data_folder,self.index)
 		self.nBalls = self.data.shape[0]
 		# self.buffer = voxel_buffer # how many extra voxels in each direction 
-		self.data_range = get_data_range(self.data_folder)
+		self.data_range = get_data_range(self.data_folder,self.index)
 
 	def shift_to_first_quad(self,data_range=None):
 		if data_range is None:
-			data_range = get_data_range(self.data_folder)
+			data_range = get_data_range(self.data_folder,self.index)
 		# print("SHIFTED")
 
 		self.data[:,0] -= data_range[1] 
@@ -394,7 +405,7 @@ class datamgr(object):
 class o3doctree(object):
 	"""docstring for o3doctree"""
 	def __init__(self, data_folder=None,ppb=30000,verbose=False,overwrite_data=False, \
-				visualize_pcd=False, visualize_octree=False):
+				visualize_pcd=False, visualize_octree=False, index=-1,Temp=-1):
 	# def __init__(self, data_folder, max_depth=8,ppb=600000,verbose=False):
 		super(o3doctree, self).__init__()
 		self.data_folder = data_folder
@@ -404,11 +415,14 @@ class o3doctree(object):
 		self.visualize_pcd = visualize_pcd
 		self.visualize_octree = visualize_octree
 		self.bestfitlen = 4
+		self.index = index
+		if Temp > 0:
+			self.Temp = Temp
 
 
 	def make_tree(self):
 
-		self.dm = datamgr(self.data_folder,self.ppb)
+		self.dm = datamgr(self.data_folder,self.index,self.ppb,Temp=self.Temp)
 
 		bounds = [self.dm.data_range[0]-self.dm.data_range[1],self.dm.data_range[2]-self.dm.data_range[3],self.dm.data_range[4]-self.dm.data_range[5]]
 		max_bound = max(bounds) + 2*self.dm.radius

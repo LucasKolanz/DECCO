@@ -53,6 +53,8 @@ def get_principal_moi(mass,data):
 
 def porosity_measure1(data_folder,data_index=-1):
 	data,radius,mass,moi = u.get_data(data_folder,data_index)
+	if data is None:
+		return np.nan
 	num_balls = data.shape[0]
 
 	effective_radius = radius*np.power(num_balls,1/3) 
@@ -71,6 +73,8 @@ def porosity_measure1(data_folder,data_index=-1):
 
 def porosity_measure2(data_folder,data_index=-1):
 	data,radius,mass,moi = u.get_data(data_folder,data_index)
+	if data is None:
+		return np.nan
 	num_balls = data.shape[0]
 
 	effective_radius = radius*np.power(num_balls,1/3) 
@@ -87,6 +91,8 @@ def porosity_measure2(data_folder,data_index=-1):
 
 def number_of_contacts(data_folder,data_index=-1):
 	data,radius,mass,moi = u.get_data(data_folder,data_index)
+	if data is None:
+		return np.nan
 	data = np.array(data)
 	num_balls = data.shape[0]
 
@@ -103,20 +109,27 @@ def number_of_contacts(data_folder,data_index=-1):
 
 if __name__ == '__main__':
 	data_prefolder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab/jobs/tempVariance_attempt'
-	data_prefolder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/tempVarianceRand_attempt'
+	data_prefolder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/h_max'
+	data_prefolder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/mu_max'
+	data_prefolder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/calibrateTest'
 
 	# temps = [10]
 	temps = [3,10,30,100,300,1000]
+	temps = [1000]
 	Nums = [30,100,300]
-	# Nums = [300]
+	Nums = [100]
 	# attempts = [19]
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18]
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
 	# attempts = [i for i in range(1,5)]
-	attempts = [i for i in range(1,43)]
-	# print(attempts)
-	# exit(0)
-	attempts300 = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
+	# attempts = [i for i in range(1,43)]
+	# attempts = [9]
+	# # print(attempts)
+	# # exit(0)
+	# attempts300 = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
+	attempts = [i for i in range(10)]
+	attempts = [0,1]
+	attempts300 = [i for i in range(5)]
 	data = [] 
 
 	porositiesabcavg = []
@@ -133,7 +146,9 @@ if __name__ == '__main__':
 	yerr_ca = []
 
 	new_data = True
-	show_plots = False
+	show_plots = True
+
+	sav = 'data/averageData.csv'
 
 	if new_data:
 		std_dev = []
@@ -154,8 +169,11 @@ if __name__ == '__main__':
 				else:
 					a = attempts
 				for j,attempt in enumerate(a):
-					
-					data_folder = data_prefolder + str(attempt) + '/' + 'N_' + str(N) + '/T_' + str(temp) + '/'
+					# temp = 100
+					# N = 300
+					# attempt = 12
+					# data_folder = data_prefolder + str(attempt) + '/' + 'N_' + str(N) + '/T_' + str(temp) + '/'
+					data_folder = data_prefolder + str(attempt) + '/'
 					count = 0
 					for root_dir, cur_dir, files in os.walk(data_folder):
 					    count += len(files)
@@ -164,13 +182,17 @@ if __name__ == '__main__':
 						porositiesKBM[n,i,j] = porosity_measure2(data_folder,N-1)
 						contacts[n,i,j] = number_of_contacts(data_folder,N-1)
 
-						o3dv = u.o3doctree(data_folder,overwrite_data=False)
-						o3dv.make_tree()
-						FD_data[n,i,j] = o3dv.calc_fractal_dimension(show_graph=False)
+						if np.isnan(porositiesabc[n,i,j]):
+							FD_data[n,i,j] = np.nan
+						else:
+							o3dv = u.o3doctree(data_folder,overwrite_data=False,index=N-1,Temp=temp)
+							o3dv.make_tree()
+							FD_data[n,i,j] = o3dv.calc_fractal_dimension(show_graph=show_plots)
 					else:
 						porositiesabc[n,i,j] = np.nan
 						porositiesKBM[n,i,j] = np.nan
 						FD_data[n,i,j] = np.nan
+					# exit(0)
 		# porositiesabc = np.array(porositiesabc,dtype=np.float64)
 		# porositiesKBM = np.array(porositiesKBM,dtype=np.float64)
 		# print(porositiesabc.shape)
@@ -220,6 +242,7 @@ if __name__ == '__main__':
 		# fig, ax = plt.subplots()
 		# fig.patch.set_visible(False)
 
+
 		headers = ['Temperature']
 		data = [temps]
 
@@ -250,7 +273,7 @@ if __name__ == '__main__':
 		# data.append(porositiesKBM[2,:,0])
 		# headers.append('N={} Fractal Dimension'.format(300))
 		# data.append(FD_data[2,:,0])
-		sav = 'data/averageData.csv'
+		
 		with open(sav,'w') as file:
 			write = csv.writer(file)
 			write.writerow(headers)
@@ -258,8 +281,8 @@ if __name__ == '__main__':
 				write.writerow(row)
 			print("Data saved to {}".format(sav))
 	else:
-		headers = np.loadtxt('data/averageData.csv',delimiter=',',dtype=str)[0]
-		data = np.loadtxt('data/averageData.csv',delimiter=',',skiprows=1,dtype=np.float64)
+		headers = np.loadtxt(sav,delimiter=',',dtype=str)[0]
+		data = np.loadtxt(sav,delimiter=',',skiprows=1,dtype=np.float64)
 		data = np.transpose(data)
 
 		data_skip = 6
@@ -274,6 +297,11 @@ if __name__ == '__main__':
 
 		# print(data[1])
 		# exit(0)
+
+	
+	print("======================Starting figures======================")
+	print("Data has {} nan values".format(np.count_nonzero(np.isnan(data))))
+	
 
 	styles = ['-','--','-.']
 	colors = ['g','b','r']
@@ -303,6 +331,7 @@ if __name__ == '__main__':
 	plt.savefig("figures/abcVsNum.png")
 	if show_plots:
 		plt.show()
+	plt.close("all")
 	# exit(0)
 
 	# #plot porosity vs size for all temps 
@@ -326,6 +355,7 @@ if __name__ == '__main__':
 	plt.savefig("figures/KBMVsNum.png")
 	if show_plots:
 		plt.show()
+	plt.close("all")
 
 	# #plot FD vs size for all temps 
 	fig,ax = plt.subplots()
@@ -348,6 +378,7 @@ if __name__ == '__main__':
 	plt.savefig("figures/FDVsNum.png")
 	if show_plots:
 		plt.show()
+	plt.close("all")
 
 	# print(contactsavg[:,0])
 	# print(yerr_ca[:,0])
@@ -373,34 +404,7 @@ if __name__ == '__main__':
 	plt.savefig("figures/ContactsVsNum.png")
 	if show_plots:
 		plt.show()
-
-
-	# #plot each size for num contacts
-	fig,ax = plt.subplots()
-	for i,N in enumerate(Nums):
-		# if N == 300:
-		# 	a = attempts300
-		# else:
-		# 	a = attempts
-
-		ax.errorbar(temps,data[len(data)-len(Nums)*2+2*i],yerr=data[len(data)-len(Nums)*2+2*i+1],\
-					label="Avg # contacts N={}".format(N),color=colors[0],linestyle=styles[i],zorder=5)
-
-	ax.set_xlabel('Temperature in K')
-	# ax.set_title('Averge number of contacts over {} sims N={}'.format(len(a),N))
-	ax.set_ylabel('# Contacts')
-	# ax.set_legend(['Rabc','RKBM'])
-	# plt.errorbar(temps,)
-	ax.set_xscale('log')
-
-	# ax2.errorbar(temps,FD_dataavg,yerr=yerr2,label="Frac Dim",color='r',zorder=0)
-	# ax2.invert_yaxis()
-
-	fig.legend()
-	plt.savefig("figures/avgContacts.png")
-	if show_plots:
-		plt.show()
-
+	plt.close("all")
 
 	# #plot each size separately
 	for i,N in enumerate(Nums):
@@ -433,9 +437,11 @@ if __name__ == '__main__':
 		plt.savefig("figures/FractDimandPorosity_N{}.png".format(N))
 		if show_plots:
 			plt.show()
+		plt.close("all")
 
 	# plot each porosity measure separately
-	for i,method in enumerate(["Rabc","RKBM","FD"]):
+	plt.rcParams.update({'font.size': 15})
+	for i,method in enumerate(["Rabc","RKBM","FD","# Contacts"]):
 		# if Nums[i] == 300:
 		# 	a = attempts300
 		# else:
@@ -444,17 +450,29 @@ if __name__ == '__main__':
 		fig,ax = plt.subplots()
 		if i < 2:
 			ax.set_ylabel('Porosity')
-		else:
+		elif i == 2:
 			# ax = ax.twinx()
 			ax.set_ylabel('Avg Fractal Dimension')
+		elif i == 3:
+			ax.set_ylabel('Avg # Contacts')
 
-		ax.errorbar(temps,data[2*i+1],yerr=data[2*i+2],\
-				label="N={}".format(Nums[0]),color=colors[i],linestyle=styles[0],zorder=5)
-		ax.errorbar(temps,data[2*i+length+1],yerr=data[2*i+length+2],\
-				label="N={}".format(Nums[1]),color=colors[i],linestyle=styles[1],zorder=5)
-		ax.errorbar(temps,data[2*i+length*2+1],yerr=data[2*i+length*2+2],\
-				label="N={}".format(Nums[2]),color=colors[i],linestyle=styles[2],zorder=5)
-		
+		if i < 3:
+			ax.errorbar(temps,data[2*i+1],yerr=data[2*i+2],\
+					label="N={}".format(Nums[0]),color=colors[i],\
+					linestyle=styles[0],marker='.',markersize=10,zorder=5)
+			ax.errorbar(temps,data[2*i+length+1],yerr=data[2*i+length+2],\
+					label="N={}".format(Nums[1]),color=colors[i],\
+					linestyle=styles[1],marker='.',markersize=10,zorder=5)
+			ax.errorbar(temps,data[2*i+length*2+1],yerr=data[2*i+length*2+2],\
+					label="N={}".format(Nums[2]),color=colors[i],\
+					linestyle=styles[2],marker='.',markersize=10,zorder=5)
+		else:
+			for j,N in enumerate(Nums):
+				ax.errorbar(temps,data[len(data)-len(Nums)*2+2*j],yerr=data[len(data)-len(Nums)*2+2*j+1],\
+						label="N={}".format(N),color='orange',\
+						linestyle=styles[j],marker='.',markersize=10,zorder=5)
+		bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+		print(bbox.width, bbox.height)
 		ax.set_xlabel('Temperature in K')
 		# ax.set_title('Porosity average with {}'.format(method))
 		# ax.set_legend(['Rabc','RKBM'])
@@ -463,11 +481,43 @@ if __name__ == '__main__':
 
 		# ax2.errorbar(temps,FD_dataavg,yerr=yerr2,label="Frac Dim",color='r',zorder=0)
 		# ax2.invert_yaxis()
-
-		fig.legend()
-		plt.savefig("figures/FractDimandPorosity_{}.png".format(method))
+		if i == 1:
+			fig.legend(loc='upper right',bbox_to_anchor=(0.98, 0.97))
+		plt.tight_layout()
+		plt.savefig("figures/FractDimandPorosity_{}.png".format(method.replace(" ","")))
 		if show_plots:
 			plt.show()
+	plt.close("all")
+
+
+	# # #plot each size for num contacts
+	# fig,ax = plt.subplots()
+	# for i,N in enumerate(Nums):
+	# 	# if N == 300:
+	# 	# 	a = attempts300
+	# 	# else:
+	# 	# 	a = attempts
+
+	# 	ax.errorbar(temps,data[len(data)-len(Nums)*2+2*i],yerr=data[len(data)-len(Nums)*2+2*i+1],\
+	# 				label="N={}".format(N),color='orange',linestyle=styles[i],zorder=5)
+
+	# ax.set_xlabel('Temperature in K')
+	# # ax.set_title('Averge number of contacts over {} sims N={}'.format(len(a),N))
+	# ax.set_ylabel('# Contacts')
+	# # ax.set_legend(['Rabc','RKBM'])
+	# # plt.errorbar(temps,)
+	# ax.set_xscale('log')
+
+	# # ax2.errorbar(temps,FD_dataavg,yerr=yerr2,label="Frac Dim",color='r',zorder=0)
+	# # ax2.invert_yaxis()
+
+	# # fig.legend()
+	# plt.savefig("figures/avgContacts.png")
+	# if show_plots:
+	# 	plt.show()
+	# plt.close("all")
+	plt.rcParams.update({'font.size': 10})
+
 
 	#plot all sizes together
 	fig,ax = plt.subplots()

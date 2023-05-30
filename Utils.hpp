@@ -11,6 +11,9 @@ using linalg::normalize;
 using linalg::aliases::double3;
 using linalg::aliases::double3x3;
 
+std::random_device rd;
+std::mt19937 random_generator(rd());
+
 // Convert from vec3 to double3
 double3
 to_double3(const vec3& vec)
@@ -25,15 +28,12 @@ to_vec3(const double3& vec)
     return {vec.x, vec.y, vec.z};
 }
 
-std::random_device rd;
-std::mt19937 gen(rd());
 double
 random_gaussian(const double mean = 0, const double standard_deviation = 1)
 {
     std::normal_distribution<double> d(mean, standard_deviation);
-    return d(gen);
+    return d(random_generator);
 }
-
 
 // I got this from https://en.wikipedia.org/wiki/Line%E2%80%93sphere_intersection
 bool
@@ -178,7 +178,8 @@ rand_vec3(double outer_radius, double inner_radius = 0)
 //          T is tempurature and m is mass.
 double mbdpdf(double a, double x)
 {
-    return std::sqrt(2/M_PI)*(std::pow(x,2)/std::pow(a,3))*std::exp(-(std::pow(x,2))/(2*std::pow(a,2)));
+    return std::sqrt(2/M_PI)*(std::pow(x,2)/std::pow(a,3))*
+            std::exp(-(std::pow(x,2))/(2*std::pow(a,2)));
 }
 
 // @brief - returns a velocity from the maxwell boltzmann distribution given 
@@ -199,4 +200,27 @@ double max_bolt_dist(double a)
     }while(test > mbdpdf(a,v0));
     
     return v0;
+}
+
+double lndpdf(double a,double sigma,double a_max)
+{
+    //M_2_SQRTPI is 2/sqrt(pi)
+    return M_2_SQRTPI/(a*sigma*2*M_SQRT2)*
+            std::exp(-std::pow(log(a/a_max)-std::pow(sigma,2),2)/(2*std::pow(sigma,2)));
+}
+
+double lognorm_dist(double a_max,double sigma)
+{
+    double Fa0,a0,test,maxVal;
+
+    maxVal = lndpdf(a_max,sigma,a_max);
+
+    do
+    {
+        Fa0 = rand_between(0,20*a_max*sigma);
+        a0 = Fa0/(a_max);
+        test = rand_between(0,maxVal);
+    }while(test > lndpdf(a0,sigma,a_max));
+    
+    return a0;
 }

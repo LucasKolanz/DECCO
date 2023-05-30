@@ -7,7 +7,9 @@ import matplotlib.ticker as plticker
 
 
 def main():
-	fig,ax = plt.subplots(figsize=(479*6/200,368*3/200))
+	plt.rcParams.update({'font.size': 15})
+	fig,ax = plt.subplots()
+	# fig,ax = plt.subplots(figsize=(380*6/200,358*3/200))
 	grid = ImageGrid(fig,111,nrows_ncols=(3,6),axes_pad=0,share_all=True)
 	
 	image_path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab/agg_pics/'
@@ -36,8 +38,13 @@ def main():
 		axe.axis('off')
 		axe.imshow(im)
 
+	fig.set_size_inches((images[0].size[0]-65)/500*6, images[0].size[1]/500*3)
+	# print(images[0].size[0]/80*6)
+	# exit(0)
+	plt.subplots_adjust(bottom=0.15)
 	ax.set_xlabel('Temp (K)')
 	ax.set_ylabel('Aggregate Size')
+	# plt.tight_layout()
 	plt.savefig('../figures/AggComp.png')
 	plt.show()
 

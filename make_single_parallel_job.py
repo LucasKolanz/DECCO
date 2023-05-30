@@ -19,16 +19,16 @@ if __name__ == '__main__':
 		print('compilation failed')
 		exit(-1)
 
-	job_set_name = "LargePairParallelTest"
-	job_set_name = "comparison_test"
+	# job_set_name = "LargePairParallelTest"
+	job_set_name = "lognorm_radius_test"
+	job_set_name = "test"
 	
 	# folder_name_scheme = "T_"
-
 	runs_at_once = 1
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	attempts = [1] 
-	N = [100]
-	Temps = [1000]
+	N = [10]
+	Temps = [1]
 	folders = []
 	for attempt in attempts:
 		for n in N:
@@ -50,6 +50,7 @@ if __name__ == '__main__':
 				input_json['temp'] = Temp
 				# input_json['gridSize'] = 4e-5
 				input_json['seed'] = 100
+				input_json['radiiDistribution'] = 'logNormal'
 				####################################
 
 				with open(job + "input.json",'w') as fp:

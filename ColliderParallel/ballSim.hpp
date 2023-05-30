@@ -5,6 +5,7 @@
 // #include <tbb>
 #include <mutex>
 #include <execution>
+#include <random>
 
 std::mutex g_mutex;
 
@@ -15,6 +16,19 @@ struct P;
 struct P_pair;
 struct P_group;
 constexpr double Kb = 1.380649e-16; //in erg/K
+
+// template <typename T>
+// ostream& operator<<(ostream& os, const vector<T>& v)
+// {
+//     os << "[";
+//     for (int i = 0; i < v.size(); ++i) {
+//         os << v[i];
+//         if (i != v.size() - 1)
+//             os << ", ";
+//     }
+//     os << "]\n";
+//     return os;
+// }
 
 //Every ball is represented with struct P
 struct P
@@ -29,6 +43,7 @@ struct P
         aacc;
 
     std::vector<int> id = std::vector<int> (3);
+    int unique_id;
 
     double
         R = 0,
@@ -37,7 +52,7 @@ struct P
 
     bool operator==(const P& p) const
     {
-        return (pos == p.pos);
+        return (unique_id == p.unique_id);
     }
     bool operator!=(const P& p) const
     {
@@ -68,12 +83,19 @@ struct P_pair
 //including important values for the simulation
 struct P_group
 {
+    enum distributions {constant, logNorm};
+    double lnSigma = 0.2; //sigma for log normal distribution 
     bool parallel = false;
+
+    std::vector<double> distances; ///temperary for testing why this code isnt the same as the original
     
     int n; // Number of particles in the group
     int mapElemets = -1;
+    distributions radiiDistribution;
     std::vector<P> p_group; // Group of particles
     std::vector<P_pair> pairs;
+    std::vector<int> applicable_pairs;
+    std::vector<int> used_ids;
     // std::vector<std::vector<int>> gridIDs;
     std::unordered_map<std::string,std::vector<P>> IDToGrid;
     double U; // Potential energy
@@ -127,6 +149,7 @@ struct P_group
     int steps = -1;
     int skip = -1;
     int num_particles = -1;
+    int ball_counter = 0;
 
     bool writeStep = false;
     bool dynamicTime;
@@ -138,7 +161,10 @@ struct P_group
     timey t;
 
     void parse_input_file(char const* location);
-    void oneSizeSphere(const int nBalls);
+    void makeSpheres(const int nBalls, distributions radiiDistribution);
+    // void oneSizeSphere(const int nBalls);
+    // void distSizeSphere(const int nBalls);
+    void placeBalls(const int nBalls);
     [[nodiscard]] vec3 getCOM() const;
     [[nodiscard]] double get_radius(const vec3& center) const;
     void calibrate_dt(int const Step, const double& customSpeed = -1.);
@@ -154,6 +180,7 @@ struct P_group
     void init_conditions();
     void make_pairs();
     void compute_acceleration(P_pair& p_pair);
+    void compute_distance(P_pair& p_pair);
     void compute_energy(P& P);
     void compute_velocity(P& P);
     void update_kinematics(P& P);
@@ -192,18 +219,28 @@ struct P_group
     inline std::string getKey(std::vector<int> v);
     inline std::string getKey(int x, int y, int z);
     std::vector<P> getBalls(P ball);
-    void findpairs(P &p);
+    void findPairs(P &p);
+    void getRelaventPairs();
+    void printPairs();
+    int get_unique_id();
+    void write_timing();
 
     P_group() = default;
     P_group(int n) : n(n) {}
     P_group(std::vector<P> p_group) : p_group(p_group) {}
-    P_group(const bool generate, const char* path, timey& time);
-    P_group(const std::string& path,timey& time, int start_file_index=0);
+    P_group(const bool generate, const char* path);
+    // P_group(const bool generate, const char* path, timey* time);
+    P_group(const std::string& path, int start_file_index=0);
+    // P_group(const std::string& path,timey* time, int start_file_index=0);
 
+    void sim_one_step_single_core(const bool write_step);///temperary for testing why this code isnt the same as the original
+    void compute_acceleration_speed_testing(P_pair& p_pair);
 
     std::stringstream ballBuffer;
     std::stringstream energyBuffer;
 private:
+
+    
 };
 
 
@@ -211,17 +248,18 @@ private:
 /// @param generate is a bool (Is this necessary???)
 /// @param path is the path to where the sim will save.
 /// @param time is the instance of the timing class used for this sim
-P_group::P_group(const bool generate, const char* path, timey& time)
+P_group::P_group(const bool generate, const char* path)
 {
-    t = time;
+    // t = time;
     parse_input_file(path);//should be first in constructor
+    energyBuffer.precision(12);  // Need more precision on momentum.
     
     generate_ball_field(genBalls);
 
-    // p_group[0].pos = {0, 1.101e-5, 0};
-    // p_group[1].pos = {0, -1.101e-5, 0};
-    // p_group[0].vel = {0, 0, 0};
-    // p_group[1].vel = {0, 0, 0};
+    p_group[0].pos = {0, 1.101e-5, 0};
+    p_group[1].pos = {0, -1.101e-5, 0};
+    p_group[0].vel = {0, 0, 0};
+    p_group[1].vel = {0, 0, 0};
     mTotal = getMass();
     calc_v_collapse();
 
@@ -234,10 +272,11 @@ P_group::P_group(const bool generate, const char* path, timey& time)
 /// @param path is the filename and path excluding the suffix _simData.csv, _constants.csv, etc.
 /// @param time is the instance of the timing class used for this sim
 /// @param start_file_index tells the sim where to start if you are restarting
-P_group::P_group(const std::string& path, timey& time, int start_file_index)
+P_group::P_group(const std::string& path, int start_file_index)
 {
-    t = time;
+    // t = time;
     parse_input_file(path.c_str());
+    energyBuffer.precision(12);  // Need more precision on momentum.
     num_particles = genBalls + start_file_index;
     sim_continue(path,start_file_index-1);
     calc_v_collapse();
@@ -327,6 +366,12 @@ void P_group::loadConsts(const std::string& path, const std::string& filename)
     }
 }
 
+int P_group::get_unique_id()
+{
+    ball_counter++;
+    return ball_counter-1;
+}
+
 
 /// @brief makes new P_group from a line of a previously existing sim file
 /// @param line is the line of data you want parsed
@@ -341,6 +386,7 @@ void P_group::parseSimData(const std::string& line,const std::string& path,const
     // Get position and angular velocity data:
     for (int A = 0; A < num_particles; A++) {
         P new_p;
+        new_p.unique_id = get_unique_id();
         for (int i = 0; i < 3; i++)  // Position
         {
             std::getline(chosenLine, lineElement, ',');
@@ -530,6 +576,7 @@ void P_group::init_conditions()
     {
         std::for_each(std::execution::seq, pairs.begin(), pairs.end(),
                     std::bind_front(&P_group::compute_acceleration, this));        
+                    // std::bind_front(&P_group::compute_acceleration_speed_testing, this));        
     }
     writeStep = false;
     //calc init energy:
@@ -586,10 +633,18 @@ inline double P_group::calc_moi(const double& radius, const double& mass)
 P P_group::dust_agglomeration_particle_init()
 {
     P projectile;
+    projectile.unique_id = get_unique_id();
     const auto cluster_radius = get_radius(vec3(0, 0, 0));
     const vec3 projectile_direction = rand_unit_vec3();
     projectile.pos = projectile_direction * (cluster_radius + scaleBalls * 4);
-    projectile.R = scaleBalls;  // rand_between(1,3)*1e-5;
+    if (radiiDistribution == constant)
+    {
+        projectile.R = scaleBalls;  // rand_between(1,3)*1e-5;
+    }
+    else
+    {
+        projectile.R = lognorm_dist(scaleBalls*std::exp(-5*std::pow(lnSigma,2)/2),lnSigma);
+    }
     projectile.w = {0, 0, 0};
     projectile.m = density * 4. / 3. * pi * std::pow(projectile.R, 3);
     // Velocity toward origin:
@@ -659,7 +714,15 @@ void P_group::add_projectile()
 void P_group::generate_ball_field(const int nBalls)
 {
     std::cerr << "CLUSTER FORMATION\n";
-    oneSizeSphere(nBalls);
+    makeSpheres(nBalls, radiiDistribution);
+    // if (radiiDistribution == constant)
+    // {
+    //     oneSizeSphere(nBalls);
+    // }
+    // else
+    // {
+    //     distSizeSphere(nBalls);
+    // }
     calc_helpfuls();
 }
 
@@ -746,321 +809,570 @@ void P_group::compute_energy(P& P)
     ang_mom += P.m * P.pos.cross(P.vel) + P.moi * P.w;
 }
 
+void P_group::compute_distance(P_pair& p_pair)
+{
+    p_pair.dist = (p_pair.A->pos - p_pair.B->pos).norm();
+}
 
 /// @brief Computes the acceleration of a given P_pair based on Van der waals and collision forces
 void P_group::compute_acceleration(P_pair& p_pair)
 {
-    const double sumRaRb = p_pair.A->R + p_pair.B->R;
-    const vec3 rVecab = p_pair.B->pos - p_pair.A->pos;  // Vector from a to b.
+    if (true)
+    // if (p_pair.dist <= 6*scaleBalls)
+    {
+        const double sumRaRb = p_pair.A->R + p_pair.B->R;
+        const vec3 rVecab = p_pair.B->pos - p_pair.A->pos;  // Vector from a to b.
+        const vec3 rVecba = -rVecab;
+        const double dist = (rVecab).norm();
+
+        // Check for collision between Ball and otherBall:
+        double overlap = sumRaRb - dist;
+
+        vec3 totalForceOnA{0, 0, 0};
+
+        double oldDist = p_pair.dist;
+
+        // Check for collision between Ball and otherBall.
+        if (overlap > 0) {
+            double k;
+            // Apply coefficient of restitution to balls leaving collision.
+            if (dist >= oldDist) {
+                k = kout;
+            } else {
+                k = kin;
+            }
+
+            // Cohesion (in contact) h must always be h_min:
+            // constexpr double h = h_min;
+            const double h = h_min;
+            const double Ra = p_pair.A->R;
+            const double Rb = p_pair.B->R;
+            const double h2 = h * h;
+            // constexpr double h2 = h * h;
+            const double twoRah = 2 * Ra * h;
+            const double twoRbh = 2 * Rb * h;
+            const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
+                                     ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
+                                                       (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
+                                                       (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
+                                     rVecab.normalized();
+
+            // Elastic force:
+            const vec3 elasticForceOnA = -k * overlap * .5 * (rVecab / dist);
+
+            // Gravity force:
+            // const vec3 gravForceOnA = (G * O.m[A] * O.m[B] / (dist * dist)) * (rVecab / dist);
+
+            // Sliding and Rolling Friction:
+            vec3 slideForceOnA{0, 0, 0};
+            vec3 rollForceA{0, 0, 0};
+            vec3 torqueA{0, 0, 0};
+            vec3 torqueB{0, 0, 0};
+
+            // Shared terms:
+            const double elastic_force_A_mag = elasticForceOnA.norm();
+            const vec3 r_a = rVecab * p_pair.A->R / sumRaRb;  // Center to contact point
+            const vec3 r_b = rVecba * p_pair.B->R / sumRaRb;
+            const vec3 w_diff = p_pair.A->w - p_pair.B->w;
+
+            // Sliding friction terms:
+            const vec3 d_vel = p_pair.B->vel - p_pair.A->vel;
+            const vec3 frame_A_vel_B = d_vel - d_vel.dot(rVecab) * (rVecab / (dist * dist)) -
+                                       p_pair.A->w.cross(r_a) - p_pair.B->w.cross(r_a);
+
+            // Compute sliding friction force:
+            const double rel_vel_mag = frame_A_vel_B.norm();
+            if (rel_vel_mag > 1e-13)  // Divide by zero protection.
+            {
+                // In the frame of A, B applies force in the direction of B's velocity.
+                slideForceOnA = u_s * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
+            }
+
+            // Compute rolling friction force:
+            const double w_diff_mag = w_diff.norm();
+            if (w_diff_mag > 1e-13)  // Divide by zero protection.
+            {
+                rollForceA =
+                    -u_r * elastic_force_A_mag * 
+                    (w_diff).cross(r_a) / (w_diff).cross(r_a).norm();
+            }
+
+            // Total forces on a:
+            //Took out gravity force
+            totalForceOnA = elasticForceOnA + slideForceOnA + vdwForceOnA;
+            // totalForceOnA = gravForceOnA + elasticForceOnA + slideForceOnA + vdwForceOnA;
+
+            // Total torque a and b:
+            torqueA = r_a.cross(slideForceOnA + rollForceA);
+            torqueB = r_b.cross(-slideForceOnA + rollForceA);
+
+            if (parallel)
+            {
+                {
+                    const std::lock_guard<std::mutex> lock(g_mutex);
+                    p_pair.A->aacc += torqueA / p_pair.A->moi;
+                }
+                {
+                    const std::lock_guard<std::mutex> lock(g_mutex);
+                    p_pair.B->aacc += torqueB / p_pair.B->moi;
+                }
+            }
+            else
+            {
+                p_pair.B->aacc += torqueB / p_pair.B->moi;
+                p_pair.A->aacc += torqueA / p_pair.A->moi;
+            }
+
+            if (writeStep) {
+                // No factor of 1/2. Includes both spheres:
+                // O.PE += -G * O.m[A] * O.m[B] / dist + 0.5 * k * overlap * overlap;
+
+                // Van Der Waals + elastic:
+                const double diffRaRb = p_pair.A->R - p_pair.B->R;
+                const double z = sumRaRb + h;
+                const double two_RaRb = 2 * p_pair.A->R * p_pair.B->R;
+                const double denom_sum = z * z - (sumRaRb * sumRaRb);
+                const double denom_diff = z * z - (diffRaRb * diffRaRb);
+                const double U_vdw =
+                    -Ha / 6 *
+                    (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
+                PE += U_vdw + 0.5 * k * overlap * overlap;
+            }
+        } else  // Non-contact forces:
+        {
+            // No collision: Include gravity and vdw:
+            // const vec3 gravForceOnA = (G * O.m[A] * O.m[B] / (dist * dist)) * (rVecab / dist);
+
+            // Cohesion (non-contact) h must be positive or h + Ra + Rb becomes catastrophic cancellation:
+            double h = std::fabs(overlap);
+            if (h < h_min)  // If h is closer to 0 (almost touching), use hmin.
+            {
+                h = h_min;
+            }
+            const double Ra = p_pair.A->R;
+            const double Rb = p_pair.B->R;
+            const double h2 = h * h;
+            const double twoRah = 2 * Ra * h;
+            const double twoRbh = 2 * Rb * h;
+            const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
+                                     ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
+                                                       (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
+                                                       (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
+                                     rVecab.normalized();
+
+            totalForceOnA = vdwForceOnA;  // +gravForceOnA;
+            if (writeStep) {
+                // O.PE += -G * O.m[A] * O.m[B] / dist; // Gravitational
+
+                const double diffRaRb = p_pair.A->R - p_pair.B->R;
+                const double z = sumRaRb + h;
+                const double two_RaRb = 2 * p_pair.A->R * p_pair.B->R;
+                const double denom_sum = z * z - (sumRaRb * sumRaRb);
+                const double denom_diff = z * z - (diffRaRb * diffRaRb);
+                const double U_vdw =
+                    -Ha / 6 *
+                    (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
+                PE += U_vdw;  // Van Der Waals
+            }
+
+            // todo this is part of push_apart. Not great like this.
+            // For pushing apart overlappers:
+            // O.vel[A] = { 0,0,0 };
+            // O.vel[B] = { 0,0,0 };
+        }
+
+        // Newton's equal and opposite forces applied to acceleration of each ball:
+        if (parallel)
+        {
+            {
+                const std::lock_guard<std::mutex> lock(g_mutex);
+                p_pair.A->acc += totalForceOnA / p_pair.A->m;
+            }
+            {
+                const std::lock_guard<std::mutex> lock(g_mutex);
+                p_pair.B->acc -= totalForceOnA / p_pair.B->m;
+            }
+        }
+        else
+        {
+            p_pair.A->acc += totalForceOnA / p_pair.A->m;
+            p_pair.B->acc -= totalForceOnA / p_pair.B->m;   
+        }
+
+        // So last distance can be known for COR:
+        p_pair.dist = dist;
+    }
+} 
+
+
+/// This version of compute_acceleration should be more efficient but has a bug
+void P_group::compute_acceleration_speed_testing(P_pair& p_pair)
+{
+    const double Ra = p_pair.A->R;
+    const double Rb = p_pair.B->R;
+    const vec3 rVecab = p_pair.B -> pos - p_pair.A -> pos;
     const vec3 rVecba = -rVecab;
+    const double m_a = p_pair.A->m;
+    const double m_b = p_pair.B->m;
+    const double sumRaRb = Ra + Rb;
+    // vec3 rVec = p_pair.B->pos - p_pair.A->pos; // Start with rVec from a to b.
     const double dist = (rVecab).norm();
+
+    // Cohesion:
+    // h is the "separation" of the particles at particle radius - maxOverlap.
+    // This allows particles to be touching while under vdwForce.
+    // const double h = maxOverlap * 1.01 - overlap;
+    const double h = h_min;
+    const double h2 = h * h;
+    const double twoRah = 2 * Ra * h;
+    const double twoRbh = 2 * Rb * h;
+    const vec3 vdwForce =
+        Ha / 6 *
+        64 * Ra * Ra * Ra * Rb * Rb * Rb *
+        (h + Ra + Rb) /
+        (
+            (h2 + twoRah + twoRbh) *
+            (h2 + twoRah + twoRbh) *
+            (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
+            (h2 + twoRah + twoRbh + 4 * Ra * Rb)
+            ) *
+        rVecab.normalized();
+    
+
+    vec3 totalForce = vdwForce;
+
 
     // Check for collision between Ball and otherBall:
     double overlap = sumRaRb - dist;
 
-    vec3 totalForceOnA{0, 0, 0};
-
     double oldDist = p_pair.dist;
+    
+
+    if (writeStep)
+    {
+        const double diffRaRb = Ra - Rb;
+        const double z = sumRaRb + h;
+        const double two_RaRb = 2 * Ra * Rb;
+        const double denom_sum = z * z - (sumRaRb * sumRaRb);
+        const double denom_diff = z * z - (diffRaRb * diffRaRb);
+        const double U_vdw =
+            -Ha / 6 *
+            (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
+        PE = PE + U_vdw;  // Van Der Waals potential
+    }
 
     // Check for collision between Ball and otherBall.
-    if (overlap > 0) {
+    if (overlap > 0)
+    {
+        
         double k;
         // Apply coefficient of restitution to balls leaving collision.
-        if (dist >= oldDist) {
+        if (dist >= oldDist)
+        {
             k = kout;
-        } else {
+        }
+        else
+        {
             k = kin;
         }
 
-        // Cohesion (in contact) h must always be h_min:
-        // constexpr double h = h_min;
-        const double h = h_min;
-        const double Ra = p_pair.A->R;
-        const double Rb = p_pair.B->R;
-        const double h2 = h * h;
-        // constexpr double h2 = h * h;
-        const double twoRah = 2 * Ra * h;
-        const double twoRbh = 2 * Rb * h;
-        const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
-                                 ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
-                                                   (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
-                                                   (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
-                                 rVecab.normalized();
-
-        // Elastic force:
-        const vec3 elasticForceOnA = -k * overlap * .5 * (rVecab / dist);
-
-        // Gravity force:
-        // const vec3 gravForceOnA = (G * O.m[A] * O.m[B] / (dist * dist)) * (rVecab / dist);
-
-        // Sliding and Rolling Friction:
-        vec3 slideForceOnA{0, 0, 0};
-        vec3 rollForceA{0, 0, 0};
-        vec3 torqueA{0, 0, 0};
-        vec3 torqueB{0, 0, 0};
-
-        // Shared terms:
-        const double elastic_force_A_mag = elasticForceOnA.norm();
-        const vec3 r_a = rVecab * p_pair.A->R / sumRaRb;  // Center to contact point
-        const vec3 r_b = rVecba * p_pair.B->R / sumRaRb;
-        const vec3 w_diff = p_pair.A->w - p_pair.B->w;
-
-        // Sliding friction terms:
-        const vec3 d_vel = p_pair.A->vel - p_pair.A->vel;
-        const vec3 frame_A_vel_B = d_vel - d_vel.dot(rVecab) * (rVecab / (dist * dist)) -
-                                   p_pair.A->w.cross(r_a) - p_pair.B->w.cross(r_a);
-
-        // Compute sliding friction force:
-        const double rel_vel_mag = frame_A_vel_B.norm();
-        if (rel_vel_mag > 1e-13)  // Divide by zero protection.
+        if (writeStep)
         {
-            // In the frame of A, B applies force in the direction of B's velocity.
-            slideForceOnA = u_s * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
+            PE = PE + 0.5 * k * overlap * overlap;
         }
 
-        // Compute rolling friction force:
+        // Elastic a:
+        vec3 elasticForce = -k * overlap * .5 * (rVecab / dist);
+        const double elastic_force_A_mag = elasticForce.norm();
+        // Friction a:
+        vec3 dVel = p_pair.B->vel - p_pair.A->vel;
+        // vec3 frictionForce = { 0, 0, 0 };
+        const vec3 r_a = rVecab * Ra / sumRaRb;  // Center to contact point
+        const vec3 r_b = rVecba * Rb / sumRaRb;
+        const vec3 w_diff = p_pair.A -> w - p_pair.B -> w;
         const double w_diff_mag = w_diff.norm();
+        const vec3 relativeVelOfA = dVel - dVel.dot(rVecab) * (rVecab / (dist * dist)) - 
+                                    p_pair.A->w.cross(r_a) - 
+                                    p_pair.B->w.cross(r_b);
+        double relativeVelMag = relativeVelOfA.norm();
+        
+        vec3 slideForceOnA, rollForceA;
+        if (relativeVelMag > 1e-10) // When relative velocity is very low, dividing its vector components by its magnitude below is unstable.
+        {
+            slideForceOnA = u_s * (elastic_force_A_mag) *
+                            (relativeVelOfA / relativeVelMag);
+            // frictionForce = mu * (elasticForce.norm() + vdwForce.norm()) *
+            //              (relativeVelOfA / relativeVelMag);
+        }
+
         if (w_diff_mag > 1e-13)  // Divide by zero protection.
         {
-            rollForceA =
-                -u_r * elastic_force_A_mag * (w_diff).cross(r_a) / (w_diff).cross(r_a).norm();
+            rollForceA = -u_r * elastic_force_A_mag * 
+                        (w_diff).cross(r_a) / (w_diff).cross(r_a).norm();
         }
+
+        // Torque a:
+        const vec3 aTorque = r_a.cross(slideForceOnA + rollForceA);
+        const vec3 bTorque = r_b.cross(-slideForceOnA + rollForceA);
+
+        // Gravity on a:
+        // const vec3 gravForceOnA = (G * p_pair.A->m * p_pair.B->m / (dist * dist)) * (rVec / dist);
 
         // Total forces on a:
-        //Took out gravity force
-        totalForceOnA = elasticForceOnA + slideForceOnA + vdwForceOnA;
-        // totalForceOnA = gravForceOnA + elasticForceOnA + slideForceOnA + vdwForceOnA;
-
-        // Total torque a and b:
-        torqueA = r_a.cross(slideForceOnA + rollForceA);
-        torqueB = r_b.cross(-slideForceOnA + rollForceA);
+        totalForce = totalForce + elasticForce + slideForceOnA;
 
         {
             const std::lock_guard<std::mutex> lock(g_mutex);
-            p_pair.A->aacc += torqueA / p_pair.A->moi;
+            p_pair.A->aacc += aTorque / p_pair.A->moi;
         }
         {
             const std::lock_guard<std::mutex> lock(g_mutex);
-            p_pair.B->aacc += torqueB / p_pair.B->moi;
+            p_pair.B->aacc += bTorque / p_pair.B->moi;
         }
 
-        if (writeStep) {
-            // No factor of 1/2. Includes both spheres:
-            // O.PE += -G * O.m[A] * O.m[B] / dist + 0.5 * k * overlap * overlap;
-
-            // Van Der Waals + elastic:
-            const double diffRaRb = p_pair.A->R - p_pair.B->R;
-            const double z = sumRaRb + h;
-            const double two_RaRb = 2 * p_pair.A->R * p_pair.B->R;
-            const double denom_sum = z * z - (sumRaRb * sumRaRb);
-            const double denom_diff = z * z - (diffRaRb * diffRaRb);
-            const double U_vdw =
-                -Ha / 6 *
-                (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
-            PE += U_vdw + 0.5 * k * overlap * overlap;
-        }
-    } else  // Non-contact forces:
-    {
-        // No collision: Include gravity and vdw:
-        // const vec3 gravForceOnA = (G * O.m[A] * O.m[B] / (dist * dist)) * (rVecab / dist);
-
-        // Cohesion (non-contact) h must be positive or h + Ra + Rb becomes catastrophic cancellation:
-        double h = std::fabs(overlap);
-        if (h < h_min)  // If h is closer to 0 (almost touching), use hmin.
-        {
-            h = h_min;
-        }
-        const double Ra = p_pair.A->R;
-        const double Rb = p_pair.B->R;
-        const double h2 = h * h;
-        const double twoRah = 2 * Ra * h;
-        const double twoRbh = 2 * Rb * h;
-        const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
-                                 ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
-                                                   (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
-                                                   (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
-                                 rVecab.normalized();
-
-        totalForceOnA = vdwForceOnA;  // +gravForceOnA;
-        if (writeStep) {
-            // O.PE += -G * O.m[A] * O.m[B] / dist; // Gravitational
-
-            const double diffRaRb = p_pair.A->R - p_pair.B->R;
-            const double z = sumRaRb + h;
-            const double two_RaRb = 2 * p_pair.A->R * p_pair.B->R;
-            const double denom_sum = z * z - (sumRaRb * sumRaRb);
-            const double denom_diff = z * z - (diffRaRb * diffRaRb);
-            const double U_vdw =
-                -Ha / 6 *
-                (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
-            PE += U_vdw;  // Van Der Waals
-        }
-
-        // todo this is part of push_apart. Not great like this.
-        // For pushing apart overlappers:
-        // O.vel[A] = { 0,0,0 };
-        // O.vel[B] = { 0,0,0 };
     }
 
     // Newton's equal and opposite forces applied to acceleration of each ball:
     {
         const std::lock_guard<std::mutex> lock(g_mutex);
-        p_pair.A->acc += totalForceOnA / p_pair.A->m;
+        p_pair.A->acc += totalForce / m_a;
     }
     {
         const std::lock_guard<std::mutex> lock(g_mutex);
-        p_pair.B->acc -= totalForceOnA / p_pair.B->m;
+        p_pair.B->acc -= totalForce / m_b;
+    }
+}
+
+void
+P_group::sim_one_step_single_core(const bool write_step)
+{
+    /// FIRST PASS - Update Kinematic Parameters:
+    t.start_event("UpdateKinPar");
+    for (int A = 0; A < num_particles; ++A) {
+        p_group[A].velh = p_group[A].vel + .5 * p_group[A].acc * dt;
+
+        // Update angular velocity half step:
+        p_group[A].wh = p_group[A].w + .5 * p_group[A].aacc * dt;
+
+        // Update position:
+        p_group[A].pos += p_group[A].velh * dt;
+
+        // Reinitialize acceleration to be recalculated:
+        p_group[A].acc = { 0, 0, 0 };
+
+        // Reinitialize angular acceleration to be recalculated:
+        p_group[A].aacc = { 0, 0, 0 };
+    }
+    t.end_event("UpdateKinPar");
+
+    /// SECOND PASS - Check for collisions, apply forces and torques:
+    t.start_event("CalcForces/loopApplicablepairs");
+    for (int A = 1; A < num_particles; A++)  // cuda
+    {
+        /// DONT DO ANYTHING HERE. A STARTS AT 1.
+        for (int B = 0; B < A; B++) {
+            const double sumRaRb = p_group[A].R + p_group[B].R;
+            const vec3 rVecab = p_group[B].pos - p_group[A].pos;  // Vector from a to b.
+            const vec3 rVecba = -rVecab;
+            const double dist = (rVecab).norm();
+
+            // Check for collision between Ball and otherBall:
+            double overlap = sumRaRb - dist;
+
+            vec3 totalForceOnA{0, 0, 0};
+
+            // Distance array element: 1,0    2,0    2,1    3,0    3,1    3,2 ...
+            int e = static_cast<unsigned>(A * (A - 1) * .5) + B;  // a^2-a is always even, so this works.
+            double oldDist = distances[e];
+
+            // Check for collision between Ball and otherBall.
+            if (overlap > 0) {
+                double k;
+                // Apply coefficient of restitution to balls leaving collision.
+                if (dist >= oldDist) {
+                    k = kout;
+                } else {
+                    k = kin;
+                }
+
+                // Cohesion (in contact) h must always be h_min:
+                // constexpr double h = h_min;
+                const double h = h_min;
+                const double Ra = p_group[A].R;
+                const double Rb = p_group[B].R;
+                const double h2 = h * h;
+                // constexpr double h2 = h * h;
+                const double twoRah = 2 * Ra * h;
+                const double twoRbh = 2 * Rb * h;
+                const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
+                                         ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
+                                                           (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
+                                                           (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
+                                         rVecab.normalized();
+
+                // Elastic force:
+                const vec3 elasticForceOnA = -k * overlap * .5 * (rVecab / dist);
+
+                // Gravity force:
+                const vec3 gravForceOnA = {0,0,0};
+                // const vec3 gravForceOnA = (G * p_group[A].m * p_group[A].m / (dist * dist)) * (rVecab / dist);
+
+                // Sliding and Rolling Friction:
+                vec3 slideForceOnA{0, 0, 0};
+                vec3 rollForceA{0, 0, 0};
+                vec3 torqueA{0, 0, 0};
+                vec3 torqueB{0, 0, 0};
+
+                // Shared terms:
+                const double elastic_force_A_mag = elasticForceOnA.norm();
+                const vec3 r_a = rVecab * p_group[A].R / sumRaRb;  // Center to contact point
+                const vec3 r_b = rVecba * p_group[B].R / sumRaRb;
+                const vec3 w_diff = p_group[A].w - p_group[B].w;
+
+                // Sliding friction terms:
+                const vec3 d_vel = p_group[B].vel - p_group[A].vel;
+                const vec3 frame_A_vel_B = d_vel - d_vel.dot(rVecab) * (rVecab / (dist * dist)) -
+                                           p_group[A].w.cross(r_a) - p_group[B].w.cross(r_a);
+
+                // Compute sliding friction force:
+                const double rel_vel_mag = frame_A_vel_B.norm();
+                if (rel_vel_mag > 1e-13)  // Divide by zero protection.
+                {
+                    // In the frame of A, B applies force in the direction of B's velocity.
+                    slideForceOnA = u_s * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
+                }
+
+                // Compute rolling friction force:
+                const double w_diff_mag = w_diff.norm();
+                if (w_diff_mag > 1e-13)  // Divide by zero protection.
+                {
+                    rollForceA =
+                        -u_r * elastic_force_A_mag * (w_diff).cross(r_a) / (w_diff).cross(r_a).norm();
+                }
+
+                // Total forces on a:
+                totalForceOnA = gravForceOnA + elasticForceOnA + slideForceOnA + vdwForceOnA;
+
+                // Total torque a and b:
+                torqueA = r_a.cross(slideForceOnA + rollForceA);
+                torqueB = r_b.cross(-slideForceOnA + rollForceA);
+
+                p_group[A].aacc += torqueA / p_group[A].moi;
+                p_group[B].aacc += torqueB / p_group[B].moi;
+
+                if (write_step) {
+                    // No factor of 1/2. Includes both spheres:
+                    // O.PE += -G * O.m[A] * O.m[B] / dist + 0.5 * k * overlap * overlap;
+
+                    // Van Der Waals + elastic:
+                    const double diffRaRb = p_group[A].R - p_group[B].R;
+                    const double z = sumRaRb + h;
+                    const double two_RaRb = 2 * p_group[A].R * p_group[B].R;
+                    const double denom_sum = z * z - (sumRaRb * sumRaRb);
+                    const double denom_diff = z * z - (diffRaRb * diffRaRb);
+                    const double U_vdw =
+                        -Ha / 6 *
+                        (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
+                    PE += U_vdw + 0.5 * k * overlap * overlap;
+                }
+            } else  // Non-contact forces:
+            {
+                // No collision: Include gravity and vdw:
+                // const vec3 gravForceOnA = (G * O.m[A] * O.m[B] / (dist * dist)) * (rVecab / dist);
+
+                // Cohesion (non-contact) h must be positive or h + Ra + Rb becomes catastrophic cancellation:
+                double h = std::fabs(overlap);
+                if (h < h_min)  // If h is closer to 0 (almost touching), use hmin.
+                {
+                    h = h_min;
+                }
+                const double Ra = p_group[A].R;
+                const double Rb = p_group[B].R;
+                const double h2 = h * h;
+                const double twoRah = 2 * Ra * h;
+                const double twoRbh = 2 * Rb * h;
+                const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
+                                         ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
+                                                           (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
+                                                           (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
+                                         rVecab.normalized();
+
+                totalForceOnA = vdwForceOnA;  // +gravForceOnA;
+                if (write_step) {
+                    // O.PE += -G * O.m[A] * O.m[B] / dist; // Gravitational
+
+                    const double diffRaRb = p_group[A].R - p_group[B].R;
+                    const double z = sumRaRb + h;
+                    const double two_RaRb = 2 * p_group[A].R * p_group[B].R;
+                    const double denom_sum = z * z - (sumRaRb * sumRaRb);
+                    const double denom_diff = z * z - (diffRaRb * diffRaRb);
+                    const double U_vdw =
+                        -Ha / 6 *
+                        (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
+                    PE += U_vdw;  // Van Der Waals
+                }
+
+                // todo this is part of push_apart. Not great like this.
+                // For pushing apart overlappers:
+                // O.vel[A] = { 0,0,0 };
+                // O.vel[B] = { 0,0,0 };
+            }
+
+            // Newton's equal and opposite forces applied to acceleration of each ball:
+            p_group[A].acc += totalForceOnA / p_group[A].m;
+            p_group[B].acc -= totalForceOnA / p_group[B].m;
+
+            // So last distance can be known for COR:
+            distances[e] = dist;
+        }
+        // DONT DO ANYTHING HERE. A STARTS AT 1.
+    }
+    t.end_event("CalcForces/loopApplicablepairs");
+
+    if (write_step) {
+        ballBuffer << '\n';  // Prepares a new line for incoming data.
     }
 
-    // So last distance can be known for COR:
-    p_pair.dist = dist;
-    // std::cout<<"HEREend\n";
-} 
+    // THIRD PASS - Calculate velocity for next step:
+    t.start_event("CalcVelocityforNextStep");
+    for (int Ball = 0; Ball < num_particles; Ball++) {
+        // Velocity for next step:
+        p_group[Ball].vel = p_group[Ball].velh + .5 * p_group[Ball].acc * dt;
+        p_group[Ball].w = p_group[Ball].wh + .5 * p_group[Ball].aacc * dt;
 
+        if (write_step) {
+            t.start_event("WriteToBuffer");
+            // Send positions and rotations to buffer:
+            if (Ball == 0) {
+                ballBuffer << p_group[Ball].pos[0] << ',' << p_group[Ball].pos[1] << ',' << p_group[Ball].pos[2] << ','
+                           << p_group[Ball].w[0] << ',' << p_group[Ball].w[1] << ',' << p_group[Ball].w[2] << ','
+                           << p_group[Ball].w.norm() << ',' << p_group[Ball].vel[0] << ',' << p_group[Ball].vel[1] << ','
+                           << p_group[Ball].vel[2] << ',' << 0;
+            } else {
+                ballBuffer << ',' << p_group[Ball].pos[0] << ',' << p_group[Ball].pos[1] << ',' << p_group[Ball].pos[2] << ','
+                           << p_group[Ball].w[0] << ',' << p_group[Ball].w[1] << ',' << p_group[Ball].w[2] << ','
+                           << p_group[Ball].w.norm() << ',' << p_group[Ball].vel[0] << ',' << p_group[Ball].vel[1] << ','
+                           << p_group[Ball].vel[2] << ',' << 0;
+            }
+            t.end_event("WriteToBuffer");
 
-/// This version of compute_acceleration should be more efficient but has a bug
-// void P_group::compute_acceleration(P_pair& p_pair)
-// {
-//     const double Ra = p_pair.A->R;
-//     const double Rb = p_pair.B->R;
-//     const vec3 rVecab = p_pair.B -> pos - p_pair.A -> pos;
-//     const vec3 rVecba = -rVecab;
-//     const double m_a = p_pair.A->m;
-//     const double m_b = p_pair.B->m;
-//     const double sumRaRb = Ra + Rb;
-//     // vec3 rVec = p_pair.B->pos - p_pair.A->pos; // Start with rVec from a to b.
-//     const double dist = (rVecab).norm();
-
-//     // Cohesion:
-//     // h is the "separation" of the particles at particle radius - maxOverlap.
-//     // This allows particles to be touching while under vdwForce.
-//     // const double h = maxOverlap * 1.01 - overlap;
-//     const double h = h_min;
-//     const double h2 = h * h;
-//     const double twoRah = 2 * Ra * h;
-//     const double twoRbh = 2 * Rb * h;
-//     const vec3 vdwForce =
-//         Ha / 6 *
-//         64 * Ra * Ra * Ra * Rb * Rb * Rb *
-//         (h + Ra + Rb) /
-//         (
-//             (h2 + twoRah + twoRbh) *
-//             (h2 + twoRah + twoRbh) *
-//             (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
-//             (h2 + twoRah + twoRbh + 4 * Ra * Rb)
-//             ) *
-//         rVecab.normalized();
-    
-
-//     vec3 totalForce = vdwForce;
-
-
-//     // Check for collision between Ball and otherBall:
-//     double overlap = sumRaRb - dist;
-
-//     double oldDist = p_pair.dist;
-    
-
-//     if (writeStep)
-//     {
-//         const double diffRaRb = Ra - Rb;
-//         const double z = sumRaRb + h;
-//         const double two_RaRb = 2 * Ra * Rb;
-//         const double denom_sum = z * z - (sumRaRb * sumRaRb);
-//         const double denom_diff = z * z - (diffRaRb * diffRaRb);
-//         const double U_vdw =
-//             -Ha / 6 *
-//             (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
-//         PE = PE + U_vdw;  // Van Der Waals potential
-//     }
-
-//     // Check for collision between Ball and otherBall.
-//     if (overlap > 0)
-//     {
-        
-//         double k;
-//         // Apply coefficient of restitution to balls leaving collision.
-//         if (dist >= oldDist)
-//         {
-//             k = kout;
-//         }
-//         else
-//         {
-//             k = kin;
-//         }
-
-//         if (writeStep)
-//         {
-//             PE = PE + 0.5 * k * overlap * overlap;
-//         }
-
-//         // Elastic a:
-//         vec3 elasticForce = -k * overlap * .5 * (rVecab / dist);
-//         const double elastic_force_A_mag = elasticForce.norm();
-//         // Friction a:
-//         vec3 dVel = p_pair.B->vel - p_pair.A->vel;
-//         // vec3 frictionForce = { 0, 0, 0 };
-//         const vec3 r_a = rVecab * Ra / sumRaRb;  // Center to contact point
-//         const vec3 r_b = rVecba * Rb / sumRaRb;
-//         const vec3 w_diff = p_pair.A -> w - p_pair.B -> w;
-//         const double w_diff_mag = w_diff.norm();
-//         const vec3 relativeVelOfA = dVel - dVel.dot(rVecab) * (rVecab / (dist * dist)) - 
-//                                     p_pair.A->w.cross(r_a) - 
-//                                     p_pair.B->w.cross(r_b);
-//         double relativeVelMag = relativeVelOfA.norm();
-        
-//         vec3 slideForceOnA, rollForceA;
-//         if (relativeVelMag > 1e-10) // When relative velocity is very low, dividing its vector components by its magnitude below is unstable.
-//         {
-//             slideForceOnA = u_s * (elastic_force_A_mag) *
-//                             (relativeVelOfA / relativeVelMag);
-//             // frictionForce = mu * (elasticForce.norm() + vdwForce.norm()) *
-//             //              (relativeVelOfA / relativeVelMag);
-//         }
-
-//         if (w_diff_mag > 1e-13)  // Divide by zero protection.
-//         {
-//             rollForceA = -u_r * elastic_force_A_mag * 
-//                         (w_diff).cross(r_a) / (w_diff).cross(r_a).norm();
-//         }
-
-//         // Torque a:
-//         const vec3 aTorque = r_a.cross(slideForceOnA + rollForceA);
-//         const vec3 bTorque = r_b.cross(-slideForceOnA + rollForceA);
-
-//         // Gravity on a:
-//         // const vec3 gravForceOnA = (G * p_pair.A->m * p_pair.B->m / (dist * dist)) * (rVec / dist);
-
-//         // Total forces on a:
-//         totalForce = totalForce + elasticForce + slideForceOnA;
-
-//         {
-//             const std::lock_guard<std::mutex> lock(g_mutex);
-//             p_pair.A->aacc += aTorque / p_pair.A->moi;
-//         }
-//         {
-//             const std::lock_guard<std::mutex> lock(g_mutex);
-//             p_pair.B->aacc += bTorque / p_pair.B->moi;
-//         }
-
-//     }
-
-//     // Newton's equal and opposite forces applied to acceleration of each ball:
-//     {
-//         const std::lock_guard<std::mutex> lock(g_mutex);
-//         p_pair.A->acc += totalForce / m_a;
-//     }
-//     {
-//         const std::lock_guard<std::mutex> lock(g_mutex);
-//         p_pair.B->acc -= totalForce / m_b;
-//     }
-// }
+            KE += .5 * p_group[Ball].m * p_group[Ball].vel.normsquared() +
+                    .5 * p_group[Ball].moi * p_group[Ball].w.normsquared();  // Now includes rotational kinetic energy.
+            mom += p_group[Ball].m * p_group[Ball].vel;
+            ang_mom += p_group[Ball].m * p_group[Ball].pos.cross(p_group[Ball].vel) + p_group[Ball].moi * p_group[Ball].w;
+        }
+    }  // THIRD PASS END
+    t.end_event("CalcVelocityforNextStep");
+}  // one Step end
 
 
 /// @brief steps the sim forward by one time step and writes out data if bool write_step is true
 void P_group::sim_one_step(const bool write_step)
 {
     // make_pairs(); //This parallel block seems to be very slow
+    //uncomment following line to use grid
+    // getRelaventPairs();
+    ///////////////////
 
     if (parallel)
     {
@@ -1068,6 +1380,8 @@ void P_group::sim_one_step(const bool write_step)
                     std::bind_front(&P_group::update_kinematics, this)); //0.07hr/step
         std::for_each(std::execution::par, pairs.begin(), pairs.end(),
                     std::bind_front(&P_group::compute_acceleration, this)); //0.38hr/step
+        // std::for_each(std::execution::par, pairs.begin(), pairs.end(),
+                    // std::bind_front(&P_group::compute_distance, this)); //0.38hr/step
         std::for_each(std::execution::par_unseq, p_group.begin(), p_group.end(),
                     std::bind_front(&P_group::compute_velocity, this)); //0.05hr/step
     }
@@ -1077,11 +1391,15 @@ void P_group::sim_one_step(const bool write_step)
                     std::bind_front(&P_group::update_kinematics, this));
         std::for_each(std::execution::seq, pairs.begin(), pairs.end(),
                     std::bind_front(&P_group::compute_acceleration, this));
+                    // std::bind_front(&P_group::compute_acceleration_speed_testing, this));
+        // std::for_each(std::execution::seq, pairs.begin(), pairs.end(),
+                    // std::bind_front(&P_group::compute_distance, this));
         std::for_each(std::execution::unseq, p_group.begin(), p_group.end(),
                     std::bind_front(&P_group::compute_velocity, this));    
     }
     if (write_step)
     {
+        t.start_event("WriteToBuffer");
         ballBuffer << '\n';  // Prepares a new line for incoming data.
         for (auto p : p_group)  
         {  
@@ -1105,6 +1423,7 @@ void P_group::sim_one_step(const bool write_step)
             mom += p.m * p.vel;
             ang_mom += p.m * p.pos.cross(p.vel) + p.moi * p.w;
         }
+        t.end_event("WriteToBuffer");
     }
 }
 
@@ -1121,7 +1440,7 @@ void P_group::sim_looper()
 
         // Check if this is a write step:
         if (Step % skip == 0) {
-            // t.start_event("writeProgressReport");
+            t.start_event("writeProgressReport");
             writeStep = true;
 
             simTimeElapsed += dt * skip;
@@ -1146,15 +1465,16 @@ void P_group::sim_looper()
             // progress, eta, real, simmed, real / simmed);
             fflush(stdout);
             startProgress = time(nullptr);
-            // t.end_event("writeProgressReport");
+            t.end_event("writeProgressReport");
         } else {
             writeStep = false;
         }
 
         // Physics integration step:
-        t.start_event("One step");
+        t.start_event("OneStep");
+        // sim_one_step_single_core(writeStep);
         sim_one_step(writeStep);
-        t.end_event("One step");
+        t.end_event("OneStep");
         // if (writeStep)
         // {
         //     t.print_events();
@@ -1186,6 +1506,7 @@ void P_group::sim_looper()
 
 
                 // Write simData to file and clear buffer.
+                t.start_event("WriteToFile");
                 std::ofstream ballWrite;
 
                 ballWrite.open(s_location + filenum + output_prefix + "simData.csv", std::ofstream::app);
@@ -1199,6 +1520,7 @@ void P_group::sim_looper()
                 energyWrite << energyBuffer.rdbuf();
                 energyBuffer.str("");  // Empty the stream for next filling.
                 energyWrite.close();
+                t.end_event("WriteToFile");
 
                 lastWrite = time(nullptr);
             }  // Data export end
@@ -1207,7 +1529,7 @@ void P_group::sim_looper()
             if (dynamicTime) { calibrate_dt(Step, false); }
         }  // writestep end
     }
-
+    // t.print_events();
     const time_t end = time(nullptr);
 
     std::cerr << "Simulation complete!\n"
@@ -1217,15 +1539,20 @@ void P_group::sim_looper()
     std::cerr << "\n===============================================================\n";
 }  // end simLooper
 
-
-///@brief makes a new P_group, all with the same sized radius, given the number of balls in the group
-void P_group::oneSizeSphere(const int nBalls)
+void P_group::makeSpheres(const int nBalls, distributions radiiDistribution)
 {
-
     for (int Ball = 0; Ball < nBalls; ++Ball) 
     {
         P new_p;
-        new_p.R = scaleBalls;
+        new_p.unique_id = get_unique_id();
+        if (radiiDistribution == constant)
+        {
+            new_p.R = scaleBalls;
+        }
+        else
+        {
+            new_p.R = lognorm_dist(scaleBalls*std::exp(-5*std::pow(lnSigma,2)/2),lnSigma);
+        }
         new_p.m = density * 4. / 3. * 3.14159 * std::pow(new_p.R, 3);
         new_p.moi = .4 * new_p.m * new_p.R * new_p.R;
         new_p.w = {0,0,0};
@@ -1236,6 +1563,55 @@ void P_group::oneSizeSphere(const int nBalls)
 
     mTotal = getMass();
 
+    placeBalls(nBalls);
+}
+
+// void P_group::distSizeSphere(const int nBalls)
+// {
+//     for (int Ball = 0; Ball < nBalls; ++Ball) 
+//     {
+//         P new_p;
+//         new_p.unique_id = get_unique_id();
+//         new_p.R = lognorm_dist(scaleBalls*std::exp(-5*std::pow(lnSigma,2)/2),lnSigma);
+//         new_p.m = density * 4. / 3. * 3.14159 * std::pow(new_p.R, 3);
+//         new_p.moi = .4 * new_p.m * new_p.R * new_p.R;
+//         new_p.w = {0,0,0};
+//         new_p.vel = {0,0,0}; //?????
+//         new_p.pos = rand_vec3(spaceRange);
+//         p_group.push_back(new_p);
+//     }
+
+//     mTotal = getMass();
+
+//     placeBalls(nBalls);
+// }
+
+// ///@brief makes a new P_group, all with the same sized radius, given the number of balls in the group
+// void P_group::oneSizeSphere(const int nBalls)
+// {
+
+//     for (int Ball = 0; Ball < nBalls; ++Ball) 
+//     {
+//         P new_p;
+//         new_p.unique_id = get_unique_id();
+//         new_p.R = scaleBalls;
+//         new_p.m = density * 4. / 3. * 3.14159 * std::pow(new_p.R, 3);
+//         new_p.moi = .4 * new_p.m * new_p.R * new_p.R;
+//         new_p.w = {0,0,0};
+//         new_p.vel = {0,0,0}; //?????
+//         new_p.pos = rand_vec3(spaceRange);
+//         p_group.push_back(new_p);
+//     }
+
+//     mTotal = getMass();
+
+//     placeBalls(nBalls);
+    
+// }
+
+
+void P_group::placeBalls(const int nBalls)
+{
     // Generate non-overlapping spherical particle field:
     int collisionDetected = 0;
     int oldCollisions = nBalls;
@@ -1296,7 +1672,6 @@ void P_group::parse_input_file(char const* location)
     std::string loc(location);
     s_location = loc;
     std::string json_file = loc + "input.json";
-    // std::cout<<json_file<<std::endl;
     std::ifstream ifs(json_file);
     json inputs = json::parse(ifs);
 
@@ -1320,8 +1695,19 @@ void P_group::parse_input_file(char const* location)
     else
     {
         seed = static_cast<int>(inputs["seed"]);
+        random_generator.seed(seed);
     }
     srand(seed);  // srand(seedSave);
+
+    std::string temp_distribution = inputs["radiiDistribution"];
+    if (temp_distribution == "logNormal")
+    {
+        radiiDistribution = logNorm;
+    }
+    else
+    {
+        radiiDistribution = constant;
+    }
     dynamicTime = inputs["dynamicTime"];
 
     gridSize = inputs["gridSize"];
@@ -1348,12 +1734,11 @@ void P_group::parse_input_file(char const* location)
     // else
     // {
     // }
-    temp = inputs["temp"]; // this will modify v_custom in oneSizeSphere
+    temp = inputs["temp"]; // this will modify v_custom in dust_agglomeration_particle_init
     double temp_kConst = inputs["kConsts"];
     kConsts = temp_kConst * (fourThirdsPiRho / (maxOverlap * maxOverlap));
     impactParameter = inputs["impactParameter"];
     Ha = inputs["Ha"];
-    // std::cout<<"in Ha: "<<Ha<<'\n';
     double temp_h_min = inputs["h_min"];
     h_min = temp_h_min * scaleBalls;
     if (inputs["cone"] == std::string("default"))
@@ -1622,6 +2007,33 @@ void P_group::simInit_cond_and_center()
 }
 
 
+void P_group::getRelaventPairs()
+{
+    applicable_pairs.clear();
+    used_ids.clear();
+    findGroups();
+    mapGroups();
+    for (auto pt : p_group)
+    {
+        findPairs(pt);
+    }
+    if (applicable_pairs.size() == 0)
+    {
+        std::iota (std::begin(applicable_pairs), std::end(applicable_pairs), 0); // Fill with 0, 1, ..., 99.;
+    }
+    // printPairs();
+}
+
+void P_group::printPairs()
+{
+    std::cout<<"Start printPairs\n";
+    for (P_pair pair : pairs)
+    {
+        std::cout<<"("<<pair.A->unique_id<<", "<<pair.B->unique_id<<")\n";
+    } 
+    std::cout<<"End printPairs"<<std::endl;
+}
+
 /// @brief makes an unordered_map where the key is the grid space and it maps to all P in that grid space
 void P_group::mapGroups()
 {
@@ -1631,7 +2043,6 @@ void P_group::mapGroups()
         if (IDToGrid.find(key) != IDToGrid.end()) // key present
         {
             IDToGrid[key].push_back(pt);
-            // std::cout<<"key: val  " <<key<<": "<<IDToGrid[key][0]<<std::endl;
         }
         else//key not present
         {
@@ -1662,7 +2073,6 @@ std::vector<P> P_group::getBalls(P ball)
     currx = ball.id[0];
     curry = ball.id[1]; 
     currz = ball.id[2]; 
-
 
     std::vector<P> points;
     for (int x = -1; x < 2; ++x)
@@ -1722,15 +2132,22 @@ void P_group::findGroups()
 
 
 /// @brief makes relavent particle pairs based on how close balls are to the given P
-void P_group::findpairs(P &p)
+void P_group::findPairs(P &p)
 {
     std::vector<P> points = getBalls(p);
     for (auto point : points)
     {
-        double dist = (point.pos - p.pos).norm();
-        P_pair pair{ &p, &point, dist };
-        pairs.push_back(pair); 
-    }
+        if (p.unique_id != point.unique_id)
+        {
+            if (std::find(used_ids.begin(), used_ids.end(), point.unique_id) == used_ids.end())
+            {
+                double dist = (point.pos - p.pos).norm();
+                P_pair pair{ &p_group[p.unique_id], &p_group[point.unique_id], dist };
+                pairs.push_back(pair); 
+            }
+        }
+    }    
+    used_ids.push_back(p.unique_id);
 }
 
 
@@ -1771,7 +2188,6 @@ void P_group::sim_continue(const std::string& path, int start_file_index)
     else
     {
         // output_prefix = std::to_string(start_file_index);
-        // std::cout<<output_prefix<<std::endl;
         std::cerr << "Continuing Sim...\nFile: " << start_file_index << '_' << '\n';
         loadSim(path, std::to_string(start_file_index) + '_');
     }
@@ -1881,4 +2297,9 @@ void P_group::sim_init_write(std::string filename, int counter)
     std::cerr << "\nSimulating " << steps * dt / 60 / 60 << " hours.\n";
     std::cerr << "Total mass: " << mTotal << '\n';
     std::cerr << "\n===============================================================\n";
+}
+
+void P_group::write_timing()
+{
+    t.save_events(s_location+"ballSim_timing.txt");
 }

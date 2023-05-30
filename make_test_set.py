@@ -28,7 +28,7 @@ if __name__ == '__main__':
 				print("Job set '{}' already exists.".format(job_set_folder))
 
 			#Make an array of what you want to vary
-			Temps = [300]
+			Temps = [1]
 
 			#actually make the folders
 			folder_values = Temps
