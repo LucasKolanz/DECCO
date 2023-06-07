@@ -100,7 +100,7 @@ def get_last_line_data(data_folder,data_index=-1):
 	try:
 		data = np.loadtxt(data_folder + data_file,skiprows=1,dtype=float,delimiter=',')[-1]
 	except Exception as e:
-		print("ERROR CAUGHT")
+		print("ERROR CAUGHT in folder: {}".format(data_folder))
 		print(e)
 		return None
 	# print(data)

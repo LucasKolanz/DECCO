@@ -1,0 +1,103 @@
+This is the main cpp file of a simulation of BPCA dust growth. Both the iterations
+of simulations (each new ball) and the time step iterations are done here. 
+
+#This function adds a projectile and runs a collision simulation as many times as your desired dust grain size
+main():
+
+	Ball_group O = make_group()
+	for i=0,NumberOfBallsToAdd:
+		O = O.add_projectile()
+		O.sim_init_write()
+		sim_looper(O)
+
+#This function loops over all timesteps in a simulation
+sim_looper(Ball_group O):
+
+	for Step=1,NumberOfTimeSteps:
+		simTimeElapsed += dt
+
+		if Step % skip == 0:
+			write_progress_report()
+			write_step = True
+		else:
+			write_step = False
+
+		sim_one_step(O)
+
+		if write_step:
+			write_simData()
+			write_energy()
+
+#This function updates parameters for all balls after one timestep
+sim_one_step(Ball_group O):
+
+	#Loop over every ball
+	for ball=0,O.num_particles:
+		#Update half steps, integrate current position, reset accelerations to zero
+		O.velh[ball] = O.vel[ball] * 0.5 * O.acc[ball] * dt	
+		O.wh[ball] = O.w[ball] * 0.5 * O.aacc[ball] * dt	
+		
+		O.pos[ball] += O.velh[ball] * dt
+		
+		O.acc[ball] = {0,0,0}
+		O.aacc[ball] = {0,0,0}
+
+	#Loop over all particle pairs
+	for A=1,O.num_particels:
+		for B=0,A:
+			overlap = SumRadii - distanceBetweenCenters
+
+			e = A*(A-1)*0.5 + B
+			prevDist = O.distances[e]
+
+			#touching balls
+			if overlap > 0:
+
+				#incoming or outgoing?
+				#sets spring constant
+				if (distanceBetweenCenters >= prevDist):
+					k = kout
+				else:
+					k = kin
+
+				#Calculate all the forces between pairs
+				vdwForceOnA = calcVDWForce(radius A, radius B)
+				elasticForceOnA = calcElasticForce(overlap, position A, position B)
+				slideForceOnA = calcSlideForce(elasticForceOnA, velocity A, velocity B)
+				rollForceOnA = calcRollForce(elasticForceOnA, velocity A, velocity B, position A, position B)
+
+				totalForceOnA = vdwForceOnA+elasticForceOnA+slideForceOnA+rollForceOnA
+
+				torqueA = radiusA.cross(slideForceOnA + rollForceOnA)
+				torqueB = radiusB.cross(-slideForceOnA + rollForceOnA)
+
+				O.aacc[A] += torqueA / O.moi[A]
+				O.aacc[B] += torqueB / O.moi[B]
+
+				if write_step:
+					O.PE += vdwPotential(radius A, radius B) + elasticPotential(overlap)
+			
+			#Balls aren't touching
+			else:
+
+				h = overlap
+				if h < h_min:
+					h = h_min
+
+				#This call to calcVDWForce is different because balls aren't touching
+				vdwForceOnA = calcVDWForce(radius A, radius B, h)
+
+				totalForceOnA = vdwForceOnA
+
+				if write_step:
+					O.PE += vdwPotential(radius A, radius B) + elasticPotential(overlap)
+
+			#acceleration is force over mass
+			O.acc[A] += totalForceOnA / O.m[A]
+			O.acc[B] -= totalForceOnA / O.m[B]
+
+			O.distances[e] = distanceBetweenCenters
+
+
+
+
