@@ -3,10 +3,10 @@
 # CFLAGS=-I.
 CPP=g++
 CPPflags=-O3 -std=c++2a -fopenmp
+EXflag=-ltbb
 
-
-ColliderParallel: ColliderParallel.cpp ../vec3.hpp ballSim.hpp ../external/json/single_include/nlohmann/json.hpp
-	${CPP} ${CPPflags} -o ColliderParallel ColliderParallel.cpp -ltbb
+ColliderParallel.x: ColliderParallel.cpp ../vec3.hpp ballSim.hpp ../external/json/single_include/nlohmann/json.hpp
+	${CPP} ${CPPflags} -o ColliderParallel.x ColliderParallel.cpp 
 
 stp: ColliderSingletoParallel.cpp ../dust_const.hpp ../ball_group.hpp ../grid_group/grid_group_parallel.hpp
 	g++-10 -O3 -ftree-vectorize -std=c++2a -o ColliderSingletoParallel.o ColliderSingletoParallel.cpp -fopenmp
@@ -16,3 +16,4 @@ test: parallel_test.cpp ../ball_group.hpp ../vec3.hpp ../timing/timing.hpp ../gr
 
 clean:
 	rm -f *.o
+	rm -f *.x

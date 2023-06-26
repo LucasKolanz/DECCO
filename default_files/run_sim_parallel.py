@@ -16,7 +16,7 @@ def main():
 	# out = os.system("./ColliderSingleCore.o {}".format(curr_folder))
 	# out = os.system("./ColliderSingleCore.o {} 1>> {} 2>> {}".format(curr_folder,output_file,error_file))
 	
-	cmd = ["{}ColliderParallel.o".format(location), location, str(num_balls)]
+	cmd = ["{}ColliderParallel.x".format(location), location, str(num_balls)]
 	print(cmd)
 	with open(output_file,"a") as out, open(error_file,"a") as err:
 		subprocess.run(cmd,stdout=out,stderr=err)
