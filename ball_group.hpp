@@ -2,7 +2,7 @@
 #include "dust_const_init.hpp"
 // #include "grid_group.hpp"
 // #include "dust_const.hpp"
-#include "json/single_include/nlohmann/json.hpp"
+#include "external/json/single_include/nlohmann/json.hpp"
 // #include "json/single_include/nlohmann/json.hpp"
 #include "vec3.hpp"
 #include "linalg.hpp"

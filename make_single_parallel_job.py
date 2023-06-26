@@ -21,14 +21,14 @@ if __name__ == '__main__':
 
 	# job_set_name = "LargePairParallelTest"
 	job_set_name = "lognorm_radius_test"
-	job_set_name = "test"
+	job_set_name = "accuracyTest"
 	
 	# folder_name_scheme = "T_"
 	runs_at_once = 1
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	attempts = [1] 
 	N = [10]
-	Temps = [1]
+	Temps = [100]
 	folders = []
 	for attempt in attempts:
 		for n in N:
@@ -48,9 +48,15 @@ if __name__ == '__main__':
 				####################################
 				######Change input values here######
 				input_json['temp'] = Temp
-				# input_json['gridSize'] = 4e-5
-				input_json['seed'] = 100
-				input_json['radiiDistribution'] = 'logNormal'
+				input_json['seed'] = 101
+				input_json['radiiDistribution'] = 'constant'
+				# input_json['kConsts'] = 3e3
+				input_json['h_min'] = 0.5
+				# input_json['u_s'] = 0.5
+				# input_json['u_r'] = 0.5
+				# input_json['projectileName'] = "299_2_R4e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_"
+				# input_json['targetName'] = "299_2_R4e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_"
+				input_json['note'] = "testing"
 				####################################
 
 				with open(job + "input.json",'w') as fp:

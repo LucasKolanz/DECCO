@@ -1,4 +1,4 @@
-#include "../json/single_include/nlohmann/json.hpp"
+#include "../external/json/single_include/nlohmann/json.hpp"
 #include "../Utils.hpp"
 #include "../vec3.hpp"
 #include "../timing/timing.hpp"
@@ -6,6 +6,7 @@
 #include <mutex>
 #include <execution>
 #include <random>
+
 
 std::mutex g_mutex;
 
