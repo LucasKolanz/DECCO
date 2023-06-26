@@ -700,9 +700,16 @@ void P_group::add_projectile()
 
     calc_helpfuls();
 
-    // Hack - Calibrate to vel = 1 so we don't have to reform the pair. Probly fine?
-    calibrate_dt(0, v_custom);
-    calibrate_dt(0, 1); ////???? Leftover from Jobs code
+    // Hack - if v_custom is less than 1 there are problems if dt is calibrated to this
+    //        if v_custom is greater than 1 you need to calibrate dt to that v_custom
+    if (v_custom < 1)
+    {
+        calibrate_dt(0, 1);
+    }
+    else
+    {
+        calibrate_dt(0, v_custom);
+    }
 
     init_conditions();
 
