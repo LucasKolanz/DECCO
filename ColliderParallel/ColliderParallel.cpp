@@ -49,6 +49,7 @@ int main(const int argc, char const* argv[])
  
 	P_group O = make_group(argv[1],restart); // Particle system
 	safetyChecks(O);
+    fflush(stderr);
 
     if (*restart < num_balls)
     { 
