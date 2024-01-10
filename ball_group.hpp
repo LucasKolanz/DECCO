@@ -373,19 +373,19 @@ void Ball_group::parse_input_file(char const* location)
     std::string json_file = s_location + "input.json";
     std::ifstream ifs(json_file);
     json inputs = json::parse(ifs);
-
+    
     if (inputs["seed"] == std::string("default"))
     {
-        seed = static_cast<int>(time(nullptr));
-        std::ofstream seedFile;
-        seedFile.open(s_location+"seedFile.txt",std::ios::app);
-        seedFile<<seed<<std::endl;
-        seedFile.close();
+        seed = static_cast<unsigned int>(time(nullptr));
     }
     else
     {
-        seed = static_cast<int>(inputs["seed"]);
+        seed = static_cast<unsigned int>(inputs["seed"]);
     }
+    std::ofstream seedFile;
+    seedFile.open(s_location+"seedFile.txt",std::ios::app);
+    seedFile<<seed<<std::endl;
+    seedFile.close();
     random_generator.seed(seed);//This was in the else but it should be outside so random_generator is always seeded the same as srand (right?)
     srand(seed);
 
@@ -576,7 +576,7 @@ void Ball_group::calibrate_dt(int const Step, const double& customSpeed = -1.)
     }
 
     if (Step == 0 or dtOld < 0) {
-        steps = static_cast<int>(simTimeSeconds / dt);
+        steps = static_cast<int>(simTimeSeconds / dt)+1;
         if (steps < 0)
         {
             std::cerr<< "ERROR: STEPS IS NEGATIVE."<<std::endl;

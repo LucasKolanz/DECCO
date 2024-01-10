@@ -2,6 +2,20 @@ import os
 import json
 import multiprocessing as mp
 import subprocess
+import sys
+import random
+import time
+
+# Seeding the random number generator with the current time in Python
+current_time = int(time.time())
+random.seed(current_time)
+
+def rand_int():
+	# Generating a random integer from 0 to the maximum unsigned integer in C++
+	# In C++, the maximum value for an unsigned int is typically 2^32 - 1
+	max_unsigned_int_cpp = 2**32 - 1
+	random_unsigned_int = random.randint(0, max_unsigned_int_cpp)
+	return random_unsigned_int
 
 def run_job(location,num_balls):
 	cmd = ["python3", "{}run_sim.py".format(location), location, str(num_balls)]
@@ -26,15 +40,15 @@ if __name__ == '__main__':
 	# runs_at_once = 7
 	# attempts = [21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40]
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
-	attempts = [i for i in range(10,30)]
-	# attempts = [1] 
-	attempts_300 = [i for i in range(5,13)]
+	attempts = [i for i in range(0,15)]
+	attempts = [1] 
+	# attempts_300 = [i for i in range(5,13)]
 
 	N = [30,100,300]
-	# N = [3]
+	N = [3]
 	node = 1
-	Temps = [3,10,30,100,300,1000]
-	# Temps = [3]
+	# Temps = [3,10,30,100,300,1000]
+	Temps = [3]
 	# Temps = [3]
 
 	folders = []
@@ -59,7 +73,7 @@ if __name__ == '__main__':
 				####################################
 				######Change input values here######
 				input_json['temp'] = Temp
-				input_json['seed'] = 'default'
+				input_json['seed'] = rand_int()
 				input_json['radiiDistribution'] = 'logNormal'
 				input_json['h_min'] = 0.5
 				# input_json['u_s'] = 0.5
@@ -88,7 +102,7 @@ if __name__ == '__main__':
 
 				qsubfile += "module load default-environment\n"
 				qsubfile += "module unload gcc/5.1.0\n"
-				qsubfile += "module load gcc/9.2.0\n"
+				qsubfile += "module load gcc/12.2.0\n"
 				
 				qsubfile += "./ColliderSingleCore.x {} {}\n".format(job,n)
 
