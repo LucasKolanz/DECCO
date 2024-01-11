@@ -1,0 +1,9 @@
+PSEUDOPARTICLES:	400
+THREADS:		4
+NODES:			1
+total iterations:	79800
+GPU, MPI, and OMP took 0.359986 seconds
+Generating '/tmp/nsys-report-69b5.qdstrm'
+[1/1] [0%                          ] nsys-report-ad46.nsys-rep[1/1] [0%                          ] nsys-report-ad46.nsys-rep[1/1] [10%                         ] nsys-report-ad46.nsys-rep[1/1] [=17%                        ] nsys-report-ad46.nsys-rep[1/1] [==18%                       ] nsys-report-ad46.nsys-rep[1/1] [==19%                       ] nsys-report-ad46.nsys-rep[1/1] [==21%                       ] nsys-report-ad46.nsys-rep[1/1] [===========50%              ] nsys-report-ad46.nsys-rep[1/1] [===========51%              ] nsys-report-ad46.nsys-rep[1/1] [========================100%] nsys-report-ad46.nsys-rep[1/1] [========================100%] nsys-report-ad46.nsys-rep
+Generated:
+    /tmp/nsys-report-ad46.nsys-rep

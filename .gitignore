@@ -5,9 +5,34 @@
 
 #.o files
 **/*.o
+**/*.x
+**/*.h5
 
 #jobs
-jobs/
+jobs/*
+jobsCosine/*
+erroredJobs/*
+
+RenderOption*
+
+*.zip
+**/*.zip
+
+**/*.blend1
+**/*errors.txt
+**/*output.txt
+/*errors.txt
+/*output.txt
+
+**/*.png
+*.png
+**/*.pcd
+*.pcd
+
+slurm*.out
+
+#venv
+py3.7venv/
 
 # User-specific files
 *.rsuser

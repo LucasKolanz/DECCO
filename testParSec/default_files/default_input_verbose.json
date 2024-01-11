@@ -1,0 +1,89 @@
+{
+////////////////////////////////////
+// Initialization (Units are CGS) //
+////////////////////////////////////
+	//What is this sim for?
+	"note": "",
+	//How many openMP threads do you want?
+	"OMPthreads": 8,
+	//Type of simulation, default to "BPCA", other options: "collider"
+	"simType": "BPCA",
+	//Number of balls to add to a BPCA simulation. If simType is not "BPCA" this 
+	//value will be ignored
+	"N": -1,
+	//for constant distribution, added balls will have ri/radiiFraction sized 
+	//radii where ri is the radius of the inital balls (scaleBalls)
+	"radiiFraction": 1,
+	//distribution of radii, default to "constant", other options: "logNormal"
+	"radiiDistribution": "constant",
+	//IDK, keep false until figure it out
+	"dynamicTime": false,
+	//Gravitiational Constant, don't change unless to give more precision
+	"G": 6.67e-8,
+	//density of constituent balls in g/cm^3
+	"density": 2.25,
+	//Coefficient of sliding friction
+	"u_s": 0.1,
+	//Coefficient of rolling friction
+	"u_r": 1e-5,
+	//Poisson ratio for rolling friction
+	"sigma": 0.29,
+	//Young's modulus in erg/cm3
+	"Y": 2.0e12,
+	//Coefficient of restitution
+	"cor": 0.4,
+	//Total(??) sim time in seconds
+	"simTimeSeconds": 0.5e-3,
+	//Duration between exported steps in seconds
+	"timeResolution": 1e-5,
+	//base radius of ball in cm.
+	"scaleBalls": 1e-5,
+	//How much do you want scaleBalls to be able to overlap
+	"maxOverlap": 0.1,
+	//Determines collision velocity based on KE/PE, DOES NOT WORK RN
+	// "KEfactor": 0, //If set to value other than zero, will overwrite v_custom (I think, need to check to be sure)
+	//Tempurature of simulation in K
+	"temp": -1, //If set to value greater than zero, overwrites v_custom with value picked from maxwell boltzmann dist at given tempurature
+	//velocity of projectile in cm/s
+	"v_custom": "default", //default is max probable velocity at T(K) = 3 (0.36301555459799423)
+	//???
+	"kConsts": 3e3, //will be set to kConsts*(fourThirdsPiRho/maxOverlap^2) in simulation
+	//Impact angle radians
+	"impactParameter": 0, //Careful using this as it isn't same as impact parameter in liturature
+	//Hamaker constant for vdw force
+	"Ha": 4.7e-12,
+	//???
+	"h_min": 0.1, //will be set to h_min*scaleBalls
+	//Cone of particles ignored moving away from center of mass. Larger angle ignores more.
+	"cone": "default", //default is pi/2
+
+	//simulation structure
+	//Number of columns in simData file per ball
+	"properties": 11, 
+	//Number of balls the sim starts with
+	"genBalls": 2, 
+	//How many times to try moving every ball touching another in generator.
+	"attempts": 200, 
+
+	"skip": 0, 
+	//Steps thrown away before recording a step to the buffer. 500*.04 is every 20 seconds in sim.
+	"steps": 0,
+
+	"dt": -1, //time step. (if -1 then set in sim)
+	"kin": -1, //compression spring constant (if -1 then value is set in sim)
+	"kout": -1, //extension spring constant (if -1 then value is set in sim)
+	"spaceRange": "default", //default is 4*((1/0.74)*scaleBalls^3*genBalls)^(1/3)
+	"spaceRangeIncrement": "default", //default is 3*scaleBalls
+	"z0Rot": 0, //Cluster one z axis rotation
+	"y0Rot": 0, //Cluster one y axis rotation
+	"z1Rot": 0, //Cluster two z axis rotation
+	"y1Rot": 0, //Cluster two y axis rotation
+	"simTimeElapsed": 0,
+
+	"projectileName": "",
+	"targetName": "",
+	"project_path": "default", //default is wherever SpaceLab lives
+	"output_folder": "output/", //default output folder (relative to project_path)
+	"output_prefix": "default", //not sure this is necessary as it is automatically set by sim
+
+}

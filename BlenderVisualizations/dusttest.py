@@ -39,10 +39,12 @@ frameNum = 0
 #path = "C:/Users/milin/Desktop/VSOUT/10/213_2_rho2.25_k5e-03_Ha5e-12_dt5e-10_"
 #path = "C:/Users/milin/Desktop/VSOUT/3-1e-4/50_2_rho2.25_k5e-03_Ha5e-12_dt5e-10_"
      
-path = '/home/lucas/Desktop/Research/SpaceLabTesting/SpaceLab/jobs/TESTSET/T_3/'
+#path = '/home/kolanzl/Desktop/SpaceLab/jobs/tempVariance_attempt2/T_10/'
+path = '/home/kolanzl/Desktop/SpaceLab/jobs/large_aggregate/N_1000/'
 #path = '/home/lucas/Desktop/Research/SpaceLabTesting/SpaceLab/ColliderSingleCore/'
 #filename = '_20_R1e-04_v4e-01_cor0.63_mu0.1_rho2.25_k1e+01_Ha5e-12_dt3e-10_'
-filename = '_2_R3e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_'
+#filename = '_2_R2e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_'
+filename = '_2_R4e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_'
 sim = 1
 simData = np.loadtxt(path + str(sim) + filename + "simData.csv",dtype=float,delimiter=',',skiprows = 1)
 #simData = np.array([simData]) # Uncomment this line for single timestep data with no headers
@@ -57,9 +59,9 @@ sphereSet = []
 actionSet = []
 
 # Initial sphere mesh to be instanced:
-bpy.ops.mesh.primitive_uv_sphere_add(location = (1,1,1), radius = 1)
-bpy.data.objects[2].hide_set(True)
+bpy.ops.mesh.primitive_uv_sphere_add(location = (0,0,0), radius = 1)
 #bpy.ops.object.metaball_add(type='BALL', radius=2, enter_editmode=False, align='WORLD', location=(0, 0, 0), scale=(1, 1, 1))
+#bpy.data.objects[2].hide_set(True)
 obj = bpy.context.object # the currently selected object
 #obj.data.resolution = .1
 #obj.data.threshold = 1.7
@@ -88,7 +90,7 @@ for sphere in range(numSpheres):
 #    print(sphereSet[sphere].location)        
     sphereSet[sphere].rotation_mode = "XYZ"
 #print(sphereSet)
-for sim in range(1,10):
+for sim in range(1,96):
     if frameNum > 1:        
         # Load the new particle:
         fullPath = path + str(sim) + filename

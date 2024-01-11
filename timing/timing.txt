@@ -1,0 +1,11 @@
+Event 'func1' took 0.754994 ms
+
+Event 'func2' took 0.505456 ms
+Event 'func1' took 0.757586 ms
+
+Event 'func2' took 0.506811 ms
+Event 'func1' took 0.253906 ms
+
+Event 'func2' took 0.516092 ms
+Event 'func1' took 0.515978 ms
+
