@@ -41,10 +41,10 @@ if __name__ == '__main__':
 
 	runs_at_once = 7
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
-	attempts = [0] 
-	N = [5]
+	attempts = [1] 
+	N = [2]
 	# Temps = [3,10,30,100,300,1000]
-	Temps = [3]
+	Temps = [100]
 	folders = []
 	for attempt in attempts:
 		for n in N:
@@ -67,7 +67,7 @@ if __name__ == '__main__':
 				input_json['N'] = n
 				input_json['output_folder'] = job
 
-				input_json['seed'] = -2102725655
+				input_json['seed'] = 1593336558
 				input_json['radiiDistribution'] = 'constant'
 				input_json['h_min'] = 0.5
 				input_json['dataFormat'] = "h5"

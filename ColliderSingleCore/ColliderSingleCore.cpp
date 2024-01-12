@@ -539,13 +539,16 @@ sim_looper(Ball_group &O,int start_step=1)
 
     std::cerr<<"Stepping through "<<O.steps<<" steps"<<std::endl;
 
-    for (int Step = start_step; Step < O.steps; Step++)  // Steps start at 1 for non-restart because the 0 step is initial conditions.
+    int Step;
+
+    for (Step = start_step; Step < O.steps; Step++)  // Steps start at 1 for non-restart because the 0 step is initial conditions.
     {
         // simTimeElapsed += dt; //New code #1
         // Check if this is a write step:
         if (Step % O.skip == 0) {
             t.start_event("writeProgressReport");
             writeStep = true;
+            // std::cerr<<"Write step "<<Step<<std::endl;
 
             /////////////////////// Original code #1
             simTimeElapsed += O.dt * O.skip;
@@ -673,8 +676,8 @@ sim_looper(Ball_group &O,int start_step=1)
 
     const time_t end = time(nullptr);
 
-    std::cerr << "Simulation complete!\n"
-              << O.num_particles << " Particles and " << O.steps << " Steps.\n"
+    std::cerr << "Simulation complete! \n"
+              << O.num_particles << " Particles and " << Step << '/' << O.steps << " Steps.\n"
               << "Simulated time: " << O.steps * O.dt << " seconds\n"
               << "Computation time: " << end - start << " seconds\n";
     std::cerr << "\n===============================================================\n";

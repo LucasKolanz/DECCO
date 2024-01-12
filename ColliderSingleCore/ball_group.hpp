@@ -552,6 +552,7 @@ void Ball_group::parse_input_file(std::string location)
     }
     std::ofstream seedFile;
     seedFile.open(output_folder+"seedFile.txt",std::ios::app);
+    std::cerr<<"Writing seed '"<<seed<<"' to seedFile.txt"<<std::endl;
     seedFile<<seed<<std::endl;
     seedFile.close();
     random_generator.seed(seed);//This was in the else but it should be outside so random_generator is always seeded the same as srand (right?)
@@ -734,13 +735,13 @@ void Ball_group::calibrate_dt(int const Step, const double& customSpeed = -1.)
     }
 
     if (Step == 0 or dtOld < 0) {
-        steps = static_cast<int>(simTimeSeconds / dt);
+        steps = static_cast<int>(simTimeSeconds / dt) + 1;
         // std::cout<<simTimeSeconds / dt - steps*1.0<<std::endl;
-        if (simTimeSeconds / dt == steps) //There is one too few writes in the sim if this is true
-        {
-            std::cout<<"IT HAPPENED, numparts: "<<num_particles<<std::endl;
-            steps += 1;
-        }
+        // if (simTimeSeconds / dt == steps) //There is one too few writes in the sim if this is true
+        // {
+        //     std::cout<<"IT HAPPENED, numparts: "<<num_particles<<std::endl;
+        //     steps += 1;
+        // }
         if (steps < 0)
         {
             std::cerr<< "ERROR: STEPS IS NEGATIVE."<<std::endl;
