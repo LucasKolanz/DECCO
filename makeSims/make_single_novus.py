@@ -84,6 +84,7 @@ if __name__ == '__main__':
 				input_json['N'] = n
 				input_json['h_min'] = 0.5
 				input_json['dataFormat'] = "h5"
+				input_json['output_folder'] = job
 				# input_json['u_s'] = 0.5
 				# input_json['u_r'] = 0.5
 				input_json['note'] = "Rerunning constant size ball runs."
