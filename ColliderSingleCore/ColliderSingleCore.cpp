@@ -128,7 +128,6 @@ void BPCA(std::string path, int num_balls)
         O = O.add_projectile();
         // t.end_event("add_projectile");
         O.sim_init_write(i);
-
         sim_looper(O,1);
         simTimeElapsed = 0;
     }
