@@ -1,11 +1,11 @@
 import h5py
 
-file = '/home/lucas/Desktop/SpaceLab_data/jobs/error2Test2/N_10/T_10/7_data.h5'
+file = '/home/lucas/Desktop/SpaceLab_data/jobs/h5test1/N_5/T_3/0_data.h5'
 
 # f = h5py.File('/home/lucas/Desktop/SpaceLab_data/restartTest1/N_5/T_3/2_data.h5','r')
 f = h5py.File(file,'r')
 
-data = f['/simData'][-2000:-1000]
+data = f['/energy'][:]
 print(data)
 print(len(data))
 

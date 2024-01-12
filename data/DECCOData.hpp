@@ -5,6 +5,7 @@
 #include <iostream>
 #include <vector>
 #include <sstream>
+#include <cmath>
 
 const int bufferlines = 10;
 const int num_data_types = 4;
@@ -838,13 +839,21 @@ class HDF5Handler {
 		    }
 	        hsize_t maxdims[1];
 	        hsize_t dims[1] = {data.size()};
+
+
 	        if (fixed)
 	        {
+	        	std::vector<double> data_write(max_size, std::nan("")); //initialize the data set with nan values (besides the initial conditions of course)
+	        	for (int i = 0; i < data.size(); ++i)
+	        	{
+	        		data_write[i] = data[i];
+	        	}
+
 	        	maxdims[0] = max_size; // Set maximum dimensions to max_size
 	        	// std::cout<<"maxsize: "<<max_size<<std::endl;
 	        	dataspace = H5::DataSpace(1, maxdims);
 		        dataset = file.createDataSet(datasetName, H5::PredType::NATIVE_DOUBLE,dataspace);
-	        	dataset.write(&data[0], H5::PredType::NATIVE_DOUBLE);
+	        	dataset.write(&data_write[0], H5::PredType::NATIVE_DOUBLE);
 	        }
 	        else
 	        {
