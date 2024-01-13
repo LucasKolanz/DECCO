@@ -85,6 +85,9 @@ if __name__ == '__main__':
 				input_json['h_min'] = 0.5
 				input_json['dataFormat'] = "h5"
 				input_json['output_folder'] = job
+				input_json["MPInodes"] = 1
+				input_json["OMPthreads"] = 1
+				input_json["simType"] = "BPCA"
 				# input_json['u_s'] = 0.5
 				# input_json['u_r'] = 0.5
 				input_json['note'] = "Testing on Perlmutter"
@@ -105,6 +108,8 @@ if __name__ == '__main__':
 				# sbatchfile += "#SBATCH -G {}\n".format(node)
 				# sbatchfile += "#SBATCH -c {}\n\n".foramt(2*thread)
 				# sbatchfile += 'module load gpu\n'
+				sbatchfile += 'module load cray-hdf5\n'
+				# sbatchfile += 'module load cray-hdf5\n'
 				# sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(thread)
 				sbatchfile += 'export SLURM_CPU_BIND="cores"\n'
 				

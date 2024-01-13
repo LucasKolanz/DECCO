@@ -1,5 +1,5 @@
-CXX = g++
-CXXFLAGS = -g -O2 -std=c++2a -fopenmp -I${HDF5_DIR}/include
+CXX = CC
+CXXFLAGS = -g -O2 -std=c++2a -fopenmp -DMPI_ENABLE -I${HDF5_DIR}/include
 LIBS = -L${HDF5_DIR}/lib -lhdf5 -lhdf5_cpp
 
 # Source files

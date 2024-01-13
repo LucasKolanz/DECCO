@@ -18,8 +18,8 @@
 # 	rm -f *.x
 
 CXX = g++
-CXXFLAGS = -g -O2 -std=c++2a -fopenmp -I/usr/include/hdf5/serial/
-LIBS = -L/usr/lib/x86_64-linux-gnu/hdf5/serial/ -lhdf5 -lhdf5_cpp
+CXXFLAGS = -g -O2 -std=c++2a -fopenmp -I${HDF5_DIR}/include
+LIBS = -L${HDF5_DIR}/lib -lhdf5 -lhdf5_cpp
 
 # Source files
 SOURCES = ColliderSingleCore.cpp 

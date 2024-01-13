@@ -1,4 +1,8 @@
 {
+    "MPInodes": 1,
+    "OMPthreads": 8,
+    "simType": "BPCA",
+
     "dataFormat": "h5",
     "note": "",
     "OMPthreads": 8,
@@ -46,6 +50,6 @@
     "targetName": "",
     "output_prefix": "default",
     "output_folder": "default",
-    "data_directory": "/home/lucas/Desktop/SpaceLab_data/",
-    "project_directory": "/home/lucas/Desktop/SpaceLab/"
+    "data_directory": "/global/homes/l/lpkolanz/DECCO/SpaceLab_data/",
+    "project_directory": "/global/homes/l/lpkolanz/DECCO/SpaceLab/"
 }

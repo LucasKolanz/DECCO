@@ -21,11 +21,35 @@
 #include <typeinfo>
 #include <memory>
 #include <random>
+#include <omp.h>
+#include <mpi.h>
 
 // using std::numbers::pi;
 using json = nlohmann::json;
 namespace fs = std::filesystem;
 extern const int bufferlines;
+
+int getSize()
+{
+    int world_size;
+    #ifdef MPI_ENABLE
+        MPI_Comm_size(MPI_COMM_WORLD,&world_size);
+    #else
+        world_size = 0;
+    #endif
+    return world_size;
+}
+
+int getRank()
+{
+    int world_rank;
+    #ifdef MPI_ENABLE
+        MPI_Comm_rank(MPI_COMM_WORLD,&world_rank);
+    #else
+        world_rank = 0;
+    #endif
+    return world_rank;
+}
 
 
 /// @brief Facilitates the concept of a group of balls with physical properties.
@@ -47,6 +71,8 @@ public:
     // std::string out_folder;
     int num_particles = 0;
     int num_particles_added = 0;
+    int MAXOMPthreads = 1;
+    int MAXMPInodes = 1;
     int start_index = 0;
     int start_step = 1;
 
@@ -63,6 +89,8 @@ public:
     int output_width = -1;
     enum distributions {constant, logNorm};
     distributions radiiDistribution;
+    enum simType {BPCA, collider};
+    simType typeSim;
     double lnSigma = 0.2; //sigma for log normal distribution 
 
     // Useful values:
@@ -79,7 +107,7 @@ public:
     const time_t start = time(nullptr);  // For end of program analysis
     time_t startProgress;                // For progress reporting (gets reset)
     time_t lastWrite;                    // For write control (gets reset)
-
+    time_t simTimeElapsed;
 
     /////////////////////////////////
     const double h_min_physical = 2.1e-8; //prolly should make this a parameter/calculation
@@ -187,8 +215,7 @@ public:
 
     void
     sim_one_step_single_core(const bool writeStep);
-    void
-    sim_looper(int start_step);
+    
 
     std::vector<double> energyBuffer;
     std::vector<double> ballBuffer;
@@ -2931,130 +2958,4 @@ void Ball_group::sim_one_step_single_core(const bool writeStep)
 }  // one Step end
 
 
-void Ball_group::sim_looper(int start_step=1)
-{
-    bool writeStep = false;
-    num_writes = 0;
-    std::cerr << "Beginning simulation...\n";
 
-    std::cerr<<"start step: "<<start_step<<std::endl;
-
-    startProgress = time(nullptr);
-
-    std::cerr<<"Stepping through "<<steps<<" steps"<<std::endl;
-
-    int Step;
-
-    for (Step = start_step; Step < steps; Step++)  // Steps start at 1 for non-restart because the 0 step is initial conditions.
-    {
-        // simTimeElapsed += dt; //New code #1
-        // Check if this is a write step:
-        if (Step % skip == 0) {
-            // t.start_event("writeProgressReport");
-            writeStep = true;
-            // std::cerr<<"Write step "<<Step<<std::endl;
-
-            /////////////////////// Original code #1
-            simTimeElapsed += dt * skip;
-            ///////////////////////
-
-            // Progress reporting:
-            float eta = ((time(nullptr) - startProgress) / static_cast<float>(skip) *
-                         static_cast<float>(steps - Step)) /
-                        3600.f;  // Hours.
-            float real = (time(nullptr) - start) / 3600.f;
-            float simmed = static_cast<float>(simTimeElapsed / 3600.f);
-            float progress = (static_cast<float>(Step) / static_cast<float>(steps) * 100.f);
-            fprintf(
-                stderr,
-                "%u\t%2.0f%%\tETA: %5.2lf\tReal: %5.2f\tSim: %5.2f hrs\tR/S: %5.2f\n",
-                Step,
-                progress,
-                eta,
-                real,
-                simmed,
-                real / simmed);
-            // fprintf(stdout, "%u\t%2.0f%%\tETA: %5.2lf\tReal: %5.2f\tSim: %5.2f hrs\tR/S: %5.2f\n", Step,
-            // progress, eta, real, simmed, real / simmed);
-            fflush(stdout);
-            startProgress = time(nullptr);
-            // t.end_event("writeProgressReport");
-        } else {
-            writeStep = debug;
-        }
-
-        // Physics integration step:
-        ///////////
-        // if (write_all)
-        // {
-        //     zeroSaveVals();
-        // }
-        ///////////
-        sim_one_step_single_core(writeStep);
-
-        if (writeStep) {
-            // t.start_event("writeStep");
-            // Write energy to stream:
-            ////////////////////////////////////
-            //TURN THIS ON FOR REAL RUNS!!!
-            int start = data->getWidth("energy")*(num_writes-1);
-            energyBuffer[start] = simTimeElapsed;
-            energyBuffer[start+1] = PE;
-            energyBuffer[start+2] = KE;
-            energyBuffer[start+3] = PE+KE;
-            energyBuffer[start+4] = mom.norm();
-            energyBuffer[start+5] = ang_mom.norm();
-
-
-
-            // Reinitialize energies for next step:
-            KE = 0;
-            PE = 0;
-            mom = {0, 0, 0};
-            ang_mom = {0, 0, 0};
-
-
-            // Data Export. Exports every 10 writeSteps (10 new lines of data) and also if the last write was
-            // a long time ago.
-            // if (time(nullptr) - lastWrite > 1800 || Step / skip % 10 == 0) {
-            if (Step / skip % 10 == 0) {
-                // Report vMax:
-
-                std::cerr << "vMax = " << getVelMax() << " Steps recorded: " << Step / skip << '\n';
-                std::cerr << "Data Write to "<<output_folder<<"\n";
-                // std::cerr<<"output_prefix: "<<output_prefix<<std::endl;
-                
-                data->Write(ballBuffer,"simData",bufferlines)
-                ballBuffer.clear();
-                ballBuffer = std::vector<double>(data->getWidth("simData")*bufferlines);
-                data->Write(energyBuffer,"energy");
-                energyBuffer.clear();
-                energyBuffer = std::vector<double>(data->getWidth("energy")*bufferlines);
-
-                num_writes = 0;
-                lastWrite = time(nullptr);
-
-                // if (num_particles > 5)
-                // {
-                //     std::cerr<<"EXITING, step: "<<Step<<std::endl;
-                //     exit(0);
-                // }
-
-            }  // Data export end
-
-
-            if (dynamicTime) { calibrate_dt(Step, false); }
-            // t.end_event("writeStep");
-        }  // writestep end
-    }
-
-    const time_t end = time(nullptr);
-
-    std::cerr << "Simulation complete! \n"
-              << num_particles << " Particles and " << Step << '/' << steps << " Steps.\n"
-              << "Simulated time: " << steps * dt << " seconds\n"
-              << "Computation time: " << end - start << " seconds\n";
-    std::cerr << "\n===============================================================\n";
-
-
-}  // end simLooper
