@@ -47,7 +47,7 @@ if __name__ == '__main__':
 	# attempts_300 = [0]
 
 	# N = [30,100,300]
-	N = [30]
+	N = [5]
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [3]
 
@@ -129,12 +129,12 @@ if __name__ == '__main__':
 
 					folders.append(job)
 
-print(folders)
-cwd = os.getcwd()
-for folder in folders:
-	os.chdir(folder)
-	os.system('sbatch sbatchMulti.bash')
-os.chdir(cwd)
+# print(folders)
+# cwd = os.getcwd()
+# for folder in folders:
+# 	os.chdir(folder)
+# 	os.system('sbatch sbatchMulti.bash')
+# os.chdir(cwd)
 
 
 

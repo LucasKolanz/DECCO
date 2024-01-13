@@ -2,6 +2,7 @@ import os
 import json
 import multiprocessing as mp
 import subprocess
+import random
 
 relative_path = "../"
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
@@ -17,7 +18,7 @@ def rand_int():
 def run_job(location):
 	output_file = location + "sim_output.txt"
 	error_file = location + "sim_errors.txt"
-	cmd = [f"{location}ColliderSingleCore.x",location]
+	cmd = [f"{location}Collider.x",location]
 
 	with open(output_file,"a") as out, open(error_file,"a") as err:
 		subprocess.run(cmd,stdout=out,stderr=err)
@@ -27,8 +28,7 @@ if __name__ == '__main__':
 	curr_folder = os.getcwd() + '/'
 
 	try:
-		# os.chdir("{}ColliderSingleCore".format(curr_folder))
-		subprocess.run(["make","-C",project_path+"ColliderSingleCore"], check=True)
+		subprocess.run(["make","-C",project_path+"Collider"], check=True)
 	except:
 		print('compilation failed')
 		exit(-1)
@@ -38,8 +38,6 @@ if __name__ == '__main__':
 	# folder_name_scheme = "T_"
 
 	# runs_at_once = 7
-	# attempts = [21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40]
-	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	# attempts = [i for i in range(10)]
 	attempts = [0] 
 	# attempts_300 = [i for i in range(5)]
@@ -54,6 +52,8 @@ if __name__ == '__main__':
 	Temps = [3]
 
 	folders = []
+	node = 1
+	thread = 1
 	for n in N:
 		for Temp in Temps:
 			temp_attempt = attempts
@@ -110,7 +110,7 @@ if __name__ == '__main__':
 				
 				# sbatchfile += "srun -n {} -c {} --cpu-bind=cores numactl --interleave=all ./ColliderMultiCore.x {} 2>sim_err.log 1>sim_out.log".format(node,thread*2,job)
 				# sbatchfile += "srun -n {} -c {} ./ColliderSingleCore.o {} {} 2>sim_err.log 1>sim_out.log".format(node,thread*2,job,n)
-				sbatchfile += f"srun -n {node} -c {thread*2} {job}ColliderSingleCore.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+				sbatchfile += f"srun -n {node} -c {thread*2} {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 
 
 				
@@ -118,23 +118,18 @@ if __name__ == '__main__':
 					sfp.write(sbatchfile)
 
 				#add run script and executable to folders
-				# os.system(f"cp {project_path}default_files/run_sim.py {job}run_sim.py")
-				os.system(f"cp {project_path}ColliderSingleCore/ColliderSingleCore.x {job}ColliderSingleCore.x")
-				os.system(f"cp {project_path}ColliderSingleCore/ColliderSingleCore.cpp {job}ColliderSingleCore.cpp")
-				# os.system("cp default_files/run_multicore_sim.py {}run_multicore_sim.py".format(job))
-				# os.system("cp ColliderMultiCore/ColliderMultiCore.x {}ColliderMultiCore.x".format(job))
-				os.system(f"cp {project_path}ColliderSingleCore/ball_group.hpp {job}ball_group.hpp")
-				# if input_json['simType'] != "BPCA":
-				# 	os.system("cp ../jobs/collidable_aggregate_1200/* {}".format(job))
+				os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
+				os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
+				os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
 
 				folders.append(job)
 
-print(folders)
-cwd = os.getcwd()
-for folder in folders:
-	os.chdir(folder)
-	os.system('sbatch sbatchMulti.bash')
-os.chdir(cwd)
+# print(folders)
+# cwd = os.getcwd()
+# for folder in folders:
+# 	os.chdir(folder)
+# 	os.system('sbatch sbatchMulti.bash')
+# os.chdir(cwd)
 
 
 
