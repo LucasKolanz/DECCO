@@ -6,8 +6,13 @@
 import os
 import glob
 import numpy as np
-import utils as u
+# import utils as u
 import h5py
+import json
+
+relative_path = ""
+relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
+project_path = os.path.abspath(relative_path) + '/'
 
 #returns the last line of the file file_path
 def tail(file_path,n):
@@ -57,22 +62,20 @@ def error1(fullpath):
 				simData = np.array(file['/simData'][:])
 				simDatanans = np.sum(np.where(np.isnan(simData),1,0))
 				if simDatanans > 0:
+					
 					print(f"simData has {simDatanans} nans: " + filepath)
-					exit(0)
 					return True
 
 				energy = np.array(file['/energy'][:])
 				energynans = np.sum(np.where(np.isnan(energy),1,0))
 				if energynans > 0:
 					print("energy: " + filepath)
-					exit(0)
 					return True
 
 				constants = np.array(file['/constants'][:])
 				constantsnans = np.sum(np.where(np.isnan(constants),1,0))
 				if constantsnans > 0:
 					print("constants: " + filepath)
-					exit(0)
 					return True
 	return False
 
@@ -140,13 +143,16 @@ def main():
 
 	curr_folder = os.getcwd() + '/'
 
+	with open(project_path+"default_files/default_input.json",'r') as fp:
+		input_json = json.load(fp)
+
 	job = curr_folder + 'jobs/tempVarianceRand_attempt$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'jobs/lognorm$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'jobs/weakseed$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'erroredJobs/lognorm$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'jobsNovus/testError$a$/N_$n$/T_$t$/'
-	job = curr_folder + 'jobsNovus/const$a$/N_$n$/T_$t$/'
-
+	job = input_json["data_directory"] + 'jobs/const$a$/N_$n$/T_$t$/'
+	print(job)
 
 
 	attempts = [i for i in range(30)]
@@ -162,8 +168,8 @@ def main():
 	error1_folders = check_error(job,error1,N,Temps,attempts)
 	print(error1_folders)
 
-	errorgen_folders = check_error(job,error_general,N,Temps,attempts)
-	print(errorgen_folders)
+	# errorgen_folders = check_error(job,error_general,N,Temps,attempts)
+	# print(errorgen_folders)
 
 	###
 	### This section finds the index at which a folder had error2
