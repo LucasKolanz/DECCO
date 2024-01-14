@@ -82,7 +82,7 @@ main(int argc, char* argv[])
 
 
     //Do whichever type of sim they asked for
-    if (dummy.typeSim == dummy.collider)
+    if (dummy.attrs.typeSim == dummy.attrs.collider)
     {
         std::cerr<<"ERROR: collider not implimented yet."<<std::endl;
         exit(EXIT_FAILURE);
@@ -91,15 +91,15 @@ main(int argc, char* argv[])
         // #endif
         // collider(argv[1],dummy.projectileName,dummy.targetName);
     }
-    else if (dummy.typeSim == dummy.BPCA)
+    else if (dummy.attrs.typeSim == dummy.attrs.BPCA)
     {
-        if (dummy.N >= 0)
+        if (dummy.attrs.N >= 0)
         {
             #ifdef MPI_ENABLE
                 MPI_Barrier(MPI_COMM_WORLD);
             #endif
             
-            BPCA(dummy.output_folder.c_str(),dummy.N);
+            BPCA(dummy.attrs.output_folder.c_str(),dummy.attrs.N);
         }
         else
         {
@@ -122,7 +122,7 @@ main(int argc, char* argv[])
     
     t.end_event("WholeThing");
     t.print_events();
-    t.save_events(dummy.output_folder + "timing.txt");
+    t.save_events(dummy.attrs.output_folder + "timing.txt");
 }  // end main
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
@@ -134,7 +134,7 @@ void collider(std::string path, std::string projectileName, std::string targetNa
     Ball_group O = Ball_group(path,std::string(projectileName),std::string(targetName));
     safetyChecks(O);
     O.sim_init_write();
-    sim_looper(O,O.start_step);
+    sim_looper(O,O.attrs.start_step);
     t.end_event("collider");
     O.freeMemory();
     return;
@@ -147,13 +147,13 @@ void BPCA(std::string path, int num_balls)
     int rest = -1;
     Ball_group O = Ball_group(path);  
     safetyChecks(O);
-    if  (O.mid_sim_restart)
+    if  (O.attrs.mid_sim_restart)
     {
-        sim_looper(O,O.start_step);
+        sim_looper(O,O.attrs.start_step);
     }
 
     // Add projectile: For dust formation BPCA
-    for (int i = O.start_index; i < num_balls; i++) 
+    for (int i = O.attrs.start_index; i < num_balls; i++) 
     {
         // contact = false;
         // inital_contact = true;
@@ -166,7 +166,7 @@ void BPCA(std::string path, int num_balls)
             O.sim_init_write(i);
         }
         sim_looper(O,1);
-        simTimeElapsed = 0;
+        O.attrs.simTimeElapsed = 0;
     }
     // O.freeMemory();
     return;
@@ -180,43 +180,43 @@ safetyChecks(Ball_group &O)
 {
     titleBar("SAFETY CHECKS");
 
-    if (O.soc <= 0) {
+    if (O.attrs.soc <= 0) {
         fprintf(stderr, "\nSOC NOT SET\n");
         exit(EXIT_FAILURE);
     }
 
-    if (O.v_collapse <= 0) {
+    if (O.attrs.v_collapse <= 0) {
         fprintf(stderr, "\nvCollapse NOT SET\n");
         exit(EXIT_FAILURE);
     }
 
-    if (O.skip == 0) {
+    if (O.attrs.skip == 0) {
         fprintf(stderr, "\nSKIP NOT SET\n");
         exit(EXIT_FAILURE);
     }
 
-    if (O.kin < 0) {
+    if (O.attrs.kin < 0) {
         fprintf(stderr, "\nSPRING CONSTANT NOT SET\n");
         exit(EXIT_FAILURE);
     }
 
-    if (O.dt <= 0) {
+    if (O.attrs.dt <= 0) {
         fprintf(stderr, "\nDT NOT SET\n");
         exit(EXIT_FAILURE);
     }
 
-    if (O.steps == 0) {
+    if (O.attrs.steps == 0) {
         fprintf(stderr, "\nSTEPS NOT SET\n");
         exit(EXIT_FAILURE);
     }
 
-    if (O.initial_radius <= 0) {
+    if (O.attrs.initial_radius <= 0) {
         fprintf(stderr, "\nCluster initialRadius not set\n");
         exit(EXIT_FAILURE);
     }
 
 
-    for (int Ball = 0; Ball < O.num_particles; Ball++) {
+    for (int Ball = 0; Ball < O.attrs.num_particles; Ball++) {
         if (O.pos[Ball].norm() < vec3(1e-10, 1e-10, 1e-10).norm()) {
             fprintf(stderr, "\nA ball position is [0,0,0]. Possibly didn't initialize balls properly.\n");
             exit(EXIT_FAILURE);
@@ -239,37 +239,37 @@ safetyChecks(Ball_group &O)
 void sim_looper(Ball_group &O,int start_step=1)
 {
     bool writeStep = false;
-    O.num_writes = 0;
+    O.attrs.num_writes = 0;
     std::cerr << "Beginning simulation...\n";
 
     std::cerr<<"start step: "<<start_step<<std::endl;
 
-    O.startProgress = time(nullptr);
+    O.attrs.startProgress = time(nullptr);
 
-    std::cerr<<"Stepping through "<<O.steps<<" steps"<<std::endl;
+    std::cerr<<"Stepping through "<<O.attrs.steps<<" steps"<<std::endl;
 
     int Step;
 
-    for (Step = start_step; Step < O.steps; Step++)  // Steps start at 1 for non-restart because the 0 step is initial conditions.
+    for (Step = start_step; Step < O.attrs.steps; Step++)  // Steps start at 1 for non-restart because the 0 step is initial conditions.
     {
         // simTimeElapsed += dt; //New code #1
         // Check if this is a write step:
-        if (Step % O.skip == 0) {
+        if (Step % O.attrs.skip == 0) {
             // t.start_event("writeProgressReport");
             writeStep = true;
             // std::cerr<<"Write step "<<Step<<std::endl;
 
             /////////////////////// Original code #1
-            O.simTimeElapsed += O.dt * O.skip;
+            O.attrs.simTimeElapsed += O.attrs.dt * O.attrs.skip;
             ///////////////////////
 
             // Progress reporting:
-            float eta = ((time(nullptr) - O.startProgress) / static_cast<float>(O.skip) *
-                         static_cast<float>(O.steps - Step)) /
+            float eta = ((time(nullptr) - O.attrs.startProgress) / static_cast<float>(O.attrs.skip) *
+                         static_cast<float>(O.attrs.steps - Step)) /
                         3600.f;  // Hours.
-            float real = (time(nullptr) - O.start) / 3600.f;
-            float simmed = static_cast<float>(O.simTimeElapsed / 3600.f);
-            float progress = (static_cast<float>(Step) / static_cast<float>(O.steps) * 100.f);
+            float real = (time(nullptr) - O.attrs.start) / 3600.f;
+            float simmed = static_cast<float>(O.attrs.simTimeElapsed / 3600.f);
+            float progress = (static_cast<float>(Step) / static_cast<float>(O.attrs.steps) * 100.f);
             fprintf(
                 stderr,
                 "%u\t%2.0f%%\tETA: %5.2lf\tReal: %5.2f\tSim: %5.2f hrs\tR/S: %5.2f\n",
@@ -282,10 +282,10 @@ void sim_looper(Ball_group &O,int start_step=1)
             // fprintf(stdout, "%u\t%2.0f%%\tETA: %5.2lf\tReal: %5.2f\tSim: %5.2f hrs\tR/S: %5.2f\n", Step,
             // progress, eta, real, simmed, real / simmed);
             fflush(stdout);
-            O.startProgress = time(nullptr);
+            O.attrs.startProgress = time(nullptr);
             // t.end_event("writeProgressReport");
         } else {
-            writeStep = O.debug;
+            writeStep = O.attrs.debug;
         }
 
         // Physics integration step:
@@ -302,8 +302,8 @@ void sim_looper(Ball_group &O,int start_step=1)
             // Write energy to stream:
             ////////////////////////////////////
             //TURN THIS ON FOR REAL RUNS!!!
-            int start = O.data->getWidth("energy")*(O.num_writes-1);
-            O.energyBuffer[start] = O.simTimeElapsed;
+            int start = O.data->getWidth("energy")*(O.attrs.num_writes-1);
+            O.energyBuffer[start] = O.attrs.simTimeElapsed;
             O.energyBuffer[start+1] = O.PE;
             O.energyBuffer[start+2] = O.KE;
             O.energyBuffer[start+3] = O.PE+O.KE;
@@ -322,11 +322,11 @@ void sim_looper(Ball_group &O,int start_step=1)
             // Data Export. Exports every 10 writeSteps (10 new lines of data) and also if the last write was
             // a long time ago.
             // if (time(nullptr) - lastWrite > 1800 || Step / skip % 10 == 0) {
-            if (Step / O.skip % 10 == 0) {
+            if (Step / O.attrs.skip % 10 == 0) {
                 // Report vMax:
 
-                std::cerr << "vMax = " << O.getVelMax() << " Steps recorded: " << Step / O.skip << '\n';
-                std::cerr << "Data Write to "<<O.output_folder<<"\n";
+                std::cerr << "vMax = " << O.getVelMax() << " Steps recorded: " << Step / O.attrs.skip << '\n';
+                std::cerr << "Data Write to "<<O.attrs.output_folder<<"\n";
                 // std::cerr<<"output_prefix: "<<output_prefix<<std::endl;
                 
                 O.data->Write(O.ballBuffer,"simData",bufferlines);
@@ -336,8 +336,8 @@ void sim_looper(Ball_group &O,int start_step=1)
                 O.energyBuffer.clear();
                 O.energyBuffer = std::vector<double>(O.data->getWidth("energy")*bufferlines);
 
-                O.num_writes = 0;
-                O.lastWrite = time(nullptr);
+                O.attrs.num_writes = 0;
+                O.attrs.lastWrite = time(nullptr);
 
                 // if (num_particles > 5)
                 // {
@@ -348,7 +348,7 @@ void sim_looper(Ball_group &O,int start_step=1)
             }  // Data export end
 
 
-            if (dynamicTime) { O.calibrate_dt(Step, false); }
+            if (O.attrs.dynamicTime) { O.calibrate_dt(Step, false); }
             // t.end_event("writeStep");
         }  // writestep end
     }
@@ -356,9 +356,9 @@ void sim_looper(Ball_group &O,int start_step=1)
     const time_t end = time(nullptr);
 
     std::cerr << "Simulation complete! \n"
-              << O.num_particles << " Particles and " << Step << '/' << O.steps << " Steps.\n"
-              << "Simulated time: " << O.steps * O.dt << " seconds\n"
-              << "Computation time: " << end - O.start << " seconds\n";
+              << O.attrs.num_particles << " Particles and " << Step << '/' << O.attrs.steps << " Steps.\n"
+              << "Simulated time: " << O.attrs.steps * O.attrs.dt << " seconds\n"
+              << "Computation time: " << end - O.attrs.start << " seconds\n";
     std::cerr << "\n===============================================================\n";
 
 
