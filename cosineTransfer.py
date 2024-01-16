@@ -1,6 +1,11 @@
 from paramiko import SSHClient, SSHConfig, AutoAddPolicy
 from scp import SCPClient, SCPException
 import os
+import json
+
+relative_path = ""
+relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
+project_path = os.path.abspath(relative_path) + '/'
 
 #IF files is empty then just copy remote_file_path, otherwise loop through and copy all files from remote_file_path
 def scp_transfer_with_ssh_config(hostname, remote_file_path, local_path,recursive=False): 
@@ -88,8 +93,13 @@ def list_remote_files(hostname, remote_directory):
 def main():
 
 
-	curr_folder = os.getcwd() + '/'
-	remote_base_folder = '/home/physics/kolanzl/SpaceLab/'
+	remote_base_folder = '/home/physics/kolanzl/SpaceLab_old/SpaceLab/'
+	
+
+	#load default input file
+	with open(project_path+"default_files/default_input.json",'r') as fp:
+		input_json = json.load(fp)
+	data_directory = input_json["data_directory"]
 
 	job_set_name = "lognorm"
 
@@ -111,10 +121,13 @@ def main():
 			if n == 300:
 				temp_attempt = attempts_300
 			for attempt in temp_attempt:
-				local_job_folder = curr_folder + 'jobsCosine/' + job_set_name + str(attempt) + '/'\
+				local_job_folder = data_directory + 'jobsCosine/' + job_set_name + str(attempt) + '/'\
 							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
 				remote_job_folder = remote_base_folder + 'jobs/' + job_set_name + str(attempt) + '/'\
 							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
+
+				# print(f"local folder: {local_job_folder}")
+				# print(f"remote folder: {remote_job_folder}")
 
 				if os.path.exists(local_job_folder+"timing.txt"): #Have we already copied this job over?
 					print(f"Job already copied: {remote_job_folder}")
