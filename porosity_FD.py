@@ -1,10 +1,16 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
+import json
 import os
 import csv
-sys.path.append("/home/kolanzl/Desktop/SpaceLab")
+# sys.path.append("/home/kolanzl/Desktop/SpaceLab/utilities/")
+sys.path.append("/home/kolanzl/Desktop/SpaceLab/")
 import utils as u
+
+relative_path = ""
+relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
+project_path = os.path.abspath(relative_path) + '/'
 
 '''
 porosity definitions 1-3 from:
@@ -123,15 +129,24 @@ def number_of_contacts(data_folder,data_index=-1):
 	return np.mean(np.sum(contacts,axis=1))
 
 if __name__ == '__main__':
-	path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/'
-	data_prefolder = path + 'jobs/calibrateTest'
-	data_prefolder = path + 'jobs/mu_max'
-	data_prefolder = path + 'jobs/h_max'
-	data_prefolder = path + 'jobs/lognorm'
-	data_prefolder = path + 'jobs/tempVarianceRand_attempt'
+	with open(project_path+"default_files/default_input.json",'r') as fp:
+		input_json = json.load(fp)
+	
+	# job = curr_folder + 'jobs/' + job_set_name + str(attempt) + '/'
+	path = input_json["data_directory"]
+	# data_prefolder = path + 'jobs/calibrateTest'
+	# data_prefolder = path + 'jobs/mu_max'
+	# data_prefolder = path + 'jobs/h_max'
+	# data_prefolder = path + 'jobs/lognorm'
+	# data_prefolder = path + 'jobs/tempVarianceRand_attempt'
 	data_prefolder = path + 'jobsCosine/lognorm'
-
+	data_prefolder = path + 'jobsNovus/const'
 	dataset_name = data_prefolder.split("/")[-1]
+
+	sav = path+'data/{}_averageData.csv'.format(dataset_name)
+	# figure_folder = 'figuresCompare/'
+	figure_folder = 'figuresCosine/'
+
 
 	# temps = [10]
 	temps = [3,10,30,100,300,1000]
@@ -143,7 +158,6 @@ if __name__ == '__main__':
 	# attempts = [i for i in range(61)]
 	# attempts = [i for i in range(42)]
 	attempts = [i for i in range(30)]
-	attempts.extend([i for i in range(1000,1010)])
 	attempts300 = attempts
 	# attempts300 = [i for i in range(9)]
 	# data = [] 
@@ -181,7 +195,7 @@ if __name__ == '__main__':
 	# yerr_FD[:] = np.nan
 	# yerr_ca[:] = np.nan
 
-	new_data = False
+	new_data = True
 	save_data = True
 	show_plots = True
 	show_FD_plots = False
@@ -189,9 +203,6 @@ if __name__ == '__main__':
 	find_stats = False
 	show_stat_plots = False
 
-	sav = 'data/{}_averageData.csv'.format(dataset_name)
-	# figure_folder = 'figuresCompare/'
-	figure_folder = 'figuresCosine/'
 		# pass
 
 	if new_data:
@@ -221,9 +232,7 @@ if __name__ == '__main__':
 					# data_folder = data_prefolder + str(attempt) + '/'
 					data_folder = data_prefolder + str(attempt) + '/' + 'N_' + str(N) + '/T_' + str(temp) + '/'
 					count = 0
-					for root_dir, cur_dir, files in os.walk(data_folder):
-						count += len(files)
-					if count/3 > N:
+					if os.path.exists(data_folder+"timing.txt"):
 						porositiesabc[n,i,j] = porosity_measure1(data_folder,N-1)
 						porositiesKBM[n,i,j] = porosity_measure2(data_folder,N-1)
 						contacts[n,i,j] = number_of_contacts(data_folder,N-1)
