@@ -115,7 +115,7 @@ def get_data_file(data_folder,data_index=-1,old=False): #Works with csv or h5
 	else:
 		data_file = [file for file in files \
 				if file.endswith(file_suffix) and file.startswith(str(index)+'_2')]
-		print(data_file)
+		# print(data_file)
 		if len(data_file) == 1:
 			return data_file[0]
 		elif len(data_file) == 2:

@@ -39,6 +39,7 @@ def main():
 	folder1 = "/home/lucas/Desktop/SpaceLab_data/jobs/errorckh51/N_10/T_3/"
 	folder2 = "/home/lucas/Desktop/SpaceLab_data/jobs/errorckcsv1/N_10/T_3/"
 	folder1 = "/home/lucas/Desktop/SpaceLab_data/oldVersionCSVData/"
+	folder2 = "/home/lucas/Desktop/SpaceLab_data/jobs/errorckcsvlognorm1/N_10/T_3/"
 
 	N = 10
 	temp = 100
@@ -72,11 +73,9 @@ def main():
 		if np.sum(different) == 0:
 			print("No errors")
 		else:
-			# print(constData1[different])
-			# print(constData2[different])
+			print(constData1[different])
+			print(constData2[different])
 			print(f"{np.sum(different)}/{constData1.shape} different values")
-			# print(constData1[different])
-			# print(constData2[different])
 		print(f"===================TEST Finished===================")
 		print(f"===================TESTING energy {ind}===================")
 		energyData1 = get_data(folder1+file1,"energy")#np.array(f['/energy'][:])
