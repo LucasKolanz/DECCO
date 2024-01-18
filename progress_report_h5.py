@@ -92,7 +92,7 @@ def main():
 	job = curr_folder + 'jobs/weakseed$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'erroredJobs/lognorm$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'jobsNovus/testError$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobs/const$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobsNovus/const$a$/N_$n$/T_$t$/'
 	print(job)
 
 

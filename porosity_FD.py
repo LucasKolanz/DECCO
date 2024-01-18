@@ -4,9 +4,16 @@ import sys
 import json
 import os
 import csv
-# sys.path.append("/home/kolanzl/Desktop/SpaceLab/utilities/")
-sys.path.append("/home/kolanzl/Desktop/SpaceLab/")
+
+relative_path = ""
+relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
+project_path = os.path.abspath(relative_path) + '/'
+
+sys.path.append(project_path+"utilities/")
+# sys.path.append("/home/kolanzl/Desktop/SpaceLab/")
 import utils as u
+# import utils_old as u
+
 
 relative_path = ""
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
@@ -145,7 +152,7 @@ if __name__ == '__main__':
 
 	sav = path+'data/{}_averageData.csv'.format(dataset_name)
 	# figure_folder = 'figuresCompare/'
-	figure_folder = 'figuresCosine/'
+	figure_folder = path+'data/figuresCosine/'
 
 
 	# temps = [10]
@@ -154,9 +161,7 @@ if __name__ == '__main__':
 	Nums = [30,100,300]
 	# Nums = [30,100]
 	
-	# attempts = [0,1]
-	# attempts = [i for i in range(61)]
-	# attempts = [i for i in range(42)]
+	
 	attempts = [i for i in range(30)]
 	attempts300 = attempts
 	# attempts300 = [i for i in range(9)]
@@ -199,7 +204,7 @@ if __name__ == '__main__':
 	save_data = True
 	show_plots = True
 	show_FD_plots = False
-	overwrite_octree_data = False
+	overwrite_octree_data = True
 	find_stats = False
 	show_stat_plots = False
 
