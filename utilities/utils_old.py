@@ -65,7 +65,12 @@ def plot(verts,center,radius):
 	# ax.plot_wireframe(x, y, z, color="r")
 	plt.show()
 
+<<<<<<< HEAD:utilities/utils_old.py
 def get_data_file(data_folder,data_index=-1):
+=======
+def get_data_file(data_folder,data_index=-1,old=False): #Works with csv or h5
+	file_suffix = ""
+>>>>>>> 95cbe83f7e7bbf45104a61535ae46c4b0b78bf18:utils.py
 	files = os.listdir(data_folder)
 
 	try:
@@ -84,9 +89,20 @@ def get_data_file(data_folder,data_index=-1):
 		index = data_index
 
 	# print("index: {}".format(index))
+	if old and data_index == 0:
+		data_file = [file for file in files \
+					if file.endswith(file_suffix)]
+		data_file = [file for file in data_file if file.split('_')[1][0] == "R"]
+	else:
 
+<<<<<<< HEAD:utilities/utils_old.py
 	data_file = [file for file in files \
 				if file.endswith("simData.csv") and file.startswith(str(index))]
+=======
+		data_file = [file for file in files \
+					if file.endswith(file_suffix) and file.startswith(str(index))]
+	
+>>>>>>> 95cbe83f7e7bbf45104a61535ae46c4b0b78bf18:utils.py
 
 	if len(data_file) == 1:
 		return data_file[0]
@@ -97,8 +113,8 @@ def get_data_file(data_folder,data_index=-1):
 			return data_file[1]
 	else:
 		data_file = [file for file in files \
-				if file.endswith("simData.csv") and file.startswith(str(index)+'_2')]
-		# print(files)
+				if file.endswith(file_suffix) and file.startswith(str(index)+'_2')]
+		# print(data_file)
 		if len(data_file) == 1:
 			return data_file[0]
 		elif len(data_file) == 2:
