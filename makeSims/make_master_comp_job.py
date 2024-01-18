@@ -34,7 +34,7 @@ if __name__ == '__main__':
 		exit(-1)
 
 
-	job_set_name = "test"
+	job_set_name = "masterComp"
 	# folder_name_scheme = "T_"
 
 	# runs_at_once = 7
@@ -49,11 +49,13 @@ if __name__ == '__main__':
 	# attempts_300 = [0]
 
 	# N = [300,30,100]
-	N = [5]
+	N = [10]
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [3]
 
 	folders = []
+	node = 1
+	thread = 1
 	for n in N:
 		for Temp in Temps:
 			temp_attempt = attempts
@@ -80,7 +82,7 @@ if __name__ == '__main__':
 
 				input_json['temp'] = Temp
 				input_json['N'] = n
-				input_json['seed'] = rand_int()
+				input_json['seed'] = 100
 				input_json['radiiDistribution'] = 'logNormal'
 				input_json['h_min'] = 0.5
 				input_json['dataFormat'] = "h5"
@@ -97,13 +99,14 @@ if __name__ == '__main__':
 				sbatchfile = ""
 				sbatchfile += "#!/bin/bash\n"
 				sbatchfile += "#SBATCH -A m2651\n"
-				sbatchfile += "#SBATCH -C gpu\n"
+				sbatchfile += "#SBATCH -C cpu\n"
 				sbatchfile += "#SBATCH -q regular\n"
 				sbatchfile += "#SBATCH -t 0:10:00\n"
 				sbatchfile += "#SBATCH -J {}\n".format(job_set_name)
 				sbatchfile += "#SBATCH -N {}\n".format(1)#(node)
 				# sbatchfile += "#SBATCH -G {}\n".format(node)
 				# sbatchfile += "#SBATCH -c {}\n\n".foramt(2*thread)
+				# sbatchfile += 'module load gpu\n'
 				sbatchfile += 'module load cray-hdf5\n'
 				# sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(thread)
 				sbatchfile += 'export SLURM_CPU_BIND="cores"\n'

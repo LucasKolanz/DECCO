@@ -35,16 +35,16 @@ if __name__ == '__main__':
 		
 	job_set_name = "lognorm_radius_test"
 	job_set_name = "test"
-	job_set_name = "errorck"
+	job_set_name = "errorckcsvlognorm"
 
 	# folder_name_scheme = "T_"
 
 	runs_at_once = 7
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	attempts = [1] 
-	N = [2]
+	N = [10]
 	# Temps = [3,10,30,100,300,1000]
-	Temps = [100]
+	Temps = [3]
 	folders = []
 	for attempt in attempts:
 		for n in N:
@@ -67,10 +67,10 @@ if __name__ == '__main__':
 				input_json['N'] = n
 				input_json['output_folder'] = job
 
-				input_json['seed'] = 1593336558
-				input_json['radiiDistribution'] = 'constant'
+				input_json['seed'] = 100
+				input_json['radiiDistribution'] = 'logNormal'
 				input_json['h_min'] = 0.5
-				input_json['dataFormat'] = "h5"
+				input_json['dataFormat'] = "csv"
 				# input_json['u_s'] = 0.5
 				# input_json['u_r'] = 0.5
 				input_json['note'] = "Does this work at all?"

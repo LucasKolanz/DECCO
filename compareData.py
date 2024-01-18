@@ -6,80 +6,89 @@ relative_path = "../"
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
 sys.path.append(project_path)
-# import utils as u
+import utils as u
 # import porosity_FD as p
 
+def check_arrays(array1,array2,tol):
+	different = np.zeros(array1.shape,dtype=bool)
+	for i in range(len(array1)):
+		if np.average([array1[i],array2[i]]) != 0:
+			if np.abs(array1[i]-array2[i])/np.average([array1[i],array2[i]]) > tol:
+				different[i] = 1
+			
+	return different
+
+def get_data(file,dtype=""):
+	if file.endswith(".csv"):
+		if dtype == "simData" or dtype == "energy":
+			skip = 1
+		elif dtype == "constants":
+			skip = 0
+
+		file = file.replace("simData",dtype)
+
+		# print(np.loadtxt(file,delimiter=",",dtype=np.float64,skiprows=skip).reshape(-1).shape)
+		return np.loadtxt(file,delimiter=",",dtype=np.float64,skiprows=skip).reshape(-1)
+	elif file.endswith(".h5"):
+		with h5py.File(file,'r') as f:
+			return np.array(f[f'/{dtype}'][:])
+
+# def get_old_csv()
+
 def main():
-	folder1 = "/home/lucas/Desktop/SpaceLab/jobs/test1/N_5/T_3/"
-	folder2 = "/home/lucas/Desktop/SpaceLab_copy/SpaceLab/jobs/test1/N_5/T_3/"
+	folder1 = "/home/lucas/Desktop/SpaceLab_data/jobs/errorckh51/N_10/T_3/"
+	folder2 = "/home/lucas/Desktop/SpaceLab_data/jobs/errorckcsv1/N_10/T_3/"
+	folder1 = "/home/lucas/Desktop/SpaceLab_data/oldVersionCSVData/"
+	folder2 = "/home/lucas/Desktop/SpaceLab_data/jobs/errorckcsvlognorm1/N_10/T_3/"
 
-	N = 5
+	N = 10
 	temp = 100
-	show_FD_plots = False
+	body = ""
+	old1 = True;
+	old2 = False;
 	body = "2_R6e-05_v4e-01_cor0.63_mu0.1_rho2.25_k5e+00_Ha5e-12_dt4e-10_"
+	tol = 1e-5
 	for ind in range(N):
-		file1 = f"{ind}_"
 
-		if ind == 0:
-			file2 = f"{body}"
+		file1 = u.get_data_file(folder1,ind,old1)
+		file2 = u.get_data_file(folder2,ind,old2)
+
+		print(f"===================TESTING simData {ind}===================")
+		simData1 = get_data(folder1+file1,"simData")#np.array(f['/simData'][:])
+		simData2 = get_data(folder2+file2,"simData")#np.loadtxt(folder2+file2+"simData.csv",delimiter=",",dtype=np.float64,skiprows=1).reshape(simData1.shape)
+		different = check_arrays(simData1,simData2,tol);
+		# different = ~np.isclose(simData1,simData2,tol);
+		if np.sum(different) == 0:
+			print("No errors")
 		else:
-			file2 = f"{ind}_{body}"
-
-		print(file1)
-		print(file2)
-
-		f = h5py.File(folder1+file1+'data.h5','r')
-		simData1 = np.array(f['/simData'][:])
-		simData2 = np.loadtxt(folder2+file2+"simData.csv",delimiter=",",dtype=np.float64,skiprows=1).reshape(simData1.shape)
-
-		constData1 = np.array(f['/constants'][:])
-		constData2 = np.loadtxt(folder2+file2+"constants.csv",delimiter=",",dtype=np.float64,skiprows=0).reshape(constData1.shape)
-
-		# print(constData1)
-		# print(constData2)
-
-		energyData1 = np.array(f['/energy'][:])
-		energyData2 = np.loadtxt(folder2+file2+"energy.csv",delimiter=",",dtype=np.float64,skiprows=1).reshape(energyData1.shape)
-
-		print("===================TESTING simData===================")
-		err = False
-		for i in range(simData1.size):
-			if np.average([simData1[i],simData2[i]]) != 0.0:
-				compare = abs((simData1[i]-simData2[i])/np.average([simData1[i],simData2[i]]))
-				if (compare < 1e-5):
-					continue
-				else:
-					err = True
-					print(f"ERROR: {compare}")
-		if not err:
+			# print(simData1[different])
+			# print(simData2[different])
+			print(f"{np.sum(different)}/{simData1.shape} different values")
+		print(f"===================TEST Finished===================")
+		print(f"===================TESTING constants {ind}===================")
+		constData1 = get_data(folder1+file1,"constants")#np.array(f['/constants'][:])
+		constData2 = get_data(folder2+file2,"constants")#np.loadtxt(folder2+file2+"constants.csv",delimiter=",",dtype=np.float64,skiprows=0).reshape(constData1.shape)
+		different = check_arrays(constData1,constData2,tol);
+		# different = ~np.isclose(constData1,constData2,tol);
+		if np.sum(different) == 0:
 			print("No errors")
-		print("===================TEST Finished===================")
-		print("===================TESTING constants===================")
-		err = False
-		for i in range(constData1.size):
-			if np.average([constData1[i],constData2[i]]) != 0.0:
-				compare = abs((constData1[i]-constData2[i])/np.average([constData1[i],constData2[i]]))
-				if (compare < 1e-5):
-					continue
-				else:
-					err = True
-					print(f"ERROR: {compare}")
-		if not err:
+		else:
+			print(constData1[different])
+			print(constData2[different])
+			print(f"{np.sum(different)}/{constData1.shape} different values")
+		print(f"===================TEST Finished===================")
+		print(f"===================TESTING energy {ind}===================")
+		energyData1 = get_data(folder1+file1,"energy")#np.array(f['/energy'][:])
+		energyData2 = get_data(folder2+file2,"energy")#np.loadtxt(folder2+file2+"energy.csv",delimiter=",",dtype=np.float64,skiprows=1).reshape(energyData1.shape)
+		different = check_arrays(energyData1,energyData2,tol);
+		# different = ~np.isclose(energyData1,energyData2,tol);
+		if np.sum(different) == 0:
 			print("No errors")
-		print("===================TEST Finished===================")
-		print("===================TESTING energy===================")
-		err = False
-		for i in range(energyData1.size):
-			if np.average([energyData1[i],energyData2[i]]) != 0.0:
-				compare = abs((energyData1[i]-energyData2[i])/np.average([energyData1[i],energyData2[i]]))
-				if (compare < 1e-5):
-					continue
-				else:
-					err = True
-					print(f"ERROR: {compare}")
-		if not err:
-			print("No errors")
-		print("===================TEST Finished===================")
+		else:
+			# print(energyData1[different])
+			# print(energyData2[different])
+			print(f"{np.sum(different)}/{energyData1.shape} different values")
+		print(f"===================TEST Finished===================")
 
 if __name__ == '__main__':
 	main()

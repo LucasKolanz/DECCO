@@ -229,7 +229,7 @@ public:
 
 	std::string genEnergyMetaData()
 	{
-		return "Time,PE,KE,E,p,L";
+		return "Time,PE,KE,E,p,L\n";
 	}
 
 	std::string genTimingMetaData()
