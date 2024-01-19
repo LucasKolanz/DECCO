@@ -41,7 +41,7 @@ if __name__ == '__main__':
 	# attempts = [21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40]
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	# attempts = [i for i in range(10)]
-	attempts = [1] 
+	attempts = [13] 
 	# attempts_300 = [i for i in range(5)]
 
 	#test it out first
@@ -87,6 +87,7 @@ if __name__ == '__main__':
 				input_json['h_min'] = 0.5
 				input_json['dataFormat'] = "h5"
 				input_json['output_folder'] = job
+				input_json['OMPthreads'] = 1
 				# input_json['u_s'] = 0.5
 				# input_json['u_r'] = 0.5
 				input_json['note'] = "Testing on Perlmutter"
@@ -113,7 +114,7 @@ if __name__ == '__main__':
 				
 				# sbatchfile += "srun -n {} -c {} --cpu-bind=cores numactl --interleave=all ./ColliderMultiCore.x {} 2>sim_err.log 1>sim_out.log".format(node,thread*2,job)
 				# sbatchfile += "srun -n {} -c {} ./ColliderSingleCore.o {} {} 2>sim_err.log 1>sim_out.log".format(node,thread*2,job,n)
-				sbatchfile += f"srun -n {node} -c {thread*2} {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+				sbatchfile += f"srun -n {node} -c {thread*2} --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 
 
 				
@@ -132,12 +133,12 @@ if __name__ == '__main__':
 
 				folders.append(job)
 
-print(folders)
-cwd = os.getcwd()
-for folder in folders:
-	os.chdir(folder)
-	os.system('sbatch sbatchMulti.bash')
-os.chdir(cwd)
+# print(folders)
+# cwd = os.getcwd()
+# for folder in folders:
+# 	os.chdir(folder)
+# 	os.system('sbatch sbatchMulti.bash')
+# os.chdir(cwd)
 
 
 

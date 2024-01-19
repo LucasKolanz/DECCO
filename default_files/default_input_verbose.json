@@ -2,12 +2,16 @@
 ////////////////////////////////////
 // Initialization (Units are CGS) //
 ////////////////////////////////////
+//How many MPI processes do you want? Note: This value doesn't get read
+	//by the simulation and is only used to make the sbatch file. It is here
+	//so there is a record of how many nodes a job asked for. 
+	"MPInodes": 1,
 	//What format should the data be saved in? default to "h5", other options: "csv" (not implimented)
 	"dataFormat": "h5",
 	//What is this sim for?
 	"note": "",
 	//How many openMP threads do you want?
-	"OMPthreads": 8,
+	"OMPthreads": 1,
 	//Type of simulation, default to "BPCA", other options: "collider"
 	"simType": "BPCA",
 	//Number of balls to add to a BPCA simulation. If simType is not "BPCA" this 
