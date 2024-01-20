@@ -8,7 +8,10 @@
 #include <sstream>
 #include <string>
 #include <iomanip>
-#include <mpi.h>
+
+#ifdef MPI_ENABLE
+    #include <mpi.h>
+#endif
 // #include <filesystem>
 // namespace fs = std::filesystem;
 
@@ -212,10 +215,8 @@ sim_looper(Ball_group &O,int start_step=1)
         std::cerr<<"Stepping through "<<O.attrs.steps<<" steps"<<std::endl;
     }
 
-    std::cerr<<"OUTSIDE"<<std::endl;
     for (Step = start_step; Step < O.attrs.steps; Step++)  // Steps start at 1 for non-restart because the 0 step is initial conditions.
     {
-        std::cerr<<"INSIDE"<<std::endl;
         // simTimeElapsed += dt; //New code #1
         // Check if this is a write step:
         if (Step % O.attrs.skip == 0) {

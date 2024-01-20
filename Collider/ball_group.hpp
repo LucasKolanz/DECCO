@@ -22,7 +22,10 @@
 #include <memory>
 #include <random>
 #include <omp.h>
-#include <mpi.h>
+
+#ifdef MPI_ENABLE
+    #include <mpi.h>
+#endif
 
 // using std::numbers::pi;
 using json = nlohmann::json;
@@ -35,7 +38,7 @@ int getSize()
     #ifdef MPI_ENABLE
         MPI_Comm_size(MPI_COMM_WORLD,&world_size);
     #else
-        world_size = 0;
+        world_size = 1;
     #endif
     return world_size;
 }
@@ -2603,21 +2606,18 @@ void Ball_group::sim_one_step_single_core(const bool write_step)
     double kout = attrs.kout;
     double h_min = attrs.h_min;
     double dt = attrs.dt;
+    int num_parts = attrs.num_particles;
+    int threads = attrs.OMPthreads;
 
     
     long long A;
     long long B;
     long long pc;
     long long lllen = attrs.num_particles;
-    std::cerr<<"HEREREE"<<std::endl;
-    // // #pragma omp parallel for reduction(+:PE) default(none) private(A,B,pc) shared(Ha,write_step,lllen,R,pos,vel,m,w,u_r,u_s,moi,kin,kout,distances,h_min)
-    // // #pragma omp parallel for num_threads(3) reduction(+:PE) default(none) private(A,B,pc) shared(writelock,acc,aacc,Ha,write_step,lllen,R,pos,vel,m,w,u_r,u_s,moi,kin,kout,distances,h_min)
-    // for (pc = (((lllen*lllen)-lllen)/2); pc >= 1; pc--)
     double t0 = omp_get_wtime();
     #pragma omp declare reduction(vec3_sum : vec3 : omp_out += omp_in)
-    // #pragma omp parallel for schedule(dynamic, 32) num_threads(OMPthreads) reduction(vec3_sum:acc[:num_particles],aacc[:num_particles]) reduction(+:PE) default(none) private(A,B,pc) shared(Ha,write_step,lllen,R,pos,vel,m,w,u_r,u_s,moi,kin,kout,distances,h_min,dt)
-    #pragma omp parallel for num_threads(attrs.OMPthreads)\
-            reduction(vec3_sum:acc[:attrs.num_particles],aacc[:attrs.num_particles]) reduction(+:PE) \
+    #pragma omp parallel for num_threads(threads)\
+            reduction(vec3_sum:acc[:num_parts],aacc[:num_parts]) reduction(+:PE) \
             shared(world_rank,world_size,Ha,write_step,lllen,R,pos,vel,m,w,\
                 u_r,u_s,moi,kin,kout,distances,h_min,dt)\
             default(none) private(A,B,pc) 
@@ -2629,6 +2629,7 @@ void Ball_group::sim_one_step_single_core(const bool write_step)
         A = (long long)pd;
         B = (long long)((long double)pc-(long double)A*((long double)A-1.0L)*.5L-1.0L);
 
+ 
         const double sumRaRb = R[A] + R[B];
         const vec3 rVecab = pos[B] - pos[A];  // Vector from a to b.
         const vec3 rVecba = -rVecab;
@@ -2670,6 +2671,12 @@ void Ball_group::sim_one_step_single_core(const bool write_step)
             // constexpr double h2 = h * h;
             const double twoRah = 2 * Ra * h;
             const double twoRbh = 2 * Rb * h;
+
+            // const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
+            //                              ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
+            //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
+            //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
+            //                              rVecab.normalized();
 
             // ==========================================
             // Test new vdw force equation with less division
@@ -2847,6 +2854,12 @@ void Ball_group::sim_one_step_single_core(const bool write_step)
             const double h2 = h * h;
             const double twoRah = 2 * Ra * h;
             const double twoRbh = 2 * Rb * h;
+
+            // const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
+            //                              ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
+            //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
+            //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
+            //                              rVecab.normalized();
             // ==========================================
             // Test new vdw force equation with less division
             const double d1 = h2 + twoRah + twoRbh;
