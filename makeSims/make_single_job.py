@@ -36,6 +36,7 @@ if __name__ == '__main__':
 	job_set_name = "lognorm_radius_test"
 	job_set_name = "test"
 	job_set_name = "errorckcsvlognorm"
+	job_set_name = "errorckh5lognorm"
 
 	# folder_name_scheme = "T_"
 
@@ -70,7 +71,7 @@ if __name__ == '__main__':
 				input_json['seed'] = 100
 				input_json['radiiDistribution'] = 'logNormal'
 				input_json['h_min'] = 0.5
-				input_json['dataFormat'] = "csv"
+				input_json['dataFormat'] = "h5"
 				# input_json['u_s'] = 0.5
 				# input_json['u_r'] = 0.5
 				input_json['note'] = "Does this work at all?"
