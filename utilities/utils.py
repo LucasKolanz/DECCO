@@ -71,7 +71,7 @@ def plot(verts,center,radius):
 	# ax.plot_wireframe(x, y, z, color="r")
 	plt.show()
 
-def get_data_file(data_folder,data_index=-1): #Works with csv or h5
+def get_data_file(data_folder,data_index=-1,old=False): #Works with csv or h5
 	file_suffix = ""
 	files = os.listdir(data_folder)
 	for file in files:
@@ -96,8 +96,13 @@ def get_data_file(data_folder,data_index=-1): #Works with csv or h5
 
 	# print("index: {}".format(index))
 
-	data_file = [file for file in files \
-				if file.endswith(file_suffix) and file.startswith(str(index))]
+	if old and data_index == 0:
+		data_file = [file for file in files \
+					if file.endswith(file_suffix)]
+		data_file = [file for file in data_file if file.split('_')[1][0] == "R"]
+	else:
+		data_file = [file for file in files \
+					if file.endswith(file_suffix) and file.startswith(str(index))]
 
 	if len(data_file) == 1:
 		return data_file[0]
