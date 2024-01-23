@@ -1,4 +1,6 @@
-#include "H5Cpp.h"
+#ifdef HDF5_ENABLE
+	#include "H5Cpp.h"
+#endif
 #include "../default_files/dust_const.hpp"
 #include "../utilities/vec3.hpp"
 #include <filesystem>
@@ -48,7 +50,6 @@ public:
 
 	bool writeSimData(std::vector<double> data, int width, std::string filename)
 	{
-		std::cerr<<"In writeSimData: "<<filename<<std::endl;
 		filename += "simData.csv"; 
 		try
 		{
@@ -253,6 +254,7 @@ void printVec(std::vector<double> v)
 	std::cout<<v[i]<<std::endl;
 }
 
+#ifdef HDF5_ENABLE
 class HDF5Handler {
     public:
     	HDF5Handler()=default;
@@ -953,6 +955,7 @@ class HDF5Handler {
 	        file.close();
 		}
 };
+#endif
 
 
 
@@ -1007,6 +1010,15 @@ public:
 			std::cerr<<"DECCOData ERROR: storage_type '"<<storage_type<<"' not available."<<std::endl;
 			exit(-1);
 		}
+		#ifndef HDF5_ENABLE
+			std::cerr<<"HDF5 not enabled. CSV format will be used for data."<<std::endl;
+			csvdata = true;
+			h5data = false;
+			if (storage_type != "csv")
+			{
+				filename = filename.substr(0,filename.length()-4);
+			}
+		#endif
 
 
 		//If user specified number of writes but a storage_type other than hdf5 then default to hdf5 and warn user
@@ -1029,7 +1041,9 @@ public:
 	DECCOData& operator=(const DECCOData& rhs)
 	{
 		C=rhs.C;
-		H=rhs.H;
+		#ifdef HDF5_ENABLE
+			H=rhs.H;
+		#endif
 		return *this;
 	}
 
@@ -1044,15 +1058,18 @@ public:
 		bool retVal;
 		if (h5data)
 		{
-			retVal = writeH5(data,data_type);
-			if (add_writes > 0)
-			{
-				H.addWrites(add_writes);
-			}
+			#ifdef HDF5_ENABLE
+				retVal = writeH5(data,data_type);
+				if (add_writes > 0)
+				{
+					H.addWrites(add_writes);
+				}
+			#else
+				return 0;
+			#endif
 		}
 		else if (csvdata)
 		{
-			std::cerr<<"IN WRITE: "<<filename<<std::endl;
 			retVal = writeCSV(data,data_type,filename);
 		}
 		return retVal;
@@ -1070,13 +1087,17 @@ public:
 		std::string readMetaData;
 		if (h5data)
 		{
-			//Has the HDF5 handler been initiated yet?
-			if (!H.isInitialized())
-			{
-				H = HDF5Handler(filename,fixed);
-			}
+			#ifdef HDF5_ENABLE
+				//Has the HDF5 handler been initiated yet?
+				if (!H.isInitialized())
+				{
+					H = HDF5Handler(filename,fixed);
+				}
 
-			readMetaData = H.readMetadataFromDataset(datasetName);
+				readMetaData = H.readMetadataFromDataset(datasetName);
+			#else
+				return "ERROR";
+			#endif
 		}
 		else if (csvdata)
 		{
@@ -1111,43 +1132,47 @@ public:
 		std::vector<double> data_read;
 		if (file.substr(file.size()-3,file.size()) == ".h5")
 		{
-
-			//Has the HDF5 handler been initiated yet?
-			if (!H.isInitialized())
-			{
-				H = HDF5Handler(file,fixed);
-			}
-
-			if (all)
-			{
-				data_read = H.readFile(data_type); 
-			}
-			else
-			{
-				int data_index = getDataIndexFromString(data_type);
-				int start = 0;
-				//if data_index is less than zero a bad data_type was input and write doesn't happen
-				if (data_index < 0)
+			#ifdef HDF5_ENABLE
+				//Has the HDF5 handler been initiated yet?
+				if (!H.isInitialized())
 				{
-					return data_read;
+					H = HDF5Handler(file,fixed);
 				}
 
-				if (line < 0)
+				if (all)
 				{
-					start = (writes+line)*widths[data_index];
+					data_read = H.readFile(data_type); 
 				}
 				else
 				{
-					start = (line)*widths[data_index];
-					// start = line*widths[data_index];
-				}
+					int data_index = getDataIndexFromString(data_type);
+					int start = 0;
+					//if data_index is less than zero a bad data_type was input and write doesn't happen
+					if (data_index < 0)
+					{
+						return data_read;
+					}
 
-				data_read = H.readFile(data_type,start,widths[data_index]);
-				// for (int i = 0; i < data_read.size(); i++)
-				// {
-				// 	std::cerr<<data_read[i]<<", ";
-				// }
-			}
+					if (line < 0)
+					{
+						start = (writes+line)*widths[data_index];
+					}
+					else
+					{
+						start = (line)*widths[data_index];
+						// start = line*widths[data_index];
+					}
+
+					data_read = H.readFile(data_type,start,widths[data_index]);
+					// for (int i = 0; i < data_read.size(); i++)
+					// {
+					// 	std::cerr<<data_read[i]<<", ";
+					// }
+				}
+			#else
+				std::cerr<<"ERROR: csv file type not yet readable by DECCOData."<<std::endl;
+				exit(-1);
+			#endif	
 		}
 		else if (file.substr(file.size()-4,file.size()) == ".csv")
 		{
@@ -1160,7 +1185,20 @@ public:
 	void WriteMeta(const std::string& metadata, const std::string& metadataName, \
         			const std::string& datasetName) 
     {
-    	H.attachSimMetadataToDataset(metadata,metadataName,datasetName);
+    	#ifdef HDF5_ENABLE
+    		if (h5data)
+    		{
+	    		H.attachSimMetadataToDataset(metadata,metadataName,datasetName);
+    		}
+    		else
+    		{
+    			std::cerr<<"Function WriteMeta only available for h5 ouput data format."<<std::endl;
+	    		exit(-1);	
+    		}
+    	#else
+	    	std::cerr<<"Function WriteMeta only available for h5 ouput data format."<<std::endl;
+	    	exit(-1);
+	    #endif
     }
 
 
@@ -1169,6 +1207,7 @@ public:
     //@return 0 if there is no writes so far (I don't think this should happen but if it does, more stuff needs to happen).
     //@return int >0 for how many writes there have been.
     //@return -1 if there are writes and the sim is already finished. 
+    #ifdef HDF5_ENABLE
     int setWrittenSoFar(const std::string path, const std::string file)
     {
     	hsize_t energy_size = H.get_data_length(path+file,"energy");
@@ -1195,6 +1234,7 @@ public:
 
     	return writes_so_far;
     }
+    #endif
 
 
     void loadSimData(const std::string path, const std::string file,vec3 *pos,vec3 *w,vec3 *vel)
@@ -1270,7 +1310,9 @@ private:
 	bool fixed;
 	bool h5data;
 	bool csvdata;
-	HDF5Handler H; 
+	#ifdef HDF5_ENABLE
+		HDF5Handler H; 
+	#endif
 	CSVHandler C;
 
 
@@ -1294,7 +1336,6 @@ private:
 	//@returns true if write succeeded, false otherwise
 	bool writeCSV(std::vector<double> &data, std::string data_type, std::string filename)
 	{
-		std::cerr<<"FILE in writeCSV: "<<filename<<std::endl;
 		if (getDataIndexFromString(data_type) == 0) //simData
 		{
 			return C.writeSimData(data,widths[0],filename);
@@ -1320,6 +1361,7 @@ private:
 	//@param data_type is one of "simData", "constants", "energy", "timing",
 	//@param data is the data to be written.  
 	//@returns true if write succeeded, false otherwise
+	#ifdef HDF5_ENABLE
 	bool writeH5(std::vector<double> &data, std::string data_type)
 	{
 		int data_index = getDataIndexFromString(data_type);
@@ -1348,10 +1390,9 @@ private:
 
 		H.attachMetadataToDataset(genMetaData(data_index),data_type);
 		
-		
 		return 1;
 	}
-
+	#endif
     
 
 
@@ -1360,7 +1401,11 @@ private:
 		std::string meta_data = "";
 		if (h5data)
 		{
-			meta_data = H.genSimDataMetaData(widths[getDataIndexFromString("simData")]);
+			#ifdef HDF5_ENABLE
+				meta_data = H.genSimDataMetaData(widths[getDataIndexFromString("simData")]);
+			#else
+				return "ERROR in genSimDataMetaData";
+			#endif
 		}
 		else if (csvdata)
 		{
@@ -1374,7 +1419,11 @@ private:
 		std::string meta_data = "";
 		if (h5data)
 		{
-			meta_data = H.genConstantsMetaData(widths[getDataIndexFromString("constants")]);
+			#ifdef HDF5_ENABLE
+				meta_data = H.genConstantsMetaData(widths[getDataIndexFromString("constants")]);
+			#else
+				return "ERROR in genConstantsMetaData";
+			#endif
 		}
 		else if (csvdata)
 		{
@@ -1388,7 +1437,11 @@ private:
 		std::string meta_data = "";
 		if (h5data)
 		{
-			meta_data = H.genEnergyMetaData(widths[getDataIndexFromString("energy")]);
+			#ifdef HDF5_ENABLE
+				meta_data = H.genEnergyMetaData(widths[getDataIndexFromString("energy")]);
+			#else
+				return "ERROR in genEnergyMetaData";
+			#endif
 		}
 		else if (csvdata)
 		{
@@ -1402,7 +1455,11 @@ private:
 		std::string meta_data = "";
 		if (h5data)
 		{
-			meta_data = H.genTimingMetaData(widths[getDataIndexFromString("timing")]);
+			#ifdef HDF5_ENABLE
+				meta_data = H.genTimingMetaData(widths[getDataIndexFromString("timing")]);
+			#else
+				return "ERROR in genTimingMetaData";
+			#endif
 		}
 		else if (csvdata)
 		{

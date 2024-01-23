@@ -99,8 +99,8 @@ main(int argc, char* argv[])
 
     if (dummy.attrs.typeSim == dummy.attrs.collider)
     {
-        std::cerr<<"NOT IMPLIMENTED"<<std::endl;
-        exit(0);
+        std::cerr<<"COLLIDER NOT IMPLIMENTED"<<std::endl;
+        exit(-1);
         // #ifdef MPI_ENABLE
         //     MPI_Barrier(MPI_COMM_WORLD);
         // #endif

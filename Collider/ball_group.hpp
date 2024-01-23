@@ -156,7 +156,7 @@ struct Ball_group_attributes
     bool mu_scale = false;
     /////////////////////////////////
     // data_type 0 for hdf5 
-    // data_type 1 for csv (not implimented) 
+    // data_type 1 for csv 
     int data_type = 0;
     std::string filetype = "h5";
     int num_writes = 0;
@@ -343,7 +343,9 @@ public:
     void freeMemory() const;
     std::string find_restart_file_name(std::string path);
     int check_restart(std::string folder);
-    void loadDatafromH5(std::string path, std::string file);
+    #ifdef HDF5_ENABLE
+        void loadDatafromH5(std::string path, std::string file);
+    #endif
     void init_data(int counter);
     std::string get_data_info();
     void parse_meta_data(std::string metadata);
@@ -430,11 +432,11 @@ Ball_group::Ball_group(std::string& path)
 
         generate_ball_field(attrs.genBalls);
         // Hack - Override and creation just 2 balls position and velocity.
-        pos[0] = {0, 1.101e-5, 0};
+        pos[0] = {0, R[0]+1.01e-6, 0};
         vel[0] = {0, 0, 0};
         if (attrs.genBalls > 1)
         {
-            pos[1] = {0, -1.101e-5, 0};
+            pos[1] = {0, -(R[1]+1.01e-6), 0};
             vel[1] = {0, 0, 0};
         }
 
@@ -2078,13 +2080,18 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename)
     }
     else if (file.substr(file.size()-3,file.size()) == ".h5")
     {
-        _pos = file.find_first_of("_");
-        file_index = stoi(file.substr(0,_pos));
-        
-        //This needs to be here because its used in the following function
-        attrs.start_index = file_index;
+        #ifdef HDF5_ENABLE
+            _pos = file.find_first_of("_");
+            file_index = stoi(file.substr(0,_pos));
+            
+            //This needs to be here because its used in the following function
+            attrs.start_index = file_index;
 
-        loadDatafromH5(path,file);
+            loadDatafromH5(path,file);
+        #else
+            std::cerr<<"ERROR: HDF5 not enabled. Please recompile with -DHDF5_ENABLE and try again."<<std::endl;
+            exit(EXIT_FAILURE);
+        #endif
     }
     else
     {
@@ -2161,6 +2168,7 @@ void Ball_group::parse_meta_data(std::string metadata)
 
 }
 
+#ifdef HDF5_ENABLE
 void Ball_group::loadDatafromH5(std::string path,std::string file)
 {
     allocate_group(HDF5Handler::get_num_particles(path,file));
@@ -2211,6 +2219,7 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
     }
      
 }
+#endif
 
 void Ball_group::distSizeSphere(const int nBalls)
 {

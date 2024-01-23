@@ -17,15 +17,69 @@
 # 	rm -f *.o
 # 	rm -f *.x
 
+# CXX = g++
+# CXXFLAGS = -g -O2 -std=c++2a -fopenmp -I${HDF5_DIR}/include
+# LIBS = -L${HDF5_DIR}/lib -lhdf5 -lhdf5_cpp
+
+# # Source files
+# SOURCES = Collider.cpp 
+# HPP = ../data/DECCOData.hpp ball_group.hpp
+
+
+
+# # Object files for both regular and MOC-generated sources
+# OBJECTS = $(SOURCES:.cpp=.o) 
+
+# # Executable name
+# EXEC = Collider.x
+
+# # Default target
+# all: $(HPP) $(EXEC) 
+
+# # Linking the executable
+# $(EXEC): $(OBJECTS) $(HPP)
+# 	$(CXX) $(CXXFLAGS) -o $(EXEC) $(OBJECTS) $(LIBS)
+
+# # Generic rule for compiling
+# %.o: %.cpp $(HPP)
+# 	$(CXX) $(CXXFLAGS) -c $<
+
+
+
+# # Clean
+# clean:
+# 	rm -f $(OBJECTS) $(EXEC) $(MOC_SOURCES) 
+
+
+
+
+
 CXX = g++
-CXXFLAGS = -g -O2 -std=c++2a -fopenmp -I${HDF5_DIR}/include
-LIBS = -L${HDF5_DIR}/lib -lhdf5 -lhdf5_cpp
+# Base CXXFLAGS, without HDF5-specific flags
+CXXFLAGS = -g -O2 -std=c++2a -fopenmp
+
+# Detect HDF5
+# HDF5_TEST := $(shell ldconfig -p | grep hdf5 >/dev/null 2>&1 && echo 1 || echo 0)
+HDF5_TEST = 0
+MPI_TEST = 0
+
+# Conditional HDF5 flags
+ifeq ($(HDF5_TEST), 1)
+    HDF5_CXXFLAGS = -I${HDF5_DIR}/include
+    HDF5_LIBS = -L${HDF5_DIR}/lib -lhdf5 -lhdf5_cpp
+    CXXFLAGS += $(HDF5_CXXFLAGS) -DHDF5_ENABLE
+    LIBS = $(HDF5_LIBS)
+else
+    LIBS =
+endif
+
+ifeq ($(MPI_TEST), 1)
+    CXXFLAGS += -DMPI_ENABLE
+endif
 
 # Source files
 SOURCES = Collider.cpp 
 HPP = ../data/DECCOData.hpp ball_group.hpp
-
-
 
 # Object files for both regular and MOC-generated sources
 OBJECTS = $(SOURCES:.cpp=.o) 
@@ -34,7 +88,7 @@ OBJECTS = $(SOURCES:.cpp=.o)
 EXEC = Collider.x
 
 # Default target
-all: $(HPP) $(EXEC) 
+all: $(HPP) $(EXEC)
 
 # Linking the executable
 $(EXEC): $(OBJECTS) $(HPP)
@@ -44,8 +98,6 @@ $(EXEC): $(OBJECTS) $(HPP)
 %.o: %.cpp $(HPP)
 	$(CXX) $(CXXFLAGS) -c $<
 
-
-
 # Clean
 clean:
-	rm -f $(OBJECTS) $(EXEC) $(MOC_SOURCES) 
+	rm -f $(OBJECTS) $(EXEC) $(MOC_SOURCES)
