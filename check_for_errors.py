@@ -11,6 +11,12 @@ import os
 import glob
 import numpy as np
 import utils as u
+import h5py
+import json
+
+relative_path = ""
+relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
+project_path = os.path.abspath(relative_path) + '/'
 
 #returns the last line of the file file_path
 def tail(file_path,n):
@@ -294,13 +300,15 @@ def where_is_smallest_error2(job_base,error,\
 def main():
 
 	curr_folder = os.getcwd() + '/'
+	with open(project_path+"default_files/default_input.json",'r') as fp:
+		input_json = json.load(fp)
 
 	job = curr_folder + 'jobs/tempVarianceRand_attempt$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'jobs/lognorm$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'jobs/weakseed$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'erroredJobs/lognorm$a$/N_$n$/T_$t$/'
-
+	job = input_json["data_directory"] + 'jobs/lognorm$a$/N_$n$/T_$t$/'
 
 
 	attempts = [i for i in range(30)]
@@ -312,8 +320,8 @@ def main():
 	Temps = [3,10,30,100,300,1000]
 	# Temps = [1000]
 
-	# errorgen_folders = check_error(job,error_general,N,Temps,attempts)
-	# print(errorgen_folders)
+	errorgen_folders = check_error(job,error_general,N,Temps,attempts)
+	print(errorgen_folders)
 	# error1_folders = check_error(job,error1,N,Temps,attempts)
 	# print(error1_folders)
 
@@ -334,11 +342,11 @@ def main():
 
 
 	# folder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/erroredJobs/lognorm12/N_30/T_10/'
-	folder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/error2Test10/N_10/T_10/'
-	folder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/error2Test2/N_10/T_10/'
+	# folder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/error2Test10/N_10/T_10/'
+	# folder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/error2Test2/N_10/T_10/'
 
-	print(error2_index(folder,True))
-	print(error2(folder,True))
+	# print(error2_index(folder,True))
+	# print(error2(folder,True))
 
 if __name__ == '__main__':
 	main()
