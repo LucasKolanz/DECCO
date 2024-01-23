@@ -81,7 +81,7 @@ struct Ball_group_attributes
     int start_step = 1;
 
     int skip=-1;  // Steps thrown away before recording a step to the buffer. 500*.04 is every 20 seconds in sim.
-    int steps=-1;
+    unsigned long long steps=0;
 
     double dt=-1;
     double kin=-1;  // Spring constant
@@ -883,7 +883,7 @@ void Ball_group::calibrate_dt(int const Step, const double& customSpeed = -1.)
     }
 
     if (Step == 0 or dtOld < 0) {
-        attrs.steps = static_cast<int>(attrs.simTimeSeconds / attrs.dt) + 1;
+        attrs.steps = static_cast<unsigned long long>(attrs.simTimeSeconds / attrs.dt) + 1;
         // std::cout<<simTimeSeconds / dt - steps*1.0<<std::endl;
         // if (simTimeSeconds / dt == steps) //There is one too few writes in the sim if this is true
         // {
@@ -901,13 +901,13 @@ void Ball_group::calibrate_dt(int const Step, const double& customSpeed = -1.)
 
         std::cerr << "\tInitial Steps: " << attrs.steps << '\n';
     } else {
-        attrs.steps = static_cast<int>(dtOld / attrs.dt) * (attrs.steps - Step) + Step;
+        attrs.steps = static_cast<unsigned long long>(dtOld / attrs.dt) * (attrs.steps - Step) + Step;
         if (attrs.steps < 0)
         {
             std::cerr<< "ERROR: STEPS IS NEGATIVE."<<std::endl;
             std::cerr<< "dtOld/dt = " << dtOld / attrs.dt<<std::endl;
             std::cerr<< "(steps - Step) + Step = " << (attrs.steps - Step) + Step<<std::endl;
-            std::cerr<< "Final steps = " << static_cast<int>(dtOld / attrs.dt) * (attrs.steps - Step) + Step<<std::endl;
+            std::cerr<< "Final steps = " << static_cast<unsigned long long>(dtOld / attrs.dt) * (attrs.steps - Step) + Step<<std::endl;
             std::cerr<< "Exiting program now."<<std::endl;
             exit(-1);
         }
@@ -2072,7 +2072,7 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename)
         
         file_index = stoi(file.substr(0,_pos));
 
-        file = std::to_string(file_index-1) + file.substr(_pos,_lastpos);
+        file = std::to_string(file_index-1) + file.substr(_pos,_lastpos-1);
         attrs.start_index = file_index;//shouldnt be file_index-1 because that is just the one we read, we will write to the next index
 
         parseSimData(getLastLine(path, file));

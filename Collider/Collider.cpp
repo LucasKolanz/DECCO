@@ -37,7 +37,7 @@ extern const int bufferlines;
 // void
 // sim_one_step(const bool write_step, Ball_group &O);
 void
-sim_looper(Ball_group &O,int start_step);
+sim_looper(Ball_group &O,unsigned long long start_step);
 void
 safetyChecks(Ball_group &O);
 // int 
@@ -137,8 +137,6 @@ main(int argc, char* argv[])
     #endif
 
 
-
-    
     t.end_event("WholeThing");
     t.print_events();
     t.save_events(dummy.attrs.output_folder + "timing.txt");
@@ -198,12 +196,12 @@ void BPCA(std::string path, int num_balls)
 
 
 void
-sim_looper(Ball_group &O,int start_step=1)
+sim_looper(Ball_group &O,unsigned long long start_step=1)
 {
     int world_rank = getRank();
 
     O.attrs.num_writes = 0;
-    int Step;
+    unsigned long long Step;
     bool writeStep = false;
 
     if (world_rank == 0)
@@ -239,7 +237,7 @@ sim_looper(Ball_group &O,int start_step=1)
                 float progress = (static_cast<float>(Step) / static_cast<float>(O.attrs.steps) * 100.f);
                 fprintf(
                     stderr,
-                    "%u\t%2.0f%%\tETA: %5.2lf\tReal: %5.2f\tSim: %5.2f hrs\tR/S: %5.2f\n",
+                    "%llu\t%2.0f%%\tETA: %5.2lf\tReal: %5.2f\tSim: %5.2f hrs\tR/S: %5.2f\n",
                     Step,
                     progress,
                     eta,
