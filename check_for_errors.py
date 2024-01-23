@@ -87,13 +87,14 @@ def ck_error2_by_file(file,verbose=True ):
 #If the (number rows of constants)*11 != (simData columns)
 #Then there was some kind of write error
 def error2(fullpath,verbose=False):
-	directory = os.fsencode(fullpath)
-	for file in os.listdir(directory):
-		filename = os.fsdecode(file)
-		if filename.endswith("simData.csv"): 
-			err = ck_error2_by_file(filename,verbose)
-			if err:
-				return True
+	if os.path.exists(fullpath+"timing.txt"):
+		directory = os.fsencode(fullpath)
+		for file in os.listdir(directory):
+			filename = os.fsdecode(file)
+			if filename.endswith("simData.csv"): 
+				err = ck_error2_by_file(filename,verbose)
+				if err:
+					return True
 	return False
 
 def error2_index(fullpath,verbose=False):
@@ -167,6 +168,7 @@ def error_general(fullpath):
 		# return True
 
 	tail_out = tail(fullpath+error_file,10).split('\n')
+	print(tail_out)
 	if "Simulation complete!" in tail_out:
 		return False
 	else:
@@ -219,9 +221,9 @@ def check_error(job_base,error,\
 				job = job_base.replace("$a$",str(attempt)).replace("$n$",str(n)).replace("$t$",str(Temp))
 				if os.path.exists(job+"timing.txt"):
 					valid_count += 1
-					output = error(job)
-					if output > 0:
-						errors.append(job)
+				output = error(job)
+				if output > 0:
+					errors.append(job)
 
 	print(f"{len(errors)} errors, out of {valid_count} valid runs, out of {len(N)*len(attempts)*len(Temps)} runs.")
 	return errors
@@ -308,17 +310,18 @@ def main():
 	job = curr_folder + 'jobs/weakseed$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'erroredJobs/lognorm$a$/N_$n$/T_$t$/'
+
 	job = input_json["data_directory"] + 'jobs/lognorm$a$/N_$n$/T_$t$/'
 
 
 	attempts = [i for i in range(30)]
-	# attempts = [0]
+	attempts = [0]
 
 	N = [30,100,300]
-	# N=[30]
+	N=[100]
 
 	Temps = [3,10,30,100,300,1000]
-	# Temps = [1000]
+	Temps = [10]
 
 	errorgen_folders = check_error(job,error_general,N,Temps,attempts)
 	print(errorgen_folders)
