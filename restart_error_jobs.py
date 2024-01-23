@@ -13,6 +13,14 @@ import numpy as np
 import subprocess
 import check_for_errors as cfe
 
+# import utils as u
+import h5py
+import json
+
+relative_path = ""
+relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
+project_path = os.path.abspath(relative_path) + '/'
+
 
 def restart_job(folder,test=True,move_folder=''):
 	if test:
@@ -83,13 +91,16 @@ def restart_job(folder,test=True,move_folder=''):
 
 def main():
 
+	with open(project_path+"default_files/default_input.json",'r') as fp:
+		input_json = json.load(fp)
+
 	curr_folder = os.getcwd() + '/'
 
 	job_folder = 'jobsCosine/'##FOR LOCAL
 	job_folder = 'jobs/'###FOR COSINE
 	move_job_folder = 'erroredJobs/'
 
-	job = curr_folder + job_folder + 'lognorm$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + job_folder + 'lognorm$a$/N_$n$/T_$t$/'
 	# move_folder = curr_folder + 'erroredJobs/lognorm$a$/N_$n$/T_$t$/'
 
 	attempts = [i for i in range(30)]
@@ -106,8 +117,8 @@ def main():
 	for folder in error2_folders:
 		# print(folder)
 
-		# restart_job(folder,test=False,move_folder=folder.replace(job_folder,move_job_folder))
-		# restart_job(folder,test=False,move_folder='') #keep move_folder empty if in Cosine
+		restart_job(folder,test=True,move_folder=folder.replace(job_folder,move_job_folder)) #if move_folder is specified it will move the errored jobs
+		# restart_job(folder,test=False,move_folder='') #keep move_folder empty if Deleting and restarting jobs
 
 
 if __name__ == '__main__':

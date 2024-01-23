@@ -165,10 +165,9 @@ def error_general(fullpath):
 		error_file = "sim_errors.txt"
 	else:
 		print(f"NO ERROR FILE FOR {fullpath}")
-		# return True
+		return False
 
 	tail_out = tail(fullpath+error_file,10).split('\n')
-	print(tail_out)
 	if "Simulation complete!" in tail_out:
 		return False
 	else:
