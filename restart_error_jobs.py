@@ -65,19 +65,20 @@ def restart_job(folder,test=True,move_folder=''):
 		os.system(f"{command} {folder}*.py")
 		os.system(f"{command} {folder}*.cpp")
 		os.system(f"{command} {folder}*.hpp")
+		os.system(f"{command} {folder}*.h5")
 
 		try:
 			# os.chdir("{}ColliderSingleCore".format(curr_folder))
-			subprocess.run(["make","-C","ColliderSingleCore"], check=True)
+			subprocess.run(["make","-C","Collider"], check=True)
 		except Exception as e:
 			print('compilation failed')
 			print(e)
 			exit(-1)
 
 		if not test:
-			os.system("cp default_files/run_sim.py {}run_sim.py".format(folder))
-			os.system("cp ColliderSingleCore/ColliderSingleCore.x {}ColliderSingleCore.x".format(folder))
-			os.system("cp ColliderSingleCore/ColliderSingleCore.cpp {}ColliderSingleCore.cpp".format(folder))
+			# os.system("cp default_files/run_sim.py {}run_sim.py".format(folder))
+			os.system("cp Collider/Collider.x {}Collider.x".format(folder))
+			os.system("cp Collider/Collider.cpp {}Collider.cpp".format(folder))
 			os.system("cp ball_group.hpp {}ball_group.hpp".format(folder))
 
 		cwd = os.getcwd()
@@ -104,21 +105,22 @@ def main():
 	# move_folder = curr_folder + 'erroredJobs/lognorm$a$/N_$n$/T_$t$/'
 
 	attempts = [i for i in range(30)]
-	# attempts = [0]
+	attempts = [18]
 
 	N = [30,100,300]
-	# N=[30]
+	N=[30]
 
 	Temps = [3,10,30,100,300,1000]
-	# Temps = [3]
+	Temps = [3]
 
-	error2_folders = cfe.check_error(job,cfe.error2,N,Temps,attempts)
+	error_folders = cfe.check_error(job,cfe.error2,N,Temps,attempts)
+	error_folders.extend(cfe.check_error(job,cfe.error_general,N,Temps,attempts))
 
-	for folder in error2_folders:
+	for folder in error_folders:
 		# print(folder)
 
 		restart_job(folder,test=True,move_folder=folder.replace(job_folder,move_job_folder)) #if move_folder is specified it will move the errored jobs
-		# restart_job(folder,test=False,move_folder='') #keep move_folder empty if Deleting and restarting jobs
+		restart_job(folder,test=True,move_folder='') #keep move_folder empty if Deleting and restarting jobs
 
 
 if __name__ == '__main__':
