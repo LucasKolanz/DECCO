@@ -108,13 +108,19 @@ if __name__ == '__main__':
 	# 	with mp.Pool(processes=runs_at_once) as pool:
 	# 		pool.starmap(run_job,inputs[i:i+runs_at_once]) 
 	
-	with mp.Pool(processes=runs_at_once) as pool:
-		for folder in folders:
-			# input_data = inputs[i:i+runs_at_once]
-			pool.apply_async(run_job, (folder,))
+	# with mp.Pool(processes=runs_at_once) as pool:
+	# 	for folder in folders:
+	# 		# input_data = inputs[i:i+runs_at_once]
+	# 		pool.apply_async(run_job, (folder,))
 
-		pool.close()
-		pool.join()
+	# 	pool.close()
+	# 	pool.join()
 
+	print(folders)
+	cwd = os.getcwd()
+	for folder in folders:
+		os.chdir(folder)
+		os.system('qsub qsub.bash')
+	os.chdir(cwd)
 
 	
