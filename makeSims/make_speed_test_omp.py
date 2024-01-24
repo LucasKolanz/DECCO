@@ -13,6 +13,12 @@ project_path = os.path.abspath(relative_path) + '/'
 	
 	# cmd = ["srun","-n","1","-c","2","{}ColliderSingleCore.x".format(location), location, str(num_balls)]
 
+def merge_dictionaries(dict1, dict2):
+    for key, value in dict2.items():
+        if key not in dict1:
+            dict1[key] = value
+    return dict1
+
 def run_job(location):
 	output_file = location + "sim_output.txt"
 	error_file = location + "sim_errors.txt"
@@ -60,6 +66,8 @@ if __name__ == '__main__':
 
 				with open(SPECIAL_FOLDER+"input.json",'r') as fp:
 					input_json = json.load(fp)
+
+				input_json = merge_dictionaries(input_json,input_default)
 				
 				input_json["data_directory"] = input_default["data_directory"]
 				# job = curr_folder + 'jobs/' + job_set_name + str(attempt) + '/'
