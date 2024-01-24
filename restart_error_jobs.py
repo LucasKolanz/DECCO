@@ -25,7 +25,7 @@ def modify_last_line(file_path, new_content):
     with open(file_path, 'r+') as file:
         lines = file.readlines()
         if lines:
-            lines[-1] = lines[-1].rstrip('\n') + new_content + '\n'
+            lines[-1] = new_content
         
         file.seek(0)
         file.writelines(lines)
