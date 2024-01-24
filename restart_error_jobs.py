@@ -79,7 +79,7 @@ def restart_job(folder,test=True,move_folder=''):
 			# os.system("cp default_files/run_sim.py {}run_sim.py".format(folder))
 			os.system("cp Collider/Collider.x {}Collider.x".format(folder))
 			os.system("cp Collider/Collider.cpp {}Collider.cpp".format(folder))
-			os.system("cp ball_group.hpp {}ball_group.hpp".format(folder))
+			os.system("cp Collider/ball_group.hpp {}ball_group.hpp".format(folder))
 
 		cwd = os.getcwd()
 		os.chdir(folder)
