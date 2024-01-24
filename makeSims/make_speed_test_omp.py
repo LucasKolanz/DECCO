@@ -99,8 +99,8 @@ if __name__ == '__main__':
 				qsubfile += f"#$ -N T_{attempt}\n"
 				qsubfile += "#$ -cwd\n"
 				qsubfile += "#$ -m e\n"
-				qsubfile += "#$ -pe orte 1\n"
-				qsubfile += f"#$ -pe openmp {attempt}\n"
+				qsubfile += f"#$ -pe orte {attempt}\n"
+				# qsubfile += f"#$ -pe openmp {attempt}\n"
 				qsubfile += "#$ -M kolanzl@oregonstate.edu\n"
 				qsubfile += "#$ -o sim_out.log\n"
 				qsubfile += "#$ -e sim_err.log\n\n"
@@ -145,10 +145,10 @@ if __name__ == '__main__':
 	# 	pool.join()
 
 	print(folders)
-	# cwd = os.getcwd()
-	# for folder in folders:
-	# 	os.chdir(folder)
-	# 	os.system('qsub qsub.bash')
-	# os.chdir(cwd)
+	cwd = os.getcwd()
+	for folder in folders:
+		os.chdir(folder)
+		os.system('qsub qsub.bash')
+	os.chdir(cwd)
 
 	
