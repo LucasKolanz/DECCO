@@ -52,7 +52,9 @@ if __name__ == '__main__':
 	# runs_at_once = 7
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	attempts = [1,2,4,8,16] 
+	attempts = [1] 
 	N = [100,150,200,219]
+	N = [150]
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [3]
@@ -67,74 +69,75 @@ if __name__ == '__main__':
 				with open(SPECIAL_FOLDER+"input.json",'r') as fp:
 					input_json = json.load(fp)
 
-				input_json = merge_dictionaries(input_json,input_default)
 				
 				input_json["data_directory"] = input_default["data_directory"]
 				# job = curr_folder + 'jobs/' + job_set_name + str(attempt) + '/'
 				job = input_json["data_directory"] + 'jobs/' + job_set_name + str(attempt) + '/'\
-							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
-				
-				if not os.path.exists(job):
-					os.makedirs(job)
-				else:
-					print("Job '{}' already exists.".format(job))
+								+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
+					
+				if not os.path.exists(job+"timing.txt"):
+					input_json = merge_dictionaries(input_json,input_default)
+					if not os.path.exists(job):
+						os.makedirs(job)
+					else:
+						print("Job '{}' already exists.".format(job))
 
-				####################################
-				######Change input values here######
-				# input_json['temp'] = Temp
-				input_json['N'] = n
-				input_json['output_folder'] = job
-				input_json['OMPthreads'] = attempt
-				# input_json['seed'] = 2493303778
-				# input_json['radiiDistribution'] = 'logNormal'
-				# input_json['h_min'] = 0.5
-				input_json['dataFormat'] = "csv"
-				# input_json['u_s'] = 0.5
-				# input_json['u_r'] = 0.5
-				# input_json['note'] = "Does this work at all?"
-				####################################
+					####################################
+					######Change input values here######
+					# input_json['temp'] = Temp
+					input_json['N'] = n
+					input_json['output_folder'] = job
+					input_json['OMPthreads'] = attempt
+					# input_json['seed'] = 2493303778
+					# input_json['radiiDistribution'] = 'logNormal'
+					# input_json['h_min'] = 0.5
+					input_json['dataFormat'] = "csv"
+					# input_json['u_s'] = 0.5
+					# input_json['u_r'] = 0.5
+					# input_json['note'] = "Does this work at all?"
+					####################################
 
-				with open(job + "input.json",'w') as fp:
-					json.dump(input_json,fp,indent=4)
+					with open(job + "input.json",'w') as fp:
+						json.dump(input_json,fp,indent=4)
 
-				qsubfile = ""
-				qsubfile += "#!/bin/sh\n"
-				# qsubfile += "#!/bin/bash\n"
-				# qsubfile += "#$ -l nodes=1:ppn=1\n"
-				qsubfile += "#$ -S /bin/sh\n"
-				# qsubfile += "#$ -S /bin/bash\n"
-				qsubfile += "#$ -q lazzati.q\n"
-				qsubfile += f"#$ -N T_{attempt}\n"
-				qsubfile += "#$ -cwd\n"
-				qsubfile += "#$ -m e\n"
-				qsubfile += f"#$ -pe orte {attempt}\n"
-				# qsubfile += f"#$ -pe openmp {attempt}\n"
-				qsubfile += "#$ -M kolanzl@oregonstate.edu\n"
-				qsubfile += "#$ -o sim_out.log\n"
-				qsubfile += "#$ -e sim_err.log\n\n"
+					qsubfile = ""
+					qsubfile += "#!/bin/sh\n"
+					# qsubfile += "#!/bin/bash\n"
+					# qsubfile += "#$ -l nodes=1:ppn=1\n"
+					qsubfile += "#$ -S /bin/sh\n"
+					# qsubfile += "#$ -S /bin/bash\n"
+					qsubfile += "#$ -q lazzati.q\n"
+					qsubfile += f"#$ -N T_{attempt}\n"
+					qsubfile += "#$ -cwd\n"
+					qsubfile += "#$ -m e\n"
+					qsubfile += f"#$ -pe orte {attempt}\n"
+					# qsubfile += f"#$ -pe openmp {attempt}\n"
+					qsubfile += "#$ -M kolanzl@oregonstate.edu\n"
+					qsubfile += "#$ -o sim_out.log\n"
+					qsubfile += "#$ -e sim_err.log\n\n"
 
-				qsubfile += f"export OMP_NUM_THREADS={attempt}\n"
-				qsubfile += "module load default-environment\n"
-				qsubfile += "module unload gcc/5.1.0\n"
-				qsubfile += "module load gcc/12.2.0\n"
-				
-				qsubfile += f"{job}Collider.x {job}\n"
-				
-				with open(job+"qsub.bash",'w') as sfp:
-					sfp.write(qsubfile)
+					qsubfile += f"export OMP_NUM_THREADS={attempt}\n"
+					qsubfile += "module load default-environment\n"
+					qsubfile += "module unload gcc/5.1.0\n"
+					qsubfile += "module load gcc/12.2.0\n"
+					
+					qsubfile += f"{job}Collider.x {job}\n"
+					
+					with open(job+"qsub.bash",'w') as sfp:
+						sfp.write(qsubfile)
 
-				#add run script and executable to folders
-				# os.system(f"cp {project_path}default_files/run_sim.py {job}run_sim.py")
-				os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
-				os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
-				os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
+					#add run script and executable to folders
+					# os.system(f"cp {project_path}default_files/run_sim.py {job}run_sim.py")
+					os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
+					os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
+					os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
 
-				os.system(f"cp {SPECIAL_FOLDER}{n-5}* {job}.")
-				os.system(f"cp {SPECIAL_FOLDER}{n-4}* {job}.")
-				# os.system(f"touch {SPECIAL_FOLDER}{n-5}* {job}")
-				# os.system(f"cp /home/lucas/Desktop/SpaceLab_data/test2/N_5/T_3/*data.h5 {job}.")
-				
-				folders.append(job)
+					os.system(f"cp {SPECIAL_FOLDER}{n-5}* {job}.")
+					os.system(f"cp {SPECIAL_FOLDER}{n-4}* {job}.")
+					# os.system(f"touch {SPECIAL_FOLDER}{n-5}* {job}")
+					# os.system(f"cp /home/lucas/Desktop/SpaceLab_data/test2/N_5/T_3/*data.h5 {job}.")
+					
+					folders.append(job)
 	# print(folders)
 
 

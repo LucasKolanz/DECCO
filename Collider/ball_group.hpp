@@ -1876,7 +1876,7 @@ void Ball_group::loadConsts(const std::string& path, const std::string& filename
         std::getline(simDataStream, line);  // Read the current line
         return line;
     } else {
-        std::cerr << "Could not open simData file: " << simDataFilepath << "... Existing program."
+        std::cerr << "Could not open simData file: " << simDataFilepath << "... Exiting program."
                   << '\n';
         exit(EXIT_FAILURE);
     }
