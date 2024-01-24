@@ -110,7 +110,7 @@ if __name__ == '__main__':
 				qsubfile += "module unload gcc/5.1.0\n"
 				qsubfile += "module load gcc/12.2.0\n"
 				
-				qsubfile += "./Collider.x {} {}\n".format(job,n)
+				qsubfile += f"{job}Collider.x {job}\n"
 				
 				with open(job+"qsub.bash",'w') as sfp:
 					sfp.write(qsubfile)
