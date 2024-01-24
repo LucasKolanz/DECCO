@@ -667,8 +667,12 @@ void Ball_group::parse_input_file(std::string location)
     }
     // std::string s_location(location);
     std::string json_file = location + "input.json";
+    std::cerr<<json_file<<std::endl;
+    std::cerr<<1<<std::endl;
     std::ifstream ifs(json_file);
+    std::cerr<<2<<std::endl;
     json inputs = json::parse(ifs);
+    std::cerr<<3<<std::endl;
     attrs.output_folder = inputs["output_folder"];
     attrs.data_directory = inputs["data_directory"];
 
