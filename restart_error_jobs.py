@@ -21,6 +21,15 @@ relative_path = ""
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
 
+def modify_last_line(file_path, new_content):
+    with open(file_path, 'r+') as file:
+        lines = file.readlines()
+        if lines:
+            lines[-1] = lines[-1].rstrip('\n') + new_content + '\n'
+        
+        file.seek(0)
+        file.writelines(lines)
+        file.truncate()
 
 def restart_job(folder,test=True,move_folder=''):
 	if test:
@@ -81,9 +90,11 @@ def restart_job(folder,test=True,move_folder=''):
 			os.system("cp Collider/Collider.cpp {}Collider.cpp".format(folder))
 			os.system("cp Collider/ball_group.hpp {}ball_group.hpp".format(folder))
 
+
 		cwd = os.getcwd()
 		os.chdir(folder)
 		if not test:
+			modify_last_line("qsub.bash",f"{folder}Collider.x {folder}\n")
 			os.system('qsub qsub.bash')
 		else:
 			os.system('ls qsub.bash')
@@ -119,8 +130,8 @@ def main():
 	for folder in error_folders:
 		# print(folder)
 
-		restart_job(folder,test=True,move_folder=folder.replace(job_folder,move_job_folder)) #if move_folder is specified it will move the errored jobs
-		restart_job(folder,test=True,move_folder='') #keep move_folder empty if Deleting and restarting jobs
+		restart_job(folder,test=False,move_folder=folder.replace(job_folder,move_job_folder)) #if move_folder is specified it will move the errored jobs
+		restart_job(folder,test=False,move_folder='') #keep move_folder empty if Deleting and restarting jobs
 
 
 if __name__ == '__main__':
