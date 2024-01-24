@@ -2074,7 +2074,7 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename)
         int count = std::count(filename.begin(), filename.end(), '_');
         if (count > 1) //old way, then offset should be zero, otherwise -1
         {
-            offset = 0;
+            offset = 1;
         }
         
         file_index = stoi(file.substr(0,_pos));
