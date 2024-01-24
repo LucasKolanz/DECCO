@@ -47,7 +47,7 @@ def restart_job(folder,test=True,move_folder=''):
 			else:
 				os.makedirs(move_folder)
 
-		command = f"mv {folder}* {move_folder}."
+		command = f"cp {folder}* {move_folder}."
 		if test:
 			print(command)
 		else:
