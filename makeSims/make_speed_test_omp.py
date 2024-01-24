@@ -41,12 +41,12 @@ if __name__ == '__main__':
 
 	# folder_name_scheme = "T_"
 
-	SPECIAL_FOLDER = ""#"/home/lucas/Desktop/SpaceLab_data/largejob/"
+	SPECIAL_FOLDER = "/home/physics/kolanzl/SpaceLab_data/jobs/lognorm2/N_300/T_3/"#"/home/lucas/Desktop/SpaceLab_data/largejob/"
 
-	runs_at_once = 7
+	# runs_at_once = 7
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
-	attempts = [1,2,4,8,16] 
-	N = [100,150,200,220]
+	attempts = [1]#,2,4,8,16] 
+	N = [100]#,150,200,219]
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [3]
@@ -89,20 +89,48 @@ if __name__ == '__main__':
 				with open(job + "input.json",'w') as fp:
 					json.dump(input_json,fp,indent=4)
 
+				qsubfile = ""
+				qsubfile += "#!/bin/sh\n"
+				# qsubfile += "#!/bin/bash\n"
+				# qsubfile += "#$ -l nodes=1:ppn=1\n"
+				qsubfile += "#$ -S /bin/sh\n"
+				# qsubfile += "#$ -S /bin/bash\n"
+				qsubfile += "#$ -q lazzati.q\n"
+				qsubfile += f"#$ -N T_{attempt}\n"
+				qsubfile += "#$ -cwd\n"
+				qsubfile += "#$ -m e\n"
+				qsubfile += "#$ -pe orte 1\n"
+				qsubfile += f"#$ -pe openmp {attempt}\n"
+				qsubfile += "#$ -M kolanzl@oregonstate.edu\n"
+				qsubfile += "#$ -o sim_out.log\n"
+				qsubfile += "#$ -e sim_err.log\n\n"
+
+				qsubfile += f"export OMP_NUM_THREADS={attempt}\n"
+				qsubfile += "module load default-environment\n"
+				qsubfile += "module unload gcc/5.1.0\n"
+				qsubfile += "module load gcc/12.2.0\n"
+				
+				qsubfile += "./Collider.x {} {}\n".format(job,n)
+				
+				with open(job+"qsub.bash",'w') as sfp:
+					sfp.write(qsubfile)
+
 				#add run script and executable to folders
 				# os.system(f"cp {project_path}default_files/run_sim.py {job}run_sim.py")
 				os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
 				os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
 				os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
 
-				os.system(f"cp {SPECIAL_FOLDER}qsub.bash {job}qsub.bash")
+				os.system(f"cp {SPECIAL_FOLDER}{n-5}* {job}.")
+				os.system(f"cp {SPECIAL_FOLDER}{n-4}* {job}.")
+				# os.system(f"touch {SPECIAL_FOLDER}{n-5}* {job}")
 				# os.system(f"cp /home/lucas/Desktop/SpaceLab_data/test2/N_5/T_3/*data.h5 {job}.")
 				
 				folders.append(job)
 	# print(folders)
 
 
-	print(folders)
+	# print(folders)
 
 	# for i in range(0,len(folders),runs_at_once):
 	# 	with mp.Pool(processes=runs_at_once) as pool:
@@ -117,10 +145,10 @@ if __name__ == '__main__':
 	# 	pool.join()
 
 	print(folders)
-	cwd = os.getcwd()
-	for folder in folders:
-		os.chdir(folder)
-		os.system('qsub qsub.bash')
-	os.chdir(cwd)
+	# cwd = os.getcwd()
+	# for folder in folders:
+	# 	os.chdir(folder)
+	# 	os.system('qsub qsub.bash')
+	# os.chdir(cwd)
 
 	
