@@ -236,6 +236,27 @@ def get_file_base(folder):
 			return file_base
 	return "ERROR: NO FILE FOUND"; 
 
+def dist(x1,y1,z1,x2,y2,z2):
+	return np.sqrt((x2-x1)**2 + (y2-y1)**2 + (z2-z1)**2)
+
+def error3(fullpath):
+	directory = os.fsencode(fullpath)
+	
+	for file in os.listdir(directory):
+		filename = os.fsdecode(file)
+		if filename.endswith("simData.csv"):
+			if filename.startswith("0_") or filename.split("_")[1][0] == "R":
+				simData = np.loadtxt(fullpath+filename,skiprows=1,delimiter=',',dtype=np.float64)[0]
+				constants = np.loadtxt(fullpath+filename.replace("simData.csv","constants.csv"),skiprows=0,delimiter=',',dtype=np.float64)
+				radii = constants[:,0]
+				if (dist(simData[0],simData[1],simData[2],simData[11],simData[12],simData[13]) <= radii[0]+radii[1]):
+					return True
+				else:
+					return False
+				
+	return False
+
+
 
 def check_final_error(job_base,error,\
 				N=[30,100,300],\
@@ -311,19 +332,24 @@ def main():
 	job = curr_folder + 'erroredJobs/lognorm$a$/N_$n$/T_$t$/'
 
 	job = input_json["data_directory"] + 'jobs/lognorm$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobs/test$a$/N_$n$/T_$t$/'
 
 
 	attempts = [i for i in range(30)]
-	attempts = [0]
+	attempts = [1]
 
 	N = [30,100,300]
-	N=[100]
+	N=[5]
 
 	Temps = [3,10,30,100,300,1000]
-	Temps = [10]
+	Temps = [1000]
 
-	errorgen_folders = check_error(job,error_general,N,Temps,attempts)
-	print(errorgen_folders)
+
+	error3_folders = check_error(job,error3,N,Temps,attempts)
+	print(error3_folders)
+
+	# errorgen_folders = check_error(job,error_general,N,Temps,attempts)
+	# print(errorgen_folders)
 	# error1_folders = check_error(job,error1,N,Temps,attempts)
 	# print(error1_folders)
 

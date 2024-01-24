@@ -113,7 +113,7 @@ def main():
 	Temps = [3,10,30,100,300,1000]
 	Temps = [3]
 
-	error_folders = cfe.check_error(job,cfe.error2,N,Temps,attempts)
+	error_folders = cfe.check_error(job,cfe.error3,N,Temps,attempts)
 	error_folders.extend(cfe.check_error(job,cfe.error_general,N,Temps,attempts))
 
 	for folder in error_folders:
