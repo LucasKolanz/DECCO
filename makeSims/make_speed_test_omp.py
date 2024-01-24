@@ -61,6 +61,7 @@ if __name__ == '__main__':
 				with open(SPECIAL_FOLDER+"input.json",'r') as fp:
 					input_json = json.load(fp)
 				
+				input_json["data_directory"] = input_default["data_directory"]
 				# job = curr_folder + 'jobs/' + job_set_name + str(attempt) + '/'
 				job = input_json["data_directory"] + 'jobs/' + job_set_name + str(attempt) + '/'\
 							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
@@ -76,7 +77,6 @@ if __name__ == '__main__':
 				input_json['N'] = n
 				input_json['output_folder'] = job
 				input_json['OMPthreads'] = attempt
-				input_json["data_directory"] = input_default["data_directory"]
 				# input_json['seed'] = 2493303778
 				# input_json['radiiDistribution'] = 'logNormal'
 				# input_json['h_min'] = 0.5
