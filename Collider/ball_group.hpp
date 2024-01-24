@@ -2075,6 +2075,9 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename)
         file = std::to_string(file_index-1) + file.substr(_pos,_lastpos-1);
         attrs.start_index = file_index;//shouldnt be file_index-1 because that is just the one we read, we will write to the next index
 
+        std::cerr<<path<<std::endl;
+        std::cerr<<file<<std::endl;
+        exit(0);
         parseSimData(getLastLine(path, file));
         loadConsts(path, file);
     }
