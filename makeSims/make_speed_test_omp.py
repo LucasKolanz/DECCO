@@ -55,8 +55,8 @@ if __name__ == '__main__':
 		for n in N:
 			for Temp in Temps:
 				#load default input file
-				# with open(project_path+"default_files/default_input.json",'r') as fp:
-				# 	input_json = json.load(fp)
+				with open(project_path+"default_files/default_input.json",'r') as fp:
+					input_default = json.load(fp)
 
 				with open(SPECIAL_FOLDER+"input.json",'r') as fp:
 					input_json = json.load(fp)
@@ -76,7 +76,7 @@ if __name__ == '__main__':
 				input_json['N'] = n
 				input_json['output_folder'] = job
 				input_json['OMPthreads'] = attempt
-
+				input_json["data_directory"] = input_default["data_directory"]
 				# input_json['seed'] = 2493303778
 				# input_json['radiiDistribution'] = 'logNormal'
 				# input_json['h_min'] = 0.5
