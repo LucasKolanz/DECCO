@@ -83,6 +83,9 @@ def main():
 		print("No moves found")
 
 	for folder in error4_folders:
+		print(error4_folders)
+		print(folder)
+		exit(0)
 		if (folder in errorgen_folders):
 			command = f"mv {folder}* {folder.replace(source_job_folder,sink_job_folder)}."
 			print(command)
