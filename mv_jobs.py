@@ -43,7 +43,6 @@ def check_error(job_base,error,\
 					if os.path.exists(job+"timing.txt"):
 						valid_count += 1
 					output = error(job)
-					print(f"error: {output}")
 					if not output:
 						errors.append(job)
 				else:
@@ -77,14 +76,16 @@ def main():
 	Temps = [3,10,30,100,300,1000]
 	# Temps = [3]
 
-	error_folders = check_error(source_job,cfe.error4,N,Temps,attempts)
+	error4_folders = check_error(source_job,cfe.error4,N,Temps,attempts)
+	errorgen_folders = check_error(source_job,cfe.errorgeneral,N,Temps,attempts)
 
 	if len(error_folders) == 0:
 		print("No moves found")
 
 	for folder in error_folders:
-		command = f"mv {folder}* {folder.replace(source_job_folder,sink_job_folder)}."
-		print(command)
+		if (folder in errorgen_folders):
+			command = f"mv {folder}* {folder.replace(source_job_folder,sink_job_folder)}."
+			print(command)
 		# os.system(command)
 
 
