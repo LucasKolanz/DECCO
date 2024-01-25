@@ -58,7 +58,7 @@ if __name__ == '__main__':
 			threads = 1
 		elif n == 100:
 			threads = 2
-		else n == 300:
+		else:# n == 300:
 			threads = 16
 
 		for Temp in Temps:
