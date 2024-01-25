@@ -15,10 +15,13 @@ def rand_int():
 	random_unsigned_int = random.randint(0, max_unsigned_int_cpp)
 	return random_unsigned_int
 
-def run_job(location,num_balls):
-	cmd = ["python3", "{}run_sim.py".format(location), location, str(num_balls)]
-	# print(cmd)
-	subprocess.run(cmd)
+def run_job(location):
+	output_file = location + "sim_output.txt"
+	error_file = location + "sim_errors.txt"
+	cmd = [f"{location}Collider.x",location]
+
+	with open(output_file,"a") as out, open(error_file,"a") as err:
+		subprocess.run(cmd,stdout=out,stderr=err)
 
 if __name__ == '__main__':
 	#make new output folders
@@ -51,13 +54,26 @@ if __name__ == '__main__':
 
 	folders = []
 	for n in N:
+		if n == 30:
+			threads = 1
+		elif n == 100:
+			threads = 2
+		else n == 300:
+			threads = 16
+
 		for Temp in Temps:
 			temp_attempt = attempts
 			if n == 300:
 				temp_attempt = attempts_300
 			for attempt in temp_attempt:
-				job = project_path + 'jobs/' + job_set_name + str(attempt) + '/'\
+
+				with open(SPECIAL_FOLDER+"input.json",'r') as fp:
+					input_json = json.load(fp)
+				
+				# job = curr_folder + 'jobs/' + job_set_name + str(attempt) + '/'
+				job = input_json["data_directory"] + 'jobs/' + job_set_name + str(attempt) + '/'\
 							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
+
 				if not os.path.exists(job):
 					os.makedirs(job)
 				else:
@@ -73,10 +89,14 @@ if __name__ == '__main__':
 				input_json['temp'] = Temp
 				input_json['seed'] = rand_int()
 				input_json['radiiDistribution'] = 'logNormal'
+				input_json['N'] = n
 				input_json['h_min'] = 0.5
+				input_json['dataFormat'] = "csv"
+				input_json['output_folder'] = job
+				input_json['OMPthreads'] = threads
 				# input_json['u_s'] = 0.5
 				# input_json['u_r'] = 0.5
-				input_json['note'] = "Runs testing h_min = 0.5 (5e-6) with lognormal distribution"
+				input_json['note'] = "Runs lognorm for all temps and sizes "
 				####################################
 
 				with open(job + "input.json",'w') as fp:
@@ -93,16 +113,17 @@ if __name__ == '__main__':
 				qsubfile += "#$ -N {}-N_{}-T_{}\n".format(job_set_name,n,Temp)
 				qsubfile += "#$ -cwd\n"
 				qsubfile += "#$ -m e\n"
-				qsubfile += "#$ -pe orte 1\n"
+				qsubfile += f"#$ -pe orte {threads}\n"
 				qsubfile += "#$ -M kolanzl@oregonstate.edu\n"
 				qsubfile += "#$ -o sim_out.log\n"
 				qsubfile += "#$ -e sim_err.log\n\n"
 
+				qsubfile += f"export OMP_NUM_THREADS={threads}\n"
 				qsubfile += "module load default-environment\n"
 				qsubfile += "module unload gcc/5.1.0\n"
 				qsubfile += "module load gcc/12.2.0\n"
 				
-				qsubfile += "./ColliderSingleCore.x {} {}\n".format(job,n)
+				qsubfile += f"{job}Collider.x {job}\n"
 
 
 				
@@ -110,14 +131,9 @@ if __name__ == '__main__':
 					sfp.write(qsubfile)
 
 				#add run script and executable to folders
-				os.system(f"cp {project_path}default_files/run_sim.py {job}run_sim.py")
-				os.system(f"cp {project_path}ColliderSingleCore/ColliderSingleCore.x {job}ColliderSingleCore.x")
-				os.system(f"cp {project_path}ColliderSingleCore/ColliderSingleCore.cpp {job}ColliderSingleCore.cpp")
-				# os.system("cp default_files/run_multicore_sim.py {}run_multicore_sim.py".format(job))
-				# os.system("cp ColliderMultiCore/ColliderMultiCore.x {}ColliderMultiCore.x".format(job))
-				os.system(f"cp {project_path}ball_group.hpp {job}ball_group.hpp")
-				# if input_json['simType'] != "BPCA":
-				# 	os.system("cp ../jobs/collidable_aggregate_1200/* {}".format(job))
+				os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
+				os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
+				os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
 
 				folders.append(job)
 

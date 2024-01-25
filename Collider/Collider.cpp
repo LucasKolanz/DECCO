@@ -50,7 +50,7 @@ void
 BPCA(std::string path, int num_balls);
 void 
 collider(std::string path, std::string projectileName,std::string targetName);
-int closestPowerOf2(double number);
+// int closestPowerOf2(double number);
 int get_num_threads(int N);
 /// @brief The ballGroup run by the main sim looper.
 // Ball_group O(output_folder, projectileName, targetName, v_custom); // Collision
@@ -193,15 +193,15 @@ void BPCA(std::string path, int num_balls)
     return;
 }
 
-// Function to calculate the closest power of 2 to a given number.
-int closestPowerOf2(double number) 
-{
-    int lower = pow(2, floor(log2(number))); // Next lower power of 2
-    int higher = pow(2, ceil(log2(number))); // Next higher power of 2
+// // Function to calculate the closest power of 2 to a given number.
+// int closestPowerOf2(double number) 
+// {
+//     int lower = pow(2, floor(log2(number))); // Next lower power of 2
+//     int higher = pow(2, ceil(log2(number))); // Next higher power of 2
 
-    // Return the power of 2 that is closer to the number
-    return (number - lower < higher - number) ? lower : higher;
-}
+//     // Return the power of 2 that is closer to the number
+//     return (number - lower < higher - number) ? lower : higher;
+// }
 
 
 //with a known slope and intercept, givin N, the number of particles, what is the 
@@ -209,12 +209,30 @@ int closestPowerOf2(double number)
 //to this optimum
 int get_num_threads(int N)
 {
-    //This is from speed tests on COSINE
-    double slope = ;
-    double intercept = ;
+    // //This is from speed tests on COSINE
+    // double slope = ;
+    // double intercept = ;
 
-    double interpolatedValue = slope * n + intercept; // Linear interpolation
-    return std::min(closestPowerOf2(interpolatedValue),O.attrs.MAXOMPthreads);        // Find the closest power of 2
+    // double interpolatedValue = slope * n + intercept; // Linear interpolation
+    // return std::min(closestPowerOf2(interpolatedValue),O.attrs.MAXOMPthreads);        // Find the closest power of 2
+
+    //I could only test up to 16 threads so far. Not enough data for linear interp
+    if (N < 0)
+    {
+        std::cerr<<"ERROR: negative number of particles."<<std::endl;
+        exit(-1);
+    }
+    else if (N < 90)
+    {
+        return 1;
+    }
+    else if (N < 140)
+    {
+        return 2;
+    }
+
+    return 16;
+
 }
 
 
@@ -238,7 +256,7 @@ sim_looper(Ball_group &O,unsigned long long start_step=1)
 
 
     //Set the number of threads to be appropriate
-    O.attrs.OMPthreads = get_num_threads(O.attrs.num_particles)
+    O.attrs.OMPthreads = get_num_threads(O.attrs.num_particles);
 
     for (Step = start_step; Step < O.attrs.steps; Step++)  // Steps start at 1 for non-restart because the 0 step is initial conditions.
     {
