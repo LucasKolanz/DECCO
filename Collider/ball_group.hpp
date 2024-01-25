@@ -1850,6 +1850,7 @@ void Ball_group::loadConsts(const std::string& path, const std::string& filename
 [[nodiscard]] std::string Ball_group::getLastLine(const std::string& path, const std::string& filename)
 {
     std::string simDataFilepath = path + filename + "simData.csv";
+
     if (auto simDataStream = std::ifstream(simDataFilepath, std::ifstream::in)) {
         std::cerr << "\nParsing last line of data.\n";
 
@@ -1857,6 +1858,7 @@ void Ball_group::loadConsts(const std::string& path, const std::string& filename
          // spot before the EOF
 
         bool keepLooping = true;
+        bool first_run = true;
         while (keepLooping) {
             char ch = ' ';
             simDataStream.get(ch);  // Get current byte's data
@@ -1865,12 +1867,13 @@ void Ball_group::loadConsts(const std::string& path, const std::string& filename
                 1) {                     // If the data was at or before the 0th byte
                 simDataStream.seekg(0);  // The first line is the last line
                 keepLooping = false;     // So stop there
-            } else if (ch == '\n') {     // If the data was a newline
-                keepLooping = false;     // Stop at the current position.
+            } else if (ch == '\n' && not first_run) {     // If the data was a newline
+                keepLooping = false;     // Stop at the current position (if we arent on the first character).
             } else {                     // If the data was neither a newline nor at the 0 byte
                 simDataStream.seekg(-2, std::ios_base::cur);  // Move to the front of that data, then to
                                                               // the front of the data before it
             }
+            first_run = false;
         }
         std::string line;
         std::getline(simDataStream, line);  // Read the current line
