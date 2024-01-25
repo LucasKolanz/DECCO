@@ -218,11 +218,12 @@ def check_error(job_base,error,\
 		for Temp in Temps:
 			for attempt in attempts:
 				job = job_base.replace("$a$",str(attempt)).replace("$n$",str(n)).replace("$t$",str(Temp))
-				if os.path.exists(job+"timing.txt"):
-					valid_count += 1
-				output = error(job)
-				if output > 0:
-					errors.append(job)
+				if os.path.exists(job):
+					if os.path.exists(job+"timing.txt"):
+						valid_count += 1
+					output = error(job)
+					if output > 0:
+						errors.append(job)
 
 	print(f"{len(errors)} errors, out of {valid_count} valid runs, out of {len(N)*len(attempts)*len(Temps)} runs.")
 	return errors
