@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
 	try:
 		# os.chdir("{}ColliderSingleCore".format(curr_folder))
-		subprocess.run(["make","-C",project_path+"ColliderSingleCore"], check=True)
+		subprocess.run(["make","-C",project_path+"Collider"], check=True)
 	except:
 		print('compilation failed')
 		exit(-1)
