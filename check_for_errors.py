@@ -146,6 +146,8 @@ def error4(fullpath):
 	error = False
 	for i in tail_out:
 		print(i)
+		print("ERROR: STEPS IS NEGATIVE" in tail_out)
+		print("STEPS IS NEGATIVE" in tail_out)
 		if "ERROR: STEPS IS NEGATIVE" in tail_out:
 			error = True
 			break 
