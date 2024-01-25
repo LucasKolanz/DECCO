@@ -143,6 +143,7 @@ def error4(fullpath):
 		return False
 
 	tail_out = tail(fullpath+error_file,10).split('\n')
+	print(tail_out)
 	if "ERROR: STEPS IS NEGATIVE" in tail_out:
 		return False
 	else:
