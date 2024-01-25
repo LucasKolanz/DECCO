@@ -51,7 +51,7 @@ BPCA(std::string path, int num_balls);
 void 
 collider(std::string path, std::string projectileName,std::string targetName);
 // int closestPowerOf2(double number);
-int get_num_threads(int N);
+int get_num_threads(Ball_group &O);
 /// @brief The ballGroup run by the main sim looper.
 // Ball_group O(output_folder, projectileName, targetName, v_custom); // Collision
 // Ball_group O(path, targetName, 0);  // Continue
@@ -207,8 +207,9 @@ void BPCA(std::string path, int num_balls)
 //with a known slope and intercept, givin N, the number of particles, what is the 
 //optimum number of threads. The function then chooses the power of 2 that is closest
 //to this optimum
-int get_num_threads(int N)
+int get_num_threads(Ball_group &O)
 {
+    int N = O.attrs.num_particles;
     // //This is from speed tests on COSINE
     // double slope = ;
     // double intercept = ;
@@ -217,22 +218,26 @@ int get_num_threads(int N)
     // return std::min(closestPowerOf2(interpolatedValue),O.attrs.MAXOMPthreads);        // Find the closest power of 2
 
     //I could only test up to 16 threads so far. Not enough data for linear interp
+    int threads = 1;
     if (N < 0)
     {
         std::cerr<<"ERROR: negative number of particles."<<std::endl;
         exit(-1);
     }
-    else if (N < 90)
-    {
-        return 1;
-    }
     else if (N < 140)
     {
-        return 2;
+        threads = 2;
+    }
+    else
+    {
+        threads = 16;
     }
 
-    return 16;
-
+    if (threads > O.attrs.MAXOMPthreads)
+    {
+        threads = O.attrs.MAXOMPthreads;
+    }
+    return threads;
 }
 
 
@@ -256,7 +261,7 @@ sim_looper(Ball_group &O,unsigned long long start_step=1)
 
 
     //Set the number of threads to be appropriate
-    O.attrs.OMPthreads = get_num_threads(O.attrs.num_particles);
+    O.attrs.OMPthreads = get_num_threads(O);
 
     for (Step = start_step; Step < O.attrs.steps; Step++)  // Steps start at 1 for non-restart because the 0 step is initial conditions.
     {
