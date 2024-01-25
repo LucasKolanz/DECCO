@@ -43,6 +43,7 @@ def check_error(job_base,error,\
 					if os.path.exists(job+"timing.txt"):
 						valid_count += 1
 					output = error(job)
+					print(f"error: {output}")
 					if not output:
 						errors.append(job)
 				else:
