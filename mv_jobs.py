@@ -43,8 +43,10 @@ def check_error(job_base,error,\
 					if os.path.exists(job+"timing.txt"):
 						valid_count += 1
 					output = error(job)
-					if output == 0:
+					if not output:
 						errors.append(job)
+				else:
+					print(f"Job doesn't exist: {job}")
 
 	# print(f"{len(errors)} errors, out of {valid_count} valid runs, out of {len(N)*len(attempts)*len(Temps)} runs.")
 	return errors
