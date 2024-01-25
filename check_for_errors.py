@@ -164,10 +164,10 @@ def error_general(fullpath):
 		return False
 
 	tail_out = tail(fullpath+error_file,10).split('\n')
-	error = False
+	error = True
 	for i in tail_out:
 		if "Simulation complete!" in i:
-			error = True
+			error = False
 			break 
 	return error
 
