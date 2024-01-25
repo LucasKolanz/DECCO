@@ -144,11 +144,12 @@ def error4(fullpath):
 
 	tail_out = tail(fullpath+error_file,10).split('\n')
 	print(tail_out)
-	if "ERROR: STEPS IS NEGATIVE" in tail_out:
-		return False
-	else:
-		return True
-
+	error = False
+	for i in tail_out:
+		if "ERROR: STEPS IS NEGATIVE" in tail_out:
+			error = True
+			break 
+	return error
 
 def where_did_error1_start(fullpath):
 	directory = os.fsencode(fullpath)
