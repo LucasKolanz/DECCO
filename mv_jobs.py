@@ -87,9 +87,9 @@ def main():
 		# print(folder)
 		if (folder in errorgen_folders):
 			command = f"mv {folder}* {folder.replace(source_job_folder,sink_job_folder)}."
-			print(command)
+			os.system(command)
+			# print(command)
 		# exit(0)
-		# os.system(command)
 
 
 if __name__ == '__main__':
