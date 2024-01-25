@@ -76,6 +76,9 @@ def main():
 
 	error_folders = check_error(source_job,cfe.error4,N,Temps,attempts)
 
+	if len(error_folders) == 0:
+		print("No errors found")
+
 	for folder in error_folders:
 		command = f"mv {source_job}* {sink_job}."
 		print(command)
