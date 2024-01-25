@@ -82,7 +82,7 @@ def main():
 		print("No errors found")
 
 	for folder in error_folders:
-		command = f"mv {source_job}* {sink_job}."
+		command = f"mv {folder}* {folder.replace(source_job_folder,sink_job_folder)}."
 		print(command)
 		# os.system(command)
 
