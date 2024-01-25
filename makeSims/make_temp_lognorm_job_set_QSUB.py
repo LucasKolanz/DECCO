@@ -67,7 +67,8 @@ if __name__ == '__main__':
 				temp_attempt = attempts_300
 			for attempt in temp_attempt:
 
-				with open(SPECIAL_FOLDER+"input.json",'r') as fp:
+				#load default input file
+				with open(project_path+"default_files/default_input.json",'r') as fp:
 					input_json = json.load(fp)
 				
 				# job = curr_folder + 'jobs/' + job_set_name + str(attempt) + '/'
@@ -80,9 +81,6 @@ if __name__ == '__main__':
 					print("Job '{}' already exists.".format(job))
 
 
-				#load default input file
-				with open(project_path+"default_files/default_input.json",'r') as fp:
-					input_json = json.load(fp)
 
 				####################################
 				######Change input values here######
