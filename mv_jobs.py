@@ -69,18 +69,18 @@ def main():
 	# move_folder = curr_folder + 'erroredJobs/lognorm$a$/N_$n$/T_$t$/'
 
 	attempts = [i for i in range(30)]
-	attempts = [18]
+	# attempts = [18]
 
 	N = [30,100,300]
-	N=[30]
+	# N=[30]
 
 	Temps = [3,10,30,100,300,1000]
-	Temps = [3]
+	# Temps = [3]
 
 	error_folders = check_error(source_job,cfe.error4,N,Temps,attempts)
 
 	if len(error_folders) == 0:
-		print("No errors found")
+		print("No moves found")
 
 	for folder in error_folders:
 		command = f"mv {folder}* {folder.replace(source_job_folder,sink_job_folder)}."
