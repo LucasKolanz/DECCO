@@ -50,6 +50,8 @@ void
 BPCA(std::string path, int num_balls);
 void 
 collider(std::string path, std::string projectileName,std::string targetName);
+int closestPowerOf2(double number);
+int get_num_threads(int N);
 /// @brief The ballGroup run by the main sim looper.
 // Ball_group O(output_folder, projectileName, targetName, v_custom); // Collision
 // Ball_group O(path, targetName, 0);  // Continue
@@ -191,8 +193,29 @@ void BPCA(std::string path, int num_balls)
     return;
 }
 
+// Function to calculate the closest power of 2 to a given number.
+int closestPowerOf2(double number) 
+{
+    int lower = pow(2, floor(log2(number))); // Next lower power of 2
+    int higher = pow(2, ceil(log2(number))); // Next higher power of 2
+
+    // Return the power of 2 that is closer to the number
+    return (number - lower < higher - number) ? lower : higher;
+}
 
 
+//with a known slope and intercept, givin N, the number of particles, what is the 
+//optimum number of threads. The function then chooses the power of 2 that is closest
+//to this optimum
+int get_num_threads(int N)
+{
+    //This is from speed tests on COSINE
+    double slope = ;
+    double intercept = ;
+
+    double interpolatedValue = slope * n + intercept; // Linear interpolation
+    return std::min(closestPowerOf2(interpolatedValue),O.attrs.MAXOMPthreads);        // Find the closest power of 2
+}
 
 
 void
@@ -212,6 +235,10 @@ sim_looper(Ball_group &O,unsigned long long start_step=1)
         std::cerr<<"start step: "<<start_step<<std::endl;
         std::cerr<<"Stepping through "<<O.attrs.steps<<" steps"<<std::endl;
     }
+
+
+    //Set the number of threads to be appropriate
+    O.attrs.OMPthreads = get_num_threads(O.attrs.num_particles)
 
     for (Step = start_step; Step < O.attrs.steps; Step++)  // Steps start at 1 for non-restart because the 0 step is initial conditions.
     {
@@ -255,7 +282,7 @@ sim_looper(Ball_group &O,unsigned long long start_step=1)
         }
 
         // Physics integration step:
-        O.sim_one_step_single_core(writeStep);
+        O.sim_one_step(writeStep);
 
         if (writeStep) {
             // t.start_event("writeStep");

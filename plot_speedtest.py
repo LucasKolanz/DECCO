@@ -10,6 +10,7 @@
 import os
 import glob
 import numpy as np
+import matplotlib.pyplot as plt
 # import utils as u
 import h5py
 import json
@@ -80,7 +81,37 @@ def main():
 
 
 	times = get_all_times(job,N,Temps,attempts)
-	print(times)
+	# print(times)
+
+	# print(N)
+	# print(times[0,0,:])
+
+	# exit(0)
+	fig,ax = plt.subplots()
+	for i in range(len(N)):
+		ax.plot(attempts,times[0,:,i],label=f"N={N[i]}")
+
+
+	# for i,N in enumerate(Nums):
+		# ax.errorbar(temps,data[len(data)-len(Nums)*2+2*i],yerr=data[len(data)-len(Nums)*2+2*i+1],\
+		# 			label="N={}".format(N),color='orange',linestyle=styles[i],zorder=5)
+
+	ax.set_xlabel('threads')
+	# ax.set_title('Averge number of contacts over {} sims N={}'.format(len(a),N))
+	ax.set_ylabel('time (s)')
+	# ax.set_legend(['Rabc','RKBM'])
+	# plt.errorbar(temps,)
+	ax.set_xscale('log')
+	ax.legend()
+	# ax2.errorbar(temps,FD_dataavg,yerr=yerr2,label="Frac Dim",color='r',zorder=0)
+	# ax2.invert_yaxis()
+
+	# fig.legend()
+	# plt.savefig("figures/avgContacts.png")
+	plt.show()
+	# if show_plots:
+	# plt.close("all")
+	# plt.rcParams.update({'font.size': 10})
 
 
 

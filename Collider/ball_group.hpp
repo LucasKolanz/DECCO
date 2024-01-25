@@ -350,7 +350,7 @@ public:
     std::string get_data_info();
     void parse_meta_data(std::string metadata);
 
-    void sim_one_step_single_core(const bool write_step);
+    void sim_one_step(const bool write_step);
 
 
 
@@ -2584,7 +2584,7 @@ std::string Ball_group::find_restart_file_name(std::string path)
 }
 
 
-void Ball_group::sim_one_step_single_core(const bool write_step)
+void Ball_group::sim_one_step(const bool write_step)
 {
     int world_rank = getRank();
     int world_size = getSize();
