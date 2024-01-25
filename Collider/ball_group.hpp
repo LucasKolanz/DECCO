@@ -2083,7 +2083,7 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename)
         std::cerr<<_lastpos<<std::endl;
         std::cerr<<offset<<std::endl;
 
-        file = std::to_string(file_index-1) + file.substr(_pos,_lastpos-_pos);
+        file = std::to_string(file_index-1) + file.substr(_pos,_lastpos-(_pos-1));
         attrs.start_index = file_index;//shouldnt be file_index-1 because that is just the one we read, we will write to the next index
 
         std::cerr<<file<<std::endl;
