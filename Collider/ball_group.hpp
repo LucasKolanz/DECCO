@@ -2069,25 +2069,12 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename)
         //decrease index by 1 so we have most recent finished sim
         _pos = file.find_first_of("_");
         size_t _lastpos = file.find_last_of("_");
-        int offset = -1;
-
-        int count = std::count(filename.begin(), filename.end(), '_');
-        if (count > 1) //old way, then offset should be zero, otherwise -1
-        {
-            offset = -2;
-        }
         
         file_index = stoi(file.substr(0,_pos));
-        std::cerr<<file<<std::endl;
-        std::cerr<<_pos<<std::endl;
-        std::cerr<<_lastpos<<std::endl;
-        std::cerr<<offset<<std::endl;
 
         file = std::to_string(file_index-1) + file.substr(_pos,_lastpos-(_pos-1));
         attrs.start_index = file_index;//shouldnt be file_index-1 because that is just the one we read, we will write to the next index
 
-        std::cerr<<file<<std::endl;
-        exit(0);
         parseSimData(getLastLine(path, file));
         loadConsts(path, file);
     }
