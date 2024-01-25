@@ -77,7 +77,7 @@ def main():
 	# Temps = [3]
 
 	error4_folders = check_error(source_job,cfe.error4,N,Temps,attempts)
-	errorgen_folders = check_error(source_job,cfe.errorgeneral,N,Temps,attempts)
+	errorgen_folders = check_error(source_job,cfe.error_general,N,Temps,attempts)
 
 	if len(error_folders) == 0:
 		print("No moves found")
