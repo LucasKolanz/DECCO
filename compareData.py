@@ -2,10 +2,10 @@ import os
 import numpy as np
 import sys
 import h5py
-relative_path = "../"
+relative_path = ""
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
-sys.path.append(project_path)
+sys.path.append(project_path+"utilities/")
 import utils as u
 # import porosity_FD as p
 
@@ -36,15 +36,15 @@ def get_data(file,dtype=""):
 # def get_old_csv()
 
 def main():
-	folder1 = "/home/lucas/Desktop/SpaceLab_data/jobs/errorckh51/N_10/T_3/"
-	folder2 = "/home/lucas/Desktop/SpaceLab_data/jobs/errorckcsv1/N_10/T_3/"
 	folder1 = "/home/lucas/Desktop/SpaceLab_data/oldVersionCSVData/"
-	folder2 = "/home/lucas/Desktop/SpaceLab_data/jobs/errorckcsvlognorm1/N_10/T_3/"
+	folder2 = "/home/lucas/Desktop/SpaceLab_data/jobs/errorckcsv1/N_10/T_3/"
+	folder1 = "/global/homes/l/lpkolanz/DECCO/SpaceLab_data/jobs/masterComp5/N_10/T_3/" #Compare to 5 because new calculation order
+	folder2 = "/global/homes/l/lpkolanz/DECCO/SpaceLab_data/jobs/masterComp13/N_10/T_3/"
 
 	N = 10
 	temp = 100
 	body = ""
-	old1 = True;
+	old1 = False;
 	old2 = False;
 	body = "2_R6e-05_v4e-01_cor0.63_mu0.1_rho2.25_k5e+00_Ha5e-12_dt4e-10_"
 	tol = 1e-5
@@ -52,6 +52,8 @@ def main():
 
 		file1 = u.get_data_file(folder1,ind,old1)
 		file2 = u.get_data_file(folder2,ind,old2)
+		# print(folder1+file1)
+		# print(folder2+file2)
 
 		print(f"===================TESTING simData {ind}===================")
 		simData1 = get_data(folder1+file1,"simData")#np.array(f['/simData'][:])
@@ -61,8 +63,9 @@ def main():
 		if np.sum(different) == 0:
 			print("No errors")
 		else:
-			# print(simData1[different])
-			# print(simData2[different])
+			print(different[:20])
+			print(simData1[:20])
+			print(simData2[:20])
 			print(f"{np.sum(different)}/{simData1.shape} different values")
 		print(f"===================TEST Finished===================")
 		print(f"===================TESTING constants {ind}===================")

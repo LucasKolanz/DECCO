@@ -15,9 +15,6 @@ import utils as u
 # import utils_old as u
 
 
-relative_path = ""
-relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
-project_path = os.path.abspath(relative_path) + '/'
 
 '''
 porosity definitions 1-3 from:
@@ -132,6 +129,12 @@ def number_of_contacts(data_folder,data_index=-1):
 		for j in range(num_balls):
 			if i != j:
 				contacts[i,j] = (dist(i,j) <= radius[i]+radius[j])
+
+	print(contacts)
+	print(np.sum(contacts,axis=1))
+	print(np.sum(contacts,axis=0))
+	print(np.mean(np.sum(contacts,axis=1)))
+	exit(0)
 	
 	return np.mean(np.sum(contacts,axis=1))
 
@@ -203,8 +206,9 @@ if __name__ == '__main__':
 	new_data = True
 	save_data = True
 	show_plots = True
+	make_FD = False
 	show_FD_plots = False
-	overwrite_octree_data = True
+	overwrite_octree_data = False
 	find_stats = False
 	show_stat_plots = False
 
@@ -242,7 +246,7 @@ if __name__ == '__main__':
 						porositiesKBM[n,i,j] = porosity_measure2(data_folder,N-1)
 						contacts[n,i,j] = number_of_contacts(data_folder,N-1)
 
-						if not np.isnan(porositiesabc[n,i,j]):
+						if not np.isnan(porositiesabc[n,i,j]) and make_FD:
 							o3dv = u.o3doctree(data_folder,overwrite_data=overwrite_octree_data,index=N-1,Temp=temp)
 							o3dv.make_tree()
 							FD_data[n,i,j] = o3dv.calc_fractal_dimension(show_graph=show_FD_plots)

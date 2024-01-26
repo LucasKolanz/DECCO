@@ -18,7 +18,7 @@ def rand_int():
 def run_job(location):
 	output_file = location + "sim_output.txt"
 	error_file = location + "sim_errors.txt"
-	cmd = [f"{location}ColliderSingleCore.x",location]
+	cmd = [f"{location}Collider.x",location]
 
 	with open(output_file,"a") as out, open(error_file,"a") as err:
 		subprocess.run(cmd,stdout=out,stderr=err)

@@ -103,7 +103,7 @@ def main():
 
 	job_set_name = "lognorm"
 
-	attempts = [i for i in range(30)]
+	attempts = [i for i in range(40)]
 	# attempts = [0,1]
 	attempts_300 = attempts
 

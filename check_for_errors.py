@@ -3,14 +3,23 @@
 #Error 1: restart failed, number of balls didn't carry over so there are an incorrect 
 #			number of colums in at least 1 sim_data output
 #Error 2: sim fails to write all the data (so there aren't the correct number of colums in simData)
-#Error *: possible signed integer over flow in number of steps for a sim
-#			Indicated by a specific sequence at the end of sim_errors.txt
-#Error general: did we get "Simulation complete!" within the last 10 lines of sim_error.log
+#
+#Error 3: do the first two balls of the sim overlap eachother?
+#
+#Error 4: integer overflow in number of steps
+#
+
 
 import os
 import glob
 import numpy as np
-import utils as u
+# import utils as u
+import h5py
+import json
+
+relative_path = ""
+relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
+project_path = os.path.abspath(relative_path) + '/'
 
 #returns the last line of the file file_path
 def tail(file_path,n):
@@ -32,34 +41,6 @@ def tail(file_path,n):
 		last_lines = f.read().decode()
 	return last_lines
 
-# #works like command line function tail
-# def tail( file_path, lines=10 ):
-# 	with open(file_path, 'rb') as f:
-# 	    total_lines_wanted = lines
-
-# 	    BLOCK_SIZE = 1024
-# 	    f.seek(0, 2)
-# 	    block_end_byte = f.tell()
-# 	    lines_to_go = total_lines_wanted
-# 	    block_number = -1
-# 	    blocks = [] # blocks of size BLOCK_SIZE, in reverse order starting
-# 	                # from the end of the file
-# 	    while lines_to_go > 0 and block_end_byte > 0:
-# 	        if (block_end_byte - BLOCK_SIZE > 0):
-# 	            # read the last block we haven't yet read
-# 	            f.seek(block_number*BLOCK_SIZE, 2)
-# 	            blocks.append(f.read(BLOCK_SIZE))
-# 	        else:
-# 	            # file too small, start from begining
-# 	            f.seek(0,0)
-# 	            # only read what was not read
-# 	            blocks.append(f.read(block_end_byte))
-# 	        lines_found = blocks[-1].count('\n')
-# 	        lines_to_go -= lines_found
-# 	        block_end_byte -= BLOCK_SIZE
-# 	        block_number -= 1
-# 	    all_read_text = ''.join(reversed(blocks))
-# 	    return '\n'.join(all_read_text.splitlines()[-total_lines_wanted:])
 
 def ck_error2_by_file(file,verbose=True ):
 	try:
@@ -80,14 +61,15 @@ def ck_error2_by_file(file,verbose=True ):
 
 #If the (number rows of constants)*11 != (simData columns)
 #Then there was some kind of write error
-def error2(fullpath,verbose=False):
-	directory = os.fsencode(fullpath)
-	for file in os.listdir(directory):
-		filename = os.fsdecode(file)
-		if filename.endswith("simData.csv"): 
-			err = ck_error2_by_file(filename,verbose)
-			if err:
-				return True
+def error2(fullpath,verbose=True,notiming=True):
+	if os.path.exists(fullpath+"timing.txt") or notiming:
+		directory = os.fsencode(fullpath)
+		for file in os.listdir(directory):
+			filename = os.fsdecode(file)
+			if filename.endswith("simData.csv"): 
+				err = ck_error2_by_file(fullpath+filename,verbose)
+				if err:
+					return True
 	return False
 
 def error2_index(fullpath,verbose=False):
@@ -147,7 +129,7 @@ def error1(fullpath):
 		# print("initially specified N value : {}".format(correct_N))
 		return True
 
-def error_general(fullpath):
+def error4(fullpath):
 	has_err = os.path.exists(fullpath+"sim_err.log")
 	has_errors = os.path.exists(fullpath+"sim_errors.txt")
 
@@ -158,14 +140,57 @@ def error_general(fullpath):
 		error_file = "sim_errors.txt"
 	else:
 		print(f"NO ERROR FILE FOR {fullpath}")
-		# return True
+		return False
 
 	tail_out = tail(fullpath+error_file,10).split('\n')
-	if "Simulation complete!" in tail_out:
-		return False
-	else:
-		return True
+	error = False
+	for i in tail_out:
+		if "ERROR: STEPS IS NEGATIVE" in i:
+			error = True
+			break 
+	return error
 
+def error5(fullpath):
+	has_err = os.path.exists(fullpath+"sim_err.log")
+	has_errors = os.path.exists(fullpath+"sim_errors.txt")
+
+	error_file = ''
+	if has_err:
+		error_file = "sim_err.log"
+	elif has_errors:
+		error_file = "sim_errors.txt"
+	else:
+		print(f"NO ERROR FILE FOR {fullpath}")
+		return False
+
+	tail_out = tail(fullpath+error_file,10).split('\n')
+	error = False
+	for i in tail_out:
+		if "ERROR: STEPS IS NEGATIVE" in i:
+			error = True
+			break 
+	return error
+
+# def error_general(fullpath):
+# 	has_err = os.path.exists(fullpath+"sim_err.log")
+# 	has_errors = os.path.exists(fullpath+"sim_errors.txt")
+
+# 	error_file = ''
+# 	if has_err:
+# 		error_file = "sim_err.log"
+# 	elif has_errors:
+# 		error_file = "sim_errors.txt"
+# 	else:
+# 		print(f"NO ERROR FILE FOR {fullpath}")
+# 		return False
+
+# 	tail_out = tail(fullpath+error_file,10).split('\n')
+# 	error = True
+# 	for i in tail_out:
+# 		if "Simulation complete!" in i:
+# 			error = False
+# 			break 
+# 	return error
 
 def where_did_error1_start(fullpath):
 	directory = os.fsencode(fullpath)
@@ -211,11 +236,15 @@ def check_error(job_base,error,\
 		for Temp in Temps:
 			for attempt in attempts:
 				job = job_base.replace("$a$",str(attempt)).replace("$n$",str(n)).replace("$t$",str(Temp))
-				if os.path.exists(job+"timing.txt"):
-					valid_count += 1
+				# print(job)
+				if os.path.exists(job):
+					if os.path.exists(job+"timing.txt"):
+						valid_count += 1
 					output = error(job)
 					if output > 0:
 						errors.append(job)
+				else:
+					print(f"{job} doesn't exist")
 
 	print(f"{len(errors)} errors, out of {valid_count} valid runs, out of {len(N)*len(attempts)*len(Temps)} runs.")
 	return errors
@@ -228,6 +257,27 @@ def get_file_base(folder):
 			file_base = '_' + '_'.join(filename.split('/')[-1].split('_')[1:-1]) + '_'
 			return file_base
 	return "ERROR: NO FILE FOUND"; 
+
+def dist(x1,y1,z1,x2,y2,z2):
+	return np.sqrt((x2-x1)**2 + (y2-y1)**2 + (z2-z1)**2)
+
+def error3(fullpath):
+	directory = os.fsencode(fullpath)
+	
+	for file in os.listdir(directory):
+		filename = os.fsdecode(file)
+		if filename.endswith("simData.csv"):
+			if filename.startswith("0_") or filename.split("_")[1][0] == "R":
+				simData = np.loadtxt(fullpath+filename,skiprows=1,delimiter=',',dtype=np.float64)[0]
+				constants = np.loadtxt(fullpath+filename.replace("simData.csv","constants.csv"),skiprows=0,delimiter=',',dtype=np.float64)
+				radii = constants[:,0]
+				if (dist(simData[0],simData[1],simData[2],simData[11],simData[12],simData[13]) <= radii[0]+radii[1]):
+					return True
+				else:
+					return False
+				
+	return False
+
 
 
 def check_final_error(job_base,error,\
@@ -294,6 +344,8 @@ def where_is_smallest_error2(job_base,error,\
 def main():
 
 	curr_folder = os.getcwd() + '/'
+	with open(project_path+"default_files/default_input.json",'r') as fp:
+		input_json = json.load(fp)
 
 	job = curr_folder + 'jobs/tempVarianceRand_attempt$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'jobs/lognorm$a$/N_$n$/T_$t$/'
@@ -301,16 +353,22 @@ def main():
 	job = curr_folder + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'erroredJobs/lognorm$a$/N_$n$/T_$t$/'
 
+	job = input_json["data_directory"] + 'jobs/lognorm$a$/N_$n$/T_$t$/'
+	# job = input_json["data_directory"] + 'jobs/test$a$/N_$n$/T_$t$/'
 
 
 	attempts = [i for i in range(30)]
-	# attempts = [0]
+	attempts = [1]
 
 	N = [30,100,300]
-	# N=[30]
+	N=[5]
 
 	Temps = [3,10,30,100,300,1000]
-	# Temps = [1000]
+	Temps = [1000]
+
+
+	error3_folders = check_error(job,error3,N,Temps,attempts)
+	print(error3_folders)
 
 	# errorgen_folders = check_error(job,error_general,N,Temps,attempts)
 	# print(errorgen_folders)
@@ -334,11 +392,11 @@ def main():
 
 
 	# folder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/erroredJobs/lognorm12/N_30/T_10/'
-	folder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/error2Test10/N_10/T_10/'
-	folder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/error2Test2/N_10/T_10/'
+	# folder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/error2Test10/N_10/T_10/'
+	# folder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/error2Test2/N_10/T_10/'
 
-	print(error2_index(folder,True))
-	print(error2(folder,True))
+	# print(error2_index(folder,True))
+	# print(error2(folder,True))
 
 if __name__ == '__main__':
 	main()
