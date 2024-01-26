@@ -173,12 +173,6 @@ void BPCA(std::string path, int num_balls)
     // exit(0);
     // Add projectile: For dust formation BPCA
     for (int i = O.attrs.start_index; i < num_balls; i++) {
-    // for (int i = 0; i < 250; i++) {
-        // O.zeroAngVel();
-        // O.zeroVel();
-        // contact = false;
-        // inital_contact = true;
-
         // t.start_event("add_projectile");
         O = O.add_projectile();
         // t.end_event("add_projectile");

@@ -61,13 +61,13 @@ def ck_error2_by_file(file,verbose=True ):
 
 #If the (number rows of constants)*11 != (simData columns)
 #Then there was some kind of write error
-def error2(fullpath,verbose=False):
-	if os.path.exists(fullpath+"timing.txt"):
+def error2(fullpath,verbose=True,notiming=True):
+	if os.path.exists(fullpath+"timing.txt") or notiming:
 		directory = os.fsencode(fullpath)
 		for file in os.listdir(directory):
 			filename = os.fsdecode(file)
 			if filename.endswith("simData.csv"): 
-				err = ck_error2_by_file(filename,verbose)
+				err = ck_error2_by_file(fullpath+filename,verbose)
 				if err:
 					return True
 	return False
@@ -150,7 +150,7 @@ def error4(fullpath):
 			break 
 	return error
 
-def error_general(fullpath):
+def error5(fullpath):
 	has_err = os.path.exists(fullpath+"sim_err.log")
 	has_errors = os.path.exists(fullpath+"sim_errors.txt")
 
@@ -164,12 +164,33 @@ def error_general(fullpath):
 		return False
 
 	tail_out = tail(fullpath+error_file,10).split('\n')
-	error = True
+	error = False
 	for i in tail_out:
-		if "Simulation complete!" in i:
-			error = False
+		if "ERROR: STEPS IS NEGATIVE" in i:
+			error = True
 			break 
 	return error
+
+# def error_general(fullpath):
+# 	has_err = os.path.exists(fullpath+"sim_err.log")
+# 	has_errors = os.path.exists(fullpath+"sim_errors.txt")
+
+# 	error_file = ''
+# 	if has_err:
+# 		error_file = "sim_err.log"
+# 	elif has_errors:
+# 		error_file = "sim_errors.txt"
+# 	else:
+# 		print(f"NO ERROR FILE FOR {fullpath}")
+# 		return False
+
+# 	tail_out = tail(fullpath+error_file,10).split('\n')
+# 	error = True
+# 	for i in tail_out:
+# 		if "Simulation complete!" in i:
+# 			error = False
+# 			break 
+# 	return error
 
 def where_did_error1_start(fullpath):
 	directory = os.fsencode(fullpath)
@@ -215,12 +236,15 @@ def check_error(job_base,error,\
 		for Temp in Temps:
 			for attempt in attempts:
 				job = job_base.replace("$a$",str(attempt)).replace("$n$",str(n)).replace("$t$",str(Temp))
+				# print(job)
 				if os.path.exists(job):
 					if os.path.exists(job+"timing.txt"):
 						valid_count += 1
 					output = error(job)
 					if output > 0:
 						errors.append(job)
+				else:
+					print(f"{job} doesn't exist")
 
 	print(f"{len(errors)} errors, out of {valid_count} valid runs, out of {len(N)*len(attempts)*len(Temps)} runs.")
 	return errors

@@ -2075,8 +2075,8 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename)
         
         file_index = stoi(file.substr(0,_pos));
 
-        file = std::to_string(file_index-1) + file.substr(_pos,_lastpos-(_pos-1));
-        attrs.start_index = file_index;//shouldnt be file_index-1 because that is just the one we read, we will write to the next index
+        file = std::to_string(file_index) + file.substr(_pos,_lastpos-(_pos-1));
+        attrs.start_index = file_index+1;//shouldnt be file_index-1 because that is just the one we read, we will write to the next index
 
         parseSimData(getLastLine(path, file));
         loadConsts(path, file);
@@ -2544,8 +2544,13 @@ std::string Ball_group::find_restart_file_name(std::string path)
 {
     std::string file;
     std::string largest_file_name;
+    std::string second_largest_file_name;
+    std::string simDatacsv = "simData.csv";
+    std::string datah5 = "data.h5";
+
     int largest_file_index = -1;
     int file_index=0;
+    bool csv = false;
     for (const auto & entry : fs::directory_iterator(path))
     {
         file = entry.path();
@@ -2553,7 +2558,7 @@ std::string Ball_group::find_restart_file_name(std::string path)
         file = file.erase(0,pos+1);
 
         //Is the data in csv format?
-        if (file.substr(file.size()-4,file.size()) == ".csv")
+        if (file.size() > simDatacsv.size() && file.substr(file.size()-simDatacsv.size(),file.size()) == simDatacsv)
         {
             // file_count++;
             size_t _pos = file.find_first_of("_");
@@ -2567,11 +2572,16 @@ std::string Ball_group::find_restart_file_name(std::string path)
 
             if (file_index > largest_file_index)
             {
+                second_largest_file_name = largest_file_name;
                 largest_file_index = file_index;
                 largest_file_name = file;
+                csv = true;
             }
+
+
+
         }
-        else if (file.substr(file.size()-3,file.size()) == ".h5")
+        else if (file.size() > datah5.size() && file.substr(file.size()-datah5.size(),file.size()) == datah5)
         {
             size_t _pos = file.find_first_of("_");
             file_index = stoi(file.substr(0,file.find_first_of("_")));
@@ -2581,6 +2591,33 @@ std::string Ball_group::find_restart_file_name(std::string path)
                 largest_file_name = file;
             }
         }
+    }
+    if (csv)
+    {
+        std::string file1 = path + largest_file_name;
+        std::string file2 = path + largest_file_name.substr(0,largest_file_name.size()-simDatacsv.size()) + "constants.csv";
+        std::string file3 = path + largest_file_name.substr(0,largest_file_name.size()-simDatacsv.size()) + "energy.csv";
+
+        int status1 = remove(file1.c_str());
+        int status2 = remove(file2.c_str());
+        int status3 = remove(file3.c_str());
+
+        if (status1 != 0)
+        {
+            std::cout<<"File: "<<file1<<" could not be removed, now exiting with failure."<<std::endl;
+            exit(EXIT_FAILURE);
+        }
+        else if (status2 != 0)
+        {
+            std::cout<<"File: "<<file2<<" could not be removed, now exiting with failure."<<std::endl;
+            exit(EXIT_FAILURE);
+        }
+        else if (status3 != 0)
+        {
+            std::cout<<"File: "<<file3<<" could not be removed, now exiting with failure."<<std::endl;
+            exit(EXIT_FAILURE);
+        }
+        largest_file_name = second_largest_file_name;
     }
 
     return largest_file_name;

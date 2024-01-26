@@ -116,21 +116,25 @@ def main():
 	# move_folder = curr_folder + 'erroredJobs/lognorm$a$/N_$n$/T_$t$/'
 
 	attempts = [i for i in range(30)]
-	# attempts = [18]
+	attempts = [1]
 
 	N = [30,100,300]
-	# N=[30]
+	N=[300]
 
 	Temps = [3,10,30,100,300,1000]
-	# Temps = [3]
+	Temps = [3]
 
-	error_folders = cfe.check_error(job,cfe.error3,N,Temps,attempts)
-	error_folders.extend(cfe.check_error(job,cfe.error_general,N,Temps,attempts))
+	error_folders = cfe.check_error(job,cfe.error1,N,Temps,attempts)
+	error_folders.extend(cfe.check_error(job,cfe.error2,N,Temps,attempts))
+	error_folders.extend(cfe.check_error(job,cfe.error3,N,Temps,attempts))
+	error_folders.extend(cfe.check_error(job,cfe.error4,N,Temps,attempts))
+	error_folders = list(set(error_folders))
+	print(error_folders)
 
-	for folder in error_folders:
+	# for folder in error_folders:
 		# print(folder)
 
-		restart_job(folder,test=False,move_folder=folder.replace(job_folder,move_job_folder)) #if move_folder is specified it will move the errored jobs
+		# restart_job(folder,test=True,move_folder=folder.replace(job_folder,move_job_folder)) #if move_folder is specified it will move the errored jobs
 		# restart_job(folder,test=False,move_folder='') #keep move_folder empty if Deleting and restarting jobs
 
 
