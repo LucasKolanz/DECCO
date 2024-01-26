@@ -29,13 +29,14 @@ if __name__ == '__main__':
 
 	try:
 		# os.chdir("{}ColliderSingleCore".format(curr_folder))
-		subprocess.run(["make","-C",project_path+"ColliderSingleCore"], check=True)
+		subprocess.run(["make","-C",project_path+"Collider"], check=True)
 	except:
 		print('compilation failed')
 		exit(-1)
 
 
 	job_set_name = "const"
+	job_set_name = "TEST"
 	# folder_name_scheme = "T_"
 
 	# runs_at_once = 7
@@ -43,20 +44,27 @@ if __name__ == '__main__':
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	attempts = [i for i in range(30)]
 	# attempts_300 = [i for i in range(30)]
-	# attempts = [1] 
+	attempts = [1] 
 	attempts_300 = attempts
 
 	#test it out first
 	# attempts = [0]
 	# attempts_300 = [0]
 
+	node = 1
 	N = [30,100,300]
-	# N = [5]
+	N = [245]
 	Temps = [3,10,30,100,300,1000]
-	# Temps = [3]
+	Temps = [3]
 
 	folders = []
 	for n in N:
+		if n == 30:
+			threads = 1
+		elif n == 100:
+			threads = 2
+		else:# n == 300:
+			threads = 1
 		for Temp in Temps:
 			temp_attempt = attempts
 			if n == 300:
@@ -88,6 +96,7 @@ if __name__ == '__main__':
 					input_json['h_min'] = 0.5
 					input_json['dataFormat'] = "h5"
 					input_json['output_folder'] = job
+					input_json['OMPthreads'] = threads
 					# input_json['u_s'] = 0.5
 					# input_json['u_r'] = 0.5
 					input_json['note'] = "Rerunning constant size ball runs."
@@ -104,21 +113,21 @@ if __name__ == '__main__':
 					# sbatchfile += "#SBATCH -q regular\n"
 					# sbatchfile += "#SBATCH -t 0:10:00\n"
 					sbatchfile += "#SBATCH -J {}\n".format(job_set_name)
-					sbatchfile += "#SBATCH -N {}\n".format(1)#(node)
-					sbatchfile += "#SBATCH -n {}\n".format(1)#(node)
+					sbatchfile += "#SBATCH -N {}\n".format(node)#(node)
+					# sbatchfile += "#SBATCH -n {}\n".format(1)#(node)
 					# sbatchfile += "#SBATCH -N {}\n".format(1)#(node)
 
 					# sbatchfile += "#SBATCH -G {}\n".format(node)
 					# sbatchfile += "#SBATCH -c {}\n\n".foramt(2*thread)
 					# sbatchfile += 'module load gpu\n'
-					# sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(thread)
 
+					sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(threads)
 					sbatchfile += 'export SLURM_CPU_BIND="cores"\n'
 					# sbatchfile += 'module load hdf5/1.14.3\n'
 					sbatchfile += 'module load hdf5/1.10.8\n'
 					
 					# sbatchfile += "srun -n {} -c {} --cpu-bind=cores numactl --interleave=all ./ColliderMultiCore.x {} 2>sim_err.log 1>sim_out.log".format(node,thread*2,job)
-					sbatchfile += f"srun {job}ColliderSingleCore.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+					sbatchfile += f"srun -n {node} -c {threads*2} --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 
 
 					
@@ -127,19 +136,18 @@ if __name__ == '__main__':
 
 					#add run script and executable to folders
 					# os.system(f"cp {project_path}default_files/run_sim.py {job}run_sim.py")
-					os.system(f"cp {project_path}ColliderSingleCore/ColliderSingleCore.x {job}ColliderSingleCore.x")
-					os.system(f"cp {project_path}ColliderSingleCore/ColliderSingleCore.cpp {job}ColliderSingleCore.cpp")
-
-					os.system(f"cp {project_path}ColliderSingleCore/ball_group.hpp {job}ball_group.hpp")
+					os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
+					os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
+					os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
 
 					folders.append(job)
 
 print(folders)
-cwd = os.getcwd()
-for folder in folders:
-	os.chdir(folder)
-	os.system('sbatch sbatchMulti.bash')
-os.chdir(cwd)
+# cwd = os.getcwd()
+# for folder in folders:
+# 	os.chdir(folder)
+# 	os.system('sbatch sbatchMulti.bash')
+# os.chdir(cwd)
 
 
 

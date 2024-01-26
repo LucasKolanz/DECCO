@@ -34,6 +34,26 @@ def tail(file_path,n):
 		last_lines = f.read().decode()
 	return last_lines
 
+def error4(fullpath):
+	has_err = os.path.exists(fullpath+"sim_err.log")
+	has_errors = os.path.exists(fullpath+"sim_errors.txt")
+
+	error_file = ''
+	if has_err:
+		error_file = "sim_err.log"
+	elif has_errors:
+		error_file = "sim_errors.txt"
+	else:
+		print(f"NO ERROR FILE FOR {fullpath}")
+		return False
+
+	tail_out = tail(fullpath+error_file,10).split('\n')
+	error = False
+	for i in tail_out:
+		if "ERROR: STEPS IS NEGATIVE" in i:
+			error = True
+			break 
+	return error
 
 
 #If the (number rows of constants)*11 != (simData columns)
@@ -81,23 +101,26 @@ def error1(fullpath):
 
 
 def error_general(fullpath):
-	has_err = os.path.exists(fullpath+"sim_err.log")
-	has_errors = os.path.exists(fullpath+"sim_errors.txt")
+	if os.path.exists(fullpath+"timing.txt"):
+		has_err = os.path.exists(fullpath+"sim_err.log")
+		has_errors = os.path.exists(fullpath+"sim_errors.txt")
 
-	error_file = ''
-	if has_err:
-		error_file = "sim_err.log"
-	elif has_errors:
-		error_file = "sim_errors.txt"
+		error_file = ''
+		if has_err:
+			error_file = "sim_err.log"
+		elif has_errors:
+			error_file = "sim_errors.txt"
+		else:
+			print(f"NO ERROR FILE FOR {fullpath}")
+			# return True
+
+		tail_out = tail(fullpath+error_file,10).split('\n')
+		if "Simulation complete!" in tail_out:
+			return False
+		else:
+			return True
 	else:
-		print(f"NO ERROR FILE FOR {fullpath}")
-		# return True
-
-	tail_out = tail(fullpath+error_file,10).split('\n')
-	if "Simulation complete!" in tail_out:
 		return False
-	else:
-		return True
 
 
 
@@ -121,9 +144,9 @@ def check_error(job_base,error,\
 				job = job_base.replace("$a$",str(attempt)).replace("$n$",str(n)).replace("$t$",str(Temp))
 				if os.path.exists(job+"timing.txt"):
 					valid_count += 1
-					output = error(job)
-					if output > 0:
-						errors.append(job)
+				output = error(job)
+				if output > 0:
+					errors.append(job)
 
 	print(f"{len(errors)} errors, out of {valid_count} valid runs, out of {len(N)*len(attempts)*len(Temps)} runs.")
 	return errors
@@ -165,8 +188,11 @@ def main():
 	# Temps = [3]
 
 
-	error1_folders = check_error(job,error1,N,Temps,attempts)
-	print(error1_folders)
+	error_folders = check_error(job,error1,N,Temps,attempts)
+	error_folders.extend(check_error(job,error2,N,Temps,attempts))
+	error_folders.extend(check_error(job,error4,N,Temps,attempts))
+
+	print(error_folders)
 
 	# errorgen_folders = check_error(job,error_general,N,Temps,attempts)
 	# print(errorgen_folders)

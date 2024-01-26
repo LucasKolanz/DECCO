@@ -150,26 +150,26 @@ def error4(fullpath):
 			break 
 	return error
 
-def error5(fullpath):
-	has_err = os.path.exists(fullpath+"sim_err.log")
-	has_errors = os.path.exists(fullpath+"sim_errors.txt")
+# def error5(fullpath):
+# 	has_err = os.path.exists(fullpath+"sim_err.log")
+# 	has_errors = os.path.exists(fullpath+"sim_errors.txt")
 
-	error_file = ''
-	if has_err:
-		error_file = "sim_err.log"
-	elif has_errors:
-		error_file = "sim_errors.txt"
-	else:
-		print(f"NO ERROR FILE FOR {fullpath}")
-		return False
+# 	error_file = ''
+# 	if has_err:
+# 		error_file = "sim_err.log"
+# 	elif has_errors:
+# 		error_file = "sim_errors.txt"
+# 	else:
+# 		print(f"NO ERROR FILE FOR {fullpath}")
+# 		return False
 
-	tail_out = tail(fullpath+error_file,10).split('\n')
-	error = False
-	for i in tail_out:
-		if "ERROR: STEPS IS NEGATIVE" in i:
-			error = True
-			break 
-	return error
+# 	tail_out = tail(fullpath+error_file,10).split('\n')
+# 	error = False
+# 	for i in tail_out:
+# 		if "ERROR: STEPS IS NEGATIVE" in i:
+# 			error = True
+# 			break 
+# 	return error
 
 # def error_general(fullpath):
 # 	has_err = os.path.exists(fullpath+"sim_err.log")

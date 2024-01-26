@@ -18,7 +18,7 @@ def rand_int():
 def run_job(location):
 	output_file = location + "sim_output.txt"
 	error_file = location + "sim_errors.txt"
-	cmd = [f"{location}ColliderSingleCore.x",location]
+	cmd = [f"{location}Collider.x",location]
 
 	with open(output_file,"a") as out, open(error_file,"a") as err:
 		subprocess.run(cmd,stdout=out,stderr=err)
@@ -28,13 +28,13 @@ if __name__ == '__main__':
 	curr_folder = os.getcwd() + '/'
 
 	try:
-		subprocess.run(["make","-C",project_path+"ColliderSingleCore"], check=True)
+		subprocess.run(["make","-C",project_path+"Collider"], check=True)
 	except:
 		print('compilation failed')
 		exit(-1)
 
 
-	job_set_name = "errorCk"
+	job_set_name = "deleteme"
 
  
 	# attempts = [i for i in range(30)]
@@ -47,10 +47,11 @@ if __name__ == '__main__':
 	# attempts_300 = [0]
 
 	# N = [30,100,300]
-	N = [30]
+	N = [50]
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [3]
-
+	node = 1
+	threads = 1
 	folders = []
 	for n in N:
 		for Temp in Temps:
@@ -82,6 +83,7 @@ if __name__ == '__main__':
 					input_json['N'] = n
 					input_json['h_min'] = 0.5
 					input_json['dataFormat'] = "h5"
+					input_json['OMPthreads'] = threads
 					input_json['output_folder'] = job
 					# input_json['u_s'] = 0.5
 					# input_json['u_r'] = 0.5
@@ -99,21 +101,21 @@ if __name__ == '__main__':
 					# sbatchfile += "#SBATCH -q regular\n"
 					# sbatchfile += "#SBATCH -t 0:10:00\n"
 					sbatchfile += "#SBATCH -J {}\n".format(job_set_name)
-					sbatchfile += "#SBATCH -N {}\n".format(1)#(node)
-					sbatchfile += "#SBATCH -n {}\n".format(1)#(node)
+					sbatchfile += "#SBATCH -N {}\n".format(node)#(node)
+					# sbatchfile += "#SBATCH -n {}\n".format(1)#(node)
 					# sbatchfile += "#SBATCH -N {}\n".format(1)#(node)
 
 					# sbatchfile += "#SBATCH -G {}\n".format(node)
 					# sbatchfile += "#SBATCH -c {}\n\n".foramt(2*thread)
 					# sbatchfile += 'module load gpu\n'
 					# sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(thread)
-
+					sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(threads)
 					sbatchfile += 'export SLURM_CPU_BIND="cores"\n'
 					# sbatchfile += 'module load hdf5/1.14.3\n'
 					sbatchfile += 'module load hdf5/1.10.8\n'
 					
 					# sbatchfile += "srun -n {} -c {} --cpu-bind=cores numactl --interleave=all ./ColliderMultiCore.x {} 2>sim_err.log 1>sim_out.log".format(node,thread*2,job)
-					sbatchfile += f"srun {job}ColliderSingleCore.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+					sbatchfile += f"srun -n {node} -c {threads*2} --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 
 
 					
@@ -122,10 +124,10 @@ if __name__ == '__main__':
 
 					#add run script and executable to folders
 					# os.system(f"cp {project_path}default_files/run_sim.py {job}run_sim.py")
-					os.system(f"cp {project_path}ColliderSingleCore/ColliderSingleCore.x {job}ColliderSingleCore.x")
-					os.system(f"cp {project_path}ColliderSingleCore/ColliderSingleCore.cpp {job}ColliderSingleCore.cpp")
+					os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
+					os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
+					os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
 
-					os.system(f"cp {project_path}ColliderSingleCore/ball_group.hpp {job}ball_group.hpp")
 
 					folders.append(job)
 

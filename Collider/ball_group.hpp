@@ -1141,9 +1141,6 @@ std::string Ball_group::get_data_info()
 
 void Ball_group::sim_init_write(int counter=0)
 {
-    // todo - filename is now a copy and this works. Need to consider how old way worked for
-    // compatibility. What happens without setting output_prefix = filename? Check if file name already
-    // exists.
     std::cerr<<"Sim init write"<<std::endl;
     init_data(counter);
 
@@ -1161,11 +1158,11 @@ void Ball_group::sim_init_write(int counter=0)
         pt += jump;
     }
 
+    data->Write(constData,"constants"); //THIS MUST COME BEFORE THE NEXT WRITE METADATA otherwise the h5 file wont be initiated
     if (attrs.data_type == 0) //This meta write is for restarting jobs. Only necessary for hdf5
     {
         data->WriteMeta(get_data_info(),attrs.sim_meta_data_name,"constants");
     }
-    data->Write(constData,"constants");
 
 
     energyBuffer = std::vector<double> (data->getWidth("energy"));

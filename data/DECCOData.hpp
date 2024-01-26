@@ -618,44 +618,50 @@ class HDF5Handler {
         							const std::string& datasetName) 
         {
 		    // Initialize the HDF5 library
-        	if(std::filesystem::exists(filename)) {
-			    H5::H5File file(filename, H5F_ACC_RDWR);
-	    		H5::DataSet dataset;
-			    // Open the specified dataset
-			    if (datasetExists(filename,datasetName)){
-			    	dataset = file.openDataSet(datasetName);
-			    	// Check if the attribute's dataspace exists
-				    if (attributeExists(dataset, metadataName)) {
-				        // std::cerr << "DECCOHDF5 Warning: Attribute 'metadata' already exists for the dataset." << std::endl;
-				        dataset.close();
-				        file.close();
-				        return;
-				    }
-			    }else{
-			    	std::vector<double> dummy;
-			    	dataset = createDataSet(dummy,datasetName);
+        	H5::H5File file;
+        	if(!std::filesystem::exists(filename)) 
+        	{
+        		file = H5::H5File(filename, H5F_ACC_TRUNC);
+        	}
+        	else
+        	{
+		    	file = H5::H5File(filename, H5F_ACC_RDWR);
+        	}
+
+    		H5::DataSet dataset;
+		    // Open the specified dataset
+		    if (datasetExists(filename,datasetName)){
+		    	dataset = file.openDataSet(datasetName);
+		    	// Check if the attribute's dataspace exists
+			    if (attributeExists(dataset, metadataName)) {
+			        // std::cerr << "DECCOHDF5 Warning: Attribute 'metadata' already exists for the dataset." << std::endl;
+			        dataset.close();
+			        file.close();
+			        return;
 			    }
-
-			    // Create a string data type for the attribute
-			    H5::StrType strType(H5::PredType::C_S1, H5T_VARIABLE);
-
-			    
-
-			    // Create a dataspace for the attribute
-			    H5::DataSpace attrSpace = H5::DataSpace(H5S_SCALAR);
-
-			    // Create the attribute and write the metadata
-			    H5::Attribute metadataAttr = dataset.createAttribute(metadataName, strType, attrSpace);
-			    metadataAttr.write(strType, metadata);
-
-			    // Close resources
-			    metadataAttr.close();
-			    attrSpace.close();
-			    dataset.close();
-			    file.close();
 		    }else{
-            	std::cerr<<"File '"<<filename<<"' does not exist."<<std::endl;
-            }
+		    	std::vector<double> dummy;
+		    	dataset = createDataSet(dummy,datasetName);
+		    }
+		    // Create a string data type for the attribute
+		    H5::StrType strType(H5::PredType::C_S1, H5T_VARIABLE);
+
+		    
+
+		    // Create a dataspace for the attribute
+		    H5::DataSpace attrSpace = H5::DataSpace(H5S_SCALAR);
+
+		    // Create the attribute and write the metadata
+		    H5::Attribute metadataAttr = dataset.createAttribute(metadataName, strType, attrSpace);
+		    metadataAttr.write(strType, metadata);
+		    // Close resources
+		    metadataAttr.close();
+		    attrSpace.close();
+		    dataset.close();
+		    file.close();
+		    // }else{
+            // 	std::cout<<"File '"<<filename<<"' does not exist."<<std::endl;
+            // }
             return;
 		}
 
