@@ -23,6 +23,7 @@
 #include <random>
 #include <omp.h>
 
+
 #ifdef MPI_ENABLE
     #include <mpi.h>
 #endif
@@ -1141,7 +1142,7 @@ std::string Ball_group::get_data_info()
 
 void Ball_group::sim_init_write(int counter=0)
 {
-    std::cerr<<"Sim init write"<<std::endl;
+    std::cerr<<"Sim init write for index: "<<counter<<std::endl;
     init_data(counter);
 
     // if (counter > 0) { filename.insert(0, std::to_string(counter) + '_'); }
@@ -2084,9 +2085,6 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename)
             _pos = file.find_first_of("_");
             file_index = stoi(file.substr(0,_pos));
             
-            //This needs to be here because its used in the following function
-            attrs.start_index = file_index;
-
             loadDatafromH5(path,file);
         #else
             std::cerr<<"ERROR: HDF5 not enabled. Please recompile with -DHDF5_ENABLE and try again."<<std::endl;
@@ -2171,23 +2169,62 @@ void Ball_group::parse_meta_data(std::string metadata)
 #ifdef HDF5_ENABLE
 void Ball_group::loadDatafromH5(std::string path,std::string file)
 {
+    //read metadata to determine steps and skip variables
+    std::string meta = HDF5Handler::readMetadataFromDataset("constants",path+file,attrs.sim_meta_data_name);
+    size_t _pos = file.find_first_of("_");
+    int file_index = stoi(file.substr(0,_pos));
+    bool has_meta = true;
+    //If this error happens then then we cannot restart from midway through a sim.
+    //This is because the metadata containing the info needed was missing for somereason
+    // if (meta == ERR_RET_MET)  
+    if (true)  
+    {
+        has_meta = false;
+        //If the highest sim is not finished, we need to load up the previous one and delete the partially completed sim
+        if (!HDF5Handler::sim_finished(path,file))
+        {
+            std::string rmfile = file;
+            int status = remove(rmfile.c_str());
+
+            if (status != 0)
+            {
+                std::cout<<"File: "<<rmfile<<" could not be removed, now exiting with failure."<<std::endl;
+                exit(EXIT_FAILURE);
+            }
+            file_index--;
+            file = std::to_string(file_index) + file.substr(_pos,file.size());
+
+        }
+    }
+
+    //This needs to be here because its used in the following function
+    attrs.start_index = file_index;
+    
     allocate_group(HDF5Handler::get_num_particles(path,file));
     
     //Load constants because this can be done without an initialized instance of DECCOData
     HDF5Handler::loadConsts(path,file,R,m,moi);
 
-    //read metadata to determine steps and skip variables
-    std::string meta = HDF5Handler::readMetadataFromDataset("constants",path+file,attrs.sim_meta_data_name);
-    parse_meta_data(meta);
+    int writes;
+    if (has_meta)
+    {
+        parse_meta_data(meta);
 
-    //Now we have all info we need to initialze an instance of DECCOData.
-    //However, data_written_so_far needs to be determined and set since this is a restart.
-    //All this happens in the next two functions. 
-    init_data(attrs.start_index);
-    //writes is 0 if there is no writes so far (I don't think this should happen but if it does, more stuff needs to happen).
-    //writes is >0 then that is how many writes there have been.
-    //writes is -1 if there are writes and the sim is already finished. 
-    int writes = data->setWrittenSoFar(path,file);
+        //Now we have all info we need to initialze an instance of DECCOData.
+        //However, data_written_so_far needs to be determined and set since this is a restart.
+        //All this happens in the next two functions. 
+        init_data(attrs.start_index);
+        //writes is 0 if there is no writes so far (I don't think this should happen but if it does, more stuff needs to happen).
+        //writes is >0 then that is how many writes there have been.
+        //writes is -1 if there are writes and the sim is already finished. 
+        writes = data->setWrittenSoFar(path,file);
+    }
+    else
+    {
+
+        // init_data(attrs.start_index);
+        writes = -1;
+    }
     // if (writes == 0)//This should really never happen. If it did then there is an empty h5 file
     // {
     //     std::cerr<<"not implimented"<<std::endl;
@@ -2196,7 +2233,8 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
     if(writes > 0) //Works
     {
         //This cannot be done without an instance of DECCOData, that is why these are different than loadConsts
-        data->loadSimData(path,file,pos,w,vel);
+        data -> loadSimData(path,file,pos,w,vel);
+
 
         //initiate buffers since we won't call sim_init_write on a restart
         energyBuffer = std::vector<double> (data->getWidth("energy")*bufferlines);
@@ -2209,7 +2247,14 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
     }
     else if(writes == -1) //Works
     {
-        data->loadSimData(path,file,pos,w,vel);
+        if (has_meta)
+        {
+            data -> loadSimData(path,file,pos,w,vel);
+        }
+        else
+        {
+            HDF5Handler::loadh5SimData(path,file,pos,w,vel);
+        }
         attrs.start_index++;
     }
     else

@@ -35,8 +35,8 @@ if __name__ == '__main__':
 		exit(-1)
 
 
-	job_set_name = "const"
 	job_set_name = "TEST"
+	job_set_name = "const"
 	# folder_name_scheme = "T_"
 
 	# runs_at_once = 7
@@ -44,7 +44,7 @@ if __name__ == '__main__':
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	attempts = [i for i in range(30)]
 	# attempts_300 = [i for i in range(30)]
-	attempts = [1] 
+	# attempts = [1] 
 	attempts_300 = attempts
 
 	#test it out first
@@ -53,16 +53,16 @@ if __name__ == '__main__':
 
 	node = 1
 	N = [30,100,300]
-	N = [245]
+	# N = [245]
 	Temps = [3,10,30,100,300,1000]
-	Temps = [3]
+	# Temps = [3]
 
 	folders = []
 	for n in N:
 		if n == 30:
 			threads = 1
 		elif n == 100:
-			threads = 2
+			threads = 1
 		else:# n == 300:
 			threads = 1
 		for Temp in Temps:
@@ -143,11 +143,11 @@ if __name__ == '__main__':
 					folders.append(job)
 
 print(folders)
-# cwd = os.getcwd()
-# for folder in folders:
-# 	os.chdir(folder)
-# 	os.system('sbatch sbatchMulti.bash')
-# os.chdir(cwd)
+cwd = os.getcwd()
+for folder in folders:
+	os.chdir(folder)
+	os.system('sbatch sbatchMulti.bash')
+os.chdir(cwd)
 
 
 

@@ -173,6 +173,7 @@ void BPCA(std::string path, int num_balls)
     // exit(0);
     // Add projectile: For dust formation BPCA
     for (int i = O.attrs.start_index; i < num_balls; i++) {
+        std::cerr<<"I: "<<i<<std::endl;
         // t.start_event("add_projectile");
         O = O.add_projectile();
         // t.end_event("add_projectile");
@@ -322,7 +323,7 @@ sim_looper(Ball_group &O,unsigned long long start_step=1)
                 {
 
                     std::cerr << "vMax = " << O.getVelMax() << " Steps recorded: " << Step / O.attrs.skip << '\n';
-                    std::cerr << "Data Write to "<<O.attrs.output_folder<<"\n";
+                    std::cerr << "Data Write to "<<O.data->getFileName()<<"\n";
                     
                     O.data->Write(O.ballBuffer,"simData",bufferlines);
 
