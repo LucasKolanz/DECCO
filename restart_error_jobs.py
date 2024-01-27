@@ -12,6 +12,7 @@ import glob
 import numpy as np
 import subprocess
 import check_for_errors as cfe
+import check_for_errors_h5 as cfeh5
 
 # import utils as u
 import h5py
@@ -108,35 +109,51 @@ def main():
 
 	curr_folder = os.getcwd() + '/'
 
-	job_folder = 'jobsCosine/'##FOR LOCAL
-	job_folder = 'jobs/'###FOR COSINE
-	move_job_folder = 'erroredJobs/'
+	job_folder = 'jobs/'###FOR RUNNIN ON COSINE/NOVUS
+	job_folder = 'jobsNovus/'##FOR RUNNING ON LOCAL TESTING NOVUS JOBS
+	job_folder = 'jobsCosine/'##FOR RUNNING ON LOCAL TESTING COSINE JOBS
+	move_job_folder = 'erroredJobs/' ##either way move here
 
+	job = input_json["data_directory"] + job_folder + 'constant$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + job_folder + 'lognorm$a$/N_$n$/T_$t$/'
 	# move_folder = curr_folder + 'erroredJobs/lognorm$a$/N_$n$/T_$t$/'
 
 	attempts = [i for i in range(30)]
-	attempts = [1]
+	# attempts = [1]
 
 	N = [30,100,300]
-	N=[300]
+	# N=[300]
 
 	Temps = [3,10,30,100,300,1000]
-	Temps = [3]
+	# Temps = [3]
 
-	error_folders = cfe.check_error(job,cfe.error1,N,Temps,attempts)
-	error_folders.extend(cfe.check_error(job,cfe.error2,N,Temps,attempts))
-	error_folders.extend(cfe.check_error(job,cfe.error3,N,Temps,attempts))
-	error_folders.extend(cfe.check_error(job,cfe.error4,N,Temps,attempts))
-	error_folders = list(set(error_folders))
-	print(error_folders)
+	if job_folder == "jobsCosine/":
+		error_folders = cfe.check_error(job,cfe.errorn1,N,Temps,attempts)
+		error_folders.extend(cfe.check_error(job,cfe.error0,N,Temps,attempts))
+		error_folders.extend(cfe.check_error(job,cfe.error1,N,Temps,attempts))
+		error_folders.extend(cfe.check_error(job,cfe.error2,N,Temps,attempts))
+		error_folders.extend(cfe.check_error(job,cfe.error3,N,Temps,attempts))
+		error_folders.extend(cfe.check_error(job,cfe.error4,N,Temps,attempts))
+		error_folders = list(set(error_folders))
+		# print(error_folders)
 
-	# for folder in error_folders:
+	elif job_folder == "jobsNovus/":
+		error_folders = cfeh5.check_error(job,cfeh5.errorn1,N,Temps,attempts)
+		error_folders.extend(cfeh5.check_error(job,cfeh5.error0,N,Temps,attempts))
+		error_folders.extend(cfeh5.check_error(job,cfeh5.error1,N,Temps,attempts))
+		error_folders.extend(cfeh5.check_error(job,cfeh5.error2,N,Temps,attempts))
+		error_folders.extend(cfeh5.check_error(job,cfeh5.error3,N,Temps,attempts))
+		error_folders.extend(cfeh5.check_error(job,cfeh5.error4,N,Temps,attempts))
+		error_folders = list(set(error_folders))
+		# print(error_folders)
+	else:
+		print("check job_folder in restart_error_jobs.py")
+
+	for folder in error_folders:
 		# print(folder)
 
-		# restart_job(folder,test=True,move_folder=folder.replace(job_folder,move_job_folder)) #if move_folder is specified it will move the errored jobs
+		restart_job(folder,test=True,move_folder=folder.replace(job_folder,move_job_folder)) #if move_folder is specified it will move the errored jobs
 		# restart_job(folder,test=False,move_folder='') #keep move_folder empty if Deleting and restarting jobs
-
 
 if __name__ == '__main__':
 	main()

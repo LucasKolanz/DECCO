@@ -129,12 +129,6 @@ def number_of_contacts(data_folder,data_index=-1):
 		for j in range(num_balls):
 			if i != j:
 				contacts[i,j] = (dist(i,j) <= radius[i]+radius[j])
-
-	print(contacts)
-	print(np.sum(contacts,axis=1))
-	print(np.sum(contacts,axis=0))
-	print(np.mean(np.sum(contacts,axis=1)))
-	exit(0)
 	
 	return np.mean(np.sum(contacts,axis=1))
 
@@ -206,7 +200,7 @@ if __name__ == '__main__':
 	new_data = True
 	save_data = True
 	show_plots = True
-	make_FD = False
+	make_FD = True
 	show_FD_plots = False
 	overwrite_octree_data = False
 	find_stats = False
