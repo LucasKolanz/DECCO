@@ -1,7 +1,18 @@
 ##Check output of simulations for errors
 
-#Error 1: Are there any nan values in any of the data?
-#Error general: did we get "Simulation complete!" within the last 10 lines of sim_error.log
+#Error -1: sim_err.log has ERROR in its tail output.
+#
+#Error 0: Is the sim finished as indicated by the presence of timing.txt, but also lacking in "Simulation Complete!" in the output
+#
+#Error 1: Are there any nan values in any of the data when timing.txt exists?
+#
+#Error 2: Are there any nan values in sims that aren't the highest index, when timing.txt doesnt exist
+#
+#Error 3: Metadata check. Is there any metadata associated with the largest index file if timing.txt exists?
+#
+#Error 4: integer overflow in number of steps
+#
+#Error 5: did we get "Simulation complete!" within the last 10 lines of sim_error.log and timing.txt exists?
 
 import os
 import glob
@@ -28,11 +39,128 @@ def tail(file_path,n):
 					f.seek(-2, os.SEEK_CUR)
 				# else:
 				# 	f.seek(-1, os.SEEK_CUR)
-		except OSError:
-			print("OSERROR")
+		except OSError as e:
+			print(f"OSERROR {e} on tail line {n} for file {file_path}")
 			f.seek(0)
 		last_lines = f.read().decode()
 	return last_lines
+
+def errorn1(fullpath):
+	has_err = os.path.exists(fullpath+"sim_err.log")
+	has_errors = os.path.exists(fullpath+"sim_errors.txt")
+
+	error_file = ''
+	if has_err:
+		error_file = "sim_err.log"
+	elif has_errors:
+		error_file = "sim_errors.txt"
+	else:
+		print(f"NO ERROR FILE FOR {fullpath}")
+		return False
+
+	tail_out = tail(fullpath+error_file,10).split('\n')
+	error = False
+	for i in tail_out:
+		if "ERROR" in i:
+			error = True
+			break 
+	return error
+
+def error0(fullpath):
+	if os.path.exists(fullpath+"timing.txt"):
+		has_err = os.path.exists(fullpath+"sim_err.log")
+		has_errors = os.path.exists(fullpath+"sim_errors.txt")
+
+		error_file = ''
+		if has_err:
+			error_file = "sim_err.log"
+		elif has_errors:
+			error_file = "sim_errors.txt"
+		else:
+			print(f"NO ERROR FILE FOR {fullpath}")
+			# return True
+
+		tail_out = tail(fullpath+error_file,10).split('\n')
+		for i in tail_out:
+			if "Simulation complete!" in i:
+				error = False
+				break 
+		
+	return False
+
+#If fullpath has error1 in it, return 1, if not return 0
+def error1(fullpath):
+	if os.path.exists(fullpath+"timing.txt"):
+		# Loop through all files in the directory fullpath
+		for filename in os.listdir(fullpath):
+			if filename.endswith(".h5"):
+				filepath = os.path.join(fullpath, filename)
+
+				# Open the HDF5 file
+				with h5py.File(filepath, 'r') as file:
+					simData = np.array(file['/simData'][:])
+					simDatanans = np.sum(np.where(np.isnan(simData),1,0))
+					if simDatanans > 0:
+						
+						print(f"simData has {simDatanans} nans: " + filepath)
+						return True
+
+					energy = np.array(file['/energy'][:])
+					energynans = np.sum(np.where(np.isnan(energy),1,0))
+					if energynans > 0:
+						print("energy: " + filepath)
+						return True
+
+					constants = np.array(file['/constants'][:])
+					constantsnans = np.sum(np.where(np.isnan(constants),1,0))
+					if constantsnans > 0:
+						print("constants: " + filepath)
+						return True
+	return False
+	
+#If fullpath has error2 in it, return 1, if not return 0
+def error2(fullpath):
+	if not os.path.exists(fullpath+"timing.txt"):
+		max_ind = get_max_ind(fullpath)
+		# Loop through all files in the directory fullpath
+		for filename in os.listdir(fullpath):
+			if filename.endswith(".h5") and not filename.startswith(f"{max_ind}_"):
+				filepath = os.path.join(fullpath, filename)
+
+				# Open the HDF5 file
+				with h5py.File(filepath, 'r') as file:
+					simData = np.array(file['/simData'][:])
+					simDatanans = np.sum(np.where(np.isnan(simData),1,0))
+					if simDatanans > 0:
+						
+						print(f"simData has {simDatanans} nans: " + filepath)
+						return True
+
+					energy = np.array(file['/energy'][:])
+					energynans = np.sum(np.where(np.isnan(energy),1,0))
+					if energynans > 0:
+						print("energy: " + filepath)
+						return True
+
+					constants = np.array(file['/constants'][:])
+					constantsnans = np.sum(np.where(np.isnan(constants),1,0))
+					if constantsnans > 0:
+						print("constants: " + filepath)
+						return True
+	return False
+
+#If fullpath has error3 in it, return 1, if not return 0
+def error3(fullpath):
+	if os.path.exists(fullpath+"timing.txt"):
+		max_ind = get_max_ind(fullpath)
+		file = fullpath+str(max_ind)+"_data.h5"
+		with h5py.File(file, 'r') as f:
+			dataset = f['constants']
+			metadata = {attr: dataset.attrs[attr] for attr in dataset.attrs}
+			if len(metadata) > 0:
+				return False
+	return True
+
 
 def error4(fullpath):
 	has_err = os.path.exists(fullpath+"sim_err.log")
@@ -56,51 +184,9 @@ def error4(fullpath):
 	return error
 
 
-#If the (number rows of constants)*11 != (simData columns)
-#Then there was some kind of write error
-def error2(fullpath,verbose=False):
-	directory = os.fsencode(fullpath)
-	for file in os.listdir(directory):
-		filename = os.fsdecode(file)
-		if filename.endswith("simData.csv"): 
-			err = ck_error2_by_file(fullpath+filename,verbose)
-			if err:
-				return True
-	return False
 
 
-
-#If fullpath has error1 in it, return 1, if not return 0
-def error1(fullpath):
-	# Loop through all files in the directory fullpath
-	for filename in os.listdir(fullpath):
-		if filename.endswith(".h5"):
-			filepath = os.path.join(fullpath, filename)
-
-			# Open the HDF5 file
-			with h5py.File(filepath, 'r') as file:
-				simData = np.array(file['/simData'][:])
-				simDatanans = np.sum(np.where(np.isnan(simData),1,0))
-				if simDatanans > 0:
-					
-					print(f"simData has {simDatanans} nans: " + filepath)
-					return True
-
-				energy = np.array(file['/energy'][:])
-				energynans = np.sum(np.where(np.isnan(energy),1,0))
-				if energynans > 0:
-					print("energy: " + filepath)
-					return True
-
-				constants = np.array(file['/constants'][:])
-				constantsnans = np.sum(np.where(np.isnan(constants),1,0))
-				if constantsnans > 0:
-					print("constants: " + filepath)
-					return True
-	return False
-
-
-def error_general(fullpath):
+def error5(fullpath):
 	if os.path.exists(fullpath+"timing.txt"):
 		has_err = os.path.exists(fullpath+"sim_err.log")
 		has_errors = os.path.exists(fullpath+"sim_errors.txt")
@@ -142,24 +228,27 @@ def check_error(job_base,error,\
 		for Temp in Temps:
 			for attempt in attempts:
 				job = job_base.replace("$a$",str(attempt)).replace("$n$",str(n)).replace("$t$",str(Temp))
-				if os.path.exists(job+"timing.txt"):
-					valid_count += 1
-				output = error(job)
-				if output > 0:
-					errors.append(job)
+				if os.path.exists(job):
+					if os.path.exists(job+"timing.txt"):
+						valid_count += 1
+					output = error(job)
+					if output > 0:
+						errors.append(job)
+				else:
+					continue
+					# print(f"{job} doesn't exist")
 
 	print(f"{len(errors)} errors, out of {valid_count} valid runs, out of {len(N)*len(attempts)*len(Temps)} runs.")
 	return errors
 
-def get_file_base(folder):
-	directory = os.fsencode(folder)
-	for file in os.listdir(directory):
-		filename = os.fsdecode(file)
-		if filename.endswith("simData.csv"):
-			file_base = '_' + '_'.join(filename.split('/')[-1].split('_')[1:-1]) + '_'
-			return file_base
-	return "ERROR: NO FILE FOUND"; 
-
+def get_max_ind(fullpath):
+	max_ind = -1
+	for filename in os.listdir(fullpath):
+		if filename.endswith(".h5"):
+			file_ind = int(filename.split("_")[0])
+			if file_ind > max_ind:
+				max_ind = file_ind
+	return max_ind
 
 
 def main():
@@ -174,25 +263,46 @@ def main():
 	job = curr_folder + 'jobs/weakseed$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'erroredJobs/lognorm$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'jobsNovus/testError$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobs/const$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobsNovus/const$a$/N_$n$/T_$t$/'
 	print(job)
 
 
 	attempts = [i for i in range(30)]
-	# attempts = [0]
+	# attempts = [19]
 
 	N = [30,100,300]
-	# N=[5]
+	# N=[100]
 
 	Temps = [3,10,30,100,300,1000]
-	# Temps = [3]
+	# Temps = [1000]
+
+	errorDic = {}
 
 
-	error_folders = check_error(job,error1,N,Temps,attempts)
-	error_folders.extend(check_error(job,error2,N,Temps,attempts))
-	error_folders.extend(check_error(job,error4,N,Temps,attempts))
+	# for i,error in enumerate([error3]):
+	for i,error in enumerate([errorn1,error0,error1,error2,error3,error4]):
+		print(f"======================================{error.__name__}======================================")
+		error_folders = check_error(job,error,N,Temps,attempts)
+		for folder in error_folders:
+			if folder in errorDic.keys():
+				errorDic[folder].append(i)
+			else:
+				errorDic[folder] = [f"{error.__name__}"]
 
-	print(error_folders)
+	if not errorDic:
+		print("No Errors detected")
+	else:
+		for key in errorDic.keys():
+			print(f"Errors in folder {key}")
+			for error in errorDic[key]:
+				print(f"\t{error}")
+
+
+	# error_folders = check_error(job,error1,N,Temps,attempts)
+	# error_folders.extend(check_error(job,error2,N,Temps,attempts))
+	# error_folders.extend(check_error(job,error4,N,Temps,attempts))
+
+	# print(error_folders)
 
 	# errorgen_folders = check_error(job,error_general,N,Temps,attempts)
 	# print(errorgen_folders)

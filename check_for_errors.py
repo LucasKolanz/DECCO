@@ -1,13 +1,18 @@
 ##Check output of simulations for errors
 
-#Error 1: restart failed, number of balls didn't carry over so there are an incorrect 
-#			number of colums in at least 1 sim_data output
-#Error 2: sim fails to write all the data (so there aren't the correct number of colums in simData)
+#Error -1: sim_err.log has ERROR in its tail output.
+#
+#Error 0: Is the sim finished as indicated by the presence of timing.txt, but also lacking in "Simulation Complete!" in the output
+#
+#Error 1: number of balls is incorrect in at least 1 sim_data output. 
+#
+#Error 2: incorrect number of colums in simData
 #
 #Error 3: do the first two balls of the sim overlap eachother?
 #
 #Error 4: integer overflow in number of steps
 #
+#Error 5: did we get "Simulation complete!" within the last 10 lines of sim_error.log and timing.txt exists?
 
 
 import os
@@ -42,7 +47,51 @@ def tail(file_path,n):
 	return last_lines
 
 
-def ck_error2_by_file(file,verbose=True ):
+def errorn1(fullpath):
+	has_err = os.path.exists(fullpath+"sim_err.log")
+	has_errors = os.path.exists(fullpath+"sim_errors.txt")
+
+	error_file = ''
+	if has_err:
+		error_file = "sim_err.log"
+	elif has_errors:
+		error_file = "sim_errors.txt"
+	else:
+		print(f"NO ERROR FILE FOR {fullpath}")
+		return False
+
+	tail_out = tail(fullpath+error_file,10).split('\n')
+	error = False
+	for i in tail_out:
+		if "ERROR" in i:
+			error = True
+			break 
+	return error
+
+def error0(fullpath):
+	if os.path.exists(fullpath+"timing.txt"):
+		has_err = os.path.exists(fullpath+"sim_err.log")
+		has_errors = os.path.exists(fullpath+"sim_errors.txt")
+
+		error_file = ''
+		if has_err:
+			error_file = "sim_err.log"
+		elif has_errors:
+			error_file = "sim_errors.txt"
+		else:
+			print(f"NO ERROR FILE FOR {fullpath}")
+			# return True
+
+		tail_out = tail(fullpath+error_file,10).split('\n')
+		if "Simulation complete!" in tail_out:
+			return False
+		else:
+			return True
+	else:
+		return False
+
+
+def ck_error2_by_file(file,verbose=False ):
 	try:
 		temp = np.loadtxt(file,skiprows=1,delimiter=',')
 		if verbose:
@@ -61,7 +110,7 @@ def ck_error2_by_file(file,verbose=True ):
 
 #If the (number rows of constants)*11 != (simData columns)
 #Then there was some kind of write error
-def error2(fullpath,verbose=True,notiming=True):
+def error2(fullpath,verbose=False,notiming=True):
 	if os.path.exists(fullpath+"timing.txt") or notiming:
 		directory = os.fsencode(fullpath)
 		for file in os.listdir(directory):
@@ -150,47 +199,6 @@ def error4(fullpath):
 			break 
 	return error
 
-# def error5(fullpath):
-# 	has_err = os.path.exists(fullpath+"sim_err.log")
-# 	has_errors = os.path.exists(fullpath+"sim_errors.txt")
-
-# 	error_file = ''
-# 	if has_err:
-# 		error_file = "sim_err.log"
-# 	elif has_errors:
-# 		error_file = "sim_errors.txt"
-# 	else:
-# 		print(f"NO ERROR FILE FOR {fullpath}")
-# 		return False
-
-# 	tail_out = tail(fullpath+error_file,10).split('\n')
-# 	error = False
-# 	for i in tail_out:
-# 		if "ERROR: STEPS IS NEGATIVE" in i:
-# 			error = True
-# 			break 
-# 	return error
-
-# def error_general(fullpath):
-# 	has_err = os.path.exists(fullpath+"sim_err.log")
-# 	has_errors = os.path.exists(fullpath+"sim_errors.txt")
-
-# 	error_file = ''
-# 	if has_err:
-# 		error_file = "sim_err.log"
-# 	elif has_errors:
-# 		error_file = "sim_errors.txt"
-# 	else:
-# 		print(f"NO ERROR FILE FOR {fullpath}")
-# 		return False
-
-# 	tail_out = tail(fullpath+error_file,10).split('\n')
-# 	error = True
-# 	for i in tail_out:
-# 		if "Simulation complete!" in i:
-# 			error = False
-# 			break 
-# 	return error
 
 def where_did_error1_start(fullpath):
 	directory = os.fsencode(fullpath)
@@ -244,7 +252,8 @@ def check_error(job_base,error,\
 					if output > 0:
 						errors.append(job)
 				else:
-					print(f"{job} doesn't exist")
+					continue
+					# print(f"{job} doesn't exist")
 
 	print(f"{len(errors)} errors, out of {valid_count} valid runs, out of {len(N)*len(attempts)*len(Temps)} runs.")
 	return errors
@@ -343,32 +352,41 @@ def where_is_smallest_error2(job_base,error,\
 
 def main():
 
-	curr_folder = os.getcwd() + '/'
 	with open(project_path+"default_files/default_input.json",'r') as fp:
 		input_json = json.load(fp)
 
-	job = curr_folder + 'jobs/tempVarianceRand_attempt$a$/N_$n$/T_$t$/'
-	job = curr_folder + 'jobs/lognorm$a$/N_$n$/T_$t$/'
-	job = curr_folder + 'jobs/weakseed$a$/N_$n$/T_$t$/'
-	job = curr_folder + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
-	job = curr_folder + 'erroredJobs/lognorm$a$/N_$n$/T_$t$/'
 
-	job = input_json["data_directory"] + 'jobs/lognorm$a$/N_$n$/T_$t$/'
-	# job = input_json["data_directory"] + 'jobs/test$a$/N_$n$/T_$t$/'
-
+	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
+	
 
 	attempts = [i for i in range(30)]
-	attempts = [1]
+	# attempts = [1]
 
 	N = [30,100,300]
-	N=[5]
+	# N=[5]
 
 	Temps = [3,10,30,100,300,1000]
-	Temps = [1000]
+	# Temps = [1000]
+
+	errorDic = {}
 
 
-	error3_folders = check_error(job,error3,N,Temps,attempts)
-	print(error3_folders)
+	for i,error in enumerate([errorn1,error0,error1,error2,error3,error4]):
+		print(f"======================================{error.__name__}======================================")
+		error_folders = check_error(job,error,N,Temps,attempts)
+		for folder in error_folders:
+			if folder in errorDic.keys():
+				errorDic[folder].append(i)
+			else:
+				errorDic[folder] = [f"{error.__name__}"]
+
+	if not errorDic:
+		print("No Errors detected")
+	else:
+		for key in errorDic.keys():
+			print(f"Errors in folder {key}")
+			for error in errorDic[key]:
+				print(f"\t{error}")
 
 	# errorgen_folders = check_error(job,error_general,N,Temps,attempts)
 	# print(errorgen_folders)
