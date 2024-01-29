@@ -114,8 +114,9 @@ def porosity_measure2(data_folder,data_index=-1):
 
 # def dist(i,j,)
 
-def number_of_contacts(data_folder,data_index=-1):
-	data,radius,mass,moi = u.get_data(data_folder,data_index)
+def number_of_contacts(data_folder,data_index=-1,line=-1):
+	data,radius,mass,moi = u.get_data(data_folder,data_index,line)
+
 	if data is None:
 		return np.nan
 	data = np.array(data)
@@ -130,11 +131,11 @@ def number_of_contacts(data_folder,data_index=-1):
 			if i != j:
 				contacts[i,j] = (dist(i,j) <= radius[i]+radius[j])
 
-	print(contacts)
-	print(np.sum(contacts,axis=1))
-	print(np.sum(contacts,axis=0))
-	print(np.mean(np.sum(contacts,axis=1)))
-	exit(0)
+	# print(contacts)
+	# print(np.sum(contacts,axis=1))
+	# print(np.sum(contacts,axis=0))
+	# print(np.mean(np.sum(contacts,axis=1)))
+	# exit(0)
 	
 	return np.mean(np.sum(contacts,axis=1))
 
@@ -206,7 +207,7 @@ if __name__ == '__main__':
 	new_data = True
 	save_data = True
 	show_plots = True
-	make_FD = False
+	make_FD = True
 	show_FD_plots = False
 	overwrite_octree_data = False
 	find_stats = False
@@ -242,12 +243,12 @@ if __name__ == '__main__':
 					data_folder = data_prefolder + str(attempt) + '/' + 'N_' + str(N) + '/T_' + str(temp) + '/'
 					count = 0
 					if os.path.exists(data_folder+"timing.txt"):
-						porositiesabc[n,i,j] = porosity_measure1(data_folder,N-1)
-						porositiesKBM[n,i,j] = porosity_measure2(data_folder,N-1)
-						contacts[n,i,j] = number_of_contacts(data_folder,N-1)
+						porositiesabc[n,i,j] = porosity_measure1(data_folder,N-3)
+						porositiesKBM[n,i,j] = porosity_measure2(data_folder,N-3)
+						contacts[n,i,j] = number_of_contacts(data_folder,N-3)
 
 						if not np.isnan(porositiesabc[n,i,j]) and make_FD:
-							o3dv = u.o3doctree(data_folder,overwrite_data=overwrite_octree_data,index=N-1,Temp=temp)
+							o3dv = u.o3doctree(data_folder,overwrite_data=overwrite_octree_data,index=N-3,Temp=temp)
 							o3dv.make_tree()
 							FD_data[n,i,j] = o3dv.calc_fractal_dimension(show_graph=show_FD_plots)
 						# print("FD :\t{}".format(FD_data[n,i,j]))

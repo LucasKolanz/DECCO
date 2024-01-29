@@ -34,7 +34,7 @@ if __name__ == '__main__':
 		exit(-1)
 
 
-	job_set_name = "deleteme"
+	job_set_name = "longer_jobs"
 
  
 	# attempts = [i for i in range(30)]
@@ -85,6 +85,8 @@ if __name__ == '__main__':
 					input_json['dataFormat'] = "h5"
 					input_json['OMPthreads'] = threads
 					input_json['output_folder'] = job
+					input_json["simTimeSeconds"] = 0.005
+					input_json["timeResolution"] = 1e-06
 					# input_json['u_s'] = 0.5
 					# input_json['u_r'] = 0.5
 					input_json['note'] = "Rerunning constant size ball runs."
@@ -132,11 +134,11 @@ if __name__ == '__main__':
 					folders.append(job)
 
 print(folders)
-cwd = os.getcwd()
-for folder in folders:
-	os.chdir(folder)
-	os.system('sbatch sbatchMulti.bash')
-os.chdir(cwd)
+# cwd = os.getcwd()
+# for folder in folders:
+# 	os.chdir(folder)
+# 	os.system('sbatch sbatchMulti.bash')
+# os.chdir(cwd)
 
 
 

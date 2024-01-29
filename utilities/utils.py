@@ -173,7 +173,7 @@ def get_energy_file(data_folder,data_index=-1):
 		print("Now exiting.")
 		exit(-1)
 
-def get_last_line_h5data_from_file(file):
+def get_line_h5data_from_file(file,linenum=-1):
 	width = -1
 	with h5py.File(file, 'r') as file:
 		# data = file['/simData'][:]
@@ -184,10 +184,23 @@ def get_last_line_h5data_from_file(file):
 			if md[0] == "row width":
 				width = int(md[1])
 		dat = file['/simData'][:]
-		data = np.array(dat)[-width:]
+
+		totlines = int(dat.shape[0]/width)
+		
+		if linenum < 0:
+			start = width*(totlines+linenum)
+		else:
+			start = width*(linenum)
+		stop = start + width
+
+		data = np.array(dat)[start:stop]
+
 	return data
 
 def get_last_line_data(data_folder,data_index=-1): #Works with csv and h5
+	return get_line_data(data_folder,data_index,-1)
+
+def get_line_data(data_folder,data_index=-1,linenum=-1): #Works with csv and h5
 	# data_headers = np.loadtxt(data_folder + data_file,skiprows=0,dtype=str,delimiter=',')[0]
 	csv_data = False
 	h5_data = False
@@ -201,7 +214,7 @@ def get_last_line_data(data_folder,data_index=-1): #Works with csv and h5
 		try:
 			data = np.loadtxt(data_folder + data_file,skiprows=1,dtype=float,delimiter=',')
 			if data.ndim > 1:
-				data = data[-1]
+				data = data[linenum]
 			# print(data)
 			# print(data_folder + data_file)
 		except Exception as e:
@@ -215,7 +228,7 @@ def get_last_line_data(data_folder,data_index=-1): #Works with csv and h5
 			print(e)
 			return None
 	elif h5_data:
-		data = get_last_line_h5data_from_file(data_folder+data_file)
+		data = get_line_h5data_from_file(data_folder+data_file,linenum)
 	else:
 		print("ERROR: datatype not recognized by utils.py: {data_file}")
 	# print("DATA LEN: {} for file {}{}".format(data.size,data_folder,data_file))
@@ -286,7 +299,7 @@ def COM(data_folder,data_index=-1):
 
 	return mtot*com
 
-def get_data(data_folder,data_index=-1): #Works with both csv and h5
+def get_data(data_folder,data_index=-1,linenum=-1): #Works with both csv and h5
 	if data_folder == '/home/kolanzl/Desktop/bin/merger.csv':
 		data = np.loadtxt(data_folder,delimiter=',')
 		radius = 1
@@ -296,7 +309,7 @@ def get_data(data_folder,data_index=-1): #Works with both csv and h5
 		data_file = get_data_file(data_folder,data_index)
 		radius,mass,moi = get_constants(data_folder,data_index)
 
-		data = get_last_line_data(data_folder,data_index)
+		data = get_line_data(data_folder,data_index,linenum)
 
 	# print("IN GETDATA:")
 	# print(data.shape)
