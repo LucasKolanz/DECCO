@@ -202,7 +202,7 @@ if __name__ == '__main__':
 	show_plots = True
 	make_FD = True
 	show_FD_plots = False
-	overwrite_octree_data = False
+	overwrite_octree_data = True
 	find_stats = False
 	show_stat_plots = False
 
@@ -234,14 +234,15 @@ if __name__ == '__main__':
 					# attempt = 12
 					# data_folder = data_prefolder + str(attempt) + '/'
 					data_folder = data_prefolder + str(attempt) + '/' + 'N_' + str(N) + '/T_' + str(temp) + '/'
+					print(data_folder)
 					count = 0
 					if os.path.exists(data_folder+"timing.txt"):
-						porositiesabc[n,i,j] = porosity_measure1(data_folder,N-1)
-						porositiesKBM[n,i,j] = porosity_measure2(data_folder,N-1)
-						contacts[n,i,j] = number_of_contacts(data_folder,N-1)
+						porositiesabc[n,i,j] = porosity_measure1(data_folder,N-3)
+						porositiesKBM[n,i,j] = porosity_measure2(data_folder,N-3)
+						contacts[n,i,j] = number_of_contacts(data_folder,N-3)
 
 						if not np.isnan(porositiesabc[n,i,j]) and make_FD:
-							o3dv = u.o3doctree(data_folder,overwrite_data=overwrite_octree_data,index=N-1,Temp=temp)
+							o3dv = u.o3doctree(data_folder,overwrite_data=overwrite_octree_data,index=N-3,Temp=temp)
 							o3dv.make_tree()
 							FD_data[n,i,j] = o3dv.calc_fractal_dimension(show_graph=show_FD_plots)
 						# print("FD :\t{}".format(FD_data[n,i,j]))

@@ -83,10 +83,10 @@ def error0(fullpath):
 			# return True
 
 		tail_out = tail(fullpath+error_file,10).split('\n')
-		if "Simulation complete!" in tail_out:
-			return False
-		else:
-			return True
+		for i in tail_out:
+			if "Simulation complete!" in i or "Simulation already complete." in i:
+				return False
+		return True
 	else:
 		return False
 
