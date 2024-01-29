@@ -131,11 +131,6 @@ def number_of_contacts(data_folder,data_index=-1,line=-1):
 			if i != j:
 				contacts[i,j] = (dist(i,j) <= radius[i]+radius[j])
 
-	# print(contacts)
-	# print(np.sum(contacts,axis=1))
-	# print(np.sum(contacts,axis=0))
-	# print(np.mean(np.sum(contacts,axis=1)))
-	# exit(0)
 	
 	return np.mean(np.sum(contacts,axis=1))
 
@@ -209,7 +204,7 @@ if __name__ == '__main__':
 	show_plots = True
 	make_FD = True
 	show_FD_plots = False
-	overwrite_octree_data = False
+	overwrite_octree_data = True
 	find_stats = False
 	show_stat_plots = False
 
@@ -241,6 +236,7 @@ if __name__ == '__main__':
 					# attempt = 12
 					# data_folder = data_prefolder + str(attempt) + '/'
 					data_folder = data_prefolder + str(attempt) + '/' + 'N_' + str(N) + '/T_' + str(temp) + '/'
+					print(data_folder)
 					count = 0
 					if os.path.exists(data_folder+"timing.txt"):
 						porositiesabc[n,i,j] = porosity_measure1(data_folder,N-3)

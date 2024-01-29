@@ -93,7 +93,7 @@ def list_remote_files(hostname, remote_directory):
 def main():
 
 
-	remote_base_folder = '/home/physics/kolanzl/SpaceLab_old/SpaceLab/'
+	remote_base_folder = '/home/physics/kolanzl/SpaceLab_data/'
 	
 
 	#load default input file
