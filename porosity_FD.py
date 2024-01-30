@@ -145,13 +145,14 @@ if __name__ == '__main__':
 	# data_prefolder = path + 'jobs/h_max'
 	# data_prefolder = path + 'jobs/lognorm'
 	# data_prefolder = path + 'jobs/tempVarianceRand_attempt'
-	data_prefolder = path + 'jobsCosine/lognorm'
+	data_prefolder = path + 'jobsOld/tempVarianceRand_attempt'
 	data_prefolder = path + 'jobsNovus/const'
+	data_prefolder = path + 'jobsCosine/lognorm'
 	dataset_name = data_prefolder.split("/")[-1]
 
 	sav = path+'data/{}_averageData.csv'.format(dataset_name)
 	# figure_folder = 'figuresCompare/'
-	figure_folder = path+'data/figuresCosine/'
+	figure_folder = path+'data/figures/'
 
 
 	# temps = [10]
@@ -219,10 +220,7 @@ if __name__ == '__main__':
 		porositiesKBM = np.full(shape=(len(Nums),len(temps),num_attempts),fill_value=np.nan,dtype=np.float64) 
 		FD_data = np.full(shape=(len(Nums),len(temps),num_attempts),fill_value=np.nan,dtype=np.float64)
 		contacts = np.full(shape=(len(Nums),len(temps),num_attempts),fill_value=np.nan,dtype=float)
-		# porositiesabc[:] = np.nan
-		# porositiesKBM[:] = np.nan
-		# FD_data[:] = np.nan
-		# contacts[:] = np.nan
+
 		for i,temp in enumerate(temps):
 			for n,N in enumerate(Nums):
 				# if N == 300:
@@ -236,41 +234,19 @@ if __name__ == '__main__':
 					# attempt = 12
 					# data_folder = data_prefolder + str(attempt) + '/'
 					data_folder = data_prefolder + str(attempt) + '/' + 'N_' + str(N) + '/T_' + str(temp) + '/'
-					print(data_folder)
+					# print(data_folder)
 					count = 0
-					if os.path.exists(data_folder+"timing.txt"):
-						porositiesabc[n,i,j] = porosity_measure1(data_folder,N-3)
-						porositiesKBM[n,i,j] = porosity_measure2(data_folder,N-3)
-						contacts[n,i,j] = number_of_contacts(data_folder,N-3)
+					if os.path.exists(data_folder):
+						if os.path.exists(data_folder+"timing.txt") or u.find_max_index(data_folder) >= N-3:
+							porositiesabc[n,i,j] = porosity_measure1(data_folder,N-3)
+							porositiesKBM[n,i,j] = porosity_measure2(data_folder,N-3)
+							contacts[n,i,j] = number_of_contacts(data_folder,N-3)
 
-						if not np.isnan(porositiesabc[n,i,j]) and make_FD:
-							o3dv = u.o3doctree(data_folder,overwrite_data=overwrite_octree_data,index=N-3,Temp=temp)
-							o3dv.make_tree()
-							FD_data[n,i,j] = o3dv.calc_fractal_dimension(show_graph=show_FD_plots)
-						# print("FD :\t{}".format(FD_data[n,i,j]))
-						# print("abc:\t{}".format(porositiesabc[n,i,j]))
-						# print("KBM:\t{}".format(porositiesKBM[n,i,j]))
-						# print("con:\t{}".format(contacts[n,i,j]))
+							if not np.isnan(porositiesabc[n,i,j]) and make_FD:
+								o3dv = u.o3doctree(data_folder,overwrite_data=overwrite_octree_data,index=N-3,Temp=temp)
+								o3dv.make_tree()
+								FD_data[n,i,j] = o3dv.calc_fractal_dimension(show_graph=show_FD_plots)
 
-					# else:
-					# 	porositiesabc[n,i,j] = np.nan
-					# 	porositiesKBM[n,i,j] = np.nan
-					# 	FD_data[n,i,j] = np.nan
-					# exit(0)
-		# porositiesabc = np.array(porositiesabc,dtype=np.float64)
-		# porositiesKBM = np.array(porositiesKBM,dtype=np.float64)
-		# print(porositiesabc.shape)
-		# print(porositiesabc.shape)
-
-		# for i in range(len(attempts)):
-		# 	pors = np.array([porositiesabc[:,i],porositiesKBM[:,i],np.array(porositiesabc[:,i])/np.array(porositiesKBM[:,i])])
-		# 	plt.plot(temps,pors.T)
-		# 	plt.title('Porosity run {}'.format(i))
-		# 	plt.xlabel('Temperature in K')
-		# 	plt.ylabel('Porosity')
-		# 	plt.legend(['Rabc','RKBM','Rabc/RKBM'])
-		# 	plt.xscale('log')
-		# 	plt.show()
 
 		###### Print stat values for given N, T ######
 		if find_stats:

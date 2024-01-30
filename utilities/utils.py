@@ -42,6 +42,15 @@ data_columns = 11
 # def cube(V):
 	# return
 
+def find_max_index(folder):
+	files = os.listdir(folder)
+	max_index = -1
+	for file in files:
+		if file.split("_")[0].isnumeric():
+			if file.endswith("simData.csv") or file.endswith("constants.csv") or file.endswith("energy.csv") or file.endswith("data.h5"):
+				max_index = max(index_from_file(file),max_index)
+	return max_index
+
 
 def index_from_file(file):
 	file_split = file.split("_")
