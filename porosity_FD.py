@@ -148,6 +148,7 @@ if __name__ == '__main__':
 	data_prefolder = path + 'jobsOld/tempVarianceRand_attempt'
 	data_prefolder = path + 'jobsNovus/const'
 	data_prefolder = path + 'jobsCosine/lognorm'
+
 	dataset_name = data_prefolder.split("/")[-1]
 
 	sav = path+'data/{}_averageData.csv'.format(dataset_name)
@@ -157,13 +158,14 @@ if __name__ == '__main__':
 
 	# temps = [10]
 	temps = [3,10,30,100,300,1000]
-	# temps = [3,10,30]
+	temps = [3]
 	Nums = [30,100,300]
-	# Nums = [30,100]
+	Nums = [5]
 	
 	
 	attempts = [i for i in range(30)]
-	attempts300 = attempts
+	attempts = [1]
+	# attempts300 = attempts
 	# attempts300 = [i for i in range(9)]
 	# data = [] 
 
