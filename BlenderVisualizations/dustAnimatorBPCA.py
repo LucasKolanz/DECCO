@@ -7,54 +7,64 @@ import fnmatch
 import os
 import h5py
 
-def get_simData_and_consts(path,filename,fileindex,csv):
+def get_filename(path,fileindex):
+	for file in os.listdir(path):
+		if file.endswith("simData.csv"):
+			filesplit = file.split("_")
+			if len(filesplit) > 2: #Job Guidos way of naming
+				if fileindex == 0:
+					if not filesplit[1].isnumeric():
+						return file
+				else:
+					if filesplit[0] == str(fileindex):
+						return file
+			else: #Lucas Kolanz way of naming
+				if filesplit[0] == str(fileindex):
+					return file
+		elif file.startswith(str(fileindex)) and file.endswith(".h5"):
+			return file
+	return -1
+			
+	
+
+def get_simData_and_consts(path,fileindex):
 	numSpheres = -1
 	steps = -1
 	
-	if csv:
-		filename = "_"+"_".join(filename.split('_')[1:-1]) +'_'
-		print(filename)
+	filename = get_filename(path,fileindex)
+	
+	if filename.endswith(".csv"):
 		
-		print(path + str(fileindex) + filename + "simData.csv")
-		if fileindex == 0:
-			if "SpaceLab_branch" in path.split("/"):
-				pth = path + filename[2:] + "simData.csv"
-			else:
-				pth = path + filename[1:] + "simData.csv"
-		else:
-			if "SpaceLab_branch" in path.split("/"):
-				pth = path + str(fileindex) + filename[:-1] + "simData.csv"
-			else:
-				pth = path + str(fileindex) + filename + "simData.csv"
 		try:
-			simData = np.loadtxt(pth,dtype=float,delimiter=',',skiprows = 1)
+			print("fullpath: "+path+filename)
+			simData = np.loadtxt(path+filename,dtype=float,delimiter=',',skiprows = 1)
 		except Exception as e:
-			print("ERROR CAUGHT in folder: {}".format(pth))
+			print("ERROR CAUGHT in folder: {}".format(path+filename))
 			print(e)
 		#    simData = np.array([last_line.split(',')],dtype=np.float64)
-		print("PATH")
-		print(pth)
+#		print("fullpath")
+#		print(path+file)
 		print("DATA")
 		print(simData)
 		#simData = np.array([simData]) # Uncomment this line for single timestep data with no headers
 		#simData.T # Uncomment this line for single timestep data with no headers
 		steps = len(simData)
 		print("steps: ",steps)
-		if fileindex == 0:
-			if "SpaceLab_branch" in path.split("/"):
-				constants = np.genfromtxt(path + filename[2:] + "constants.csv",dtype=float,delimiter=',')
-			else:
-				constants = np.genfromtxt(path + filename[1:] + "constants.csv",dtype=float,delimiter=',')
-		else:
-			if "SpaceLab_branch" in path.split("/"):
-				constants = np.genfromtxt(path + str(fileindex) + filename[1:] + "constants.csv",dtype=float,delimiter=',')
-			else:
-				print("==================")
-				print(path + str(fileindex) + filename + "constants.csv")
-				print("==================")
-				constants = np.genfromtxt(path + str(fileindex) + filename + "constants.csv",dtype=float,delimiter=',')
+		constants = np.loadtxt(path + filename.replace("simData.csv", "constants.csv"),dtype=float,delimiter=',')
+#		if fileindex == 0:
+#			if filename.find("_") == filename.rfind("_"):
+#			else:
+#				constants = np.genfromtxt(path + filename[1:] + "constants.csv",dtype=float,delimiter=',')
+#		else:
+#			if "SpaceLab_branch" in path.split("/"):
+#				constants = np.genfromtxt(path + str(fileindex) + filename[1:] + "constants.csv",dtype=float,delimiter=',')
+#			else:
+#				print("==================")
+#				print(path + str(fileindex) + filename + "constants.csv")
+#				print("==================")
+#				constants = np.genfromtxt(path + str(fileindex) + filename + "constants.csv",dtype=float,delimiter=',')
 		numSpheres = len(constants)
-	else:
+	elif filename.endswith(".h5"):
 		filename = '_'+filename.split('_')[-1]
 		
 		print(path+str(fileindex)+filename)
@@ -68,6 +78,11 @@ def get_simData_and_consts(path,filename,fileindex,csv):
 			simCols = numSpheres*11
 			simData = simData.reshape(simRows,simCols)
 			constants = constants.reshape(numSpheres,(int)(constants.size/numSpheres))
+			if steps != 51:
+				print("=========================================================")
+				print(f"ERROR: there were {steps} writes in sim {filename}")
+				print("=========================================================")
+				
 	return [simData,constants,numSpheres,steps]
 	
 
@@ -130,32 +145,25 @@ path = '/home/lpkolanz/Desktop/SpaceLab/jobs/singleCoreComparison_COPY7/'
 path = '/home/lpkolanz/Desktop/SpaceLab/jobs/singleCoreComparison6/'
 path = '/home/lpkolanz/Desktop/SpaceLab_branch_copy/SpaceLab/testing/jobs/multiCoreTest1/'
 path = '/home/kolanzl/Desktop/SpaceLab_copy/SpaceLab_data/test1/N_5/T_3/'
-path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/tempVarianceRand_attempt8/N_30/T_3/'
+path = '/home/lucas/Desktop/SpaceLab_data/jobs/error2Test2/N_10/T_10/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm10/N_30/T_1000/'
+path = '/home/lucas/Desktop/SpaceLab_data/deleteme/'
 #filename = '_2_R5e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_'
 #filename = '_1_R1e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_' 
 #filename = '_'
 #filename = '_2_R3e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-12_'
 #filename = '_2_R2e+05_v4e-01_cor0.63_mu0.1_rho2.25_k2e+10_Ha5e-12_dt3e+00_'
 #filename = '_2_R2e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt4e-10_'
-simStart = 0
-simEnd = 2
+simStart = 290
+simEnd = 299
 
-csv = False
-filename = ''
-for file in os.listdir(path):
-#    print(file)
-	if len(file) > len(filename):
-		if file[-4:] == ".csv":
-			filename = file
-			csv = True
-		elif file[-3:] == ".h5":
-			filename = file	
+#csv = False
+#filename = ''  
+
 	
-#print("num constants: ",numSpheres)
+#filename = str(simStart)+"_simData.csv"
 
-print(filename)
-
-simData,constants,numSpheres,steps = get_simData_and_consts(path,filename,simStart,csv)
+simData,constants,numSpheres,steps = get_simData_and_consts(path,simStart)
 
 sphereSet = []
 actionSet = []
@@ -181,10 +189,10 @@ for sphere in range(numSpheres):
 for sim in range(simStart,simEnd+1):
 	if frameNum > 1:
 		print(simData.shape)        
-		simData,constants,numSpheres,steps = get_simData_and_consts(path,filename,sim,csv)
-		print(sim)
-		print(simData.shape)
-		print(numSpheres)
+		simData,constants,numSpheres,steps = get_simData_and_consts(path,sim)
+#		print(sim)
+#		print(simData.shape)
+#		print(numSpheres)
 		
 		# Instanciaten the new particle and the end of file:
 		sphereSet.append(bpy.data.objects.new("Mball." + str(numSpheres),sphereMesh))
@@ -213,6 +221,8 @@ for sim in range(simStart,simEnd+1):
 				sphereSet[sphere].keyframe_insert(data_path="location",index=-1)
 				
 				sphereSet[sphere].keyframe_insert(data_path="rotation_euler",index=-1)
+				
+#				if frameNum == 404
 			frameNum += 1
 
 bpy.data.scenes[0].frame_end = frameNum
