@@ -9,6 +9,8 @@
 #include <sstream>
 #include <cmath>
 
+#define ERR_RET_MET "ERROR RETRIEVING METADATA"
+
 const int bufferlines = 10;
 const int num_data_types = 4;
 const std::string data_types[num_data_types] = {"simData","energy","constants","timing"};
@@ -417,7 +419,30 @@ class HDF5Handler {
 		    return data;
 		}
 
-		
+		static void loadh5SimData(const std::string path, const std::string file,vec3 *pos,vec3 *w,vec3 *vel)
+	    {
+	    	int n_particles = get_num_particles(path,file);
+	    	int single_ball_width = single_ball_widths[getDataIndexFromString("simData")];
+	    	int width = n_particles*single_ball_width;
+	    	std::vector<double> out = static_readFile("simData",width,0,true,path+file); // get last line
+	    	// printVec(out);
+	    	
+	    	for (int i = 0; i < n_particles; ++i)
+	    	{
+	    		int out_ind = i*single_ball_width;
+	    		pos[i].x = out[out_ind];
+	    		pos[i].y = out[out_ind+1];
+	    		pos[i].z = out[out_ind+2];
+
+	    		w[i].x = out[out_ind+3];
+	    		w[i].y = out[out_ind+4];
+	    		w[i].z = out[out_ind+5];
+
+	    		vel[i].x = out[out_ind+7];
+	    		vel[i].y = out[out_ind+8];
+	    		vel[i].z = out[out_ind+9];
+	    	}
+	    }
 
 		static hsize_t get_data_length(std::string readfile,std::string datasetName)
 		{
@@ -520,6 +545,23 @@ class HDF5Handler {
 	        file.close();
 	    }
 
+	    static bool sim_finished(std::string path, std::string file)
+	    {
+		    std::vector<double> simdata = static_readFile("simData", 0, 0, false, path + file);
+		    if (!simdata.empty())
+		    {
+		        for (double value : simdata)
+		        {
+		            if (std::isnan(value))
+		            {
+		                return false;
+		            }
+		        }
+		        return true;
+		    }
+		    return false;
+		}
+
 		static int get_num_particles(std::string path, std::string file)
 		{
 			hsize_t total_size = get_data_length(path+file,"constants");
@@ -618,44 +660,50 @@ class HDF5Handler {
         							const std::string& datasetName) 
         {
 		    // Initialize the HDF5 library
-        	if(std::filesystem::exists(filename)) {
-			    H5::H5File file(filename, H5F_ACC_RDWR);
-	    		H5::DataSet dataset;
-			    // Open the specified dataset
-			    if (datasetExists(filename,datasetName)){
-			    	dataset = file.openDataSet(datasetName);
-			    	// Check if the attribute's dataspace exists
-				    if (attributeExists(dataset, metadataName)) {
-				        // std::cerr << "DECCOHDF5 Warning: Attribute 'metadata' already exists for the dataset." << std::endl;
-				        dataset.close();
-				        file.close();
-				        return;
-				    }
-			    }else{
-			    	std::vector<double> dummy;
-			    	dataset = createDataSet(dummy,datasetName);
+        	H5::H5File file;
+        	if(!std::filesystem::exists(filename)) 
+        	{
+        		file = H5::H5File(filename, H5F_ACC_TRUNC);
+        	}
+        	else
+        	{
+		    	file = H5::H5File(filename, H5F_ACC_RDWR);
+        	}
+
+    		H5::DataSet dataset;
+		    // Open the specified dataset
+		    if (datasetExists(filename,datasetName)){
+		    	dataset = file.openDataSet(datasetName);
+		    	// Check if the attribute's dataspace exists
+			    if (attributeExists(dataset, metadataName)) {
+			        // std::cerr << "DECCOHDF5 Warning: Attribute 'metadata' already exists for the dataset." << std::endl;
+			        dataset.close();
+			        file.close();
+			        return;
 			    }
-
-			    // Create a string data type for the attribute
-			    H5::StrType strType(H5::PredType::C_S1, H5T_VARIABLE);
-
-			    
-
-			    // Create a dataspace for the attribute
-			    H5::DataSpace attrSpace = H5::DataSpace(H5S_SCALAR);
-
-			    // Create the attribute and write the metadata
-			    H5::Attribute metadataAttr = dataset.createAttribute(metadataName, strType, attrSpace);
-			    metadataAttr.write(strType, metadata);
-
-			    // Close resources
-			    metadataAttr.close();
-			    attrSpace.close();
-			    dataset.close();
-			    file.close();
 		    }else{
-            	std::cerr<<"File '"<<filename<<"' does not exist."<<std::endl;
-            }
+		    	std::vector<double> dummy;
+		    	dataset = createDataSet(dummy,datasetName);
+		    }
+		    // Create a string data type for the attribute
+		    H5::StrType strType(H5::PredType::C_S1, H5T_VARIABLE);
+
+		    
+
+		    // Create a dataspace for the attribute
+		    H5::DataSpace attrSpace = H5::DataSpace(H5S_SCALAR);
+
+		    // Create the attribute and write the metadata
+		    H5::Attribute metadataAttr = dataset.createAttribute(metadataName, strType, attrSpace);
+		    metadataAttr.write(strType, metadata);
+		    // Close resources
+		    metadataAttr.close();
+		    attrSpace.close();
+		    dataset.close();
+		    file.close();
+		    // }else{
+            // 	std::cout<<"File '"<<filename<<"' does not exist."<<std::endl;
+            // }
             return;
 		}
 
@@ -673,7 +721,7 @@ class HDF5Handler {
 			    	dataset = file.openDataSet(datasetName);
 			    }else{
 			        std::cerr << "dataset '"<<datasetName<<"' does not exist for file '"<<filename<<"' ." << std::endl;
-			    	return "ERROR RETRIEVING METADATA";
+			    	return ERR_RET_MET;
 			    }
 
 			    // Check if the attribute's dataspace exists
@@ -681,7 +729,7 @@ class HDF5Handler {
 			        std::cerr << "Attribute 'metadata' does not exist for dataset '"<<datasetName<<"' in file '"<<filename<<"' ." << std::endl;
 			        dataset.close();
 			        file.close();
-			    	return "ERROR RETRIEVING METADATA";
+			    	return ERR_RET_MET;
 			    }
 
 			    // Open the metadata attribute
@@ -718,7 +766,7 @@ class HDF5Handler {
 			    	dataset = file.openDataSet(datasetName);
 			    }else{
 			        std::cerr << "dataset '"<<datasetName<<"' does not exist for file '"<<metafile<<"' ." << std::endl;
-			    	return "ERROR RETRIEVING METADATA";
+			    	return ERR_RET_MET;
 			    }
 
 			    // Check if the attribute's dataspace exists
@@ -726,7 +774,7 @@ class HDF5Handler {
 			        std::cerr << "Attribute "<<metadataName<<" does not exist for dataset '"<<datasetName<<"' in file '"<<metafile<<"' ." << std::endl;
 			        dataset.close();
 			        file.close();
-			    	return "ERROR RETRIEVING METADATA";
+			    	return ERR_RET_MET;
 			    }
 
 			    // Open the metadata attribute
@@ -1020,7 +1068,6 @@ public:
 			}
 		#endif
 
-
 		//If user specified number of writes but a storage_type other than hdf5 then default to hdf5 and warn user
 		// if (fixed && not h5data)
 		// {
@@ -1081,7 +1128,7 @@ public:
 		//if data_index is less than zero a bad data_type was input and write doesn't happen
 		if (data_index < 0)
 		{
-			return "ERROR RETRIEVING METADATA";
+			return ERR_RET_MET;
 		}
 		std::string datasetName = getDataStringFromIndex(data_index);
 		std::string readMetaData;
@@ -1295,6 +1342,11 @@ public:
 		}
 		std::cerr<<"DECCOData ERROR: data_index '"<<data_index<<"' is out of range."<<std::endl;
 		return "DECCOData ERROR";
+	}
+
+	std::string getFileName()
+	{
+		return filename;
 	}
 	
 
