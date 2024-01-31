@@ -110,12 +110,12 @@ def main():
 	curr_folder = os.getcwd() + '/'
 
 	job_folder = 'jobs/'###FOR RUNNIN ON COSINE/NOVUS
-	job_folder = 'jobsCosine/'##FOR RUNNING ON LOCAL TESTING COSINE JOBS
 	job_folder = 'jobsNovus/'##FOR RUNNING ON LOCAL TESTING NOVUS JOBS
+	job_folder = 'jobsCosine/'##FOR RUNNING ON LOCAL TESTING COSINE JOBS
 	move_job_folder = 'erroredJobs/' ##either way move here
 
-	job = input_json["data_directory"] + job_folder + 'lognorm$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + job_folder + 'constant$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + job_folder + 'lognorm$a$/N_$n$/T_$t$/'
 	# move_folder = curr_folder + 'erroredJobs/lognorm$a$/N_$n$/T_$t$/'
 
 	attempts = [i for i in range(30)]

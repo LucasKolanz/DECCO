@@ -1,0 +1,80 @@
+import os
+import fnmatch
+
+def delete_files(file_paths):
+    """
+    Attempts to delete each file in the given list of file paths.
+    
+    :param file_paths: List of paths to the files to be deleted.
+    """
+    for path in file_paths:
+        try:
+            os.remove(path)
+            print(f"File deleted: {path}")
+        except FileNotFoundError:
+            print(f"File not found, skipping: {path}")
+        except PermissionError:
+            print(f"Permission denied, skipping: {path}")
+        except Exception as e:
+            print(f"Error deleting file {path}: {e}")
+
+def get_all_files(root_dir, pattern):
+    allfiles = []
+    for dirpath, dirnames, files in os.walk(root_dir):
+        for file in files:
+            if fnmatch.fnmatch(file, pattern):  # Match using glob pattern
+                filepath = os.path.join(dirpath, file)
+                allfiles.append(filepath)
+                # try:
+                #     os.remove(file_path)
+                #     print(f"Deleted: {file_path}")
+                # except Exception as e:
+                #     print(f"Error deleting {file_path}: {e}")
+    return allfiles
+
+
+def bytes_to_human_readable(num_bytes):
+    """
+    Converts a size in bytes to a human-readable string in KB, MB, GB, etc.
+    
+    :param num_bytes: Size in bytes.
+    :return: Human-readable size string.
+    """
+    for unit in ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB']:
+        if num_bytes < 1024.0:
+            return f"{num_bytes:3.1f} {unit}"
+        num_bytes /= 1024.0
+    return f"{num_bytes:.1f} YB"  # Handle sizes beyond ZB
+
+def calculate_total_space(file_paths):
+    """
+    Calculates the total space taken up by the files at the given paths and
+    returns the size in a human-readable format.
+    
+    :param file_paths: List of paths to the files.
+    :return: Total size of the files as a human-readable string.
+    """
+    total_size = 0
+    for path in file_paths:
+        if os.path.exists(path):
+            total_size += os.path.getsize(path)
+        else:
+            print(f"Warning: The file at {path} does not exist and will be skipped.")
+    return bytes_to_human_readable(total_size)
+
+
+if __name__ == '__main__':
+    # Example usage
+    target_directory = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab/jobs/'
+    file_pattern = 'fractdim_ppb-*.csv'
+    
+
+    output = get_all_files(target_directory, file_pattern)
+    space = calculate_total_space(output)
+    print(f"File pattern '{file_pattern}' in root directory '{target_directory}' takes up {space} ")
+
+    print(f"Deleting file pattern . . .")
+
+    delete_files(output)
+
+    print(f"Done")

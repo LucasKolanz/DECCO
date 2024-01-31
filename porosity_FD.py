@@ -158,14 +158,14 @@ if __name__ == '__main__':
 
 	# temps = [10]
 	temps = [3,10,30,100,300,1000]
-	temps = [3]
+	# temps = [3]
 	Nums = [30,100,300]
-	Nums = [5]
+	# Nums = [5]
 	
 	
 	attempts = [i for i in range(30)]
-	attempts = [1]
-	# attempts300 = attempts
+	# attempts = [1]
+	attempts300 = attempts
 	# attempts300 = [i for i in range(9)]
 	# data = [] 
 
@@ -207,7 +207,7 @@ if __name__ == '__main__':
 	show_plots = True
 	make_FD = True
 	show_FD_plots = False
-	overwrite_octree_data = True
+	overwrite_octree_data = True 
 	find_stats = False
 	show_stat_plots = False
 
