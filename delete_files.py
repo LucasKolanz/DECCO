@@ -66,15 +66,23 @@ def calculate_total_space(file_paths):
 if __name__ == '__main__':
     # Example usage
     target_directory = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab/jobs/'
-    file_pattern = 'fractdim_ppb-*.csv'
+    file_patterns = ['fractdim_ppb-*.csv']
+    file_patterns.append('pointcloud*.pcd')
+    # file_patterns.append('Collider*.o')
+    # file_patterns.append('Collider*.x')
+
+    DELETE = False
+    all_output = []
     
+    for file_pattern in file_patterns:
+        output = get_all_files(target_directory, file_pattern)
+        all_output.extend(output)
+        space = calculate_total_space(output)
+        print(f"{len(output)} files with pattern '{file_pattern}' in root directory '{target_directory}' taking up {space} ")
 
-    output = get_all_files(target_directory, file_pattern)
-    space = calculate_total_space(output)
-    print(f"File pattern '{file_pattern}' in root directory '{target_directory}' takes up {space} ")
+    if DELETE:
+        print(f"Deleting file patterns . . .")
+        delete_files(all_output)
 
-    print(f"Deleting file pattern . . .")
-
-    delete_files(output)
 
     print(f"Done")
