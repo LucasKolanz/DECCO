@@ -402,6 +402,15 @@ Ball_group::Ball_group(std::string& path)
 {
     parse_input_file(path);
     int restart = check_restart(path);
+
+    // If the simulation is complete exit now. Otherwise, the call to 
+    //find_restart_file_name will possibly delete one of the data files 
+    if (restart == 2)
+    {
+        std::cerr<<"Simulation already complete. Now exiting. . .\n";
+        exit(0);
+    }
+
     std::string filename = find_restart_file_name(path); 
     bool just_restart = false;
 
@@ -457,8 +466,8 @@ Ball_group::Ball_group(std::string& path)
     }
     else
     {
-        std::cerr<<"Simulation already complete. Now exiting. . .\n";
-        exit(0);
+        std::cerr<<"ERROR: restart code '"<<restart<<"' not recognized."<<std::endl;
+        exit(-1);
     }
 }
 
@@ -2522,7 +2531,7 @@ void Ball_group::sim_init_two_cluster(
 // @returns 0 if this is starting from scratch
 // @returns 1 if this is a restart
 // @returns 2 if this job is already finished
-int Ball_group::check_restart(std::string folder)
+int Ball_group::check_restart(std::string folder) //TODO TEST IF PROPERLY DETECTING JOB FINISHED
 {
     std::string file;
     // int tot_count = 0;
