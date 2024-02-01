@@ -37,7 +37,7 @@ if __name__ == '__main__':
 	job_set_name = "errorckcsvlognorm"
 	job_set_name = "errorckh5lognorm"
 	job_set_name = "overflowerror"
-	job_set_name = "TEST"
+	job_set_name = "speedtest"
 
 	# folder_name_scheme = "T_"
 
@@ -46,10 +46,10 @@ if __name__ == '__main__':
 	runs_at_once = 7
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	attempts = [0] 
-	N = [5]
-	threads = []
+	N = [28]
+	thread = 1
 	# Temps = [3,10,30,100,300,1000]
-	Temps = [3]
+	Temps = [1000]
 	folders = []
 	for attempt in attempts:
 		for n in N:
@@ -57,10 +57,10 @@ if __name__ == '__main__':
 				#load default input file
 				with open(project_path+"default_files/default_input.json",'r') as fp:
 					input_json = json.load(fp)
+
 				
 				# job = curr_folder + 'jobs/' + job_set_name + str(attempt) + '/'
-				job = input_json["data_directory"] + 'jobs/' + job_set_name + str(attempt) + '/'\
-							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
+				job = input_json["data_directory"] + f'jobs/longer_job{attempt}/' 
 				
 				if not os.path.exists(job):
 					os.makedirs(job)
@@ -69,18 +69,19 @@ if __name__ == '__main__':
 
 				####################################
 				######Change input values here######
-				# input_json['temp'] = Temp
+				input_json['temp'] = Temp
 				input_json['N'] = n
 				input_json['output_folder'] = job
-				input_json['OMPthreads'] = 1
-				input_json['MPInodes'] = 1
+				input_json['OMPthreads'] = thread
+				input_json['simType'] = "BPCA"
 
-				input_json['seed'] = 2493303778
+				input_json['seed'] = "default"
 				input_json['radiiDistribution'] = 'logNormal'
 				# input_json['h_min'] = 0.5
 				input_json['dataFormat'] = "csv"
-				# input_json['u_s'] = 0.5
-				# input_json['u_r'] = 0.5
+				input_json["simTimeSeconds"] = 0.005
+				input_json["timeResolution"] = 1e-06
+    
 				# input_json['note'] = "Does this work at all?"
 				####################################
 
@@ -93,7 +94,7 @@ if __name__ == '__main__':
 				os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
 				os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
 
-				# os.system(f"cp /home/lucas/Desktop/SpaceLab_data/test2/N_5/T_3/*data.h5 {job}.")
+
 				
 				folders.append(job)
 	# print(folders)

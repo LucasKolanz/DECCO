@@ -22,25 +22,30 @@ def main():
 	
 	data_directory = input_json["data_directory"]
 
-	data_prefolder = data_directory + 'jobsCosine/lognorm'
-	data_prefolder = data_directory + 'jobsNovus/const'
 	data_prefolder = data_directory + 'jobs/longer_jobs'
+	data_prefolder = data_directory + 'jobsNovus/const'
+	data_prefolder = data_directory + 'jobsCosine/lognorm'
 	dataset_name = data_prefolder.split("/")[-1]
 
-	temps = [3,10,30,100,300,1000]
-	temps = [3]
+	attempts = [i for i in range(30)]
+	attempts = [1]
+	attempts300 = attempts
+
+
 	Nums = [30,100,300]
 	Nums = [30]
+
+	temps = [3,10,30,100,300,1000]
+	temps = [1000]
 	
-	attempts = [i for i in range(30)]
-	attempts = [0]
-	attempts300 = attempts
 
 	# numConts = np.full(shape=(len(attempts),len(Nums),len(temps),),fill_value=np.nan)
 	numConts = []
 
-	newData = False
-	savfile = data_directory+"/data/numContOverTime-N_30-T_3.npy"
+	newData = True
+	savfile = data_directory+"/data/numContOverTime-a_1-N_30-T_1000.npy"
+
+	rows = 51
 
 	if newData:
 		for T_i,T in enumerate(temps):
@@ -54,7 +59,7 @@ def main():
 					data_folder = data_prefolder + str(attempt) + '/' + 'N_' + str(N) + '/T_' + str(T) + '/'
 					# print(pFD.number_of_contacts(data_folder,29,5000))
 					# print(pFD.number_of_contacts(data_folder,29,-1))
-					for i in list(range(5001)):
+					for i in list(range(rows)):
 						numConts.append(pFD.number_of_contacts(data_folder,29,i))
 						# print(pFD.number_of_contacts(data_folder,29,-1))
 						# print(pFD.number_of_contacts(data_folder,29,-2))
@@ -65,14 +70,14 @@ def main():
 	#plot num of cont for all writes
 	fig,ax = plt.subplots()
 
-	# print(list(range(5001)))
-	xdata = [i for i in list(range(5001))]
+	# print(list(range(rows)))
+	xdata = [i for i in list(range(rows))]
 	# print(len(xdata))
 	# print(numConts[:].shape)
 
 	print(np.sum(np.where(numConts == numConts[-1],1,0)))
 
-	end = 500
+	# end = 500
 	ax.plot(xdata[:end],numConts[:end])
 	ax.set_title('Num Contacts vs time for N=30, T=3')
 	ax.set_xlabel('Writes (time)')

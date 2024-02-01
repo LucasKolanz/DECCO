@@ -61,6 +61,25 @@ def get_principal_moi(mass,data):
 	Ip.sort()
 	return Ip
 
+#returns the total magnitude of the orbital angular momentum
+def angular_momentum(folder,data_index=-1):
+	pos,vel,w,radius,mass,moi = u.get_all_data(data_folder,data_index=data_index,linenum=-1)
+	if pos is None:
+		return np.nan
+	num_balls = pos.shape[0]
+
+	#get the total spin 
+	com = u.COM(folder,data_index)
+	angmom = np.array([0.0,0.0,0.0],dtype=np.float64)
+
+	for ball in list(range(num_balls)):
+		#orital angmom
+		angmom += np.cross((pos[ball]-com),mass[ball]*vel[ball])
+		#spin angmom
+		# angmom += moi[ball]*w[ball]
+
+	return np.linalg.norm(angmom)
+
 def porosity_measure1(data_folder,data_index=-1):
 	data,radius,mass,moi = u.get_data(data_folder,data_index)
 	if data is None:
@@ -75,10 +94,6 @@ def porosity_measure1(data_folder,data_index=-1):
 	principal_moi = get_principal_moi(np.mean(mass),data)
 	# principal_moi = get_principal_moi(mass,data)
 	
-	# print(principal_moi)
-	# print(mass)
-	# print(np.mean(mass))
-	# exit(0)
 	
 	alphai = principal_moi/(0.4*np.sum(mass)*effective_radius**2)
 	# alphai = principal_moi/(0.4*num_balls*mass*effective_radius**2)
@@ -146,8 +161,8 @@ if __name__ == '__main__':
 	# data_prefolder = path + 'jobs/lognorm'
 	# data_prefolder = path + 'jobs/tempVarianceRand_attempt'
 	data_prefolder = path + 'jobsOld/tempVarianceRand_attempt'
-	data_prefolder = path + 'jobsNovus/const'
 	data_prefolder = path + 'jobsCosine/lognorm'
+	data_prefolder = path + 'jobsNovus/const'
 
 	dataset_name = data_prefolder.split("/")[-1]
 
@@ -169,25 +184,35 @@ if __name__ == '__main__':
 	# attempts300 = [i for i in range(9)]
 	# data = [] 
 
+
+	
 	porositiesabcavg = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
-	porositiesKBMavg = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
-	KBM_numruns = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
-	ABC_numruns = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
 	porositiesabcstd = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
+	yerr_abc = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
+	ABC_numruns = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
+	
+	porositiesKBMavg = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
 	porositiesKBMstd = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
+	yerr_KBM = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
+	KBM_numruns = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
+	
 	contactsavg = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
 	contactsstd = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
+	yerr_ca = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
 	contacts_numruns = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
+	
 	FD_dataavg = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
 	FD_datastd = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
-	FD_numruns = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
-	yerr_abc = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
-	yerr_KBM = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
 	yerr_FD = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
-	yerr_ca = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
+	FD_numruns = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
+	
+	angmomavg = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
+	angmomstd = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
+	yerr_angmom = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
+	angmom_numruns = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
 
 
-	properties = 12 #number of columns to save for every Num
+	properties = 15 #number of columns to save for every Num
 
 	# porositiesabcavg[:] = np.nan
 	# porositiesKBMavg[:] = np.nan
@@ -202,12 +227,12 @@ if __name__ == '__main__':
 	# yerr_FD[:] = np.nan
 	# yerr_ca[:] = np.nan
 
-	new_data = True
+	new_data = True     
 	save_data = True
 	show_plots = True
-	make_FD = True
+	make_FD = False
 	show_FD_plots = False
-	overwrite_octree_data = True 
+	overwrite_octree_data = False 
 	find_stats = False
 	show_stat_plots = False
 
@@ -218,6 +243,7 @@ if __name__ == '__main__':
 		std_err = []
 		# attempts = [attempts[3]]
 		num_attempts = np.max([len(attempts),len(attempts300)])
+		angmom = np.full(shape=(len(Nums),len(temps),num_attempts),fill_value=np.nan,dtype=np.float64)
 		porositiesabc = np.full(shape=(len(Nums),len(temps),num_attempts),fill_value=np.nan,dtype=np.float64)
 		porositiesKBM = np.full(shape=(len(Nums),len(temps),num_attempts),fill_value=np.nan,dtype=np.float64) 
 		FD_data = np.full(shape=(len(Nums),len(temps),num_attempts),fill_value=np.nan,dtype=np.float64)
@@ -243,6 +269,7 @@ if __name__ == '__main__':
 							porositiesabc[n,i,j] = porosity_measure1(data_folder,N-3)
 							porositiesKBM[n,i,j] = porosity_measure2(data_folder,N-3)
 							contacts[n,i,j] = number_of_contacts(data_folder,N-3)
+							angmom[n,i,j] = angular_momentum(data_folder,N-3)
 
 							if not np.isnan(porositiesabc[n,i,j]) and make_FD:
 								o3dv = u.o3doctree(data_folder,overwrite_data=overwrite_octree_data,index=N-3,Temp=temp)
@@ -349,65 +376,40 @@ if __name__ == '__main__':
 						plt.close("all")
 		########## End printing stat values ##########
 
-
 		for i,N in enumerate(Nums):
 			if N == 300:
 				a = attempts300
 			else:
 				a = attempts
-			# porositiesabcavg.append(np.average(porositiesabc[i],axis=1))
-			# porositiesKBMavg.append(np.average(porositiesKBM[i],axis=1))
-			# FD_dataavg.append(np.average(FD_data[i],axis=1))
-			# print('N={}\n{}'.format(N,np.nanmean(porositiesabc[i],axis=1)))
-			# print(porositiesabc[i])
-			# print(notnan)
-			# print(porositiesabc[i,notnan])
-
-			# print(porositiesabcavg[i].shape)
-			notnan = ~np.isnan(FD_data[i])
-			# print(notnan)
+			
+			notnan = ~np.isnan(angmom[i])
 			if np.sum(notnan) == 0:
 				continue
-			# print(porositiesabcavg[i,notnan[0]].shape)
-			# print(np.nanmean(porositiesabc[i],axis=1).shape)
-			# print()
-			# print(porositiesabcavg.shape)
-			# print(np.nanmean(porositiesabc[i],axis=1))
-			# print(porositiesabc[i])
-			porositiesabcavg[i] = np.nanmean(porositiesabc[i],axis=1)
-			# exit(0)
-			porositiesKBMavg[i] = np.nanmean(porositiesKBM[i],axis=1)
-			FD_dataavg[i] = np.nanmean(FD_data[i],axis=1)
-			contactsavg[i] = np.nanmean(contacts[i],axis=1)
-			porositiesabcstd[i] = np.nanstd(porositiesabc[i],axis=1)
-			porositiesKBMstd[i] = np.nanstd(porositiesKBM[i],axis=1)
-			FD_datastd[i] = np.nanstd(FD_data[i],axis=1)
-			contactsstd[i] = np.nanstd(contacts[i],axis=1)
-			# print(porositiesabcavg[i])
-			# print(porositiesKBMavg[i])
 
-			# plotme = np.array([porositiesabcavg,porositiesKBMavg])
-			# print(porositiesabcstd[i]/np.sqrt(len(a)))
-			# print(yerr_abc[i,notnan[0]])
+			angmomavg[i] = np.nanmean(angmom[i],axis=1)
+			angmomstd[i] = np.nanstd(angmom[i],axis=1)
+			angmom_numruns[i] = np.count_nonzero(~np.isnan(angmom[i]),axis=1)
+			yerr_angmom[i] = angmomstd[i]/np.sqrt(angmom_numruns[i])
+			
+			porositiesabcavg[i] = np.nanmean(porositiesabc[i],axis=1)
+			porositiesabcstd[i] = np.nanstd(porositiesabc[i],axis=1)
 			ABC_numruns[i] = np.count_nonzero(~np.isnan(porositiesabc[i]),axis=1)
 			yerr_abc[i] = porositiesabcstd[i]/np.sqrt(ABC_numruns[i])
 			
+			porositiesKBMavg[i] = np.nanmean(porositiesKBM[i],axis=1)
+			porositiesKBMstd[i] = np.nanstd(porositiesKBM[i],axis=1)
 			KBM_numruns[i] = np.count_nonzero(~np.isnan(porositiesKBM[i]),axis=1)
 			yerr_KBM[i] = porositiesKBMstd[i]/np.sqrt(KBM_numruns[i])
-
+			
+			FD_dataavg[i] = np.nanmean(FD_data[i],axis=1)
+			FD_datastd[i] = np.nanstd(FD_data[i],axis=1)
 			FD_numruns[i] = np.count_nonzero(~np.isnan(FD_data[i]),axis=1)
 			yerr_FD[i] = FD_datastd[i]/np.sqrt(FD_numruns[i])
-			
+
+			contactsavg[i] = np.nanmean(contacts[i],axis=1)
+			contactsstd[i] = np.nanstd(contacts[i],axis=1)
 			contacts_numruns[i] = np.count_nonzero(~np.isnan(contacts[i]),axis=1)
 			yerr_ca[i] = contactsstd[i]/np.sqrt(contacts_numruns[i])
-			# print(yerr[0])
-
-
-
-		#make table
-		# fig, ax = plt.subplots()
-		# fig.patch.set_visible(False)
-
 
 		headers = ['Temperature']
 		data = np.full(shape=(len(Nums)*properties,len(porositiesabcavg[0])),fill_value=np.nan,dtype=np.float64)
@@ -443,21 +445,15 @@ if __name__ == '__main__':
 			headers.append('N={} average number of contacts number of runs'.format(N))
 			data[i*properties+11,:] = contacts_numruns[i]
 
-		data = np.array(data)
-		# print(data)
+			headers.append('N={} average total angular momentum'.format(N))
+			data[i*properties+12,:] = angmomavg[i]
+			headers.append('N={} total angular momentum std err'.format(N))
+			data[i*properties+13,:] = yerr_angmom[i]
+			headers.append('N={} total angular momentum number of runs'.format(N))
+			data[i*properties+14,:] = angmom_numruns[i]
 
-		# headers.append('N={} abc porositity'.format(300))
-		# data.append(porositiesabc[2,:,0])
-		# headers.append('N={} KBM porositity'.format(300))
-		# data.append(porositiesKBM[2,:,0])
-		# headers.append('N={} Fractal Dimension'.format(300))
-		# data.append(FD_data[2,:,0])
+		data = np.array(data)
 		
-		# with open(sav,'w') as file:
-		# 	write = csv.writer(file)
-		# 	write.writerow(headers)
-		# 	for row in np.transpose(np.array(data)):
-		# 		write.writerow(row)
 		if save_data:
 			np.savetxt(sav,data)
 			print("Data saved to {}".format(sav))
@@ -465,9 +461,7 @@ if __name__ == '__main__':
 
 		# headers = np.loadtxt(sav,delimiter=',',dtype=str)[0]
 		data = np.loadtxt(sav,delimiter=' ',skiprows=0,dtype=np.float64)
-		# print(data.shape)
-		# data = np.transpose(data)
-		# exit(0)
+
 
 		for i,N in enumerate(Nums):
 			porositiesabcavg[i] = data[i*properties,:]
@@ -485,31 +479,11 @@ if __name__ == '__main__':
 			contactsavg[i] = data[i*properties+9,:]
 			yerr_ca[i] = data[i*properties+10,:]
 			contacts_numruns[i] = data[i*properties+11,:]
-			# porositiesabcavg[i] = data[:,i*6]
-			# yerr_abc[i] = data[:,i*6+1]
-			# porositiesKBMavg[i] = data[:,i*6+2]
-			# yerr_KBM[i] = data[:,i*6+3]
-			# FD_dataavg[i] = data[:,i*6+4]
-			# yerr_FD[i] = data[:,i*6+5]
-		# for i,N in enumerate(Nums):
-		# 	contactsavg[i] = data[6*2 + i*2,:]
-		# 	yerr_ca[i] = data[6*2 + 1 + i*2,:]
 
-			# contactsavg[i] = data[:,6*2 + i*2]
-			# yerr_ca[i] = data[:,6*2 + 1 + i*2]
+			angmomavg[i] = data[i*properties+12,:]
+			yerr_angmom[i] = data[i*properties+13,:]
+			angmom_numruns[i] = data[i*properties+14,:]
 
-		# data_skip = 6
-		# porositiesabcavg = np.array([data[1],data[1+data_skip],data[1+2*data_skip]])
-		# yerr_abc = np.array([data[2],data[2+data_skip],data[2+2*data_skip]])
-		# porositiesKBMavg = np.array([data[3],data[3+data_skip],data[3+2*data_skip]])
-		# yerr_KBM = np.array([data[4],data[4+data_skip],data[4+2*data_skip]])
-		# FD_dataavg = np.array([data[5],data[5+data_skip],data[5+2*data_skip]])
-		# yerr_FD = np.array([data[6],data[6+data_skip],data[6+2*data_skip]])
-		# contactsavg = np.array([data[3*data_skip+1],data[3*data_skip+3],data[3*data_skip+5]])
-		# yerr_ca = np.array([data[3*data_skip+2],data[3*data_skip+4],data[3*data_skip+6]])
-
-		# print(data[1])
-		# exit(0)
 
 	
 	print("======================Starting figures======================")
@@ -517,8 +491,10 @@ if __name__ == '__main__':
 	
 
 	styles = ['-','--','-.','--.']
-	colors = ['g','b','r','orange']
+	colors = ['g','b','r','orange','black']
 	length = len(temps)
+
+	
 
 	# print(porositiesabcavg)
 	# print(yerr_abc)
@@ -657,7 +633,7 @@ if __name__ == '__main__':
 
 	# plot each porosity measure separately
 	plt.rcParams.update({'font.size': 15})
-	for i,method in enumerate(["Rabc","RKBM","FD","# Contacts"]):
+	for i,method in enumerate(["Rabc","RKBM","FD","# Contacts","Ang mom"]):
 		# if Nums[i] == 300:
 		# 	a = attempts300
 		# else:
@@ -671,6 +647,8 @@ if __name__ == '__main__':
 			ax.set_ylabel('Avg Fractal Dimension')
 		elif i == 3:
 			ax.set_ylabel('Avg # Contacts')
+		elif i == 4:	
+			ax.set_ylabel('Total Angular Momentum')
 
 # for i,N in enumerate(Nums):
 # 			headers.append('N={} abc porosity'.format(N))

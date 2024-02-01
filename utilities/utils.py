@@ -100,6 +100,8 @@ def get_data_file(data_folder,data_index=-1): #Works with csv or h5
 		files = [file for file in files if '_' in file]
 		file_indicies = np.array([int(file.split('_')[0]) for file in files],dtype=np.int64)
 	# 	file_indicies = 
+	# print(file_indicies)
+	# exit(0)
 
 	if data_index == -1:
 		index = np.max(file_indicies)
@@ -114,6 +116,7 @@ def get_data_file(data_folder,data_index=-1): #Works with csv or h5
 	else:
 		data_file = [file for file in files \
 					if file.endswith(file_suffix) and file.startswith(str(index))]
+
 
 	if len(data_file) == 1:
 		return data_file[0]
@@ -209,11 +212,9 @@ def get_line_h5data_from_file(file,linenum=-1):
 
 	return data
 
-def get_last_line_data(data_folder,data_index=-1): #Works with csv and h5
-	return get_line_data(data_folder,data_index,-1)
 
-def get_line_data(data_folder,data_index=-1,linenum=-1): #Works with csv and h5
-	# data_headers = np.loadtxt(data_folder + data_file,skiprows=0,dtype=str,delimiter=',')[0]
+
+def get_all_line_data(data_folder,data_index=-1,linenum=-1): #Works with csv and h5
 	csv_data = False
 	h5_data = False
 	data_file = get_data_file(data_folder,data_index)
@@ -221,14 +222,11 @@ def get_line_data(data_folder,data_index=-1,linenum=-1): #Works with csv and h5
 		csv_data = True
 	elif data_file.endswith(".h5"):
 		h5_data = True
-	# print("data file: {}".format(data_file))
 	if csv_data:
 		try:
 			data = np.loadtxt(data_folder + data_file,skiprows=1,dtype=float,delimiter=',')
 			if data.ndim > 1:
 				data = data[linenum]
-			# print(data)
-			# print(data_folder + data_file)
 		except Exception as e:
 			with open(data_folder + data_file) as f:
 				for line in f:
@@ -243,9 +241,15 @@ def get_line_data(data_folder,data_index=-1,linenum=-1): #Works with csv and h5
 		data = get_line_h5data_from_file(data_folder+data_file,linenum)
 	else:
 		print("ERROR: datatype not recognized by utils.py: {data_file}")
-	# print("DATA LEN: {} for file {}{}".format(data.size,data_folder,data_file))
-	# print("FOR {} Balls".format(data.size/11))
-	return format_data(data)
+
+	return data
+
+def get_last_line_data(data_folder,data_index=-1): #Works with csv and h5
+	return get_line_data(data_folder,data_index,-1)
+
+def get_line_data(data_folder,data_index=-1,linenum=-1): #Works with csv and h5
+	data = get_all_line_data(data_folder,data_index,linenum)
+	return format_pos(data)
 
 def get_last_line_energy(data_folder,data_index=-1):
 	energy_file = get_energy_file(data_folder,data_index)
@@ -294,13 +298,26 @@ def get_all_constants(data_folder,data_index=-1): #Works with csv and h5
 		print(f"ERROR: data file type not recognized by utils.py: {data_file}")
 	return data_constants
 
-def format_data(data):
+#a line of data is in the following format
+#x0,y0,z0,wx0,wy0,wz0,wmag0,vx0,vy0,vz0,bound0
+def format_pos(data):
 	data = np.reshape(data,(int(data.size/data_columns),data_columns))
-	data = data[:,:3]
+	data = data[:,:3] #pos is first three of every row
+	return data
+
+def format_w(data):
+	data = np.reshape(data,(int(data.size/data_columns),data_columns))
+	data = data[:,3:6] #w is second three of every row
+	return data
+
+def format_vel(data):
+	data = np.reshape(data,(int(data.size/data_columns),data_columns))
+	data = data[:,7:10] #vel is after 3xpos, 3xw, 1w mag, and is 3 long
 	return data
 
 def COM(data_folder,data_index=-1):
 	data = get_last_line_data(data_folder,data_index)
+
 	consts = get_all_constants(data_folder,data_index)
 	com = np.array([0,0,0],dtype=np.float64)
 	mtot = 0
@@ -309,7 +326,7 @@ def COM(data_folder,data_index=-1):
 		com += consts[ball][0]*data[ball]
 		mtot += consts[ball][0]
 
-	return mtot*com
+	return com/mtot
 
 def get_data(data_folder,data_index=-1,linenum=-1): #Works with both csv and h5
 	if data_folder == '/home/kolanzl/Desktop/bin/merger.csv':
@@ -323,13 +340,22 @@ def get_data(data_folder,data_index=-1,linenum=-1): #Works with both csv and h5
 
 		data = get_line_data(data_folder,data_index,linenum)
 
-	# print("IN GETDATA:")
-	# print(data.shape)
-	# print(radius.shape)
-	# print(mass.shape)
-	# print(moi.shape)
-	# exit(0)
 	return data,radius,mass,moi
+
+def get_all_data(data_folder,data_index=-1,linenum=-1): #Works with both csv and h5
+
+	data_file = get_data_file(data_folder,data_index)
+
+	radius,mass,moi = get_constants(data_folder,data_index)
+
+	data = get_all_line_data(data_folder,data_index,linenum)
+	pos = format_pos(data)
+	w = format_w(data)
+	vel = format_vel(data)
+
+
+	return pos,vel,w,radius,mass,moi
+
 
 def get_data_range(data_folder,data_index=-1):
 	if data_folder == '/home/kolanzl/Desktop/bin/merger.csv':

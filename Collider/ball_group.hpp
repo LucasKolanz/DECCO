@@ -95,7 +95,7 @@ struct Ball_group_attributes
     enum distributions {constant, logNorm};
     distributions radiiDistribution;
     enum simType {BPCA, collider};
-    simType typeSim;
+    simType typeSim = BPCA; //Default to BPCA for now
     double lnSigma = 0.2; //sigma for log normal distribution 
 
     // Useful values:
@@ -662,7 +662,6 @@ void Ball_group::init_data(int counter = 0)
 //Parses input.json file that is in the same folder the executable is in
 void Ball_group::parse_input_file(std::string location)
 {
-
     //////TODO
     //////IF location == null then get current directory
     if (location == "")
@@ -681,6 +680,15 @@ void Ball_group::parse_input_file(std::string location)
     json inputs = json::parse(ifs);
     attrs.output_folder = inputs["output_folder"];
     attrs.data_directory = inputs["data_directory"];
+
+    if (inputs["simType"] == "BPCA")
+    {
+        attrs.typeSim = attrs.BPCA;
+    }
+    else if (inputs["simType"] == "collider")
+    {
+        attrs.typeSim = attrs.collider;
+    }
 
     if (inputs["dataFormat"] == "h5" || inputs["dataFormat"] == "hdf5")
     {
