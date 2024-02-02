@@ -368,9 +368,22 @@ sim_looper(Ball_group &O,unsigned long long start_step=1)
 
 
 void
-safetyChecks(Ball_group &O)
+safetyChecks(Ball_group &O) //Should be ready to call sim_looper
 {
     titleBar("SAFETY CHECKS");
+
+
+    if (O.attrs.output_folder == "")
+    {
+        fprintf(stderr, "\noutput_folder NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.attrs.data_directory == "")
+    {
+        fprintf(stderr, "\ndata_directory NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
 
     if (O.attrs.soc <= 0) {
         fprintf(stderr, "\nSOC NOT SET\n");
@@ -382,13 +395,123 @@ safetyChecks(Ball_group &O)
         exit(EXIT_FAILURE);
     }
 
-    if (O.attrs.skip == 0) {
+    if (O.attrs.skip <= 1) {
         fprintf(stderr, "\nSKIP NOT SET\n");
         exit(EXIT_FAILURE);
     }
 
+    if (O.attrs.radiiDistribution != O.attrs.constant && O.attrs.radiiDistribution != O.attrs.logNorm) {
+        fprintf(stderr, "\nradiiDistribution NOT SET\n");
+        exit(EXIT_FAILURE);
+    } 
+
+    if (O.attrs.typeSim != O.attrs.BPCA && O.attrs.typeSim != O.attrs.collider) {
+        fprintf(stderr, "\ntypeSim NOT SET\n");
+        exit(EXIT_FAILURE);
+    } 
+
     if (O.attrs.kin < 0) {
-        fprintf(stderr, "\nSPRING CONSTANT NOT SET\n");
+        fprintf(stderr, "\nSPRING CONSTANT IN NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.attrs.kout < 0) {
+        fprintf(stderr, "\nSPRING CONSTANT OUT NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.attrs.density < 0) {
+        fprintf(stderr, "\ndensity OUT NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.attrs.u_s < 0) {
+        fprintf(stderr, "\nu_s NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.attrs.u_r < 0) {
+        fprintf(stderr, "\nu_r NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.attrs.cor < 0) {
+        fprintf(stderr, "\ncor NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.attrs.simTimeSeconds < 0) {
+        fprintf(stderr, "\nsimTimeSeconds NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.attrs.timeResolution < 0) {
+        fprintf(stderr, "\ntimeResolution NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.attrs.fourThirdsPiRho < 0) {
+        fprintf(stderr, "\nfourThirdsPiRho NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.attrs.scaleBalls < 0) {
+        fprintf(stderr, "\nscaleBalls NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.attrs.maxOverlap < 0) {
+        fprintf(stderr, "\nmaxOverlap NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.attrs.kConsts < 0) {
+        fprintf(stderr, "\nkConsts NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.attrs.impactParameter < 0) {
+        fprintf(stderr, "\nimpactParameter NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.attrs.Ha < 0) {
+        fprintf(stderr, "\nHa NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.attrs.genBalls < 0) {
+        fprintf(stderr, "\ngenBalls NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.attrs.typeSim == O.attrs.BPCA && O.attrs.N < 0) {
+        fprintf(stderr, "\nN NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.attrs.attempts < 0) {
+        fprintf(stderr, "\nattempts NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.attrs.spaceRange < 0) {
+        fprintf(stderr, "\nspaceRange NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.attrs.spaceRangeIncrement < 0) {
+        fprintf(stderr, "\nspaceRangeIncrement NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.attrs.h_min < 0) {
+        fprintf(stderr, "\nh_min NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.attrs.properties < 0) {
+        fprintf(stderr, "\nproperties NOT SET\n");
         exit(EXIT_FAILURE);
     }
 
@@ -410,7 +533,13 @@ safetyChecks(Ball_group &O)
 
     for (int Ball = 0; Ball < O.attrs.num_particles; Ball++) {
         if (O.pos[Ball].norm() < vec3(1e-10, 1e-10, 1e-10).norm()) {
-            fprintf(stderr, "\nA ball position is [0,0,0]. Possibly didn't initialize balls properly.\n");
+            fprintf(stderr, "\nA ball position is [0,0,0]. Possibly didn't initialize positions properly.\n");
+            exit(EXIT_FAILURE);
+        }
+
+
+        if (O.acc[Ball].norm() < vec3(1e-10, 1e-10, 1e-10).norm()) {
+            fprintf(stderr, "\nA balls acc is [0,0,0]. Possibly didn't initialize acceleration properly.\n");
             exit(EXIT_FAILURE);
         }
 
@@ -423,7 +552,13 @@ safetyChecks(Ball_group &O)
             fprintf(stderr, "\nA balls mass <= 0.\n");
             exit(EXIT_FAILURE);
         }
+
+        if (O.moi[Ball] <= 0) {
+            fprintf(stderr, "\nA balls moi <= 0.\n");
+            exit(EXIT_FAILURE);
+        }
     }
+
     titleBar("SAFETY PASSED");
 }
 
