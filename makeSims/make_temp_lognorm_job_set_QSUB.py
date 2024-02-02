@@ -112,6 +112,7 @@ if __name__ == '__main__':
 				qsubfile += "#$ -N {}-N_{}-T_{}\n".format(job_set_name,n,Temp)
 				qsubfile += "#$ -cwd\n"
 				qsubfile += "#$ -m e\n"
+				qsubfile += "#$ -l exclusive\n"
 				qsubfile += f"#$ -pe orte {threads}\n"
 				qsubfile += "#$ -M kolanzl@oregonstate.edu\n"
 				qsubfile += "#$ -o sim_out.log\n"

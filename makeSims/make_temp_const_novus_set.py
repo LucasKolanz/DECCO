@@ -65,11 +65,11 @@ if __name__ == '__main__':
 			threads = 1
 		else:# n == 300:
 			threads = 1
-		for Temp in Temps:
-			temp_attempt = attempts
-			if n == 300:
-				temp_attempt = attempts_300
-			for attempt in temp_attempt:
+		temp_attempt = attempts
+		if n == 300:
+			temp_attempt = attempts_300
+		for attempt in temp_attempt:
+			for Temp in Temps:
 				with open(project_path+"default_files/default_input.json",'r') as fp:
 					input_json = json.load(fp)
 
