@@ -59,12 +59,12 @@ struct Ball_group_attributes
 {
 
 
-    std::string project_path;
-    std::string output_folder;
-    std::string data_directory;
-    std::string projectileName;
-    std::string targetName;
-    std::string output_prefix;
+    std::string project_path = "";
+    std::string output_folder = "";
+    std::string data_directory = "";
+    std::string projectileName = "";
+    std::string targetName = "";
+    std::string output_prefix = "";
 
     double radiiFraction = -1;
     bool debug = false;
@@ -109,48 +109,48 @@ struct Ball_group_attributes
     double v_max_prev = HUGE_VAL;
     double soc = -1;
     
-
+    ///none of these should be negative so verify they were set before using
     bool dynamicTime = false;
-    double G;  // Gravitational constant
-    double density;
-    double u_s;                // Coeff of sliding friction
-    double u_r;               // Coeff of rolling friction
-    double sigma;              // Poisson ratio for rolling friction.
-    double Y;               // Young's modulus in erg/cm3
-    double cor;                // Coeff of restitution
-    double simTimeSeconds;  // Seconds
-    double timeResolution;    // Seconds - This is duration between exported steps.
-    double fourThirdsPiRho;  // for fraction of smallest sphere radius.
-    double scaleBalls;                         // base radius of ball.
-    double maxOverlap;                           // of scaleBalls
-    double KEfactor;                              // Determines collision velocity based on KE/PE
-    double v_custom;  // Velocity cm/s
-    double temp;          //tempurature of simulation in Kelvin
-    double kConsts;
-    double impactParameter;  // Impact angle radians
-    double Ha;         // Hamaker constant for vdw force
-    double h_min;  // 1e8 * std::numeric_limits<double>::epsilon(), // 2.22045e-10 (epsilon is 2.22045e-16)
-    double cone;  // Cone of particles ignored moving away from center of mass. Larger angle ignores more.
+    double G = 6.67e-08;  // in dyn*cm^2*g^-2// Gravitational constant defaults to the actual value, but you can change it
+    double density = -1.0;
+    double u_s = -1.0;                // Coeff of sliding friction
+    double u_r = -1.0;               // Coeff of rolling friction
+    double sigma = -1.0;              // Poisson ratio for rolling friction.
+    double Y = -1.0;               // Young's modulus in erg/cm3
+    double cor = -1.0;                // Coeff of restitution
+    double simTimeSeconds = -1.0;  // Seconds
+    double timeResolution = -1.0;    // Seconds - This is duration between exported steps.
+    double fourThirdsPiRho = -1.0;  // for fraction of smallest sphere radius.
+    double scaleBalls = -1.0;                         // base radius of ball.
+    double maxOverlap = -1.0 ;                           // of scaleBalls
+    double KEfactor = -1.0;                              // Determines collision velocity based on KE/PE
+    double v_custom = -1.0;  // Velocity cm/s
+    double temp = -1.0;          //tempurature of simulation in Kelvin
+    double kConsts = -1.0;
+    double impactParameter = -1.0;  // Impact angle radians
+    double Ha = -1.0;         // Hamaker constant for vdw force
+    double h_min = -1.0;  // 1e8 * std::numeric_limits<double>::epsilon(), // 2.22045e-10 (epsilon is 2.22045e-16)
+    double cone = -1.0;  // Cone of particles ignored moving away from center of mass. Larger angle ignores more.
 
     // Simulation Structure
-    int properties;  // Number of columns in simData file per ball
-    int genBalls;
-    int attempts;  // How many times to try moving every ball touching another in generator.
+    int properties = -1;  // Number of columns in simData file per ball
+    int genBalls = -1;
+    int attempts = -1.0;  // How many times to try moving every ball touching another in generator.
 
 
-    double spaceRange;  // Rough minimum space required
-    double spaceRangeIncrement;
-    double z0Rot;  // Cluster one z axis rotation
-    double y0Rot;  // Cluster one y axis rotation
-    double z1Rot;  // Cluster two z axis rotation
-    double y1Rot;  // Cluster two y axis rotation
-    double simTimeElapsed;
+    double spaceRange = -1.0;  // Rough minimum space required
+    double spaceRangeIncrement = -1.0;
+    double z0Rot = -1.0;  // Cluster one z axis rotation
+    double y0Rot = -1.0;  // Cluster one y axis rotation
+    double z1Rot = -1.0;  // Cluster two z axis rotation
+    double y1Rot = -1.0;  // Cluster two y axis rotation
+    double simTimeElapsed = -1.0;
 
     int N=-1; //Number of balls to grow (if BPCA)
 
     const time_t start = time(nullptr);  // For end of program analysis
-    time_t startProgress;                // For progress reporting (gets reset)
-    time_t lastWrite;                    // For write control (gets reset)
+    time_t startProgress = 0;                // For progress reporting (gets reset)
+    time_t lastWrite = 0;                    // For write control (gets reset)
 
     /////////////////////////////////
     const double h_min_physical = 2.1e-8; //prolly should make this a parameter/calculation
@@ -296,7 +296,7 @@ public:
     double* R = nullptr;    ///< Radius
     double* m = nullptr;    ///< Mass
     double* moi = nullptr;  ///< Moment of inertia
-    double* u_scale = nullptr; ///ADD TO COPY CONSTRUCTOR, ETC
+    // double* u_scale = nullptr; ///ADD TO COPY CONSTRUCTOR, ETC
 
 
     DECCOData* data = nullptr;
@@ -351,6 +351,8 @@ public:
     void init_data(int counter);
     std::string get_data_info();
     void parse_meta_data(std::string metadata);
+    void relax_init(std::string path);
+    void BPCA_init(std::string path);
 
     void sim_one_step(const bool write_step);
 
@@ -419,6 +421,13 @@ Ball_group::Ball_group(std::string& path)
         
 }
 
+// Initializes relax job (only new, not for restart)
+void Ball_group::relax_init(std::string path)
+{
+
+}
+
+
 // Initializes BPCA job for restart or new job
 void Ball_group::BPCA_init(std::string path)
 {
@@ -463,12 +472,19 @@ void Ball_group::BPCA_init(std::string path)
 
         generate_ball_field(attrs.genBalls);
         // Hack - Override and creation just 2 balls position and velocity.
-        pos[0] = {0, R[0]+1.01e-6, 0};
-        vel[0] = {0, 0, 0};
-        if (attrs.genBalls > 1)
+        if (attrs.genBalls > 0 && attrs.genBalls <= 2)
         {
-            pos[1] = {0, -(R[1]+1.01e-6), 0};
-            vel[1] = {0, 0, 0};
+            pos[0] = {0, R[0]+1.01e-6, 0};
+            vel[0] = {0, 0, 0};
+            if (attrs.genBalls > 1)
+            {
+                pos[1] = {0, -(R[1]+1.01e-6), 0};
+                vel[1] = {0, 0, 0};
+            }
+        }
+        else
+        {
+            std::cerr<<"ERROR: genBalls > 2 not yet implimented (right)?"<<std::endl;
         }
 
         // if (mu_scale)
@@ -2218,8 +2234,8 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
     bool has_meta = true;
     //If this error happens then then we cannot restart from midway through a sim.
     //This is because the metadata containing the info needed was missing for somereason
-    // if (meta == ERR_RET_MET)  
-    if (true)  
+  
+    if (meta == ERR_RET_MET)  
     {
         has_meta = false;
         //If the highest sim is not finished, we need to load up the previous one and delete the partially completed sim
