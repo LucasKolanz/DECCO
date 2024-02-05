@@ -80,6 +80,7 @@ struct Ball_group_attributes
     int MPInodes = 1;
     int start_index = 0;
     int start_step = 1;
+    int relax_index = 0;
 
     int skip=-1;  // Steps thrown away before recording a step to the buffer. 500*.04 is every 20 seconds in sim.
     unsigned long long steps=0;
@@ -94,7 +95,7 @@ struct Ball_group_attributes
     int output_width = -1;
     enum distributions {constant, logNorm};
     distributions radiiDistribution;
-    enum simType {BPCA, collider};
+    enum simType {BPCA, collider, relax};
     simType typeSim = BPCA; //Default to BPCA for now
     double lnSigma = 0.2; //sigma for log normal distribution 
 
@@ -396,11 +397,31 @@ Ball_group::Ball_group(const int nBalls)
     }
 }
 
-/// @brief For generating a new ballGroup 
+/// @brief For generating a new ballGroup of any simTypes
 /// @param path is a path to the job folder
 Ball_group::Ball_group(std::string& path)
 {
     parse_input_file(path);
+
+    if (attrs.typeSim == attrs.BPCA)
+    {
+        BPCA_init(path);
+    }
+    else if (attrs.typeSim == attrs.collider)
+    {
+        std::cerr<<"COLLIDER NOT IMPLIMENTED"<<std::endl;
+        exit(-1);
+    }
+    else if (attrs.typeSim == attrs.relax)
+    {
+        relax_init(path);
+    }
+        
+}
+
+// Initializes BPCA job for restart or new job
+void Ball_group::BPCA_init(std::string path)
+{
     int restart = check_restart(path);
 
     // If the simulation is complete exit now. Otherwise, the call to 
@@ -688,6 +709,10 @@ void Ball_group::parse_input_file(std::string location)
     else if (inputs["simType"] == "collider")
     {
         attrs.typeSim = attrs.collider;
+    }
+    else if (inputs["simType"] == "relax")
+    {
+        attrs.typeSim = attrs.relax
     }
 
     if (inputs["dataFormat"] == "h5" || inputs["dataFormat"] == "hdf5")

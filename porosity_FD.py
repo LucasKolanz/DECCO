@@ -62,8 +62,8 @@ def get_principal_moi(mass,data):
 	return Ip
 
 #returns the total magnitude of the orbital angular momentum
-def angular_momentum(folder,data_index=-1):
-	pos,vel,w,radius,mass,moi = u.get_all_data(data_folder,data_index=data_index,linenum=-1)
+def angular_momentum(folder,data_index=-1,linenum=-1):
+	pos,vel,w,radius,mass,moi = u.get_all_data(folder,data_index=data_index,linenum=linenum)
 	if pos is None:
 		return np.nan
 	num_balls = pos.shape[0]
@@ -160,9 +160,9 @@ if __name__ == '__main__':
 	# data_prefolder = path + 'jobs/h_max'
 	# data_prefolder = path + 'jobs/lognorm'
 	# data_prefolder = path + 'jobs/tempVarianceRand_attempt'
-	data_prefolder = path + 'jobsOld/tempVarianceRand_attempt'
 	data_prefolder = path + 'jobsCosine/lognorm'
 	data_prefolder = path + 'jobsNovus/const'
+	data_prefolder = path + 'jobsOld/tempVarianceRand_attempt'
 
 	dataset_name = data_prefolder.split("/")[-1]
 
@@ -175,10 +175,11 @@ if __name__ == '__main__':
 	temps = [3,10,30,100,300,1000]
 	# temps = [3]
 	Nums = [30,100,300]
-	# Nums = [5]
+	Nums = [30]
 	
 	
 	attempts = [i for i in range(30)]
+	attempts = [i for i in range(2)]
 	# attempts = [1]
 	attempts300 = attempts
 	# attempts300 = [i for i in range(9)]
@@ -228,11 +229,11 @@ if __name__ == '__main__':
 	# yerr_ca[:] = np.nan
 
 	new_data = True     
-	save_data = True
+	save_data = False
 	show_plots = True
-	make_FD = False
+	make_FD = True
 	show_FD_plots = False
-	overwrite_octree_data = False 
+	overwrite_octree_data = True 
 	find_stats = False
 	show_stat_plots = False
 

@@ -115,12 +115,19 @@ main(int argc, char* argv[])
             #ifdef MPI_ENABLE
                 MPI_Barrier(MPI_COMM_WORLD);
             #endif
-            BPCA(dummy.attrs.output_folder.c_str(),dummy.attrs.N);
+            BPCA(dummy.attrs.output_folder,dummy.attrs.N);
         }
         else
         {
             std::cerr<<"ERROR: if simType is BPCA, N >= 0 must be true."<<std::endl;
         }
+    }
+    else if (dummy.attrs.typeSim == dummy.attrs.relax)
+    {
+        #ifdef MPI_ENABLE
+            MPI_Barrier(MPI_COMM_WORLD);
+        #endif
+        relax(dummy.attrs.output_folder,);
     }
     else
     {
@@ -163,7 +170,7 @@ void BPCA(std::string path, int num_balls)
 {
     int world_rank = getRank();
 
-    int rest = -1;
+    // int rest = -1;
     Ball_group O = Ball_group(path);  
     safetyChecks(O);
     if  (O.attrs.mid_sim_restart)
@@ -186,6 +193,13 @@ void BPCA(std::string path, int num_balls)
     }
     // O.freeMemory();
     return;
+}
+
+//Load file index, zero out velocity and angular velocity and run to let aggregate relax
+void relax(std::string path, int file_index)
+{
+    Ball_group O = Ball_group(path,);  
+    safetyChecks(O);
 }
 
 // // Function to calculate the closest power of 2 to a given number.
