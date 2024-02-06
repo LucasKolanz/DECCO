@@ -13,6 +13,13 @@ project_path = os.path.abspath(relative_path) + '/'
 	
 	# cmd = ["srun","-n","1","-c","2","{}ColliderSingleCore.x".format(location), location, str(num_balls)]
 
+def rand_int():
+	# Generating a random integer from 0 to the maximum unsigned integer in C++
+	# In C++, the maximum value for an unsigned int is typically 2^32 - 1
+	max_unsigned_int_cpp = 2**32 - 1
+	random_unsigned_int = random.randint(0, max_unsigned_int_cpp)
+	return random_unsigned_int
+
 def run_job(location):
 	output_file = location + "sim_output.txt"
 	error_file = location + "sim_errors.txt"
@@ -37,31 +44,40 @@ if __name__ == '__main__':
 	job_set_name = "errorckcsvlognorm"
 	job_set_name = "errorckh5lognorm"
 	job_set_name = "overflowerror"
-	job_set_name = "TEST"
+	job_set_name = "lognorm_relax"
+	job_set_name = "const_relax"
+
+	job_group = "jobsNovus"
 
 	# folder_name_scheme = "T_"
 
-	SPECIAL_FOLDER = ""#"/home/lucas/Desktop/SpaceLab_data/largejob/"
 
-	runs_at_once = 7
+	runs_at_once = 12
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
-	attempts = [0] 
-	N = [5]
+	attempts = [i for i in range(30)] 
+	# attempts = [0] 
+	N = [30]
 	threads = []
-	# Temps = [3,10,30,100,300,1000]
-	Temps = [3]
+	Temps = [3,10,30,100,300,1000]
+	# Temps = [1000]
 	folders = []
 	for attempt in attempts:
 		for n in N:
 			for Temp in Temps:
 				#load default input file
 				with open(project_path+"default_files/default_input.json",'r') as fp:
-					input_json = json.load(fp)
+					default_input_json = json.load(fp)
 				
 				# job = curr_folder + 'jobs/' + job_set_name + str(attempt) + '/'
-				job = input_json["data_directory"] + 'jobs/' + job_set_name + str(attempt) + '/'\
+				job = default_input_json["data_directory"] + f'{job_group}/' + job_set_name + str(attempt) + '/'\
+							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
+				copyjob = default_input_json["data_directory"] + f'{job_group}/' + "const" + str(attempt) + '/'\
 							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
 				
+
+				with open(copyjob+"input.json",'r') as fp:
+					input_json = json.load(fp)
+
 				if not os.path.exists(job):
 					os.makedirs(job)
 				else:
@@ -69,23 +85,37 @@ if __name__ == '__main__':
 
 				####################################
 				######Change input values here######
-				# input_json['temp'] = Temp
+				input_json['temp'] = Temp
 				input_json['N'] = n
-				input_json['output_folder'] = job
 				input_json['OMPthreads'] = 1
 				input_json['MPInodes'] = 1
+				input_json['simType'] = "relax"
 
-				input_json['seed'] = 2493303778
-				input_json['radiiDistribution'] = 'logNormal'
+				# input_json['seed'] = rand_int()
+				# input_json['radiiDistribution'] = 'logNormal'
 				# input_json['h_min'] = 0.5
-				input_json['dataFormat'] = "csv"
+				# input_json['dataFormat'] = "csv"
+				input_json['relaxIndex'] = n-3
+				# input_json['simTimeSeconds'] = 1e-3
+				# input_json['timeResolution'] = 
+
+				input_json['output_folder'] = job
+				input_json['data_directory'] = default_input_json['data_directory']
+				input_json['project_directory'] = default_input_json['project_directory']
+
 				# input_json['u_s'] = 0.5
 				# input_json['u_r'] = 0.5
-				# input_json['note'] = "Does this work at all?"
+				input_json['note'] = "Relaxation job"
+
 				####################################
 
 				with open(job + "input.json",'w') as fp:
 					json.dump(input_json,fp,indent=4)
+
+				
+				os.system(f"cp {copyjob}{n-3}* {job}.")
+				# os.system(f"cp {copyjob}input.json {job}.")
+
 
 				#add run script and executable to folders
 				# os.system(f"cp {project_path}default_files/run_sim.py {job}run_sim.py")
@@ -93,7 +123,6 @@ if __name__ == '__main__':
 				os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
 				os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
 
-				# os.system(f"cp /home/lucas/Desktop/SpaceLab_data/test2/N_5/T_3/*data.h5 {job}.")
 				
 				folders.append(job)
 	# print(folders)

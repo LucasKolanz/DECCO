@@ -34,30 +34,17 @@ extern const int bufferlines;
 
 
 // Prototypes
-// void
-// sim_one_step(const bool write_step, Ball_group &O);
 void
 sim_looper(Ball_group &O,unsigned long long start_step);
 void
 safetyChecks(Ball_group &O);
-// int 
-// check_restart(std::string folder);
-// Ball_group 
-// make_group(std::string argv1);
-// inline int 
-// twoDtoOneD(const int row, const int col, const int width);
 void 
 BPCA(std::string path, int num_balls);
 void 
+relax(std::string path);
+void 
 collider(std::string path, std::string projectileName,std::string targetName);
-// int closestPowerOf2(double number);
 int get_num_threads(Ball_group &O);
-/// @brief The ballGroup run by the main sim looper.
-// Ball_group O(output_folder, projectileName, targetName, v_custom); // Collision
-// Ball_group O(path, targetName, 0);  // Continue
-// std::cerr<<"genBalls: "<<genBalls<<std::endl;
-// Ball_group O(20, true, v_custom); // Generate
-// Ball_group O(genBalls, true, v_custom); // Generate
 timey t;
 
 //////////////////////////////////////////////////////////////
@@ -133,13 +120,8 @@ main(int argc, char* argv[])
     {
         std::cerr<<"ERROR: input file needs to specify a simulation type (simType)."<<std::endl;
     }
-    // sim_looper();
 
-    // collider(argv[1],projTarget,projTarget);
     
-    // t.end_event("WholeThing");
-    // t.print_events();
-    // t.save_events(output_folder + "timing.txt");
     #ifdef MPI_ENABLE
         MPI_Barrier(MPI_COMM_WORLD);
         MPI_Finalize();
@@ -177,7 +159,7 @@ void BPCA(std::string path, int num_balls)
     {
         sim_looper(O,O.attrs.start_step);
     }
-    // exit(0);
+
     // Add projectile: For dust formation BPCA
     for (int i = O.attrs.start_index; i < num_balls; i++) {
         std::cerr<<"I: "<<i<<std::endl;
@@ -198,9 +180,15 @@ void BPCA(std::string path, int num_balls)
 //Load file index, zero out velocity and angular velocity and run to let aggregate relax
 void relax(std::string path)
 {
+    int world_rank = getRank();
     Ball_group O = Ball_group(path);  
-    int restart_index = O.attrs.restart_index;
     safetyChecks(O);
+
+    if (world_rank == 0)
+    {
+        O.sim_init_write(O.attrs.relax_index);
+    }
+    sim_looper(O,1);
 }
 
 // // Function to calculate the closest power of 2 to a given number.
@@ -420,7 +408,7 @@ safetyChecks(Ball_group &O) //Should be ready to call sim_looper
         exit(EXIT_FAILURE);
     } 
 
-    if (O.attrs.typeSim != O.attrs.BPCA && O.attrs.typeSim != O.attrs.collider) {
+    if (O.attrs.typeSim != O.attrs.BPCA && O.attrs.typeSim != O.attrs.collider && O.attrs.typeSim != O.attrs.relax) {
         fprintf(stderr, "\ntypeSim NOT SET\n");
         exit(EXIT_FAILURE);
     } 
@@ -436,7 +424,7 @@ safetyChecks(Ball_group &O) //Should be ready to call sim_looper
     }
 
     if (O.attrs.density < 0) {
-        fprintf(stderr, "\ndensity OUT NOT SET\n");
+        fprintf(stderr, "\ndensity NOT SET\n");
         exit(EXIT_FAILURE);
     }
 
@@ -502,6 +490,11 @@ safetyChecks(Ball_group &O) //Should be ready to call sim_looper
 
     if (O.attrs.typeSim == O.attrs.BPCA && O.attrs.N < 0) {
         fprintf(stderr, "\nN NOT SET\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (O.attrs.typeSim == O.attrs.relax && O.attrs.relax_index < 0) {
+        fprintf(stderr, "\nrestart_index NOT SET and in relax mode\n");
         exit(EXIT_FAILURE);
     }
 

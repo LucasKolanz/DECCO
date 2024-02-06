@@ -62,14 +62,14 @@ def get_principal_moi(mass,data):
 	return Ip
 
 #returns the total magnitude of the orbital angular momentum
-def angular_momentum(folder,data_index=-1,linenum=-1):
-	pos,vel,w,radius,mass,moi = u.get_all_data(folder,data_index=data_index,linenum=linenum)
+def angular_momentum(folder,data_index=-1,linenum=-1,relax=False):
+	pos,vel,w,radius,mass,moi = u.get_all_data(folder,data_index=data_index,linenum=linenum,relax=relax)
 	if pos is None:
 		return np.nan
 	num_balls = pos.shape[0]
 
 	#get the total spin 
-	com = u.COM(folder,data_index)
+	com = u.COM(folder,data_index,relax=relax)
 	angmom = np.array([0.0,0.0,0.0],dtype=np.float64)
 
 	for ball in list(range(num_balls)):
@@ -129,8 +129,8 @@ def porosity_measure2(data_folder,data_index=-1):
 
 # def dist(i,j,)
 
-def number_of_contacts(data_folder,data_index=-1,line=-1):
-	data,radius,mass,moi = u.get_data(data_folder,data_index,line)
+def number_of_contacts(data_folder,data_index=-1,line=-1,relax=False):
+	data,radius,mass,moi = u.get_data(data_folder,data_index,line,relax=relax)
 
 	if data is None:
 		return np.nan

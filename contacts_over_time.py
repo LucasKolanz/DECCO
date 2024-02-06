@@ -24,20 +24,22 @@ def main():
 
 	data_prefolder = data_directory + 'jobs/longer_job'
 	data_prefolder = data_directory + 'jobsOld/tempVarianceRand_attempt'
-	data_prefolder = data_directory + 'jobsCosine/lognorm'
 	data_prefolder = data_directory + 'jobsNovus/const'
+	data_prefolder = data_directory + 'jobsCosine/lognorm'
+	data_prefolder = data_directory + 'jobsCosine/lognorm_relax'
+	data_prefolder = data_directory + 'jobsNovus/const_relax'
 	dataset_name = data_prefolder.split("/")[-1]
 
-	attempts = [i for i in range(5)]
-	# attempts = [0]
+	attempts = [i for i in range(30)]
+	attempts = [0]
 	attempts300 = attempts
 
 
 	Nums = [30,100,300]
-	# Nums = [30]
+	Nums = [30]
 
 	temps = [3,10,30,100,300,1000]
-	# temps = [1000]
+	temps = [1000]
 	
 
 	# numConts = np.full(shape=(len(attempts),len(Nums),len(temps),),fill_value=np.nan)
@@ -57,46 +59,54 @@ def main():
 				for a_i,attempt in enumerate(a):
 					numConts = []
 					angMom = []
-					savfilenc = data_directory+f"/data/numContOverTime-{dataset_name}-a_{attempt}-N_{N}-T_{T}.npy"
-					savfileam = data_directory+f"/data/angMomOverTime-{dataset_name}-a_{attempt}-N_{N}-T_{T}.npy"
+					# savfilenc = data_directory+f"/data/numContOverTime-{dataset_name}-a_{attempt}-N_{N}-T_{T}.npy"
+					# savfileam = data_directory+f"/data/angMomOverTime-{dataset_name}-a_{attempt}-N_{N}-T_{T}.npy"
 					data_folder = data_prefolder + str(attempt) + '/' + 'N_' + str(N) + '/T_' + str(T) + '/'
 					print(data_folder)
 					# print(pFD.number_of_contacts(data_folder,29,5000))
 					# print(pFD.number_of_contacts(data_folder,29,-1))
 					if os.path.exists(data_folder):
 						for i in list(range(rows)):
-							numConts.append(pFD.number_of_contacts(data_folder,N-3,i))
-							angMom.append(pFD.angular_momentum(data_folder,N-3,i))
+							numConts.append(pFD.number_of_contacts(data_folder,N-3,i,relax=True))
+							angMom.append(pFD.angular_momentum(data_folder,N-3,i,relax=True))
 							# print(pFD.number_of_contacts(data_folder,29,-1))
 							# print(pFD.number_of_contacts(data_folder,29,-2))
-					else:
-						for i in list(range(rows)):
-							numConts.append(np.nan)
-							angMom.append(np.nan)
+						#plot num of cont for all writes
+						fig,ax = plt.subplots()
+
+						xdata = [i for i in list(range(rows))]
+
+						end = len(xdata)
+						ax.plot(xdata[:end],numConts[:end],label='Contacts')
+						ax.set_xlabel('Writes (time)')
+						ax.set_ylabel('Average Num Contacts')
+
+						ax2 = ax.twinx()
+						ax2.plot(xdata[:end],angMom[:end],color='g',label='Ang Mom')
+						# # ax.set_legend(['Rabc','RKBM'])
+						ax2.set_ylabel('Angular Momentum')
+						# plt.errorbar(temps,)
+						# ax.set_xscale('log')
+
+						plt.title(f'Num Contacts/ ang mom vs time for {dataset_name} a={attempt}, N={N}, T={T}')
+						# Adjusting legend position
+						fig.legend(loc='lower left')#, bbox_to_anchor=(1, 1))
+
+						# Adjust layout to make space for the legend
+						plt.subplots_adjust(right=0.75)  # Adjust this value as needed to fit your legend
+
+						fig.tight_layout() 
+						plt.savefig(data_directory+f"data/figures/contacts_and_angmom/{dataset_name}/numContAngMom-{dataset_name}-a_{attempt}-N_{N}-T_{T}.png")
+						plt.show()
+						plt.close(fig)
+					# else:
+					# 	for i in list(range(rows)):
+					# 		numConts.append(np.nan)
+					# 		angMom.append(np.nan)
 						
 
-					#plot num of cont for all writes
-					fig,ax = plt.subplots()
 
-					xdata = [i for i in list(range(rows))]
 
-					end = len(xdata)
-					ax.plot(xdata[:end],numConts[:end],label='Contacts')
-					ax.set_xlabel('Writes (time)')
-					ax.set_ylabel('Average Num Contacts')
-
-					ax2 = ax.twinx()
-					ax2.plot(xdata[:end],angMom[:end],color='g',label='Ang Mom')
-					# # ax.set_legend(['Rabc','RKBM'])
-					ax2.set_ylabel('Angular Momentum')
-					# plt.errorbar(temps,)
-					# ax.set_xscale('log')
-
-					plt.title(f'Num Contacts/ ang mom vs time for {dataset_name} a={attempt}, N={N}, T={T}')
-					fig.legend()
-					fig.tight_layout() 
-					plt.savefig(data_directory+f"data/figures/contacts_and_angmom/{dataset_name}/numContAngMom-{dataset_name}-a_{attempt}-N_{N}-T_{T}.png")
-					# plt.show()
 	# 	np.save(savfilenc,np.array(numConts))
 	# 	np.save(savfileam,np.array(angMom))
 	# else:

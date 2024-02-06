@@ -189,6 +189,7 @@ struct Ball_group_attributes
             MPInodes = other.MPInodes;
             start_index = other.start_index;
             start_step = other.start_step;
+            relax_index = other.relax_index;
 
             skip = other.skip;
             steps = other.steps;
@@ -353,6 +354,8 @@ public:
     void parse_meta_data(std::string metadata);
     void relax_init(std::string path);
     void BPCA_init(std::string path);
+    std::string find_file_name(std::string path,int index);
+
 
     void sim_one_step(const bool write_step);
 
@@ -416,7 +419,14 @@ Ball_group::Ball_group(std::string& path)
     }
     else if (attrs.typeSim == attrs.relax)
     {
-        relax_init(path);
+        if (attrs.relax_index > 0)
+        {
+            relax_init(path);
+        }
+        else
+        {
+            std::cerr<<"ERROR: simType is relax but relax_index is ("<<attrs.relax_index<<") < 0"<<std::endl;
+        }
     }
         
 }
@@ -424,6 +434,20 @@ Ball_group::Ball_group(std::string& path)
 // Initializes relax job (only new, not for restart)
 void Ball_group::relax_init(std::string path)
 {
+
+    std::string filename = find_file_name(path,attrs.relax_index); 
+
+    loadSim(path, filename.substr(filename.find_last_of('/')+1,filename.size()));
+
+    zeroVel();
+    // zeroAngVel();
+
+    calc_v_collapse(); 
+    if (attrs.dt < 0)
+    {
+        calibrate_dt(0, attrs.v_custom);
+    }
+    simInit_cond_and_center(false);
 
 }
 
@@ -676,14 +700,21 @@ void Ball_group::init_data(int counter = 0)
         data = nullptr; 
     }
 
+    std::string type = "";
+    
+    if (attrs.typeSim == attrs.relax)
+    {
+        type = "RELAX";
+    }
+
     std::string sav_file;
     if (attrs.data_type == 0) //h5
     {
-        sav_file = attrs.output_folder+std::to_string(counter)+"_data."+attrs.filetype;
+        sav_file = attrs.output_folder+std::to_string(counter)+"_"+type+"data."+attrs.filetype;
     }
     else if (attrs.data_type == 1) //csv
     {
-        sav_file = attrs.output_folder+std::to_string(counter)+"_.csv";
+        sav_file = attrs.output_folder+std::to_string(counter)+"_"+type+".csv";
     }
     else
     {
@@ -699,8 +730,7 @@ void Ball_group::init_data(int counter = 0)
 //Parses input.json file that is in the same folder the executable is in
 void Ball_group::parse_input_file(std::string location)
 {
-    //////TODO
-    //////IF location == null then get current directory
+
     if (location == "")
     {
         try {
@@ -713,6 +743,7 @@ void Ball_group::parse_input_file(std::string location)
     }
     // std::string s_location(location);
     std::string json_file = location + "input.json";
+    std::cerr<<"Parsing input file: "<<json_file<<std::endl;
     std::ifstream ifs(json_file);
     json inputs = json::parse(ifs);
     attrs.output_folder = inputs["output_folder"];
@@ -728,7 +759,8 @@ void Ball_group::parse_input_file(std::string location)
     }
     else if (inputs["simType"] == "relax")
     {
-        attrs.typeSim = attrs.relax
+        attrs.typeSim = attrs.relax;
+        attrs.relax_index = inputs["relaxIndex"];
     }
 
     if (inputs["dataFormat"] == "h5" || inputs["dataFormat"] == "hdf5")
@@ -2637,6 +2669,75 @@ int Ball_group::check_restart(std::string folder) //TODO TEST IF PROPERLY DETECT
     }
 
     
+}
+
+
+std::string Ball_group::find_file_name(std::string path,int index)
+{
+    std::string file;
+    std::string simDatacsv = "simData.csv";
+    std::string datah5 = "data.h5";
+    int file_index;
+
+    for (const auto & entry : fs::directory_iterator(path))
+    {
+
+        file = entry.path();
+        size_t slash_pos = file.find_last_of("/");
+        file = file.erase(0,slash_pos+1);
+        size_t _pos = file.find_first_of("_");
+
+        if (_pos != std::string::npos) // only go in here if we found a data file
+        {
+            //Is the data in csv format? (but first verify the call to substr wont fail)
+            if (file.size() >= simDatacsv.size() && file.substr(file.size()-simDatacsv.size(),file.size()) == simDatacsv)
+            {
+                int num_ = std::count(file.begin(),file.end(),'_');
+                file_index = stoi(file.substr(0,file.find_first_of("_")));
+                if (num_ > 1) // old name convention
+                {
+                    if (index == 0)
+                    {
+                        if (file[_pos+1] == 'R')
+                        {
+                            return path+file;
+                        }
+                    }
+                    else if (index > 0)
+                    {
+                        if (file_index == index)
+                        {
+                            return path+file;
+                        }
+                    }
+                }
+                else if (num_ == 1) // new name convention ONLY TESTED WITH THIS CASE
+                {
+                    if (file_index == index)
+                    {
+                        return path+file;
+                    }
+                }
+                else
+                {
+                    std::cerr<<"ERROR: filename convention is not recognized for file '"<<file<<"'"<<std::endl;
+                    exit(-1);
+                }
+
+            }
+            else if (file.size() >= datah5.size() && file.substr(file.size()-datah5.size(),file.size()) == datah5)
+            {
+                file_index = stoi(file.substr(0,file.find_first_of("_")));
+                if (file_index == index)
+                {
+                    return path+file;
+                }
+            }
+        }
+    }
+    
+    std::cerr<<"ERROR: file at path '"<<path<<"' with index "<<index<<"not found. Now exiting . . ."<<std::endl;
+    exit(-1);
 }
 
 

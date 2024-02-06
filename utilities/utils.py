@@ -80,17 +80,20 @@ def plot(verts,center,radius):
 	# ax.plot_wireframe(x, y, z, color="r")
 	plt.show()
 
-def get_data_file(data_folder,data_index=-1): #Works with csv or h5
+def get_data_file(data_folder,data_index=-1,relax=False): #Works with csv or h5
 	old = False
 	file_suffix = ""
+	rel = ''
+	if relax:
+		rel = "RELAX"
 	files = os.listdir(data_folder)
 	for file in files:
-		if file.endswith("simData.csv"):
-			file_suffix = "_simData.csv"
+		if file.endswith(f"{rel}simData.csv"):
+			file_suffix = f"_{rel}simData.csv"
 			if file.count("_") > 1:
 				old = True
-		if file.endswith("data.h5"):
-			file_suffix = "_data.h5"
+		if file.endswith(f"{rel}data.h5"):
+			file_suffix = f"_{rel}data.h5"
 	try:
 		file_indicies = np.array([file.split('_')[0] for file in files\
 					if file.endswith(file_suffix)],dtype=np.int64)
@@ -99,16 +102,13 @@ def get_data_file(data_folder,data_index=-1): #Works with csv or h5
 		files = [file for file in files if file.endswith(file_suffix)]
 		files = [file for file in files if '_' in file]
 		file_indicies = np.array([int(file.split('_')[0]) for file in files],dtype=np.int64)
-	# 	file_indicies = 
-	# print(file_indicies)
-	# exit(0)
+
 
 	if data_index == -1:
 		index = np.max(file_indicies)
 	else:
 		index = data_index
 
-	# print("index: {}".format(index))
 	if old and data_index == 0:
 		data_file = [file for file in files \
 					if file.endswith(file_suffix)]
@@ -128,7 +128,7 @@ def get_data_file(data_folder,data_index=-1): #Works with csv or h5
 	else:
 
 		data_file = [file for file in files \
-				if file.endswith("simData.csv") and file.startswith(str(index)+'_2')]
+				if file.endswith(f"{rel}simData.csv") and file.startswith(str(index)+'_2')]
 
 		if len(data_file) == 1:
 			return data_file[0]
@@ -141,14 +141,16 @@ def get_data_file(data_folder,data_index=-1): #Works with csv or h5
 		print("Now exiting.")
 		exit(-1)
 
-def get_energy_file(data_folder,data_index=-1):
+def get_energy_file(data_folder,data_index=-1,relax=False):
 	files = os.listdir(data_folder)
-	# print(files)
+	rel = ""
+	if relax:
+		rel = "RELAX"
 	try:
 		file_indicies = np.array([file.split('_')[0] for file in files\
-					if file.endswith("energy.csv")],dtype=np.int64)
+					if file.endswith(f"{rel}energy.csv")],dtype=np.int64)
 	except: 
-		files = [file for file in files if file.endswith('energy.csv')]
+		files = [file for file in files if file.endswith(f'{rel}energy.csv')]
 		files = [file for file in files if '_' in file]
 		file_indicies = np.array([int(file.split('_')[0]) for file in files],dtype=np.int64)
 	# 	file_indicies = 
@@ -164,7 +166,7 @@ def get_energy_file(data_folder,data_index=-1):
 	# print("index: {}".format(index))
 
 	data_file = [file for file in files \
-				if file.endswith("energy.csv") and file.startswith(str(index))]
+				if file.endswith(f"{rel}energy.csv") and file.startswith(str(index))]
 	# print(data_file)
 
 	if len(data_file) == 1 or len(set(data_file)) == 1:
@@ -176,7 +178,7 @@ def get_energy_file(data_folder,data_index=-1):
 			return data_file[1]
 	else:
 		data_file = [file for file in files \
-				if file.endswith("energy.csv") and file.startswith(str(index)+'_2')]
+				if file.endswith(f"{rel}energy.csv") and file.startswith(str(index)+'_2')]
 		if len(data_file) == 1:
 			return data_file[0]
 		elif len(data_file) == 2:
@@ -214,10 +216,10 @@ def get_line_h5data_from_file(file,linenum=-1):
 
 
 
-def get_all_line_data(data_folder,data_index=-1,linenum=-1): #Works with csv and h5
+def get_all_line_data(data_folder,data_index=-1,linenum=-1,relax=False): #Works with csv and h5
 	csv_data = False
 	h5_data = False
-	data_file = get_data_file(data_folder,data_index)
+	data_file = get_data_file(data_folder,data_index,relax=relax)
 	if data_file.endswith(".csv"):
 		csv_data = True
 	elif data_file.endswith(".h5"):
@@ -244,15 +246,15 @@ def get_all_line_data(data_folder,data_index=-1,linenum=-1): #Works with csv and
 
 	return data
 
-def get_last_line_data(data_folder,data_index=-1): #Works with csv and h5
-	return get_line_data(data_folder,data_index,-1)
+def get_last_line_data(data_folder,data_index=-1,relax=False): #Works with csv and h5
+	return get_line_data(data_folder,data_index,-1,relax=relax)
 
-def get_line_data(data_folder,data_index=-1,linenum=-1): #Works with csv and h5
-	data = get_all_line_data(data_folder,data_index,linenum)
+def get_line_data(data_folder,data_index=-1,linenum=-1,relax=False): #Works with csv and h5
+	data = get_all_line_data(data_folder,data_index,linenum,relax=relax)
 	return format_pos(data)
 
-def get_last_line_energy(data_folder,data_index=-1):
-	energy_file = get_energy_file(data_folder,data_index)
+def get_last_line_energy(data_folder,data_index=-1,relax=False):
+	energy_file = get_energy_file(data_folder,data_index,relax=relax)
 	try:
 		energy = np.loadtxt(data_folder + energy_file,skiprows=1,dtype=float,delimiter=',')
 		if energy.ndim > 1:
@@ -272,8 +274,8 @@ def get_last_line_energy(data_folder,data_index=-1):
 	# print("FOR {} Balls".format(data.size/11))
 	return energy
 
-def get_constants(data_folder,data_index=-1):#Works with csv and h5
-	data_file = get_data_file(data_folder,data_index)
+def get_constants(data_folder,data_index=-1,relax=False):#Works with csv and h5
+	data_file = get_data_file(data_folder,data_index,relax=relax)
 	data_file = data_file.replace('simData','constants')	
 	if data_file.endswith(".csv"):
 		data_constants = np.loadtxt(data_folder+data_file,skiprows=0,dtype=float,delimiter=',')
@@ -285,8 +287,8 @@ def get_constants(data_folder,data_index=-1):#Works with csv and h5
 		print(f"ERROR: data file type not recognized by utils.py: {data_file}")
 	return data_constants[:,0],data_constants[:,1],data_constants[:,2]
 
-def get_all_constants(data_folder,data_index=-1): #Works with csv and h5
-	data_file = get_data_file(data_folder,data_index)
+def get_all_constants(data_folder,data_index=-1,relax=False): #Works with csv and h5
+	data_file = get_data_file(data_folder,data_index,relax=relax)
 	data_file = data_file.replace('simData','constants')	
 	if data_file.endswith(".csv"):
 		data_constants = np.loadtxt(data_folder+data_file,skiprows=0,dtype=float,delimiter=',')
@@ -315,10 +317,10 @@ def format_vel(data):
 	data = data[:,7:10] #vel is after 3xpos, 3xw, 1w mag, and is 3 long
 	return data
 
-def COM(data_folder,data_index=-1):
-	data = get_last_line_data(data_folder,data_index)
+def COM(data_folder,data_index=-1,relax=False):
+	data = get_last_line_data(data_folder,data_index,relax=relax)
 
-	consts = get_all_constants(data_folder,data_index)
+	consts = get_all_constants(data_folder,data_index,relax=relax)
 	com = np.array([0,0,0],dtype=np.float64)
 	mtot = 0
 
@@ -328,27 +330,27 @@ def COM(data_folder,data_index=-1):
 
 	return com/mtot
 
-def get_data(data_folder,data_index=-1,linenum=-1): #Works with both csv and h5
+def get_data(data_folder,data_index=-1,linenum=-1,relax=False): #Works with both csv and h5
 	if data_folder == '/home/kolanzl/Desktop/bin/merger.csv':
 		data = np.loadtxt(data_folder,delimiter=',')
 		radius = 1
 		mass = 1
 		moi = 1
 	else:
-		data_file = get_data_file(data_folder,data_index)
-		radius,mass,moi = get_constants(data_folder,data_index)
+		data_file = get_data_file(data_folder,data_index,relax=relax)
+		radius,mass,moi = get_constants(data_folder,data_index,relax=relax)
 
-		data = get_line_data(data_folder,data_index,linenum)
+		data = get_line_data(data_folder,data_index,linenum,relax=relax)
 
 	return data,radius,mass,moi
 
-def get_all_data(data_folder,data_index=-1,linenum=-1): #Works with both csv and h5
+def get_all_data(data_folder,data_index=-1,linenum=-1,relax=False): #Works with both csv and h5
 
-	data_file = get_data_file(data_folder,data_index)
+	# data_file = get_data_file(data_folder,data_index)
 
-	radius,mass,moi = get_constants(data_folder,data_index)
+	radius,mass,moi = get_constants(data_folder,data_index,relax=relax)
 
-	data = get_all_line_data(data_folder,data_index,linenum)
+	data = get_all_line_data(data_folder,data_index,linenum,relax=relax)
 	pos = format_pos(data)
 	w = format_w(data)
 	vel = format_vel(data)
@@ -357,15 +359,15 @@ def get_all_data(data_folder,data_index=-1,linenum=-1): #Works with both csv and
 	return pos,vel,w,radius,mass,moi
 
 
-def get_data_range(data_folder,data_index=-1):
+def get_data_range(data_folder,data_index=-1,relax=False):
 	if data_folder == '/home/kolanzl/Desktop/bin/merger.csv':
 		data = np.loadtxt(data_folder,delimiter=',')
 		radius = 1
 		mass = 1
 		moi = 1
 	else:
-		data = get_last_line_data(data_folder,data_index)
-		radius,m,moi = get_constants(data_folder,data_index)
+		data = get_last_line_data(data_folder,data_index,relax=relax)
+		radius,m,moi = get_constants(data_folder,data_index,relax=relax)
 
 	max_x = np.max(data[:,0]) + np.max(radius)
 	min_x = np.min(data[:,0]) - np.max(radius)
