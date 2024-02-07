@@ -31,7 +31,7 @@ def main():
 	dataset_name = data_prefolder.split("/")[-1]
 
 	attempts = [i for i in range(30)]
-	attempts = [0]
+	# attempts = [0]
 	attempts300 = attempts
 
 
@@ -39,7 +39,7 @@ def main():
 	Nums = [30]
 
 	temps = [3,10,30,100,300,1000]
-	temps = [1000]
+	# temps = [1000]
 	
 
 	# numConts = np.full(shape=(len(attempts),len(Nums),len(temps),),fill_value=np.nan)
@@ -97,7 +97,7 @@ def main():
 
 						fig.tight_layout() 
 						plt.savefig(data_directory+f"data/figures/contacts_and_angmom/{dataset_name}/numContAngMom-{dataset_name}-a_{attempt}-N_{N}-T_{T}.png")
-						plt.show()
+						# plt.show()
 						plt.close(fig)
 					# else:
 					# 	for i in list(range(rows)):

@@ -163,6 +163,7 @@ if __name__ == '__main__':
 	data_prefolder = path + 'jobsCosine/lognorm'
 	data_prefolder = path + 'jobsNovus/const'
 	data_prefolder = path + 'jobsOld/tempVarianceRand_attempt'
+	data_prefolder = path + 'jobsNovus/const_relax'
 
 	dataset_name = data_prefolder.split("/")[-1]
 
@@ -179,7 +180,7 @@ if __name__ == '__main__':
 	
 	
 	attempts = [i for i in range(30)]
-	attempts = [i for i in range(2)]
+	# attempts = [i for i in range(2)]
 	# attempts = [1]
 	attempts300 = attempts
 	# attempts300 = [i for i in range(9)]
@@ -228,10 +229,11 @@ if __name__ == '__main__':
 	# yerr_FD[:] = np.nan
 	# yerr_ca[:] = np.nan
 
+	relax=True
 	new_data = True     
 	save_data = False
 	show_plots = True
-	make_FD = True
+	make_FD = False
 	show_FD_plots = False
 	overwrite_octree_data = True 
 	find_stats = False
@@ -267,10 +269,10 @@ if __name__ == '__main__':
 					count = 0
 					if os.path.exists(data_folder):
 						if os.path.exists(data_folder+"timing.txt") or u.find_max_index(data_folder) >= N-3:
-							porositiesabc[n,i,j] = porosity_measure1(data_folder,N-3)
-							porositiesKBM[n,i,j] = porosity_measure2(data_folder,N-3)
-							contacts[n,i,j] = number_of_contacts(data_folder,N-3)
-							angmom[n,i,j] = angular_momentum(data_folder,N-3)
+							# porositiesabc[n,i,j] = porosity_measure1(data_folder,N-3)
+							# porositiesKBM[n,i,j] = porosity_measure2(data_folder,N-3)
+							contacts[n,i,j] = number_of_contacts(data_folder,N-3,relax=relax)
+							angmom[n,i,j] = angular_momentum(data_folder,N-3,relax=relax)
 
 							if not np.isnan(porositiesabc[n,i,j]) and make_FD:
 								o3dv = u.o3doctree(data_folder,overwrite_data=overwrite_octree_data,index=N-3,Temp=temp)

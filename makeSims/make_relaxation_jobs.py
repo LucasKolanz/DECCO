@@ -96,7 +96,7 @@ if __name__ == '__main__':
 				# input_json['h_min'] = 0.5
 				# input_json['dataFormat'] = "csv"
 				input_json['relaxIndex'] = n-3
-				# input_json['simTimeSeconds'] = 1e-3
+				input_json['simTimeSeconds'] = 1e-3
 				# input_json['timeResolution'] = 
 
 				input_json['output_folder'] = job
