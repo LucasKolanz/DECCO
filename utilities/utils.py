@@ -591,46 +591,32 @@ class datamgr(object):
 		print(pt1)
 		print(pt2)
 
-	#######################################################################################################
-	##NEED TO TEST 
-	#see if new version gives same output
+
 	def gen_whole_pt_cloud(self):
 		# self.orient_data()
 		# exit(0)
 		self.shift_to_first_quad()
 
+		accums = []
 		for ind,pt in enumerate(self.data):
 			radii = np.linspace(self.radius[ind]/100,self.radius[ind],100)
 
 			accum = [self.ppb*(radius**2/self.radius[ind]**2) for radius in radii]
 			accum = np.array(accum,dtype=int)
 			accum = np.where(accum < 100, 100, accum)
+			accums.append(accum)
 
-			return_array = np.zeros((self.data.shape[0]*np.sum(np.array(accum)),3))
+		return_array = np.zeros((np.sum(np.array(accums)),3))
+		for ind,pt in enumerate(self.data):
+			radii = np.linspace(self.radius[ind]/100,self.radius[ind],100)
+
 			for i,radius in enumerate(radii):
-				start_index = int(ind*np.sum(accum)) + np.sum(accum[:i])
-				end_index = int(ind*np.sum(accum)) + np.sum(accum[:i+1])
-				return_array[start_index:end_index] = self.gen_pt_cloud(pt,radius,accum[i])
+				start_index = int(ind*np.sum(accums[ind])) + np.sum(accums[ind][:i])
+				end_index = int(ind*np.sum(accums[ind])) + np.sum(accums[ind][:i+1])
+				return_array[start_index:end_index] = self.gen_pt_cloud(pt,radius,accums[ind][i])
+				
 		return return_array
-	# def gen_whole_pt_cloud(self):
-	# 	# self.orient_data()
-	# 	# exit(0)
-	# 	self.shift_to_first_quad()
 
-	# 	radii = np.linspace(self.radius[0]/100,self.radius[0],100)
-
-	# 	accum = [self.ppb*(radius**2/self.radius[0]**2) for radius in radii]
-	# 	accum = np.array(accum,dtype=int)
-	# 	accum = np.where(accum < 100, 100, accum)
-
-	# 	return_array = np.zeros((self.data.shape[0]*np.sum(np.array(accum)),3))
-	# 	for ind,pt in enumerate(self.data):
-	# 		for i,radius in enumerate(radii):
-	# 			start_index = int(ind*np.sum(accum)) + np.sum(accum[:i])
-	# 			end_index = int(ind*np.sum(accum)) + np.sum(accum[:i+1])
-	# 			return_array[start_index:end_index] = self.gen_pt_cloud(pt,radius,accum[i])
-	# 	return return_array
-	#######################################################################################################
 
 	#evenly spaced points on sphere code form:
 	#http://extremelearning.com.au/how-to-evenly-distribute-points-on-a-sphere-more-effectively-than-the-canonical-fibonacci-lattice/
