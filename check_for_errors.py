@@ -110,7 +110,7 @@ def ck_error2_by_file(file,verbose=False ):
 
 #If the (number rows of constants)*11 != (simData columns)
 #Then there was some kind of write error
-def error2(fullpath,verbose=False,notiming=True):
+def error2(fullpath,verbose=False,notiming=False):
 	if os.path.exists(fullpath+"timing.txt") or notiming:
 		directory = os.fsencode(fullpath)
 		for file in os.listdir(directory):

@@ -109,9 +109,9 @@ def main():
 
 	curr_folder = os.getcwd() + '/'
 
-	job_folder = 'jobs/'###FOR RUNNIN ON COSINE/NOVUS
 	job_folder = 'jobsNovus/'##FOR RUNNING ON LOCAL TESTING NOVUS JOBS
 	job_folder = 'jobsCosine/'##FOR RUNNING ON LOCAL TESTING COSINE JOBS
+	job_folder = 'jobs/'###FOR RUNNIN ON COSINE/NOVUS
 	move_job_folder = 'erroredJobs/' ##either way move here
 
 	job = input_json["data_directory"] + job_folder + 'constant$a$/N_$n$/T_$t$/'
@@ -126,8 +126,10 @@ def main():
 
 	Temps = [3,10,30,100,300,1000]
 	# Temps = [3]
-
-	if job_folder == "jobsCosine/":
+	# print(job.split('/')[-4].strip("$a$"))
+	# print(job)
+	# if job_folder == "jobsCosine/":
+	if job.split('/')[-4].strip("$a$") == "lognorm":
 		error_folders = cfe.check_error(job,cfe.errorn1,N,Temps,attempts)
 		error_folders.extend(cfe.check_error(job,cfe.error0,N,Temps,attempts))
 		error_folders.extend(cfe.check_error(job,cfe.error1,N,Temps,attempts))
@@ -137,7 +139,8 @@ def main():
 		error_folders = list(set(error_folders))
 		# print(error_folders)
 
-	elif job_folder == "jobsNovus/":
+	# elif job_folder == "jobsNovus/":
+	elif job.split('/')[-4].strip("$a$") == "constant":
 		error_folders = cfeh5.check_error(job,cfeh5.errorn1,N,Temps,attempts)
 		error_folders.extend(cfeh5.check_error(job,cfeh5.error0,N,Temps,attempts))
 		error_folders.extend(cfeh5.check_error(job,cfeh5.error1,N,Temps,attempts))
