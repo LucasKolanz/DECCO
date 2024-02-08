@@ -56,7 +56,7 @@ if __name__ == '__main__':
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	attempts = [i for i in range(30)] 
 	# attempts = [0] 
-	N = [30]
+	N = [100,300]
 	threads = []
 	Temps = [3,10,30,100,300,1000]
 	# Temps = [1000]
@@ -75,57 +75,58 @@ if __name__ == '__main__':
 							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
 				
 
-				with open(copyjob+"input.json",'r') as fp:
-					input_json = json.load(fp)
+				if os.path.exists(copyjob):
+					if not os.path.exists(job):
+						os.makedirs(job)
+					else:
+						print("Job '{}' already exists.".format(job))
 
-				if not os.path.exists(job):
-					os.makedirs(job)
-				else:
-					print("Job '{}' already exists.".format(job))
+					if not os.path.exists(job+"timing.txt"):
+						with open(copyjob+"input.json",'r') as fp:
+							input_json = json.load(fp)
+						####################################
+						######Change input values here######
+						input_json['temp'] = Temp
+						input_json['N'] = n
+						input_json['OMPthreads'] = 1
+						input_json['MPInodes'] = 1
+						input_json['simType'] = "relax"
 
-				####################################
-				######Change input values here######
-				input_json['temp'] = Temp
-				input_json['N'] = n
-				input_json['OMPthreads'] = 1
-				input_json['MPInodes'] = 1
-				input_json['simType'] = "relax"
+						# input_json['seed'] = rand_int()
+						# input_json['radiiDistribution'] = 'logNormal'
+						# input_json['h_min'] = 0.5
+						# input_json['dataFormat'] = "csv"
+						input_json['relaxIndex'] = n-3
+						input_json['simTimeSeconds'] = 1e-3
+						# input_json['timeResolution'] = 
 
-				# input_json['seed'] = rand_int()
-				# input_json['radiiDistribution'] = 'logNormal'
-				# input_json['h_min'] = 0.5
-				# input_json['dataFormat'] = "csv"
-				input_json['relaxIndex'] = n-3
-				input_json['simTimeSeconds'] = 1e-3
-				# input_json['timeResolution'] = 
+						input_json['output_folder'] = job
+						input_json['data_directory'] = default_input_json['data_directory']
+						input_json['project_directory'] = default_input_json['project_directory']
 
-				input_json['output_folder'] = job
-				input_json['data_directory'] = default_input_json['data_directory']
-				input_json['project_directory'] = default_input_json['project_directory']
+						# input_json['u_s'] = 0.5
+						# input_json['u_r'] = 0.5
+						input_json['note'] = "Relaxation job"
 
-				# input_json['u_s'] = 0.5
-				# input_json['u_r'] = 0.5
-				input_json['note'] = "Relaxation job"
+						####################################
 
-				####################################
+						with open(job + "input.json",'w') as fp:
+							json.dump(input_json,fp,indent=4)
 
-				with open(job + "input.json",'w') as fp:
-					json.dump(input_json,fp,indent=4)
-
-				
-				os.system(f"cp {copyjob}{n-3}* {job}.")
-				# os.system(f"cp {copyjob}input.json {job}.")
+						
+						os.system(f"cp {copyjob}{n-3}* {job}.")
+						# os.system(f"cp {copyjob}input.json {job}.")
 
 
-				#add run script and executable to folders
-				# os.system(f"cp {project_path}default_files/run_sim.py {job}run_sim.py")
-				os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
-				os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
-				os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
+						#add run script and executable to folders
+						# os.system(f"cp {project_path}default_files/run_sim.py {job}run_sim.py")
+						os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
+						os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
+						os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
 
-				
-				folders.append(job)
-	# print(folders)
+						
+						folders.append(job)
+		# print(folders)
 
 
 	print(folders)
