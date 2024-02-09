@@ -605,16 +605,15 @@ class datamgr(object):
 			accum = np.array(accum,dtype=int)
 			accum = np.where(accum < 100, 100, accum)
 			accums.append(accum)
-
+		summm = 0
 		return_array = np.zeros((np.sum(np.array(accums)),3))
 		for ind,pt in enumerate(self.data):
 			radii = np.linspace(self.radius[ind]/100,self.radius[ind],100)
 
 			for i,radius in enumerate(radii):
-				start_index = int(ind*np.sum(accums[ind])) + np.sum(accums[ind][:i])
-				end_index = int(ind*np.sum(accums[ind])) + np.sum(accums[ind][:i+1])
-				return_array[start_index:end_index] = self.gen_pt_cloud(pt,radius,accums[ind][i])
-				
+				start_index = int(np.sum(accums[:ind])) + np.sum(accums[ind][:i])
+				end_index = int(np.sum(accums[:ind])) + np.sum(accums[ind][:i+1])
+				return_array[start_index:end_index] = self.gen_pt_cloud(pt,radius,accums[ind][i]) 
 		return return_array
 
 

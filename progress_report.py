@@ -25,7 +25,7 @@ def status(fullpath):
 	else:
 		# Loop through all files in the directory fullpath
 		for filename in os.listdir(fullpath):
-			if filename.endswith(".h5"):
+			if filename.endswith(".h5") or filname.endswith("simData.csv"):
 				return 1
 
 	return 0
@@ -92,7 +92,10 @@ def main():
 	job = curr_folder + 'jobs/weakseed$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'erroredJobs/lognorm$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'jobsNovus/testError$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobs/const$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobsNovus/const$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobsNovus/const_relax$a$/N_$n$/T_$t$/'
 	print(job)
 
 

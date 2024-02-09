@@ -42,12 +42,14 @@ if __name__ == '__main__':
 		
 	job_set_name = "lognorm_radius_test"
 	job_set_name = "errorckcsvlognorm"
-	job_set_name = "errorckh5lognorm"
 	job_set_name = "overflowerror"
-	job_set_name = "lognorm_relax"
+	job_set_name = "errorckh5lognorm"
 	job_set_name = "const_relax"
+	job_set_name = "lognorm_relax"
 
 	job_group = "jobsNovus"
+	job_group = "jobsCosine"
+	rsize = job_set_name.split("_")[0]
 
 	# folder_name_scheme = "T_"
 
@@ -56,7 +58,7 @@ if __name__ == '__main__':
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	attempts = [i for i in range(30)] 
 	# attempts = [0] 
-	N = [100,300]
+	N = [30,100,300]
 	threads = []
 	Temps = [3,10,30,100,300,1000]
 	# Temps = [1000]
@@ -71,11 +73,11 @@ if __name__ == '__main__':
 				# job = curr_folder + 'jobs/' + job_set_name + str(attempt) + '/'
 				job = default_input_json["data_directory"] + f'{job_group}/' + job_set_name + str(attempt) + '/'\
 							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
-				copyjob = default_input_json["data_directory"] + f'{job_group}/' + "const" + str(attempt) + '/'\
+				copyjob = default_input_json["data_directory"] + f'{job_group}/' + rsize + str(attempt) + '/'\
 							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
 				
 
-				if os.path.exists(copyjob):
+				if os.path.exists(copyjob+"timing.txt"):
 					if not os.path.exists(job):
 						os.makedirs(job)
 					else:
@@ -124,8 +126,10 @@ if __name__ == '__main__':
 						os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
 						os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
 
-						
 						folders.append(job)
+				else:
+					print(f"origin job doesn't exist: {copyjob}")
+
 		# print(folders)
 
 
