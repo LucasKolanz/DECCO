@@ -230,6 +230,11 @@ if __name__ == '__main__':
 	# yerr_ca[:] = np.nan
 
 	relax = False
+	if dataset_name.split('_')[-1] == "relax":
+		relax = True
+
+	print(f"relax: {relax}")
+
 	new_data = True     
 	save_data = True
 	show_plots = True
