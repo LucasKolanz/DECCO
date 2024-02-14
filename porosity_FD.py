@@ -380,10 +380,8 @@ if __name__ == '__main__':
 		########## End printing stat values ##########
 
 		for i,N in enumerate(Nums):
-			if N == 300:
-				a = attempts300
-			else:
-				a = attempts
+			
+			a = attempts
 			
 			notnan = ~np.isnan(angmom[i])
 			if np.sum(notnan) == 0:
