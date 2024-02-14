@@ -565,33 +565,6 @@ Ball_group::Ball_group(
 
 Ball_group& Ball_group::operator=(const Ball_group& rhs)
 {
-    // attrs.num_particles = rhs.attrs.num_particles;
-    // attrs.num_particles_added = rhs.attrs.num_particles_added;
-
-    // // Useful values:
-    // r_min = rhs.r_min;
-    // r_max = rhs.r_max;
-    // m_total = rhs.m_total;
-    // initial_radius = rhs.initial_radius;
-    // v_collapse = rhs.v_collapse;
-    // v_max = rhs.v_max;
-    // v_max_prev = rhs.v_max_prev;
-    // soc = rhs.soc;
-    // skip = rhs.skip;
-    // steps = rhs.steps;
-
-    // dt=rhs.dt;
-    // kin=rhs.kin;  // Spring constant
-    // kout=rhs.kout;
-    // radiiDistribution = rhs.radiiDistribution;
-    // radiiFraction = rhs.radiiFraction;
-
-    // project_path=rhs.project_path;
-    // data_directory = rhs.data_directory;
-    // output_folder=rhs.output_folder;
-    // projectileName=rhs.projectileName;
-    // targetName=rhs.targetName;
-    // output_prefix=rhs.output_prefix;
 
     attrs = rhs.attrs;
 
@@ -626,33 +599,7 @@ Ball_group& Ball_group::operator=(const Ball_group& rhs)
 
 Ball_group::Ball_group(const Ball_group& rhs)
 {
-    // num_particles = rhs.num_particles;
-    // num_particles_added = rhs.num_particles_added;
 
-    // // Useful values:
-    // r_min = rhs.r_min;
-    // r_max = rhs.r_max;
-    // m_total = rhs.m_total;
-    // initial_radius = rhs.initial_radius;
-    // v_collapse = rhs.v_collapse;
-    // v_max = rhs.v_max;
-    // v_max_prev = rhs.v_max_prev;
-    // soc = rhs.soc;
-    // skip = rhs.skip;
-    // steps = rhs.steps;
-
-    // dt=rhs.dt;
-    // kin=rhs.kin;  // Spring constant
-    // kout=rhs.kout;
-    // radiiDistribution = rhs.radiiDistribution;
-    // radiiFraction = rhs.radiiFraction;
-
-    // project_path=rhs.project_path;
-    // data_directory = rhs.data_directory;
-    // output_folder=rhs.output_folder;
-    // projectileName=rhs.projectileName;
-    // targetName=rhs.targetName;
-    // output_prefix=rhs.output_prefix;
 
     attrs = rhs.attrs;
 
@@ -684,15 +631,7 @@ Ball_group::Ball_group(const Ball_group& rhs)
 
 void Ball_group::init_data(int counter = 0)
 {
-    // std::ifstream checkForFile;
-    
-    // checkForFile.open(output_folder + std::to_string(counter) + "_data."+filetype, std::ifstream::in);
-    // // Add a counter to the file name until it isn't overwriting anything:
-    // while (checkForFile.is_open()) {
-    //     counter++;
-    //     checkForFile.close();
-    //     checkForFile.open(output_folder + std::to_string(counter) + '_' + "data." + filetype, std::ifstream::in);
-    // }
+
 
     if (data != nullptr)
     {
