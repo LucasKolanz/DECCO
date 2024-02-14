@@ -12,7 +12,7 @@
 #
 #Error 4: integer overflow in number of steps
 #
-#Error 5: did we get "Simulation complete!" within the last 10 lines of sim_error.log and timing.txt exists?
+#Error 5: Are any balls within a few radii of the center of mass? If not, balls might not be contacting the growing aggregate
 
 
 import os
@@ -20,273 +20,17 @@ import glob
 import numpy as np
 # import utils as u
 import h5py
+import sys
 import json
 
 relative_path = ""
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
 
-#returns the last line of the file file_path
-def tail(file_path,n):
-	count = 0
-	with open(file_path, 'rb') as f:
-		try:  # catch OSError in case of a one line file 
-			f.seek(-2, os.SEEK_END)
-			while count <= n:
-				temp = f.read(1)
-				if temp == b'\n':
-					count += 1
-				if count < n:
-					f.seek(-2, os.SEEK_CUR)
-				# else:
-				# 	f.seek(-1, os.SEEK_CUR)
-		except OSError:
-			print("OSERROR")
-			f.seek(0)
-		last_lines = f.read().decode()
-	return last_lines
-
-
-def errorn1(fullpath):
-	has_err = os.path.exists(fullpath+"sim_err.log")
-	has_errors = os.path.exists(fullpath+"sim_errors.txt")
-
-	error_file = ''
-	if has_err:
-		error_file = "sim_err.log"
-	elif has_errors:
-		error_file = "sim_errors.txt"
-	else:
-		print(f"NO ERROR FILE FOR {fullpath}")
-		return False
-
-	tail_out = tail(fullpath+error_file,10).split('\n')
-	error = False
-	for i in tail_out:
-		if "ERROR" in i:
-			error = True
-			break 
-	return error
-
-def error0(fullpath):
-	if os.path.exists(fullpath+"timing.txt"):
-		has_err = os.path.exists(fullpath+"sim_err.log")
-		has_errors = os.path.exists(fullpath+"sim_errors.txt")
-
-		error_file = ''
-		if has_err:
-			error_file = "sim_err.log"
-		elif has_errors:
-			error_file = "sim_errors.txt"
-		else:
-			print(f"NO ERROR FILE FOR {fullpath}")
-			# return True
-
-		tail_out = tail(fullpath+error_file,10).split('\n')
-		for i in tail_out:
-			if "Simulation complete!" in i or "Simulation already complete." in i:
-				return False
-		return True
-	else:
-		return False
-
-
-def ck_error2_by_file(file,verbose=False ):
-	try:
-		temp = np.loadtxt(file,skiprows=1,delimiter=',')
-		if verbose:
-			print(f"shape of file: {temp.shape}")
-		x,y = temp.shape
-		if x != 51:
-			if verbose:
-				print(f"ERROR: The x dimension of the data is {x}, not 51. for file {file}")
-			return True
-	except ValueError as E:
-		if verbose:
-			print(f"ERROR ValueError: {E}")
-			print(f"for the file: {file}")
-		return True
-	return False
-
-#If the (number rows of constants)*11 != (simData columns)
-#Then there was some kind of write error
-def error2(fullpath,verbose=False,notiming=False):
-	if os.path.exists(fullpath+"timing.txt") or notiming:
-		directory = os.fsencode(fullpath)
-		for file in os.listdir(directory):
-			filename = os.fsdecode(file)
-			if filename.endswith("simData.csv"): 
-				err = ck_error2_by_file(fullpath+filename,verbose)
-				if err:
-					return True
-	return False
-
-def error2_index(fullpath,verbose=False):
-	directory = os.fsencode(fullpath)
-	lowest_index = 9999999999
-	for file in os.listdir(directory):
-		filename = os.fsdecode(file)
-		if filename.endswith("simData.csv"): 
-			try:
-				temp = np.loadtxt(fullpath+filename,skiprows=1,delimiter=',')
-				x,y = temp.shape
-				if x != 51:
-					ind = u.index_from_file(filename)
-					if verbose:
-						print(f"ERROR: x={x} for file={filename}")
-					if ind < lowest_index:
-						lowest_index = ind
-			except ValueError as E:
-				ind = u.index_from_file(filename)
-				if verbose:
-					print(f"ERROR: {E} for file={filename}")
-				if ind < lowest_index:
-					lowest_index = ind
-	if lowest_index != 9999999999:
-		return lowest_index
-	return False
-
-
-#If fullpath has error1 in it, return 1, if not return 0
-def error1(fullpath):
-	directory = os.fsencode(fullpath)
-	max_ind=-1
-	test_file = ''
-	for file in os.listdir(directory):
-		filename = os.fsdecode(file)
-		if filename.endswith("constants.csv"): 
-
-			index = int(filename.split('_')[0])
-			if (index > max_ind):
-				max_ind = index
-				test_file = filename
-	# print(fullpath+test_file)
-
-	if (not test_file): #if test_file is empty string the sim hasnt started yet
-		return False
-
-	with open(fullpath+test_file, 'r') as fp: #number of lines in this file is the number of balls in sim
-	    for count, line in enumerate(fp):
-	        pass
-	balls = count+1 #IDK why you need to add one but this method doesn't count every line, it misses one at the beginning or end
-
-	if balls == max_ind+3: ### THIS IS SPECIFIC TO BPCA GROWTH RUNS
-		return False
-	else:
-		# print("balls in sim                : {}".format(balls))
-		# print("balls that should be in sim : {}".format(max_ind+3))
-		# print("initially specified N value : {}".format(correct_N))
-		return True
-
-def error4(fullpath):
-	has_err = os.path.exists(fullpath+"sim_err.log")
-	has_errors = os.path.exists(fullpath+"sim_errors.txt")
-
-	error_file = ''
-	if has_err:
-		error_file = "sim_err.log"
-	elif has_errors:
-		error_file = "sim_errors.txt"
-	else:
-		print(f"NO ERROR FILE FOR {fullpath}")
-		return False
-
-	tail_out = tail(fullpath+error_file,10).split('\n')
-	error = False
-	for i in tail_out:
-		if "ERROR: STEPS IS NEGATIVE" in i:
-			error = True
-			break 
-	return error
-
-
-def where_did_error1_start(fullpath):
-	directory = os.fsencode(fullpath)
-	min_ind=9999999999
-	min_balls = 9999999999
-	test_file = ''
-	for file in os.listdir(directory):
-		filename = os.fsdecode(file)
-		if filename.endswith("constants.csv") and filename[2] != "R": 
-			index = int(filename.split('_')[0])
-			with open(fullpath+filename, 'r') as fp: #number of lines in this file is the number of balls in sim
-			    for count, line in enumerate(fp):
-			        pass
-			balls = count+1 #IDK why you need to add one but this method doesn't count every line, it misses one at the beginning or end
-			if (balls != index+3):
-				if (index < min_ind):
-					min_balls = balls
-					min_ind = index
-					test_file = filename
-
-	if len(test_file) == 0:
-		print(f"Error1 NOT detected in {fullpath}")
-	else:
-		print(f"Error1 detected in {fullpath}")
-		print(f"Min index {min_ind} has {min_balls} balls")
-
-	
-def check_error(job_base,error,\
-				N=[30,100,300],\
-				Temps=[3,10,30,100,300,1000],\
-				num_attempts=30):
-
-	errors = []
-	if isinstance(num_attempts,int):
-		attempts = [i for i in range(num_attempts)]
-	elif isinstance(num_attempts,list):
-		attempts = num_attempts
-	# N=[30]
-	# Temps = [3]
-	valid_count = 0
-
-	for n in N:
-		for Temp in Temps:
-			for attempt in attempts:
-				job = job_base.replace("$a$",str(attempt)).replace("$n$",str(n)).replace("$t$",str(Temp))
-				# print(job)
-				if os.path.exists(job):
-					if os.path.exists(job+"timing.txt"):
-						valid_count += 1
-					output = error(job)
-					if output > 0:
-						errors.append(job)
-				else:
-					continue
-					# print(f"{job} doesn't exist")
-
-	print(f"{len(errors)} errors, out of {valid_count} valid runs, out of {len(N)*len(attempts)*len(Temps)} runs.")
-	return errors
-
-def get_file_base(folder):
-	directory = os.fsencode(folder)
-	for file in os.listdir(directory):
-		filename = os.fsdecode(file)
-		if filename.endswith("simData.csv"):
-			file_base = '_' + '_'.join(filename.split('/')[-1].split('_')[1:-1]) + '_'
-			return file_base
-	return "ERROR: NO FILE FOUND"; 
-
-def dist(x1,y1,z1,x2,y2,z2):
-	return np.sqrt((x2-x1)**2 + (y2-y1)**2 + (z2-z1)**2)
-
-def error3(fullpath):
-	directory = os.fsencode(fullpath)
-	
-	for file in os.listdir(directory):
-		filename = os.fsdecode(file)
-		if filename.endswith("simData.csv"):
-			if filename.startswith("0_") or filename.split("_")[1][0] == "R":
-				simData = np.loadtxt(fullpath+filename,skiprows=1,delimiter=',',dtype=np.float64)[0]
-				constants = np.loadtxt(fullpath+filename.replace("simData.csv","constants.csv"),skiprows=0,delimiter=',',dtype=np.float64)
-				radii = constants[:,0]
-				if (dist(simData[0],simData[1],simData[2],simData[11],simData[12],simData[13]) <= radii[0]+radii[1]):
-					return True
-				else:
-					return False
-				
-	return False
-
+sys.path.append(project_path+"utilities/")
+import utils as u
+sys.path.append(project_path)
+import porosity_FD as pFD
 
 
 def check_final_error(job_base,error,\
@@ -350,6 +94,322 @@ def where_is_smallest_error2(job_base,error,\
 	print(f"{len(errors)} errors, out of {valid_count} valid runs, out of {len(N)*len(attempts)*len(Temps)} runs.")
 	return errors,output
 
+#returns the last line of the file file_path
+def tail(file_path,n):
+	count = 0
+	with open(file_path, 'rb') as f:
+		try:  # catch OSError in case of a one line file 
+			f.seek(-2, os.SEEK_END)
+			while count <= n:
+				temp = f.read(1)
+				if temp == b'\n':
+					count += 1
+				if count < n:
+					f.seek(-2, os.SEEK_CUR)
+				# else:
+				# 	f.seek(-1, os.SEEK_CUR)
+		except OSError:
+			print("OSERROR")
+			f.seek(0)
+		last_lines = f.read().decode()
+	return last_lines
+
+
+def ck_error2_by_file(file,verbose=False,relax=False):
+	try:
+		temp = np.loadtxt(file,skiprows=1,delimiter=',')
+		if verbose:
+			print(f"shape of file: {temp.shape}")
+		x,y = temp.shape
+		if relax:
+			if not (((x-1)*1.0)/50.0).is_integer():
+				if verbose:
+					print(f"ERROR: The x dimension of the data is {x}, n in (n * 50)+1 is not an integer for file {file}")
+				return True
+		else:
+			if x != 51:
+				if verbose:
+					print(f"ERROR: The x dimension of the data is {x}, not 51. for file {file}")
+				return True
+	except ValueError as E:
+		if verbose:
+			print(f"ERROR ValueError: {E}")
+			print(f"for the file: {file}")
+		return True
+	return False
+
+def error2_index(fullpath,verbose=False):
+	directory = os.fsencode(fullpath)
+	lowest_index = 9999999999
+	for file in os.listdir(directory):
+		filename = os.fsdecode(file)
+		if filename.endswith("simData.csv"): 
+			try:
+				temp = np.loadtxt(fullpath+filename,skiprows=1,delimiter=',')
+				x,y = temp.shape
+				if x != 51:
+					ind = u.index_from_file(filename)
+					if verbose:
+						print(f"ERROR: x={x} for file={filename}")
+					if ind < lowest_index:
+						lowest_index = ind
+			except ValueError as E:
+				ind = u.index_from_file(filename)
+				if verbose:
+					print(f"ERROR: {E} for file={filename}")
+				if ind < lowest_index:
+					lowest_index = ind
+	if lowest_index != 9999999999:
+		return lowest_index
+	return False
+
+def where_did_error1_start(fullpath):
+	directory = os.fsencode(fullpath)
+	min_ind=9999999999
+	min_balls = 9999999999
+	test_file = ''
+	for file in os.listdir(directory):
+		filename = os.fsdecode(file)
+		if filename.endswith("constants.csv") and filename[2] != "R": 
+			index = int(filename.split('_')[0])
+			with open(fullpath+filename, 'r') as fp: #number of lines in this file is the number of balls in sim
+			    for count, line in enumerate(fp):
+			        pass
+			balls = count+1 #IDK why you need to add one but this method doesn't count every line, it misses one at the beginning or end
+			if (balls != index+3):
+				if (index < min_ind):
+					min_balls = balls
+					min_ind = index
+					test_file = filename
+
+	if len(test_file) == 0:
+		print(f"Error1 NOT detected in {fullpath}")
+	else:
+		print(f"Error1 detected in {fullpath}")
+		print(f"Min index {min_ind} has {min_balls} balls")
+
+	
+def check_error(job_base,error,\
+				N=[30,100,300],\
+				Temps=[3,10,30,100,300,1000],\
+				num_attempts=30,relax=False):
+
+	errors = []
+	if isinstance(num_attempts,int):
+		attempts = [i for i in range(num_attempts)]
+	elif isinstance(num_attempts,list):
+		attempts = num_attempts
+	# N=[30]
+	# Temps = [3]
+	valid_count = 0
+
+	for n in N:
+		for Temp in Temps:
+			for attempt in attempts:
+				job = job_base.replace("$a$",str(attempt)).replace("$n$",str(n)).replace("$t$",str(Temp))
+				# print(job)
+				if os.path.exists(job):
+					if os.path.exists(job+"timing.txt"):
+						valid_count += 1
+					output = error(job,relax=relax)
+					if output > 0:
+						errors.append(job)
+				else:
+					continue
+					# print(f"{job} doesn't exist")
+
+	print(f"{len(errors)} errors, out of {valid_count} valid runs, out of {len(N)*len(attempts)*len(Temps)} runs.")
+	return errors
+
+def get_file_base(folder):
+	directory = os.fsencode(folder)
+	for file in os.listdir(directory):
+		filename = os.fsdecode(file)
+		if filename.endswith("simData.csv"):
+			file_base = '_' + '_'.join(filename.split('/')[-1].split('_')[1:-1]) + '_'
+			return file_base
+	return "ERROR: NO FILE FOUND"; 
+
+def dist(x1,y1,z1,x2,y2,z2):
+	return np.sqrt((x2-x1)**2 + (y2-y1)**2 + (z2-z1)**2)
+
+def errorn1(fullpath,relax=False):
+	has_err = os.path.exists(fullpath+"sim_err.log")
+	has_errors = os.path.exists(fullpath+"sim_errors.txt")
+
+	error_file = ''
+	if has_err:
+		error_file = "sim_err.log"
+	elif has_errors:
+		error_file = "sim_errors.txt"
+	else:
+		print(f"NO ERROR FILE FOR {fullpath}")
+		return False
+
+	tail_out = tail(fullpath+error_file,10).split('\n')
+	error = False
+	for i in tail_out:
+		if "ERROR" in i:
+			error = True
+			break 
+	return error
+
+def error0(fullpath,relax=False):
+	if os.path.exists(fullpath+"timing.txt"):
+		has_err = os.path.exists(fullpath+"sim_err.log")
+		has_errors = os.path.exists(fullpath+"sim_errors.txt")
+
+		error_file = ''
+		if has_err:
+			error_file = "sim_err.log"
+		elif has_errors:
+			error_file = "sim_errors.txt"
+		else:
+			print(f"NO ERROR FILE FOR {fullpath}")
+			# return True
+
+		tail_out = tail(fullpath+error_file,10).split('\n')
+		for i in tail_out:
+			if "Simulation complete!" in i or "Simulation already complete." in i:
+				return False
+		return True
+	else:
+		return False
+
+
+
+#If fullpath has error1 in it, return 1, if not return 0
+def error1(fullpath,relax=False):
+	directory = os.fsencode(fullpath)
+	max_ind=-1
+	test_file = ''
+	rel = ""
+	if relax:
+		rel = "RELAX"
+	for file in os.listdir(directory):
+		filename = os.fsdecode(file)
+		if filename.endswith(f"{rel}constants.csv"): 
+
+			index = int(filename.split('_')[0])
+			if (index > max_ind):
+				max_ind = index
+				test_file = filename
+	# print(fullpath+test_file)
+
+	if (not test_file): #if test_file is empty string the sim hasnt started yet
+		return False
+
+	with open(fullpath+test_file, 'r') as fp: #number of lines in this file is the number of balls in sim
+	    for count, line in enumerate(fp):
+	        pass
+	balls = count+1 #IDK why you need to add one but this method doesn't count every line, it misses one at the beginning or end
+
+	if balls == max_ind+3: ### THIS IS SPECIFIC TO BPCA GROWTH RUNS
+		return False
+	else:
+		# print("balls in sim                : {}".format(balls))
+		# print("balls that should be in sim : {}".format(max_ind+3))
+		# print("initially specified N value : {}".format(correct_N))
+		return True
+
+#If the (number rows of constants)*11 != (simData columns)
+#Then there was some kind of write error
+def error2(fullpath,verbose=False,relax=False):
+	if os.path.exists(fullpath+"timing.txt"):
+		rel = ""
+		if relax:
+			rel = "RELAX"
+		directory = os.fsencode(fullpath)
+		for file in os.listdir(directory):
+			filename = os.fsdecode(file)
+			if filename.endswith(f"{rel}simData.csv"): 
+				err = ck_error2_by_file(fullpath+filename,verbose,relax=relax)
+				if err:
+					return True
+	return False
+
+def error3(fullpath,relax=False):
+	directory = os.fsencode(fullpath)
+	rel = ""
+	if relax:
+		rel = "RELAX"
+	for file in os.listdir(directory):
+		filename = os.fsdecode(file)
+		if filename.endswith(f"{relax}simData.csv"):
+			if filename.startswith("0_") or filename.split("_")[1][0] == "R":
+				simData = np.loadtxt(fullpath+filename,skiprows=1,delimiter=',',dtype=np.float64)[0]
+				constants = np.loadtxt(fullpath+filename.replace("simData.csv","constants.csv"),skiprows=0,delimiter=',',dtype=np.float64)
+				radii = constants[:,0]
+				if (dist(simData[0],simData[1],simData[2],simData[11],simData[12],simData[13]) <= radii[0]+radii[1]):
+					return True
+				else:
+					return False
+				
+	return False
+
+def error4(fullpath,relax=None):
+
+	has_err = os.path.exists(fullpath+"sim_err.log")
+	has_errors = os.path.exists(fullpath+"sim_errors.txt")
+
+	error_file = ''
+	if has_err:
+		error_file = "sim_err.log"
+	elif has_errors:
+		error_file = "sim_errors.txt"
+	else:
+		print(f"NO ERROR FILE FOR {fullpath}")
+		return False
+
+	tail_out = tail(fullpath+error_file,10).split('\n')
+	error = False
+	for i in tail_out:
+		if "ERROR: STEPS IS NEGATIVE" in i:
+			error = True
+			break 
+	return error
+
+
+
+def error5(fullpath,relax=False):
+	if (os.path.exists(fullpath+"timing.txt")):
+		directory = os.fsencode(fullpath)
+		max_index = -1
+
+		rel = ""
+		if relax:
+			rel = "RELAX"
+		#find the highest index file
+		for file in os.listdir(directory):
+			filename = os.fsdecode(file)
+			if filename.endswith(f"{rel}simData.csv"):
+				if filename.startswith("0_") or (not relax and filename.split("_")[1][0] == "R"): #this is for index zero
+					index = 0 
+				else:
+					index = int(filename.split("_")[0])
+				
+				if index > max_index:
+					max_index = index
+
+
+		data,radii,mass,moi = u.get_data(fullpath,max_index,linenum=-1,relax=relax)
+		com = u.COM(fullpath, max_index)
+		# r_g = pFD.get_gyration_radius(fullpath,max_index)
+
+
+		for i in range(radii.shape[0]):
+			if (dist(data[i,0],data[i,1],data[i,2],com[0],com[1],com[2]) <= 2*radii[i]): #if a ball's center is closer or equal to two of its radii to the aggregates center of mass. I take this to mean the aggregate is aggregating correctly and not shooting all over the place  
+				return False
+		return True
+	return False
+
+
+
+
+
+
+
+
 def main():
 
 	with open(project_path+"default_files/default_input.json",'r') as fp:
@@ -357,23 +417,31 @@ def main():
 
 
 	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
 	
 
 	attempts = [i for i in range(30)]
-	# attempts = [1]
+	# attempts = [0]
 
 	N = [30,100,300]
-	# N=[5]
+	# N=[100]
 
 	Temps = [3,10,30,100,300,1000]
-	# Temps = [1000]
+	# Temps = [3]
 
 	errorDic = {}
 
+	relax = False
 
-	for i,error in enumerate([errorn1,error0,error1,error2,error3,error4]):
+	if job.split("/")[-4].split("_")[-1].strip("$a$") == "relax":
+		relax = True
+
+
+
+	# for i,error in enumerate([errorn1,error0,error1,error2,error3,error4,error5]):
+	for i,error in enumerate([error5]):
 		print(f"======================================{error.__name__}======================================")
-		error_folders = check_error(job,error,N,Temps,attempts)
+		error_folders = check_error(job,error,N,Temps,attempts,relax=relax)
 		for folder in error_folders:
 			if folder in errorDic.keys():
 				errorDic[folder].append(i)

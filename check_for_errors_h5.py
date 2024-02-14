@@ -45,7 +45,7 @@ def tail(file_path,n):
 		last_lines = f.read().decode()
 	return last_lines
 
-def errorn1(fullpath):
+def errorn1(fullpath,relax=False):
 	has_err = os.path.exists(fullpath+"sim_err.log")
 	has_errors = os.path.exists(fullpath+"sim_errors.txt")
 
@@ -66,7 +66,7 @@ def errorn1(fullpath):
 			break 
 	return error
 
-def error0(fullpath):
+def error0(fullpath,relax=False):
 	if os.path.exists(fullpath+"timing.txt"):
 		has_err = os.path.exists(fullpath+"sim_err.log")
 		has_errors = os.path.exists(fullpath+"sim_errors.txt")
@@ -89,7 +89,7 @@ def error0(fullpath):
 	return False
 
 #If fullpath has error1 in it, return 1, if not return 0
-def error1(fullpath):
+def error1(fullpath,relax=False):
 	if os.path.exists(fullpath+"timing.txt"):
 		# Loop through all files in the directory fullpath
 		for filename in os.listdir(fullpath):
@@ -119,7 +119,7 @@ def error1(fullpath):
 	return False
 	
 #If fullpath has error2 in it, return 1, if not return 0
-def error2(fullpath):
+def error2(fullpath,relax=False):
 	if not os.path.exists(fullpath+"timing.txt"):
 		max_ind = get_max_ind(fullpath)
 		# Loop through all files in the directory fullpath
@@ -150,7 +150,7 @@ def error2(fullpath):
 	return False
 
 #If fullpath has error3 in it, return 1, if not return 0
-def error3(fullpath):
+def error3(fullpath,relax=False):
 	if os.path.exists(fullpath+"timing.txt"):
 		max_ind = get_max_ind(fullpath)
 		file = fullpath+str(max_ind)+"_data.h5"
@@ -162,7 +162,7 @@ def error3(fullpath):
 	return True
 
 
-def error4(fullpath):
+def error4(fullpath,relax=False):
 	has_err = os.path.exists(fullpath+"sim_err.log")
 	has_errors = os.path.exists(fullpath+"sim_errors.txt")
 
@@ -186,7 +186,7 @@ def error4(fullpath):
 
 
 
-def error5(fullpath):
+def error5(fullpath,relax=False):
 	if os.path.exists(fullpath+"timing.txt"):
 		has_err = os.path.exists(fullpath+"sim_err.log")
 		has_errors = os.path.exists(fullpath+"sim_errors.txt")
@@ -213,7 +213,7 @@ def error5(fullpath):
 def check_error(job_base,error,\
 				N=[30,100,300],\
 				Temps=[3,10,30,100,300,1000],\
-				num_attempts=30):
+				num_attempts=30,relax=False):
 
 	errors = []
 	if isinstance(num_attempts,int):
@@ -231,7 +231,7 @@ def check_error(job_base,error,\
 				if os.path.exists(job):
 					if os.path.exists(job+"timing.txt"):
 						valid_count += 1
-					output = error(job)
+					output = error(job,relax=relax)
 					if output > 0:
 						errors.append(job)
 				else:
@@ -268,19 +268,19 @@ def main():
 
 
 	attempts = [i for i in range(30)]
-	# attempts = [19]
+	attempts = [0]
 
 	N = [30,100,300]
-	# N=[100]
+	N=[100]
 
 	Temps = [3,10,30,100,300,1000]
-	# Temps = [1000]
+	Temps = [3]
 
 	errorDic = {}
 
 
-	# for i,error in enumerate([error3]):
-	for i,error in enumerate([errorn1,error0,error1,error2,error3,error4]):
+	# for i,error in enumerate([errorn1,error0,error1,error2,error3,error4]):
+	for i,error in enumerate([error2]):
 		print(f"======================================{error.__name__}======================================")
 		error_folders = check_error(job,error,N,Temps,attempts)
 		for folder in error_folders:

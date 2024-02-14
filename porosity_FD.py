@@ -84,7 +84,7 @@ def porosity_measure1(data_folder,data_index=-1):
 	data,radius,mass,moi = u.get_data(data_folder,data_index)
 	if data is None:
 		return np.nan
-	num_balls = data.shape[0]
+	# num_balls = data.shape[0]
 
 	effective_radius = np.power(np.sum(np.power(radius,3)),1/3) 
 
@@ -111,7 +111,7 @@ def porosity_measure2(data_folder,data_index=-1):
 	data,radius,mass,moi = u.get_data(data_folder,data_index)
 	if data is None:
 		return np.nan
-	num_balls = data.shape[0]
+	# num_balls = data.shape[0]
 
 	effective_radius = np.power(np.sum(np.power(radius,3)),1/3)  
 	# effective_radius = radius*np.power(num_balls,1/3) 
@@ -126,6 +126,24 @@ def porosity_measure2(data_folder,data_index=-1):
 
 	porosity = 1-np.power((effective_radius/RKBM),3)
 	return porosity
+
+def get_gyration_radius(data_folder,data_index=-1):
+	data,radius,mass,moi = u.get_data(data_folder,data_index)
+	if data is None:
+		return np.nan
+
+	effective_radius = np.power(np.sum(np.power(radius,3)),1/3)  
+	# effective_radius = radius*np.power(num_balls,1/3) 
+		
+	principal_moi = get_principal_moi(np.mean(mass),data)
+	# principal_moi = get_principal_moi(mass,data)
+
+	alphai = principal_moi/(0.4*np.sum(mass)*effective_radius**2)
+	# alphai = principal_moi/(0.4*num_balls*mass*effective_radius**2)
+
+	RKBM = np.sqrt(np.sum(alphai)/3) * effective_radius
+
+	return RKBM*np.sqrt(3/5) #RKBM is sqrt(5/3)*R_gyration
 
 # def dist(i,j,)
 
@@ -153,13 +171,8 @@ if __name__ == '__main__':
 	with open(project_path+"default_files/default_input.json",'r') as fp:
 		input_json = json.load(fp)
 	
-	# job = curr_folder + 'jobs/' + job_set_name + str(attempt) + '/'
 	path = input_json["data_directory"]
-	# data_prefolder = path + 'jobs/calibrateTest'
-	# data_prefolder = path + 'jobs/mu_max'
-	# data_prefolder = path + 'jobs/h_max'
-	# data_prefolder = path + 'jobs/lognorm'
-	# data_prefolder = path + 'jobs/tempVarianceRand_attempt'
+
 	data_prefolder = path + 'jobsOld/tempVarianceRand_attempt'
 	data_prefolder = path + 'jobsNovus/const'
 	data_prefolder = path + 'jobsNovus/const_relax'
@@ -174,17 +187,15 @@ if __name__ == '__main__':
 
 
 	temps = [3,10,30,100,300,1000]
-	# temps = [3]
+	# temps = [1000]
 	Nums = [30,100,300]
 	# Nums = [30]
 	
 	
 	attempts = [i for i in range(30)]
 	# attempts = [i for i in range(2)]
-	# attempts = [1]
-	attempts300 = attempts
-	# attempts300 = [i for i in range(9)]
-	# data = [] 
+	# attempts = [18]
+
 
 
 	
@@ -216,18 +227,7 @@ if __name__ == '__main__':
 
 	properties = 15 #number of columns to save for every Num
 
-	# porositiesabcavg[:] = np.nan
-	# porositiesKBMavg[:] = np.nan
-	# porositiesabcstd[:] = np.nan
-	# porositiesKBMstd[:] = np.nan
-	# contactsavg[:] = np.nan
-	# contactsstd[:] = np.nan
-	# FD_dataavg[:] = np.nan
-	# FD_datastd[:] = np.nan
-	# yerr_abc[:] = np.nan
-	# yerr_KBM[:] = np.nan
-	# yerr_FD[:] = np.nan
-	# yerr_ca[:] = np.nan
+
 
 	relax = False
 	if dataset_name.split('_')[-1] == "relax":
@@ -240,7 +240,7 @@ if __name__ == '__main__':
 	show_plots = True
 	make_FD = True
 	show_FD_plots = False
-	overwrite_octree_data = True 
+	overwrite_octree_data = False 
 	find_stats = False
 	show_stat_plots = False
 
@@ -249,8 +249,7 @@ if __name__ == '__main__':
 	if new_data:
 		std_dev = []
 		std_err = []
-		# attempts = [attempts[3]]
-		num_attempts = np.max([len(attempts),len(attempts300)])
+		num_attempts = len(attempts)
 		angmom = np.full(shape=(len(Nums),len(temps),num_attempts),fill_value=np.nan,dtype=np.float64)
 		porositiesabc = np.full(shape=(len(Nums),len(temps),num_attempts),fill_value=np.nan,dtype=np.float64)
 		porositiesKBM = np.full(shape=(len(Nums),len(temps),num_attempts),fill_value=np.nan,dtype=np.float64) 
@@ -259,21 +258,17 @@ if __name__ == '__main__':
 
 		for i,temp in enumerate(temps):
 			for n,N in enumerate(Nums):
-				# if N == 300:
-				# 	a = attempts300
-				# else:
-				# 	a = attempts
-				a = attempts
-				for j,attempt in enumerate(a):
-					# temp = 100
-					# N = 300
-					# attempt = 12
-					# data_folder = data_prefolder + str(attempt) + '/'
+				for j,attempt in enumerate(attempts):
 					data_folder = data_prefolder + str(attempt) + '/' + 'N_' + str(N) + '/T_' + str(temp) + '/'
-					# print(data_folder)
 					count = 0
 					if os.path.exists(data_folder):
-						if os.path.exists(data_folder+"timing.txt") or u.find_max_index(data_folder) >= N-3:
+						#We want to go into the next if block only if the simulation is finished. This is true
+						#if timing.txt is in there. If the simulation is too old, it wont have timing.txt and you 
+						#have to go off the indices of the data. But this will only work if it isn't a relax job.
+						#Relax jobs are new enough they will all have timing.txt if they are done, however, they 
+						#will also have a large enough file index from the start of the sim due to the copy over
+						#of initial conditions. 
+						if os.path.exists(data_folder+"timing.txt") or (not relax and u.find_max_index(data_folder) >= N-3):
 							porositiesabc[n,i,j] = porosity_measure1(data_folder,N-3)
 							porositiesKBM[n,i,j] = porosity_measure2(data_folder,N-3)
 							contacts[n,i,j] = number_of_contacts(data_folder,N-3,relax=relax)

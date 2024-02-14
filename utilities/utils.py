@@ -90,7 +90,7 @@ def get_data_file(data_folder,data_index=-1,relax=False): #Works with csv or h5
 	for file in files:
 		if file.endswith(f"{rel}simData.csv"):
 			file_suffix = f"_{rel}simData.csv"
-			if file.count("_") > 1:
+			if file.count("_") > 1 and not relax: #relax are never old
 				old = True
 		if file.endswith(f"{rel}data.h5"):
 			file_suffix = f"_{rel}data.h5"
@@ -117,6 +117,8 @@ def get_data_file(data_folder,data_index=-1,relax=False): #Works with csv or h5
 		data_file = [file for file in files \
 					if file.endswith(file_suffix) and file.startswith(str(index))]
 
+	
+
 
 	if len(data_file) == 1:
 		return data_file[0]
@@ -129,7 +131,7 @@ def get_data_file(data_folder,data_index=-1,relax=False): #Works with csv or h5
 
 		data_file = [file for file in files \
 				if file.endswith(f"{rel}simData.csv") and file.startswith(str(index)+'_2')]
-
+		print(rel)
 		if len(data_file) == 1:
 			return data_file[0]
 		elif len(data_file) == 2:
