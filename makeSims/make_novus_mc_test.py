@@ -59,13 +59,13 @@ if __name__ == '__main__':
 
 	folders = []
 	for n in N:
-		threads = 2
+		threads = 16
 		# if n == 30:
 		# 	threads = 1
 		# elif n == 100:
-		# 	threads = 1
+		# 	threads = 2
 		# else:# n == 300:
-		# 	threads = 1
+		# 	threads = 16
 		temp_attempt = attempts
 		if n == 300:
 			temp_attempt = attempts_300
@@ -113,22 +113,22 @@ if __name__ == '__main__':
 					# sbatchfile += "#SBATCH -C gpu\n"
 					# sbatchfile += "#SBATCH -q regular\n"
 					# sbatchfile += "#SBATCH -t 0:10:00\n"
-					sbatchfile += "#SBATCH -J {}\n".format(job_set_name)
-					sbatchfile += "#SBATCH -N {}\n".format(node)#(node)
-					# sbatchfile += "#SBATCH -n {}\n".format(1)#(node)
+					sbatchfile += f"#SBATCH -J {job_set_name}\n"
+					sbatchfile += f"#SBATCH -N {node}\n"
+					sbatchfile += f"#SBATCH -n {node}\n"
+					sbatchfile += f"#SBATCH -c {threads}\n\n"
 					# sbatchfile += "#SBATCH -N {}\n".format(1)#(node)
 
 					# sbatchfile += "#SBATCH -G {}\n".format(node)
-					# sbatchfile += "#SBATCH -c {}\n\n".foramt(2*thread)
 					# sbatchfile += 'module load gpu\n'
 
-					sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(threads)
+					sbatchfile += f'export OMP_NUM_THREADS={threads}\n'
 					sbatchfile += 'export SLURM_CPU_BIND="cores"\n'
 					# sbatchfile += 'module load hdf5/1.14.3\n'
 					sbatchfile += 'module load hdf5/1.10.8\n'
 					
-					# sbatchfile += "srun -n {} -c {} --cpu-bind=cores numactl --interleave=all ./ColliderMultiCore.x {} 2>sim_err.log 1>sim_out.log".format(node,thread*2,job)
-					sbatchfile += f"srun -n {node} -c {threads*2} --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+					# sbatchfile += f"srun -n {node} -c {threads} --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+					sbatchfile += f"srun --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 
 
 					

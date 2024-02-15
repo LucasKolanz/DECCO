@@ -223,11 +223,15 @@ int get_num_threads(Ball_group &O)
     // return std::min(closestPowerOf2(interpolatedValue),O.attrs.MAXOMPthreads);        // Find the closest power of 2
 
     //I could only test up to 16 threads so far. Not enough data for linear interp
-    int threads = 1;
+    int threads;
     if (N < 0)
     {
         std::cerr<<"ERROR: negative number of particles."<<std::endl;
         exit(-1);
+    }
+    else if (N < 80)
+    {
+        threads = 1;
     }
     else if (N < 140)
     {
