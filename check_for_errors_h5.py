@@ -8,7 +8,8 @@
 #
 #Error 2: Are there any nan values in sims that aren't the highest index, when timing.txt doesnt exist
 #
-#Error 3: Metadata check. Is there any metadata associated with the largest index file if timing.txt exists?
+#Error 3: Metadata check. Is there any metadata associated with the largest index file if timing.txt DOESN'T exists?
+#		  This is really more of a warning as it means the code won't restart from an ideal spot if stopped.
 #
 #Error 4: integer overflow in number of steps
 #
@@ -159,7 +160,9 @@ def error3(fullpath,relax=False):
 			metadata = {attr: dataset.attrs[attr] for attr in dataset.attrs}
 			if len(metadata) > 0:
 				return False
-	return True
+			else:
+				return True
+	return False
 
 
 def error4(fullpath,relax=False):
@@ -263,24 +266,24 @@ def main():
 	job = curr_folder + 'jobs/weakseed$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'erroredJobs/lognorm$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'jobsNovus/testError$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobsNovus/const$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobs/const$a$/N_$n$/T_$t$/'
 	print(job)
 
 
 	attempts = [i for i in range(30)]
-	attempts = [0]
+	# attempts = [0]
 
 	N = [30,100,300]
-	N=[100]
+	# N=[100]
 
 	Temps = [3,10,30,100,300,1000]
-	Temps = [3]
+	# Temps = [3]
 
 	errorDic = {}
 
 
-	# for i,error in enumerate([errorn1,error0,error1,error2,error3,error4]):
-	for i,error in enumerate([error2]):
+	# for i,error in enumerate([error2]):
+	for i,error in enumerate([errorn1,error0,error1,error2,error3,error4]):
 		print(f"======================================{error.__name__}======================================")
 		error_folders = check_error(job,error,N,Temps,attempts)
 		for folder in error_folders:
