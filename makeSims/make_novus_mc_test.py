@@ -37,15 +37,13 @@ if __name__ == '__main__':
 
 	job_set_name = "TEST"
 	job_set_name = "const"
-	# folder_name_scheme = "T_"
+	job_set_name = "mpTest"
 
-	# runs_at_once = 7
-	# attempts = [21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40]
-	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
+	# folder_name_scheme = "T_"
+ 
 	# attempts = [i for i in range(30)]
-	attempts = [i for i in range(30)]
-	# attempts = [30]
-	# attempts_300 = [i for i in range(30)]
+	attempts = [0]
+
 	# attempts = [1] 
 	attempts_300 = attempts
 
@@ -55,19 +53,19 @@ if __name__ == '__main__':
 
 	node = 1
 	N = [30,100,300]
-	# N = [300]
+	N = [30]
 	Temps = [3,10,30,100,300,1000]
-	# Temps = [3]
+	Temps = [3]
 
 	folders = []
 	for n in N:
-		threads = 1
-		if n == 30:
-			threads = 1
-		elif n == 100:
-			threads = 2
-		else:# n == 300:
-			threads = 16
+		threads = 16
+		# if n == 30:
+		# 	threads = 1
+		# elif n == 100:
+		# 	threads = 2
+		# else:# n == 300:
+		# 	threads = 16
 		temp_attempt = attempts
 		if n == 300:
 			temp_attempt = attempts_300
@@ -102,7 +100,7 @@ if __name__ == '__main__':
 					input_json['OMPthreads'] = threads
 					# input_json['u_s'] = 0.5
 					# input_json['u_r'] = 0.5
-					input_json['note'] = "Rerunning constant size ball runs."
+					input_json['note'] = "Test multicore"
 					####################################
 
 					with open(job + "input.json",'w') as fp:
@@ -124,13 +122,13 @@ if __name__ == '__main__':
 					# sbatchfile += "#SBATCH -G {}\n".format(node)
 					# sbatchfile += 'module load gpu\n'
 
-					sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(threads)
+					sbatchfile += f'export OMP_NUM_THREADS={threads}\n'
 					sbatchfile += 'export SLURM_CPU_BIND="cores"\n'
 					# sbatchfile += 'module load hdf5/1.14.3\n'
 					sbatchfile += 'module load hdf5/1.10.8\n'
 					
 					# sbatchfile += f"srun -n {node} -c {threads} --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
-					sbatchfile += f"srun -n {node} -c {threads} --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+					sbatchfile += f"srun --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 
 
 					

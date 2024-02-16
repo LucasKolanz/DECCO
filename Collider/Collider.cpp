@@ -71,6 +71,8 @@ main(int argc, char* argv[])
         "Hello from rank %d\n",
         world_rank);
     fflush(stderr);
+
+
     // energyBuffer.precision(12);  // Need more precision on momentum.
 
     //make dummy ball group to read input file
@@ -85,6 +87,9 @@ main(int argc, char* argv[])
         location = "";
     }
     dummy.parse_input_file(location);
+
+    //verify OpenMP threads
+    std::cerr<<"Asking for a max of "<<omp_get_max_threads()<<" threads."<<std::endl;
 
     if (dummy.attrs.typeSim == dummy.attrs.collider)
     {
@@ -157,6 +162,7 @@ void BPCA(std::string path, int num_balls)
     safetyChecks(O);
     if  (O.attrs.mid_sim_restart)
     {
+        std::cerr<<"Asking for "<<get_num_threads(O)<<" threads."<<std::endl;
         sim_looper(O,O.attrs.start_step);
     }
 
@@ -170,6 +176,7 @@ void BPCA(std::string path, int num_balls)
         {
             O.sim_init_write(i);
         }
+        std::cerr<<"Asking for "<<get_num_threads(O)<<" threads."<<std::endl;
         sim_looper(O,1);
         O.attrs.simTimeElapsed = 0;
     }
@@ -216,11 +223,15 @@ int get_num_threads(Ball_group &O)
     // return std::min(closestPowerOf2(interpolatedValue),O.attrs.MAXOMPthreads);        // Find the closest power of 2
 
     //I could only test up to 16 threads so far. Not enough data for linear interp
-    int threads = 1;
+    int threads;
     if (N < 0)
     {
         std::cerr<<"ERROR: negative number of particles."<<std::endl;
         exit(-1);
+    }
+    else if (N < 80)
+    {
+        threads = 1;
     }
     else if (N < 140)
     {
