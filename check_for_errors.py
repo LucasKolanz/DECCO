@@ -404,17 +404,17 @@ def error5(fullpath,relax=False):
 
 		simData = np.loadtxt(fullpath+max_filename,skiprows=1,delimiter=',',dtype=np.float64)[-1]
 		simData = simData.reshape(int(simData.shape[0]/simData_properties),simData_properties) #now it is simData[ball,property]
-		data = simData[:,:3]
+		pos = simData[:,:3]
 		constants = np.loadtxt(fullpath+max_filename.replace("simData.csv","constants.csv"),skiprows=0,delimiter=',',dtype=np.float64)
 		radii = constants[:,0]
 		mass = constants[:,1]
-		com = get_COM(data,mass,radii)
+		com = get_COM(pos,mass)
 		# data,radii,mass,moi = u.get_data(fullpath,max_index,linenum=-1,relax=relax)
 		# r_g = pFD.get_gyration_radius(fullpath,max_index)
 
 
 		for i in range(radii.shape[0]):
-			if (dist(data[i,0],data[i,1],data[i,2],com[0],com[1],com[2]) <= 2*radii[i]): #if a ball's center is closer or equal to two of its radii to the aggregates center of mass. I take this to mean the aggregate is aggregating correctly and not shooting all over the place  
+			if (dist(pos[i,0],pos[i,1],pos[i,2],com[0],com[1],com[2]) <= 2*radii[i]): #if a ball's center is closer or equal to two of its radii to the aggregates center of mass. I take this to mean the aggregate is aggregating correctly and not shooting all over the place  
 				return False
 		return True
 	return False
@@ -427,7 +427,7 @@ def get_COM(pos,mass):
 	com = np.array([0,0,0],dtype=np.float64)
 	mtot = 0
 
-	for ball in range(data.shape[0]):
+	for ball in range(pos.shape[0]):
 		com += mass[ball]*pos[ball]
 		mtot += mass[ball]
 
