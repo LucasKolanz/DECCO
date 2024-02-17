@@ -27,10 +27,11 @@ relative_path = ""
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
 
-sys.path.append(project_path+"utilities/")
-import utils as u
-sys.path.append(project_path)
-import porosity_FD as pFD
+simData_properties = 11
+# sys.path.append(project_path+"utilities/")
+# from utils import index_from_file
+# sys.path.append(project_path)
+# import porosity_FD as pFD
 
 
 def check_final_error(job_base,error,\
@@ -138,6 +139,14 @@ def ck_error2_by_file(file,verbose=False,relax=False):
 		return True
 	return False
 
+def index_from_file(file):
+	file_split = file.split("_")
+	if not file_split[1].isnumeric():
+		return 0
+	else:
+		return int(file_split[0])
+	exit(0)
+
 def error2_index(fullpath,verbose=False):
 	directory = os.fsencode(fullpath)
 	lowest_index = 9999999999
@@ -148,13 +157,13 @@ def error2_index(fullpath,verbose=False):
 				temp = np.loadtxt(fullpath+filename,skiprows=1,delimiter=',')
 				x,y = temp.shape
 				if x != 51:
-					ind = u.index_from_file(filename)
+					ind = index_from_file(filename)
 					if verbose:
 						print(f"ERROR: x={x} for file={filename}")
 					if ind < lowest_index:
 						lowest_index = ind
 			except ValueError as E:
-				ind = u.index_from_file(filename)
+				ind = index_from_file(filename)
 				if verbose:
 					print(f"ERROR: {E} for file={filename}")
 				if ind < lowest_index:
@@ -375,6 +384,7 @@ def error5(fullpath,relax=False):
 	if (os.path.exists(fullpath+"timing.txt")):
 		directory = os.fsencode(fullpath)
 		max_index = -1
+		max_filename = ""
 
 		rel = ""
 		if relax:
@@ -390,15 +400,21 @@ def error5(fullpath,relax=False):
 				
 				if index > max_index:
 					max_index = index
+					max_filename = filename
 
-
-		data,radii,mass,moi = u.get_data(fullpath,max_index,linenum=-1,relax=relax)
-		com = u.COM(fullpath, max_index)
+		simData = np.loadtxt(fullpath+max_filename,skiprows=1,delimiter=',',dtype=np.float64)[-1]
+		simData = simData.reshape(int(simData.shape[0]/simData_properties),simData_properties) #now it is simData[ball,property]
+		pos = simData[:,:3]
+		constants = np.loadtxt(fullpath+max_filename.replace("simData.csv","constants.csv"),skiprows=0,delimiter=',',dtype=np.float64)
+		radii = constants[:,0]
+		mass = constants[:,1]
+		com = get_COM(pos,mass)
+		# data,radii,mass,moi = u.get_data(fullpath,max_index,linenum=-1,relax=relax)
 		# r_g = pFD.get_gyration_radius(fullpath,max_index)
 
 
 		for i in range(radii.shape[0]):
-			if (dist(data[i,0],data[i,1],data[i,2],com[0],com[1],com[2]) <= 2*radii[i]): #if a ball's center is closer or equal to two of its radii to the aggregates center of mass. I take this to mean the aggregate is aggregating correctly and not shooting all over the place  
+			if (dist(pos[i,0],pos[i,1],pos[i,2],com[0],com[1],com[2]) <= 2*radii[i]): #if a ball's center is closer or equal to two of its radii to the aggregates center of mass. I take this to mean the aggregate is aggregating correctly and not shooting all over the place  
 				return False
 		return True
 	return False
@@ -406,7 +422,16 @@ def error5(fullpath,relax=False):
 
 
 
+def get_COM(pos,mass):
+	
+	com = np.array([0,0,0],dtype=np.float64)
+	mtot = 0
 
+	for ball in range(pos.shape[0]):
+		com += mass[ball]*pos[ball]
+		mtot += mass[ball]
+
+	return com/mtot
 
 
 
@@ -416,8 +441,9 @@ def main():
 		input_json = json.load(fp)
 
 
-	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobs/lognorm$a$/N_$n$/T_$t$/'
 	
 
 	attempts = [i for i in range(30)]

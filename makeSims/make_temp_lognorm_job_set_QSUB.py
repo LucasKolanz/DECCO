@@ -42,31 +42,33 @@ if __name__ == '__main__':
 	# attempts = [21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40]
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	attempts = [i for i in range(0,30)]
-	attempts_300 = [i for i in range(0,15)]
+	# attempts = [90]
+	# attempts_300 = [i for i in range(0,15)]
 	# attempts = [1] 
 	# attempts_300 = attempts
 
-	N = [30,100,300]
-	# N = [300]
 	node = 1
+
+	N = [300,100,30]
+	# N = [30]
 	Temps = [3,10,30,100,300,1000]
 	# Temps = [3]
-	# Temps = [3]
+
 
 	folders = []
-	for n in N:
-		if n == 30:
-			threads = 1
-		elif n == 100:
-			threads = 2
-		else:# n == 300:
-			threads = 16
+	for attempt in attempts:
+		for n in N:
+			if n == 30:
+				threads = 1
+			elif n == 100:
+				threads = 2
+			else:# n == 300:
+				threads = 16
 
-		for Temp in Temps:
-			temp_attempt = attempts
-			if n == 300:
-				temp_attempt = attempts_300
-			for attempt in temp_attempt:
+			for Temp in Temps:
+				# temp_attempt = attempts
+				# if n == 300:
+				# 	temp_attempt = attempts_300
 
 				#load default input file
 				with open(project_path+"default_files/default_input.json",'r') as fp:
@@ -81,61 +83,64 @@ if __name__ == '__main__':
 				else:
 					print("Job '{}' already exists.".format(job))
 
+				if os.path.exists(job+"timing.txt"):
+					print("Sim already complete")
+				else:
+					#load default input file
+
+					####################################
+					######Change input values here######
+					input_json['temp'] = Temp
+					input_json['seed'] = rand_int()
+					input_json['radiiDistribution'] = 'logNormal'
+					input_json['N'] = n
+					input_json['h_min'] = 0.5
+					input_json['dataFormat'] = "csv"
+					input_json['output_folder'] = job
+					input_json['OMPthreads'] = threads
+					# input_json['u_s'] = 0.5
+					# input_json['u_r'] = 0.5
+					input_json['note'] = "Runs lognorm for all temps and sizes "
+					####################################
+
+					with open(job + "input.json",'w') as fp:
+						json.dump(input_json,fp,indent=4)
 
 
-				####################################
-				######Change input values here######
-				input_json['temp'] = Temp
-				input_json['seed'] = rand_int()
-				input_json['radiiDistribution'] = 'logNormal'
-				input_json['N'] = n
-				input_json['h_min'] = 0.5
-				input_json['dataFormat'] = "csv"
-				input_json['output_folder'] = job
-				input_json['OMPthreads'] = threads
-				# input_json['u_s'] = 0.5
-				# input_json['u_r'] = 0.5
-				input_json['note'] = "Runs lognorm for all temps and sizes "
-				####################################
+					qsubfile = ""
+					qsubfile += "#!/bin/sh\n"
+					# qsubfile += "#!/bin/bash\n"
+					# qsubfile += "#$ -l nodes=1:ppn=1\n"
+					qsubfile += "#$ -S /bin/sh\n"
+					# qsubfile += "#$ -S /bin/bash\n"
+					qsubfile += "#$ -q lazzati.q\n"
+					qsubfile += f"#$ -N a{attempt}-N{n}-T{Temp}\n"
+					qsubfile += "#$ -cwd\n"
+					qsubfile += "#$ -m e\n"
+					# qsubfile += "#$ -l exclusive\n"
+					qsubfile += f"#$ -pe orte {threads}\n"
+					qsubfile += "#$ -M kolanzl@oregonstate.edu\n"
+					qsubfile += "#$ -o sim_out.log\n"
+					qsubfile += "#$ -e sim_err.log\n\n"
 
-				with open(job + "input.json",'w') as fp:
-					json.dump(input_json,fp,indent=4)
-
-
-				qsubfile = ""
-				qsubfile += "#!/bin/sh\n"
-				# qsubfile += "#!/bin/bash\n"
-				# qsubfile += "#$ -l nodes=1:ppn=1\n"
-				qsubfile += "#$ -S /bin/sh\n"
-				# qsubfile += "#$ -S /bin/bash\n"
-				qsubfile += "#$ -q lazzati.q\n"
-				qsubfile += "#$ -N {}-N_{}-T_{}\n".format(job_set_name,n,Temp)
-				qsubfile += "#$ -cwd\n"
-				qsubfile += "#$ -m e\n"
-				qsubfile += "#$ -l exclusive\n"
-				qsubfile += f"#$ -pe orte {threads}\n"
-				qsubfile += "#$ -M kolanzl@oregonstate.edu\n"
-				qsubfile += "#$ -o sim_out.log\n"
-				qsubfile += "#$ -e sim_err.log\n\n"
-
-				qsubfile += f"export OMP_NUM_THREADS={threads}\n"
-				qsubfile += "module load default-environment\n"
-				qsubfile += "module unload gcc/5.1.0\n"
-				qsubfile += "module load gcc/12.2.0\n"
-				
-				qsubfile += f"{job}Collider.x {job}\n"
+					qsubfile += f"export OMP_NUM_THREADS={threads}\n"
+					qsubfile += "module load default-environment\n"
+					qsubfile += "module unload gcc/5.1.0\n"
+					qsubfile += "module load gcc/12.2.0\n"
+					
+					qsubfile += f"{job}Collider.x {job}\n"
 
 
-				
-				with open(job+"qsub.bash",'w') as sfp:
-					sfp.write(qsubfile)
+					
+					with open(job+"qsub.bash",'w') as sfp:
+						sfp.write(qsubfile)
 
-				#add run script and executable to folders
-				os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
-				os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
-				os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
+					#add run script and executable to folders
+					os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
+					os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
+					os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
 
-				folders.append(job)
+					folders.append(job)
 
 
 print(folders)

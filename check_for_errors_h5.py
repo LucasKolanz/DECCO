@@ -8,7 +8,8 @@
 #
 #Error 2: Are there any nan values in sims that aren't the highest index, when timing.txt doesnt exist
 #
-#Error 3: Metadata check. Is there any metadata associated with the largest index file if timing.txt exists?
+#Error 3: Metadata check. Is there any metadata associated with the largest index file if timing.txt DOESN'T exists?
+#		  This is really more of a warning as it means the code won't restart from an ideal spot if stopped.
 #
 #Error 4: integer overflow in number of steps
 #
@@ -159,7 +160,9 @@ def error3(fullpath,relax=False):
 			metadata = {attr: dataset.attrs[attr] for attr in dataset.attrs}
 			if len(metadata) > 0:
 				return False
-	return True
+			else:
+				return True
+	return False
 
 
 def error4(fullpath,relax=False):
@@ -263,7 +266,7 @@ def main():
 	job = curr_folder + 'jobs/weakseed$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'erroredJobs/lognorm$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'jobsNovus/testError$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobsNovus/const$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobs/const$a$/N_$n$/T_$t$/'
 	print(job)
 
 
