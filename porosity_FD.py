@@ -175,8 +175,8 @@ if __name__ == '__main__':
 
 	data_prefolder = path + 'jobsOld/tempVarianceRand_attempt'
 	data_prefolder = path + 'jobsNovus/const'
-	data_prefolder = path + 'jobsNovus/const_relax'
 	data_prefolder = path + 'jobsCosine/lognorm'
+	data_prefolder = path + 'jobsNovus/const_relax'
 	data_prefolder = path + 'jobsCosine/lognorm_relax'
 
 	dataset_name = data_prefolder.split("/")[-1]
@@ -189,7 +189,7 @@ if __name__ == '__main__':
 	temps = [3,10,30,100,300,1000]
 	# temps = [1000]
 	Nums = [30,100,300]
-	# Nums = [30]
+	Nums = [300]
 	
 	
 	attempts = [i for i in range(30)]
@@ -236,11 +236,11 @@ if __name__ == '__main__':
 	print(f"relax: {relax}")
 
 	new_data = True     
-	save_data = True
+	save_data = False
 	show_plots = True
 	make_FD = True
 	show_FD_plots = False
-	overwrite_octree_data = False 
+	overwrite_octree_data = True 
 	find_stats = False
 	show_stat_plots = False
 
