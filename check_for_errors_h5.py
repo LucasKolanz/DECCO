@@ -14,6 +14,12 @@
 #Error 4: integer overflow in number of steps
 #
 #Error 5: did we get "Simulation complete!" within the last 10 lines of sim_error.log and timing.txt exists?
+#
+#Error 6: Are any balls not touching the aggregate at the end? (Only applicable to BPCA growth as an error)
+#			It seems to be possible for a ball to not be touching at the moment of the end of the simulation, but still
+#			be a part of the aggregate if the aggregate isn't totally relaxed. To make sure this is the case and 
+#			it isn't an actual error6, load the aggregate in Blender, select all balls and move them all into frame.
+#			If a ball is outside the aggregate, you will then be able to tell. 
 
 import os
 import glob
@@ -21,10 +27,13 @@ import numpy as np
 # import utils as u
 import h5py
 import json
+import check_for_errors as cfe
 
 relative_path = ""
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
+
+
 
 #returns the last line of the file file_path
 def tail(file_path,n):
@@ -213,6 +222,45 @@ def error5(fullpath,relax=False):
 
 
 
+def error6(fullpath,relax=None):
+	if (os.path.exists(fullpath+"timing.txt")):
+		directory = os.fsencode(fullpath)
+
+		N = int(fullpath.split("/")[-3].split("_")[-1])
+		rel = ""
+		if relax:
+			rel = "RELAX"
+		#find the highest index file
+		for file in os.listdir(directory):
+			filename = os.fsdecode(file)
+			if filename.endswith(f"{rel}data.h5"):
+
+				index = int(filename.split("_")[0])
+				
+				if index == N-3:
+								
+					with h5py.File(fullpath+filename, 'r') as file:
+						constants = np.array(file['/constants'][:])
+						radii = constants[np.where(np.arange(constants.shape[0])%3==0)]
+						num_spheres = radii.shape[0]
+
+						simData_single_ball_width = 11
+
+						simData = np.array(file['/simData'][-simData_single_ball_width*num_spheres:])
+						simData = simData.reshape(num_spheres,simData_single_ball_width)
+						pos = simData[:,:3]
+
+						connected = cfe.are_spheres_connected(pos,radii)
+
+						if connected:
+							return False
+						else:
+							return True
+
+	return False
+
+
+
 def check_error(job_base,error,\
 				N=[30,100,300],\
 				Temps=[3,10,30,100,300,1000],\
@@ -284,8 +332,8 @@ def main():
 	errorDic = {}
 
 
-	# for i,error in enumerate([error2]):
-	for i,error in enumerate([errorn1,error0,error1,error2,error3,error4]):
+	# for i,error in enumerate([errorn1,error0,error1,error2,error3,error4]):
+	for i,error in enumerate([error6]):
 		print(f"======================================{error.__name__}======================================")
 		error_folders = check_error(job,error,N,Temps,attempts)
 		for folder in error_folders:

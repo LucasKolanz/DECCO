@@ -15,6 +15,10 @@
 #Error 5: Are any balls within a few radii of the center of mass? If not, balls might not be contacting the growing aggregate
 #
 #Error 6: Are any balls not touching the aggregate at the end? (Only applicable to BPCA growth as an error)
+#			It seems to be possible for a ball to not be touching at the moment of the end of the simulation, but still
+#			be a part of the aggregate if the aggregate isn't totally relaxed. To make sure this is the case and 
+#			it isn't an actual error6, load the aggregate in Blender, select all balls and move them all into frame.
+#			If a ball is outside the aggregate, you will then be able to tell. 
 
 
 import os
@@ -230,6 +234,8 @@ def check_error(job_base,error,\
 					# print(f"{job} doesn't exist")
 
 	print(f"{len(errors)} errors, out of {valid_count} valid runs, out of {len(N)*len(attempts)*len(Temps)} runs.")
+	if valid_count == 0:
+		print("WARNING: valid_count is zero.")
 	return errors
 
 def get_file_base(folder):
@@ -517,9 +523,9 @@ def main():
 		input_json = json.load(fp)
 
 
-	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + 'jobs/lognorm$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
 	
 
 	attempts = [i for i in range(30)]
@@ -557,6 +563,8 @@ def main():
 			print(f"Errors in folder {key}")
 			for error in errorDic[key]:
 				print(f"\t{error}")
+
+
 
 	# errorgen_folders = check_error(job,error_general,N,Temps,attempts)
 	# print(errorgen_folders)
