@@ -44,25 +44,27 @@ if __name__ == '__main__':
 	job_set_name = "errorckcsvlognorm"
 	job_set_name = "overflowerror"
 	job_set_name = "errorckh5lognorm"
-	job_set_name = "const_relax"
-	job_set_name = "lognorm_relax"
 
+	job_set_name = "const_relax"
 	job_group = "jobsNovus"
-	job_group = "jobsCosine"
+
+	# job_set_name = "lognorm_relax"
+	# job_group = "jobsCosine"
+	
 	rsize = job_set_name.split("_")[0]
 
 	# folder_name_scheme = "T_"
 
 
-	runs_at_once = 12
+	runs_at_once = 7
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	attempts = [i for i in range(30)] 
-	attempts = [18] 
+	# attempts = [18] 
 	N = [30,100,300]
-	N = [30]
+	# N = [300]
 	threads = []
 	Temps = [3,10,30,100,300,1000]
-	Temps = [1000]
+	# Temps = [1000]
 	folders = []
 	for attempt in attempts:
 		for n in N:
@@ -100,7 +102,7 @@ if __name__ == '__main__':
 						# input_json['h_min'] = 0.5
 						# input_json['dataFormat'] = "csv"
 						input_json['relaxIndex'] = n-3
-						input_json['simTimeSeconds'] = 1e-3
+						input_json['simTimeSeconds'] = 2e-3
 						# input_json['timeResolution'] = 
 
 						input_json['output_folder'] = job

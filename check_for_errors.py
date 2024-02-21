@@ -441,9 +441,9 @@ def main():
 		input_json = json.load(fp)
 
 
-	job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + 'jobs/lognorm$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
 	
 
 	attempts = [i for i in range(30)]
@@ -464,8 +464,8 @@ def main():
 
 
 
-	# for i,error in enumerate([errorn1,error0,error1,error2,error3,error4,error5]):
-	for i,error in enumerate([error5]):
+	# for i,error in enumerate([error5]):
+	for i,error in enumerate([errorn1,error0,error1,error2,error3,error4,error5]):
 		print(f"======================================{error.__name__}======================================")
 		error_folders = check_error(job,error,N,Temps,attempts,relax=relax)
 		for folder in error_folders:
