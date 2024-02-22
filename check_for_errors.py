@@ -13,6 +13,12 @@
 #Error 4: integer overflow in number of steps
 #
 #Error 5: Are any balls within a few radii of the center of mass? If not, balls might not be contacting the growing aggregate
+#
+#Error 6: Are any balls not touching the aggregate at the end? (Only applicable to BPCA growth as an error)
+#			It seems to be possible for a ball to not be touching at the moment of the end of the simulation, but still
+#			be a part of the aggregate if the aggregate isn't totally relaxed. To make sure this is the case and 
+#			it isn't an actual error6, load the aggregate in Blender, select all balls and move them all into frame.
+#			If a ball is outside the aggregate, you will then be able to tell. 
 
 
 import os
@@ -182,8 +188,8 @@ def where_did_error1_start(fullpath):
 		if filename.endswith("constants.csv") and filename[2] != "R": 
 			index = int(filename.split('_')[0])
 			with open(fullpath+filename, 'r') as fp: #number of lines in this file is the number of balls in sim
-			    for count, line in enumerate(fp):
-			        pass
+				for count, line in enumerate(fp):
+					pass
 			balls = count+1 #IDK why you need to add one but this method doesn't count every line, it misses one at the beginning or end
 			if (balls != index+3):
 				if (index < min_ind):
@@ -228,6 +234,8 @@ def check_error(job_base,error,\
 					# print(f"{job} doesn't exist")
 
 	print(f"{len(errors)} errors, out of {valid_count} valid runs, out of {len(N)*len(attempts)*len(Temps)} runs.")
+	if valid_count == 0:
+		print("WARNING: valid_count is zero.")
 	return errors
 
 def get_file_base(folder):
@@ -309,8 +317,8 @@ def error1(fullpath,relax=False):
 		return False
 
 	with open(fullpath+test_file, 'r') as fp: #number of lines in this file is the number of balls in sim
-	    for count, line in enumerate(fp):
-	        pass
+		for count, line in enumerate(fp):
+			pass
 	balls = count+1 #IDK why you need to add one but this method doesn't count every line, it misses one at the beginning or end
 
 	if balls == max_ind+3: ### THIS IS SPECIFIC TO BPCA GROWTH RUNS
@@ -420,6 +428,80 @@ def error5(fullpath,relax=False):
 	return False
 
 
+def are_spheres_connected(pos, radii):
+	from collections import deque
+
+	def distance(a, b):
+		return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2) ** 0.5
+
+	def is_connected(index1, index2):
+		return distance(pos[index1], pos[index2]) <= radii[index1] + radii[index2]
+
+	n = len(pos)
+	if n == 0:
+		return False
+
+	# Build the adjacency list
+	adj_list = {i: [] for i in range(n)}
+	for i in range(n):
+		for j in range(i + 1, n):
+			if is_connected(i, j):
+			    adj_list[i].append(j)
+			    adj_list[j].append(i)
+
+	# BFS to check connectivity
+	visited = [False] * n
+	queue = deque([0])
+	visited[0] = True
+	while queue:
+		node = queue.popleft()
+		for neighbor in adj_list[node]:
+			if not visited[neighbor]:
+				visited[neighbor] = True
+				queue.append(neighbor)
+
+	return all(visited)
+
+
+def error6(fullpath,relax=None):
+	if (os.path.exists(fullpath+"timing.txt")):
+		directory = os.fsencode(fullpath)
+		max_index = -1
+		max_filename = ""
+
+		rel = ""
+		if relax:
+			rel = "RELAX"
+		#find the highest index file
+		for file in os.listdir(directory):
+			filename = os.fsdecode(file)
+			if filename.endswith(f"{rel}simData.csv"):
+				if filename.startswith("0_") or (not relax and filename.split("_")[1][0] == "R"): #this is for index zero
+					index = 0 
+				else:
+					index = int(filename.split("_")[0])
+				
+				if index > max_index:
+					max_index = index
+					max_filename = filename
+
+		simData = np.loadtxt(fullpath+max_filename,skiprows=1,delimiter=',',dtype=np.float64)[-1]
+		simData = simData.reshape(int(simData.shape[0]/simData_properties),simData_properties) #now it is simData[ball,property]
+		pos = simData[:,:3]
+		constants = np.loadtxt(fullpath+max_filename.replace("simData.csv","constants.csv"),skiprows=0,delimiter=',',dtype=np.float64)
+		radii = constants[:,0]
+		# mass = constants[:,1]
+		
+		connected = are_spheres_connected(pos,radii)
+
+		if connected:
+			return False
+		else:
+			return True
+
+	return False
+
+
 
 
 def get_COM(pos,mass):
@@ -442,8 +524,8 @@ def main():
 
 
 	job = input_json["data_directory"] + 'jobs/lognorm$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
 	
 
 	attempts = [i for i in range(30)]
@@ -464,8 +546,8 @@ def main():
 
 
 
-	# for i,error in enumerate([error5]):
-	for i,error in enumerate([errorn1,error0,error1,error2,error3,error4,error5]):
+	# for i,error in enumerate([errorn1,error0,error1,error2,error3,error4,error5]):
+	for i,error in enumerate([error6]):
 		print(f"======================================{error.__name__}======================================")
 		error_folders = check_error(job,error,N,Temps,attempts,relax=relax)
 		for folder in error_folders:
@@ -481,6 +563,8 @@ def main():
 			print(f"Errors in folder {key}")
 			for error in errorDic[key]:
 				print(f"\t{error}")
+
+
 
 	# errorgen_folders = check_error(job,error_general,N,Temps,attempts)
 	# print(errorgen_folders)
