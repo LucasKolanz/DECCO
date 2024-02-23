@@ -146,6 +146,16 @@ def get_gyration_radius(data_folder,data_index=-1):
 	return RKBM*np.sqrt(3/5) #RKBM is sqrt(5/3)*R_gyration
 
 # def dist(i,j,)
+def max_number_of_contacts(data_folder,data_index=-1,relax=False):
+	line = 0
+	max_nc = -1
+	nc = number_of_contacts(data_folder,data_index,line,relax)
+	while not np.isnan(nc):
+		max_nc = max(max_nc,nc)
+		line += 1 
+		nc = number_of_contacts(data_folder,data_index,line,relax)
+	return max_nc
+
 
 def number_of_contacts(data_folder,data_index=-1,line=-1,relax=False):
 	data,radius,mass,moi = u.get_data(data_folder,data_index,line,relax=relax)
@@ -236,9 +246,9 @@ if __name__ == '__main__':
 	print(f"relax: {relax}")
 
 	new_data = True     
-	save_data = True
+	save_data = False
 	show_plots = True
-	make_FD = True
+	make_FD = False
 	show_FD_plots = False
 	overwrite_octree_data = False 
 	
@@ -272,7 +282,7 @@ if __name__ == '__main__':
 						if os.path.exists(data_folder+"timing.txt") or (not relax and u.find_max_index(data_folder) >= N-3):
 							porositiesabc[n,i,j] = porosity_measure1(data_folder,N-3)
 							porositiesKBM[n,i,j] = porosity_measure2(data_folder,N-3)
-							contacts[n,i,j] = number_of_contacts(data_folder,N-3,relax=relax)
+							contacts[n,i,j] = max_number_of_contacts(data_folder,N-3,relax=relax)
 							angmom[n,i,j] = angular_momentum(data_folder,N-3,relax=relax)
 
 							if not np.isnan(porositiesabc[n,i,j]) and make_FD:
