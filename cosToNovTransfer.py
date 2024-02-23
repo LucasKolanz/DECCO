@@ -98,11 +98,11 @@ def main():
 	
 	# novus_base_folder = '/home/kolanzl/novus/kolanzl/SpaceLab_data/'
 	cosine_data_directory = '/home/physics/kolanzl/SpaceLab_data/'
+	novus_data_directory = '/home/kolanzl/novus/kolanzl/SpaceLab_data'
 
 	#load default input file
-	with open(project_path+"default_files/default_input.json",'r') as fp:
-		input_json = json.load(fp)
-	novus_data_directory = input_json["data_directory"]
+	# with open(project_path+"default_files/default_input.json",'r') as fp:
+	# 	input_json = json.load(fp)
 
 	job_set_name = "lognorm"
 
