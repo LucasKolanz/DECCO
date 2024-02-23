@@ -48,8 +48,8 @@ if __name__ == '__main__':
 	job_set_name = "const_relax"
 	job_group = "jobsNovus"
 
-	# job_set_name = "lognorm_relax"
-	# job_group = "jobsCosine"
+	job_set_name = "lognorm_relax"
+	job_group = "jobsCosine"
 	
 	rsize = job_set_name.split("_")[0]
 
