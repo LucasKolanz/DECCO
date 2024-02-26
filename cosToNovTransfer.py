@@ -147,7 +147,7 @@ def main():
 	job_set_name = "lognorm"
 
 	attempts = [i for i in range(30)]
-	# attempts = [0,29]
+	# attempts = [2]
 	attempts_300 = attempts
 
 
@@ -155,7 +155,7 @@ def main():
 	# N=[300]
 
 	Temps = [3,10,30,100,300,1000]
-	# Temps = [3]
+	# Temps = [1000]
 
 	for n in N:
 		for Temp in Temps:

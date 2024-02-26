@@ -41,12 +41,13 @@ def get_folders(job_base,\
 			for attempt in attempts:
 				job = job_base.replace("$a$",str(attempt)).replace("$n$",str(n)).replace("$t$",str(Temp))
 				# print(job)
-				if os.path.exists(job):
-					if os.path.exists(job+"timing.txt"):
-						valid_count += 1
-						folders.append(job)
-				else:
-					continue
+				folders.append(job)
+				# if os.path.exists(job):
+				# 	if os.path.exists(job+"timing.txt"):
+				# 		valid_count += 1
+				# 		folders.append(job)
+				# else:
+				# 	continue
 					# print(f"{job} doesn't exist")
 
 	return folders
@@ -62,26 +63,32 @@ def main():
 	job = input_json["data_directory"] + 'jobsNovus/const_relax$a$/N_$n$/T_$t$/'
 	print(job)
 
+	move_to = input_json['data_directory'] + "erroredRelaxJobs/"
+
 	relax = False
 	if job.split('/')[-4].split("_")[-1].strip("$a$") == "relax":
 		relax = True
 
 
-	attempts = [i for i in range(30)]
-	# attempts = [0]
+	# attempts = [i for i in range(30)]
+	# attempts = [1]
 
 	# N = [30,100,300]
-	N=[300]
+	# N=[30,100]
 
-	Temps = [3,10,30,100,300,1000]
+	# Temps = [3,10,30,100,300,1000]
 	# Temps = [3]
 
 
 	folders = get_folders(job,N,Temps,attempts,relax=relax)
-	# print(remove_folders)
+	print(folders)
 
 	for folder in folders:
-		command = f"rm {folder}*"
+		full_move_to = move_to + "/".join(folder.split("/")[-4:])
+		if not os.path.exists(full_move_to):
+			os.makedirs(full_move_to)
+		command = f"mv {folder}* {full_move_to}." 
+		# command = f"mv {full_move_to}* {folder}." 
 		print(command)
 		# os.system(command)
 

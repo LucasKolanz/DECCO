@@ -48,8 +48,8 @@ if __name__ == '__main__':
 	job_set_name = "const_relax"
 	job_group = "jobsNovus"
 
-	job_set_name = "lognorm_relax"
-	job_group = "jobsCosine"
+	# job_set_name = "lognorm_relax"
+	# job_group = "jobsCosine"
 	
 	rsize = job_set_name.split("_")[0]
 
@@ -102,7 +102,7 @@ if __name__ == '__main__':
 						# input_json['h_min'] = 0.5
 						# input_json['dataFormat'] = "csv"
 						input_json['relaxIndex'] = n-3
-						input_json['simTimeSeconds'] = 2e-3
+						input_json['simTimeSeconds'] = 5e-3
 						# input_json['timeResolution'] = 
 
 						input_json['output_folder'] = job
