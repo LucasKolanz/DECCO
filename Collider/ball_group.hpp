@@ -485,6 +485,7 @@ void Ball_group::BPCA_init(std::string path)
 
     if (!just_restart && restart==1)
     {
+        std::cerr<<"Loading sim "<<path<<filename<<std::endl;
         loadSim(path, filename);
         calc_v_collapse(); 
         if (attrs.dt < 0)
@@ -730,8 +731,9 @@ void Ball_group::parse_input_file(std::string location)
     random_generator.seed(attrs.seed);//This was in the else but it should be outside so random_generator is always seeded the same as srand (right?)
     srand(attrs.seed);
 
-    std::string temp_distribution = inputs["radiiDistribution"];
-    if (temp_distribution == "logNormal")
+    std::string temporary_distribution = inputs["radiiDistribution"];
+    std::transform(temporary_distribution.begin(), temporary_distribution.end(), temporary_distribution.begin(), ::tolower);
+    if (temporary_distribution == "lognormal" || temporary_distribution == "lognorm")
     {
         attrs.radiiDistribution = attrs.logNorm;
     }
@@ -2551,7 +2553,7 @@ void Ball_group::sim_init_two_cluster(
 // @returns 0 if this is starting from scratch
 // @returns 1 if this is a restart
 // @returns 2 if this job is already finished
-int Ball_group::check_restart(std::string folder) //TODO TEST IF PROPERLY DETECTING JOB FINISHED
+int Ball_group::check_restart(std::string folder) 
 {
     std::string file;
     // int tot_count = 0;
@@ -2689,6 +2691,7 @@ std::string Ball_group::find_restart_file_name(std::string path)
     std::string datah5 = "data.h5";
 
     int largest_file_index = -1;
+    int second_largest_file_index = -1;
     int file_index=0;
     bool csv = false;
     for (const auto & entry : fs::directory_iterator(path))
@@ -2709,12 +2712,18 @@ std::string Ball_group::find_restart_file_name(std::string path)
             {
                 file_index = 0;
             }
-
             if (file_index > largest_file_index)
             {
+                second_largest_file_index = largest_file_index;
                 second_largest_file_name = largest_file_name;
                 largest_file_index = file_index;
                 largest_file_name = file;
+                csv = true;
+            }
+            else if (file_index > second_largest_file_index)
+            {
+                second_largest_file_name = file;
+                second_largest_file_index = file_index;
                 csv = true;
             }
 
@@ -2732,12 +2741,17 @@ std::string Ball_group::find_restart_file_name(std::string path)
             }
         }
     }
+
     if (csv)
     {
         std::string file1 = path + largest_file_name;
         std::string file2 = path + largest_file_name.substr(0,largest_file_name.size()-simDatacsv.size()) + "constants.csv";
         std::string file3 = path + largest_file_name.substr(0,largest_file_name.size()-simDatacsv.size()) + "energy.csv";
 
+        std::cerr<<"Removing the following files: \n";
+        std::cerr<<'\t'<<file1<<'\n';
+        std::cerr<<'\t'<<file2<<'\n';
+        std::cerr<<'\t'<<file3<<std::endl;
         int status1 = remove(file1.c_str());
         int status2 = remove(file2.c_str());
         int status3 = remove(file3.c_str());
@@ -2759,7 +2773,6 @@ std::string Ball_group::find_restart_file_name(std::string path)
         }
         largest_file_name = second_largest_file_name;
     }
-
     return largest_file_name;
 }
 

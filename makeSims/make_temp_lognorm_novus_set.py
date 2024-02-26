@@ -44,7 +44,7 @@ if __name__ == '__main__':
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	# attempts = [i for i in range(30)]
 	attempts = [i for i in range(30)]
-	# attempts = [30]
+	attempts = [2]
 	# attempts_300 = [i for i in range(30)]
 	# attempts = [1] 
 	attempts_300 = attempts
@@ -55,9 +55,9 @@ if __name__ == '__main__':
 
 	node = 1
 	N = [30,100,300]
-	# N = [300]
+	N = [300]
 	Temps = [3,10,30,100,300,1000]
-	# Temps = [3]
+	Temps = [1000]
 
 	folders = []
 	for n in N:
@@ -94,7 +94,7 @@ if __name__ == '__main__':
 					######Change input values here######
 					input_json['temp'] = Temp
 					input_json['seed'] = rand_int()
-					input_json['radiiDistribution'] = 'lognorm'
+					input_json['radiiDistribution'] = 'logNormal'
 					input_json['N'] = n
 					input_json['h_min'] = 0.5
 					input_json['dataFormat'] = "csv"

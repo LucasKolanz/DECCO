@@ -65,6 +65,7 @@ main(int argc, char* argv[])
         world_size = 1;
     #endif
 
+    std::cerr<<"=========================================Start Simulation========================================="<<std::endl;
     //Verify we have all the nodes we asked for
     fprintf(
         stderr,
@@ -90,6 +91,18 @@ main(int argc, char* argv[])
 
     //verify OpenMP threads
     std::cerr<<"Asking for a max of "<<omp_get_max_threads()<<" threads."<<std::endl;
+
+    std::string radiiDist;
+    if (dummy.attrs.radiiDistribution == dummy.attrs.logNorm)
+    {
+        radiiDist = "logNormal";
+    }
+    else if (dummy.attrs.radiiDistribution == dummy.attrs.constant)
+    {
+        radiiDist = "constant";
+    }
+
+    std::cerr<<"Using "<<radiiDist<<" particle radii distribution"<<std::endl;
 
     if (dummy.attrs.typeSim == dummy.attrs.collider)
     {
@@ -132,6 +145,7 @@ main(int argc, char* argv[])
         MPI_Finalize();
     #endif
 
+    std::cerr<<"=========================================Finish Simulation========================================="<<std::endl;
 
     t.end_event("WholeThing");
     t.print_events();
