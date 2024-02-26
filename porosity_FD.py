@@ -147,6 +147,7 @@ def get_gyration_radius(data_folder,data_index=-1):
 
 # def dist(i,j,)
 def max_number_of_contacts(data_folder,data_index=-1,relax=False):
+	print(data_folder)
 	line = 0
 	max_nc = -1
 	nc = number_of_contacts(data_folder,data_index,line,relax)
@@ -184,10 +185,10 @@ if __name__ == '__main__':
 	path = input_json["data_directory"]
 
 	data_prefolder = path + 'jobsOld/tempVarianceRand_attempt'
-	data_prefolder = path + 'jobsNovus/const'
 	data_prefolder = path + 'jobsCosine/lognorm'
-	data_prefolder = path + 'jobsNovus/const_relax'
 	data_prefolder = path + 'jobsCosine/lognorm_relax'
+	data_prefolder = path + 'jobsNovus/const'
+	data_prefolder = path + 'jobsNovus/const_relax'
 
 	dataset_name = data_prefolder.split("/")[-1]
 
@@ -199,7 +200,7 @@ if __name__ == '__main__':
 	temps = [3,10,30,100,300,1000]
 	# temps = [1000]
 	Nums = [30,100,300]
-	# Nums = [300]
+	Nums = [300]
 	
 	
 	attempts = [i for i in range(30)]

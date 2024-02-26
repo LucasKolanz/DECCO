@@ -435,7 +435,7 @@ def are_spheres_connected(pos, radii):
 		return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2) ** 0.5
 
 	def is_connected(index1, index2):
-		return distance(pos[index1], pos[index2]) <= radii[index1] + radii[index2]
+		return distance(pos[index1], pos[index2]) <= 2*radii[index1] + 2*radii[index2]
 
 	n = len(pos)
 	if n == 0:

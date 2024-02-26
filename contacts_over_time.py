@@ -26,8 +26,8 @@ def main():
 	data_prefolder = data_directory + 'jobsOld/tempVarianceRand_attempt'
 	data_prefolder = data_directory + 'jobsNovus/const'
 	data_prefolder = data_directory + 'jobsCosine/lognorm'
-	data_prefolder = data_directory + 'jobsNovus/const_relax'
 	data_prefolder = data_directory + 'jobsCosine/lognorm_relax'
+	data_prefolder = data_directory + 'jobsNovus/const_relax'
 	dataset_name = data_prefolder.split("/")[-1]
 
 	attempts = [i for i in range(30)]
