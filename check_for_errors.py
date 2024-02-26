@@ -6,7 +6,7 @@
 #
 #Error 1: number of balls is incorrect in at least 1 sim_data output. 
 #
-#Error 2: incorrect number of colums in simData
+#Error 2: incorrect number of rows in simData
 #
 #Error 3: do the first two balls of the sim overlap eachother?
 #
@@ -147,11 +147,14 @@ def ck_error2_by_file(file,verbose=False,relax=False):
 
 def index_from_file(file):
 	file_split = file.split("_")
-	if not file_split[1].isnumeric():
+
+	old_name_scheme = (len(file_split)>2)
+
+	if old_name_scheme and not file_split[1].isnumeric():
 		return 0
 	else:
 		return int(file_split[0])
-	exit(0)
+
 
 def error2_index(fullpath,verbose=False):
 	directory = os.fsencode(fullpath)
@@ -162,14 +165,16 @@ def error2_index(fullpath,verbose=False):
 			try:
 				temp = np.loadtxt(fullpath+filename,skiprows=1,delimiter=',')
 				x,y = temp.shape
+				ind = index_from_file(filename)
+				print(f"ind={ind}, x={x}, y={y}")
 				if x != 51:
-					ind = index_from_file(filename)
 					if verbose:
 						print(f"ERROR: x={x} for file={filename}")
 					if ind < lowest_index:
 						lowest_index = ind
 			except ValueError as E:
 				ind = index_from_file(filename)
+				print(f"otherind={ind}, x={x}, y={y}")
 				if verbose:
 					print(f"ERROR: {E} for file={filename}")
 				if ind < lowest_index:
@@ -272,7 +277,9 @@ def errorn1(fullpath,relax=False):
 	return error
 
 def error0(fullpath,relax=False):
-	if os.path.exists(fullpath+"timing.txt"):
+	num_files = len(glob.glob(fullpath+'*'))
+
+	if os.path.exists(fullpath+"timing.txt") and num_files > 1:
 		has_err = os.path.exists(fullpath+"sim_err.log")
 		has_errors = os.path.exists(fullpath+"sim_errors.txt")
 
@@ -389,7 +396,9 @@ def error4(fullpath,relax=None):
 
 
 def error5(fullpath,relax=False):
-	if (os.path.exists(fullpath+"timing.txt")):
+	num_files = len(glob.glob(fullpath+'*'))
+
+	if os.path.exists(fullpath+"timing.txt") and num_files > 1:
 		directory = os.fsencode(fullpath)
 		max_index = -1
 		max_filename = ""
@@ -464,7 +473,10 @@ def are_spheres_connected(pos, radii):
 
 
 def error6(fullpath,relax=None):
-	if (os.path.exists(fullpath+"timing.txt")):
+	num_files = len(glob.glob(fullpath+'*'))
+
+	if os.path.exists(fullpath+"timing.txt") and num_files > 1:
+
 		directory = os.fsencode(fullpath)
 		max_index = -1
 		max_filename = ""
@@ -519,50 +531,84 @@ def get_COM(pos,mass):
 
 def main():
 
-	with open(project_path+"default_files/default_input.json",'r') as fp:
-		input_json = json.load(fp)
+
+	folder = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/lognorm6/N_100/T_100/"
+	folder = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/lognorm24/N_300/T_3/"
+	ind = where_did_error1_start(folder)
+	# ind = error2_index(folder,True)
+	# print(ind)
 
 
-	job = input_json["data_directory"] + 'jobs/lognorm$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
+	# with open(project_path+"default_files/default_input.json",'r') as fp:
+	# 	input_json = json.load(fp)
+
+
+	# job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
+	# job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
+	# job = input_json["data_directory"] + 'jobs/lognorm$a$/N_$n$/T_$t$/'
 	
 
-	attempts = [i for i in range(30)]
-	# attempts = [0]
+	# attempts = [i for i in range(30)]
+	# # attempts = [0]
 
-	N = [30,100,300]
-	# N=[100]
+	# N = [30,100,300]
+	# # N=[100]
 
-	Temps = [3,10,30,100,300,1000]
-	# Temps = [3]
+	# Temps = [3,10,30,100,300,1000]
+	# # Temps = [3]
 
-	errorDic = {}
+	# errorDic = {}
 
-	relax = False
+	# relax = False
 
-	if job.split("/")[-4].split("_")[-1].strip("$a$") == "relax":
-		relax = True
+	# if job.split("/")[-4].split("_")[-1].strip("$a$") == "relax":
+	# 	relax = True
 
 
 
-	# for i,error in enumerate([errorn1,error0,error1,error2,error3,error4,error5]):
-	for i,error in enumerate([error6]):
-		print(f"======================================{error.__name__}======================================")
-		error_folders = check_error(job,error,N,Temps,attempts,relax=relax)
-		for folder in error_folders:
-			if folder in errorDic.keys():
-				errorDic[folder].append(i)
-			else:
-				errorDic[folder] = [f"{error.__name__}"]
+	# # for i,error in enumerate([error6]):
+	# for i,error in enumerate([errorn1,error0,error1,error2,error3,error4,error5,error6]):
+	# 	print(f"======================================{error.__name__}======================================")
+	# 	error_folders = check_error(job,error,N,Temps,attempts,relax=relax)
+	# 	for folder in error_folders:
+	# 		if folder in errorDic.keys():
+	# 			errorDic[folder].append(i)
+	# 		else:
+	# 			errorDic[folder] = [f"{error.__name__}"]
 
-	if not errorDic:
-		print("No Errors detected")
-	else:
-		for key in errorDic.keys():
-			print(f"Errors in folder {key}")
-			for error in errorDic[key]:
-				print(f"\t{error}")
+	# if not errorDic:
+	# 	print("No Errors detected")
+	# else:
+	# 	for key in errorDic.keys():
+	# 		print(f"Errors in folder {key}")
+	# 		for error in errorDic[key]:
+	# 			print(f"\t{error}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
