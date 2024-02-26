@@ -305,8 +305,9 @@ def get_all_constants(data_folder,data_index=-1,relax=False): #Works with csv an
 #a line of data is in the following format
 #x0,y0,z0,wx0,wy0,wz0,wmag0,vx0,vy0,vz0,bound0
 def format_pos(data):
-	data = np.reshape(data,(int(data.size/data_columns),data_columns))
-	data = data[:,:3] #pos is first three of every row
+	if data is not None and not np.isscalar(data):
+		data = np.reshape(data,(int(data.size/data_columns),data_columns))
+		data = data[:,:3] #pos is first three of every row
 	return data
 
 def format_w(data):
@@ -316,7 +317,7 @@ def format_w(data):
 
 def format_vel(data):
 	data = np.reshape(data,(int(data.size/data_columns),data_columns))
-	data = data[:,7:10] #vel is after 3xpos, 3xw, 1w mag, and is 3 long
+	data = data[:,7:10] #vel is after 3x pos, 3x w, 1x w mag, and is 3 long
 	return data
 
 def COM(data_folder,data_index=-1,relax=False):

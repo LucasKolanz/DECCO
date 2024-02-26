@@ -103,7 +103,8 @@ def main():
 		input_json = json.load(fp)
 	data_directory = input_json["data_directory"]
 
-	job_set_name = "const"
+	job_set_names = ["const","lognorm"]
+	
 
 	attempts = [i for i in range(30)]
 	# attempts = [0,1]
@@ -115,35 +116,34 @@ def main():
 
 	Temps = [3,10,30,100,300,1000]
 	# Temps = [3]
+	for j_i,job_set_name in enumerate(job_set_names):
+		for n in N:
+			for Temp in Temps:
+				temp_attempt = attempts
+				if n == 300:
+					temp_attempt = attempts_300
+				for attempt in temp_attempt:
+					local_job_folder = data_directory  + 'jobsNovus/' + job_set_name + str(attempt) + '/'\
+								+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
+					remote_job_folder = remote_base_folder + 'jobs/' + job_set_name + str(attempt) + '/'\
+								+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
 
-	error_folders = []
-	for n in N:
-		for Temp in Temps:
-			temp_attempt = attempts
-			if n == 300:
-				temp_attempt = attempts_300
-			for attempt in temp_attempt:
-				local_job_folder = data_directory  + 'jobsNovus/' + job_set_name + str(attempt) + '/'\
-							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
-				remote_job_folder = remote_base_folder + 'jobs/' + job_set_name + str(attempt) + '/'\
-							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
+					if os.path.exists(local_job_folder+"timing.txt"): #Have we already copied this job over?
+						print(f"Job already copied: {remote_job_folder}")
+						continue
 
-				if os.path.exists(local_job_folder+"timing.txt"): #Have we already copied this job over?
-					print(f"Job already copied: {remote_job_folder}")
-					continue
+					#If you want to scp a whole folder recursivly it will copy the final folder 
+					#which is stupid. To counter this, take out the last folder in local_path
+					#since these are the same folder
+					local_job_folder = '/'.join(local_job_folder.split('/')[:-2]) + '/'
+					
 
-				#If you want to scp a whole folder recursivly it will copy the final folder 
-				#which is stupid. To counter this, take out the last folder in local_path
-				#since these are the same folder
-				local_job_folder = '/'.join(local_job_folder.split('/')[:-2]) + '/'
-				
-
-				remote_file_exists = list_remote_files('Novus', remote_job_folder+"timing.txt")
-				if len(remote_file_exists) > 0 and "timing.txt" == remote_file_exists[0].split('/')[-1]:
-					if not os.path.exists(local_job_folder): #folder doesnt exist locally so make the folder(s)
-						os.makedirs(local_job_folder)
-					print(f"Copying {remote_job_folder}")
-					scp_transfer_with_ssh_config('Novus',remote_job_folder,local_job_folder,recursive=True)
+					remote_file_exists = list_remote_files('Novus', remote_job_folder+"timing.txt")
+					if len(remote_file_exists) > 0 and "timing.txt" == remote_file_exists[0].split('/')[-1]:
+						if not os.path.exists(local_job_folder): #folder doesnt exist locally so make the folder(s)
+							os.makedirs(local_job_folder)
+						print(f"Copying {remote_job_folder}")
+						scp_transfer_with_ssh_config('Novus',remote_job_folder,local_job_folder,recursive=True)
 
 
 if __name__ == '__main__':
