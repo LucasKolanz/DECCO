@@ -332,8 +332,8 @@ def main():
 	errorDic = {}
 
 
-	# for i,error in enumerate([errorn1,error0,error1,error2,error3,error4]):
-	for i,error in enumerate([error6]):
+	# for i,error in enumerate([error6]):
+	for i,error in enumerate([errorn1,error0,error1,error2,error3,error4,error6]):
 		print(f"======================================{error.__name__}======================================")
 		error_folders = check_error(job,error,N,Temps,attempts)
 		for folder in error_folders:
