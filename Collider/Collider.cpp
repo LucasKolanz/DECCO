@@ -90,7 +90,7 @@ main(int argc, char* argv[])
     dummy.parse_input_file(location);
 
     //verify OpenMP threads
-    std::cerr<<"Asking for a max of "<<omp_get_max_threads()<<" threads."<<std::endl;
+    std::cerr<<"Max of "<<omp_get_max_threads()<<" threads on this machine."<<std::endl;
 
     std::string radiiDist;
     if (dummy.attrs.radiiDistribution == dummy.attrs.logNorm)
