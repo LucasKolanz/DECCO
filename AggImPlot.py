@@ -23,8 +23,8 @@ def main():
 	
 	path = input_json["data_directory"]
 
-	job_group = "const_rel"
 	job_group = "lognorm_rel"
+	job_group = "const_rel"
 
 	image_path = path + "data/figures/aggRenders/"
 	Nums = [30,100,300]

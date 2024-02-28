@@ -246,10 +246,10 @@ if __name__ == '__main__':
 
 	print(f"relax: {relax}")
 
-	new_data = False     
-	save_data = False
+	new_data = True     
+	save_data = True
 	show_plots = True
-	make_FD = False
+	make_FD = True
 	show_FD_plots = False
 	overwrite_octree_data = False 
 	
