@@ -200,7 +200,7 @@ if __name__ == '__main__':
 	temps = [3,10,30,100,300,1000]
 	# temps = [1000]
 	Nums = [30,100,300]
-	Nums = [300]
+	# Nums = [300]
 	
 	
 	attempts = [i for i in range(30)]
@@ -247,9 +247,9 @@ if __name__ == '__main__':
 	print(f"relax: {relax}")
 
 	new_data = True     
-	save_data = False
+	save_data = True
 	show_plots = True
-	make_FD = False
+	make_FD = True
 	show_FD_plots = False
 	overwrite_octree_data = False 
 	
@@ -479,7 +479,7 @@ if __name__ == '__main__':
 		for i,N in enumerate(Nums):
 			porositiesabcavg[i] = data[i*properties,:]
 			yerr_abc[i] = data[i*properties+1,:]
-			ABC_numruns = data[i*properties+2,:]
+			ABC_numruns[i] = data[i*properties+2,:]
 
 			porositiesKBMavg[i] = data[i*properties+3,:]
 			yerr_KBM[i] = data[i*properties+4,:]
