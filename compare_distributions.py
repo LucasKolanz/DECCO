@@ -20,8 +20,8 @@ def main():
 	data_directory = input_json["data_directory"]
 	properties = 15 #number of columns to save for every Num
 
-	sav_lognorm = data_directory+'data/lognorm_averageData.csv'
-	sav_const = data_directory+'data/const_averageData.csv'
+	sav_lognorm = data_directory+'data/lognorm_relax_averageData.csv'
+	sav_const = data_directory+'data/const_relax_averageData.csv'
 	figure_folder = data_directory+'data/figures/'
 
 

@@ -104,26 +104,38 @@ def main():
 	data_directory = input_json["data_directory"]
 
 	job_set_names = ["const","lognorm"]
+	job_set_names = ["const"]
+	job_set_names = ["lognorm"]
 	
 
 	attempts = [i for i in range(30)]
 	# attempts = [0,1]
 	attempts_300 = attempts
 
+	jobfolder = ""
+
 
 	N = [30,100,300]
-	# N=[100]
+	N=[30,100,300]
 
 	Temps = [3,10,30,100,300,1000]
 	# Temps = [3]
 	for j_i,job_set_name in enumerate(job_set_names):
+		if job_set_name == "lognorm":
+			jobfolder = "jobsCosine"
+		elif job_set_name == "const":
+			jobfolder = "jobsNovus"
+		else:
+			print("ERROR: unrecognized job_set_name.")
+			exit(0)
 		for n in N:
 			for Temp in Temps:
 				temp_attempt = attempts
 				if n == 300:
 					temp_attempt = attempts_300
 				for attempt in temp_attempt:
-					local_job_folder = data_directory  + 'jobsNovus/' + job_set_name + str(attempt) + '/'\
+					
+					local_job_folder = data_directory  + jobfolder + job_set_name + str(attempt) + '/'\
 								+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
 					remote_job_folder = remote_base_folder + 'jobs/' + job_set_name + str(attempt) + '/'\
 								+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
@@ -137,6 +149,10 @@ def main():
 					#since these are the same folder
 					local_job_folder = '/'.join(local_job_folder.split('/')[:-2]) + '/'
 					
+
+					# remote_files_exists = list_remote_files('Novus', remote_job_folder)
+					# if len(remote_files_exists) > 1:
+					# 	print(f"Remote folder {remote_job_folder} has {len(remote_files_exists)} files")
 
 					remote_file_exists = list_remote_files('Novus', remote_job_folder+"timing.txt")
 					if len(remote_file_exists) > 0 and "timing.txt" == remote_file_exists[0].split('/')[-1]:

@@ -56,7 +56,7 @@ if __name__ == '__main__':
 	# folder_name_scheme = "T_"
 
 
-	runs_at_once = 7
+	runs_at_once = 12
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	attempts = [i for i in range(30)] 
 	# attempts = [18] 
@@ -102,7 +102,7 @@ if __name__ == '__main__':
 						# input_json['h_min'] = 0.5
 						# input_json['dataFormat'] = "csv"
 						input_json['relaxIndex'] = n-3
-						input_json['simTimeSeconds'] = 5e-3
+						input_json['simTimeSeconds'] = 1e-2
 						# input_json['timeResolution'] = 
 
 						input_json['output_folder'] = job
@@ -142,13 +142,13 @@ if __name__ == '__main__':
 	# 	with mp.Pool(processes=runs_at_once) as pool:
 	# 		pool.starmap(run_job,inputs[i:i+runs_at_once]) 
 	
-	with mp.Pool(processes=runs_at_once) as pool:
-		for folder in folders:
-			# input_data = inputs[i:i+runs_at_once]
-			pool.apply_async(run_job, (folder,))
+	# with mp.Pool(processes=runs_at_once) as pool:
+	# 	for folder in folders:
+	# 		# input_data = inputs[i:i+runs_at_once]
+	# 		pool.apply_async(run_job, (folder,))
 
-		pool.close()
-		pool.join()
+	# 	pool.close()
+	# 	pool.join()
 
 	# print(folders)
 	# cwd = os.getcwd()
