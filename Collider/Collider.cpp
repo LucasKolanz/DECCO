@@ -247,7 +247,7 @@ int get_num_threads(Ball_group &O)
     {
         threads = 1;
     }
-    else if (N < 140)
+    else if (N < 100)
     {
         threads = 2;
     }
