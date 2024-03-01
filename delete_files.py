@@ -1,6 +1,11 @@
 import os
 import fnmatch
+import os
+import json
 
+relative_path = ""
+relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
+project_path = os.path.abspath(relative_path) + '/'
 def delete_files(file_paths):
     """
     Attempts to delete each file in the given list of file paths.
@@ -65,7 +70,13 @@ def calculate_total_space(file_paths):
 
 if __name__ == '__main__':
     # Example usage
-    target_directory = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab/jobs/'
+    with open(project_path+"default_files/default_input.json",'r') as fp:
+        input_json = json.load(fp)
+    data_directory = input_json["data_directory"] 
+
+
+    target_directory = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/erroredRelaxJobs/'
+    target_directory = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/erroredJobs/'
     file_patterns = ['fractdim_ppb-*.csv']
     file_patterns.append('pointcloud*.pcd')
     # file_patterns.append('Collider*.o')
@@ -79,6 +90,8 @@ if __name__ == '__main__':
         all_output.extend(output)
         space = calculate_total_space(output)
         print(f"{len(output)} files with pattern '{file_pattern}' in root directory '{target_directory}' taking up {space} ")
+
+    # print(all_output)
 
     if DELETE:
         print(f"Deleting file patterns . . .")

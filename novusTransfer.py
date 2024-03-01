@@ -135,7 +135,7 @@ def main():
 					temp_attempt = attempts_300
 				for attempt in temp_attempt:
 					
-					local_job_folder = data_directory  + jobfolder + job_set_name + str(attempt) + '/'\
+					local_job_folder = data_directory  + jobfolder + '/' + job_set_name + str(attempt) + '/'\
 								+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
 					remote_job_folder = remote_base_folder + 'jobs/' + job_set_name + str(attempt) + '/'\
 								+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
