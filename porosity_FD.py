@@ -173,7 +173,7 @@ def number_of_contacts(data_folder,data_index=-1,line=-1,relax=False):
 	for i in range(num_balls):
 		for j in range(num_balls):
 			if i != j:
-				contacts[i,j] = (dist(i,j) <= radius[i]+radius[j])
+				contacts[i,j] = (dist(i,j) <= (radius[i]+radius[j]))
 
 	
 	return np.mean(np.sum(contacts,axis=1))
@@ -200,7 +200,7 @@ if __name__ == '__main__':
 	temps = [3,10,30,100,300,1000]
 	# temps = [1000]
 	Nums = [30,100,300]
-	# Nums = [300]
+	Nums = [300]
 	
 	
 	attempts = [i for i in range(30)]
@@ -247,9 +247,11 @@ if __name__ == '__main__':
 	print(f"relax: {relax}")
 
 	new_data = True     
-	save_data = True
+	save_data = False
 	show_plots = True
-	make_FD = True
+	save_plots = False
+
+	make_FD = False
 	show_FD_plots = False
 	overwrite_octree_data = False 
 	
@@ -735,7 +737,8 @@ if __name__ == '__main__':
 		if True:
 			fig.legend(loc='upper right',bbox_to_anchor=(0.98, 0.97))
 		plt.tight_layout()
-		plt.savefig("{}{}_FractDimandPorositySimNums_{}.png".format(figure_folder,dataset_name,method.replace(" ","")))
+		if save_plots:
+			plt.savefig("{}{}_FractDimandPorositySimNums_{}.png".format(figure_folder,dataset_name,method.replace(" ","")))
 		if show_plots:
 			plt.show()
 

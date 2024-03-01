@@ -434,7 +434,6 @@ Ball_group::Ball_group(std::string& path)
 // Initializes relax job (only new, not for restart)
 void Ball_group::relax_init(std::string path)
 {
-
     std::string filename = find_file_name(path,attrs.relax_index); 
 
     loadSim(path, filename.substr(filename.find_last_of('/')+1,filename.size()));
@@ -891,6 +890,7 @@ inline double Ball_group::calc_VDW_force_mag(const double Ra,const double Rb,con
 void Ball_group::calibrate_dt(int const Step, const double& customSpeed = -1.)
 {
     const double dtOld = attrs.dt;
+
 
     if (customSpeed > 0.) {
         updateDTK(customSpeed);
@@ -2115,7 +2115,6 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename)
         #ifdef HDF5_ENABLE
             _pos = file.find_first_of("_");
             file_index = stoi(file.substr(0,_pos));
-            
             loadDatafromH5(path,file);
         #else
             std::cerr<<"ERROR: HDF5 not enabled. Please recompile with -DHDF5_ENABLE and try again."<<std::endl;
@@ -2219,7 +2218,7 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
 
             if (status != 0)
             {
-                std::cout<<"File: "<<rmfile<<" could not be removed, now exiting with failure."<<std::endl;
+                std::cerr<<"File: '"<<rmfile<<"' could not be removed, now exiting with failure."<<std::endl;
                 exit(EXIT_FAILURE);
             }
             file_index--;
@@ -2237,7 +2236,7 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
     HDF5Handler::loadConsts(path,file,R,m,moi);
 
     int writes;
-    if (has_meta)
+    if (attrs.typeSim != attrs.relax && has_meta) //Relax jobs should not read in the metadata for dt, steps, etc. That is for restarting jobs.
     {
         parse_meta_data(meta);
 
@@ -2278,7 +2277,7 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
     }
     else if(writes == -1) //Works
     {
-        if (has_meta)
+        if (attrs.typeSim != attrs.relax && has_meta)
         {
             data -> loadSimData(path,file,pos,w,vel);
         }

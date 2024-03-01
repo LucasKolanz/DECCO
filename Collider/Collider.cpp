@@ -92,6 +92,10 @@ main(int argc, char* argv[])
     //verify OpenMP threads
     std::cerr<<"Max of "<<omp_get_max_threads()<<" threads on this machine."<<std::endl;
 
+    //verify total time and frequency of writes
+    std::cerr<<"simTimeSeconds: "<<dummy.attrs.simTimeSeconds<<std::endl;
+    std::cerr<<"timeResolution: "<<dummy.attrs.timeResolution<<std::endl;
+
     std::string radiiDist;
     if (dummy.attrs.radiiDistribution == dummy.attrs.logNorm)
     {
@@ -280,6 +284,9 @@ sim_looper(Ball_group &O,unsigned long long start_step=1)
 
         std::cerr<<"start step: "<<start_step<<std::endl;
         std::cerr<<"Stepping through "<<O.attrs.steps<<" steps"<<std::endl;
+        std::cerr<<"Simulating "<<O.attrs.simTimeSeconds<<" seconds per sim."<<std::endl;
+        std::cerr<<"Writing out every "<<O.attrs.timeResolution<<" seconds."<<std::endl;
+        std::cerr<<"For a total of "<<O.attrs.simTimeSeconds/O.attrs.timeResolution<<" timesteps saved per sim."<<std::endl;
     }
 
 
