@@ -8,6 +8,7 @@
 #include <sstream>
 #include <string>
 #include <iomanip>
+#include <omp.h>
 
 #ifdef MPI_ENABLE
     #include <mpi.h>
@@ -53,7 +54,6 @@ timey t;
 int
 main(int argc, char* argv[])
 {
-    t.start_event("WholeThing");
         // MPI Initialization
     int world_rank, world_size;
     #ifdef MPI_ENABLE
@@ -65,7 +65,11 @@ main(int argc, char* argv[])
         world_size = 1;
     #endif
 
-    std::cerr<<"=========================================Start Simulation========================================="<<std::endl;
+    if (world_rank == 0)
+    {
+        t.start_event("WholeThing");
+        std::cerr<<"=========================================Start Simulation========================================="<<std::endl;
+    }
     //Verify we have all the nodes we asked for
     fprintf(
         stderr,
@@ -73,8 +77,6 @@ main(int argc, char* argv[])
         world_rank);
     fflush(stderr);
 
-
-    // energyBuffer.precision(12);  // Need more precision on momentum.
 
     //make dummy ball group to read input file
     std::string location;
@@ -90,11 +92,8 @@ main(int argc, char* argv[])
     dummy.parse_input_file(location);
 
     //verify OpenMP threads
-    std::cerr<<"Max of "<<omp_get_max_threads()<<" threads on this machine."<<std::endl;
+    std::cerr<<"Max of "<<omp_get_max_threads()<<" threads on rank "<<world_rank<<"."<<std::endl;
 
-    //verify total time and frequency of writes
-    std::cerr<<"simTimeSeconds: "<<dummy.attrs.simTimeSeconds<<std::endl;
-    std::cerr<<"timeResolution: "<<dummy.attrs.timeResolution<<std::endl;
 
     std::string radiiDist;
     if (dummy.attrs.radiiDistribution == dummy.attrs.logNorm)
@@ -106,7 +105,13 @@ main(int argc, char* argv[])
         radiiDist = "constant";
     }
 
-    std::cerr<<"Using "<<radiiDist<<" particle radii distribution"<<std::endl;
+    //verify total time and frequency of writes
+    if (world_rank == 0)
+    {
+        std::cerr<<"simTimeSeconds: "<<dummy.attrs.simTimeSeconds<<std::endl;
+        std::cerr<<"timeResolution: "<<dummy.attrs.timeResolution<<std::endl;
+        std::cerr<<"Using "<<radiiDist<<" particle radii distribution"<<std::endl;
+    }
 
     if (dummy.attrs.typeSim == dummy.attrs.collider)
     {
@@ -128,7 +133,10 @@ main(int argc, char* argv[])
         }
         else
         {
-            std::cerr<<"ERROR: if simType is BPCA, N >= 0 must be true."<<std::endl;
+            if (world_rank == 0)
+            {
+                std::cerr<<"ERROR: if simType is BPCA, N >= 0 must be true."<<std::endl;
+            }
         }
     }
     else if (dummy.attrs.typeSim == dummy.attrs.relax)
@@ -140,16 +148,22 @@ main(int argc, char* argv[])
     }
     else
     {
-        std::cerr<<"ERROR: input file needs to specify a simulation type (simType)."<<std::endl;
+        if (world_rank == 0)
+        {
+            std::cerr<<"ERROR: input file needs to specify a simulation type (simType)."<<std::endl;
+        }
     }
 
-    
+    if (world_rank == 0)
+    {
+        std::cerr<<"=========================================Finish Simulation========================================="<<std::endl;
+    }
+
     #ifdef MPI_ENABLE
         MPI_Barrier(MPI_COMM_WORLD);
         MPI_Finalize();
     #endif
 
-    std::cerr<<"=========================================Finish Simulation========================================="<<std::endl;
 
     t.end_event("WholeThing");
     t.print_events();
@@ -180,21 +194,25 @@ void BPCA(std::string path, int num_balls)
     safetyChecks(O);
     if  (O.attrs.mid_sim_restart)
     {
-        std::cerr<<"Asking for "<<get_num_threads(O)<<" threads."<<std::endl;
+        if (world_rank == 0)
+        {
+            std::cerr<<"Asking for "<<get_num_threads(O)<<" threads."<<std::endl;
+        }
         sim_looper(O,O.attrs.start_step);
     }
 
     // Add projectile: For dust formation BPCA
     for (int i = O.attrs.start_index; i < num_balls; i++) {
-        std::cerr<<"I: "<<i<<std::endl;
         // t.start_event("add_projectile");
         O = O.add_projectile();
         // t.end_event("add_projectile");
         if (world_rank == 0)
         {
+            std::cerr<<"I: "<<i<<std::endl;
             O.sim_init_write(i);
+            std::cerr<<"Asking for "<<get_num_threads(O)<<" threads."<<std::endl;
         }
-        std::cerr<<"Asking for "<<get_num_threads(O)<<" threads."<<std::endl;
+
         sim_looper(O,1);
         O.attrs.simTimeElapsed = 0;
     }
@@ -241,29 +259,31 @@ int get_num_threads(Ball_group &O)
     // return std::min(closestPowerOf2(interpolatedValue),O.attrs.MAXOMPthreads);        // Find the closest power of 2
 
     //I could only test up to 16 threads so far. Not enough data for linear interp
-    int threads;
-    if (N < 0)
-    {
-        std::cerr<<"ERROR: negative number of particles."<<std::endl;
-        exit(-1);
-    }
-    else if (N < 80)
-    {
-        threads = 1;
-    }
-    else if (N < 100)
-    {
-        threads = 2;
-    }
-    else
-    {
-        threads = 16;
-    }
+    
 
-    if (threads > O.attrs.MAXOMPthreads)
-    {
+    int threads;
+    // if (N < 0)
+    // {
+    //     std::cerr<<"ERROR: negative number of particles."<<std::endl;
+    //     exit(-1);
+    // }
+    // else if (N < 80)
+    // {
+    //     threads = 1;
+    // }
+    // else if (N < 100)
+    // {
+    //     threads = 2;
+    // }
+    // else
+    // {
+    //     threads = 16;
+    // }
+
+    // if (threads > O.attrs.MAXOMPthreads)
+    // {
         threads = O.attrs.MAXOMPthreads;
-    }
+    // }
     return threads;
 }
 
@@ -336,6 +356,7 @@ sim_looper(Ball_group &O,unsigned long long start_step=1)
 
         // Physics integration step:
         O.sim_one_step(writeStep);
+        // O.sim_one_step_GPU(writeStep);
 
         if (writeStep) {
             // t.start_event("writeStep");

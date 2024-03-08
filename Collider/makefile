@@ -54,14 +54,15 @@
 
 
 
-CXX = g++
 # Base CXXFLAGS, without HDF5-specific flags
 CXXFLAGS = -g -O2 -std=c++2a -fopenmp
 
 # Detect HDF5
 # HDF5_TEST := $(shell ldconfig -p | grep hdf5 >/dev/null 2>&1 && echo 1 || echo 0)
-HDF5_TEST = 1
-MPI_TEST = 0
+HDF5_TEST = 0
+MPI_TEST = 1
+
+
 
 # Conditional HDF5 flags
 ifeq ($(HDF5_TEST), 1)
@@ -80,6 +81,10 @@ endif
 
 ifeq ($(MPI_TEST), 1)
     CXXFLAGS += -DMPI_ENABLE
+    CXX = mpiCC
+    CXX = CC
+else
+    CXX = CC
 endif
 
 # Source files

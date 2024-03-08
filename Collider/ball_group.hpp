@@ -355,18 +355,16 @@ public:
     void relax_init(std::string path);
     void BPCA_init(std::string path);
     std::string find_file_name(std::string path,int index);
+    void MPI_print(std::ostream& stream, const std::string& message) const;
 
 
     void sim_one_step(const bool write_step);
+    void sim_one_step_GPU(const bool write_step);
 
 
 
     
 private:
-    // String buffers to hold data in memory until worth writing to file:
-    // std::stringstream ballBuffer;
-    // std::stringstream energyBuffer;
-
 
     void allocate_group(const int nBalls);
     void init_conditions();
@@ -414,7 +412,7 @@ Ball_group::Ball_group(std::string& path)
     }
     else if (attrs.typeSim == attrs.collider)
     {
-        std::cerr<<"COLLIDER NOT IMPLIMENTED"<<std::endl;
+        MPI_print(std::cerr,"COLLIDER NOT IMPLIMENTED. NOW EXITING . . .\n");
         exit(-1);
     }
     else if (attrs.typeSim == attrs.relax)
@@ -425,7 +423,8 @@ Ball_group::Ball_group(std::string& path)
         }
         else
         {
-            std::cerr<<"ERROR: simType is relax but relax_index is ("<<attrs.relax_index<<") < 0"<<std::endl;
+            std::string message("ERROR: simType is relax but relax_index is ("+std::to_string(attrs.relax_index)+") < 0\n");
+            MPI_print(std::cerr,message);
         }
     }
         
@@ -460,7 +459,7 @@ void Ball_group::BPCA_init(std::string path)
     //find_restart_file_name will possibly delete one of the data files 
     if (restart == 2)
     {
-        std::cerr<<"Simulation already complete. Now exiting. . .\n";
+        MPI_print(std::cerr,"Simulation already complete. Now exiting. . .\n");
         exit(0);
     }
 
@@ -484,7 +483,7 @@ void Ball_group::BPCA_init(std::string path)
 
     if (!just_restart && restart==1)
     {
-        std::cerr<<"Loading sim "<<path<<filename<<std::endl;
+        MPI_print(std::cerr,std::string("Loading sim "+path+filename+'\n'));
         loadSim(path, filename);
         calc_v_collapse(); 
         if (attrs.dt < 0)
@@ -504,11 +503,12 @@ void Ball_group::BPCA_init(std::string path)
             {
                 pos[1] = {0, -(R[1]+1.01e-6), 0};
                 vel[1] = {0, 0, 0};
+        
             }
         }
         else
         {
-            std::cerr<<"ERROR: genBalls > 2 not yet implimented (right)?"<<std::endl;
+            MPI_print(std::cerr,"ERROR: genBalls > 2 not yet implimented (right)?\n");
         }
 
         // if (mu_scale)
@@ -527,7 +527,9 @@ void Ball_group::BPCA_init(std::string path)
     }
     else
     {
-        std::cerr<<"ERROR: restart code '"<<restart<<"' not recognized."<<std::endl;
+        std::string message("ERROR: restart code '"+std::to_string(restart)+"' not recognized.\n");
+        MPI_print(std::cerr,message);
+
         exit(-1);
     }
 }
@@ -657,7 +659,8 @@ void Ball_group::init_data(int counter = 0)
     }
     else
     {
-        std::cerr<<"ERROR: data_type '"<<attrs.filetype<<"' not supported."<<std::endl;
+        std::string message("ERROR: data_type '"+attrs.filetype+"' not supported.\n"); 
+        MPI_print(std::cerr,message);
         exit(EXIT_FAILURE);
     }
     data = new DECCOData(sav_file,\
@@ -676,13 +679,13 @@ void Ball_group::parse_input_file(std::string location)
             std::filesystem::path currentPath = std::filesystem::current_path();
             location = currentPath.string() + "/";
         } catch (const std::filesystem::filesystem_error& e) {
-            std::cerr << "Error getting current directory: " << e.what() << std::endl;
+            MPI_print(std::cerr,std::string("Error getting current directory: " + std::string(e.what()) + '\n'));
             exit(-1);
         }
     }
     // std::string s_location(location);
     std::string json_file = location + "input.json";
-    std::cerr<<"Parsing input file: "<<json_file<<std::endl;
+    MPI_print(std::cerr,std::string("Parsing input file: "+json_file+'\n'));
     std::ifstream ifs(json_file);
     json inputs = json::parse(ifs);
     attrs.output_folder = inputs["output_folder"];
@@ -722,11 +725,18 @@ void Ball_group::parse_input_file(std::string location)
     {
         attrs.seed = static_cast<unsigned int>(inputs["seed"]);
     }
-    std::ofstream seedFile;
-    seedFile.open(attrs.output_folder+"seedFile.txt",std::ios::app);
-    std::cerr<<"Writing seed '"<<attrs.seed<<"' to seedFile.txt"<<std::endl;
-    seedFile<<attrs.seed<<std::endl;
-    seedFile.close();
+
+    if (getRank() == 0)
+    {
+        std::ofstream seedFile;
+        seedFile.open(attrs.output_folder+"seedFile.txt",std::ios::app);
+        seedFile<<attrs.seed<<std::endl;
+        seedFile.close();
+    }
+    
+    
+    MPI_print(std::cerr,std::string("Writing seed '"+std::to_string(attrs.seed)+"' to seedFile.txt\n"));
+    
     random_generator.seed(attrs.seed);//This was in the else but it should be outside so random_generator is always seeded the same as srand (right?)
     srand(attrs.seed);
 
@@ -892,27 +902,31 @@ void Ball_group::calibrate_dt(int const Step, const double& customSpeed = -1.)
     const double dtOld = attrs.dt;
 
 
+    std::string message = "";
     if (customSpeed > 0.) {
         updateDTK(customSpeed);
-        std::cerr << "CUSTOM SPEED: " << customSpeed;
+        message += "CUSTOM SPEED: " + std::to_string(customSpeed) + '\n';
     } else {
         // std::cerr << vCollapse << " <- vCollapse | Lazz Calc -> " << M_PI * M_PI * G * pow(density, 4.
         // / 3.) * pow(mTotal, 2. / 3.) * rMax;
 
         attrs.v_max = getVelMax();
 
-        std::cerr << '\n';
+        message += '\n';
 
         // Take whichever velocity is greatest:
-        std::cerr << attrs.v_collapse << " = vCollapse | vMax = " << attrs.v_max;
+        message += std::to_string(attrs.v_collapse) + " = vCollapse | vMax = " + std::to_string(attrs.v_max);
         if (attrs.v_max < attrs.v_collapse) { attrs.v_max = attrs.v_collapse; }
 
         if (attrs.v_max < attrs.v_max_prev) {
             updateDTK(attrs.v_max);
             attrs.v_max_prev = attrs.v_max;
-            std::cerr << "\nk: " << attrs.kin << "\tdt: " << attrs.dt;
+            message += "\nk: " + std::to_string(attrs.kin) + "\tdt: " + std::to_string(attrs.dt) + '\n';
         }
     }
+    MPI_print(std::cerr,message);
+
+    message = "";
 
     if (Step == 0 or dtOld < 0) {
         attrs.steps = static_cast<unsigned long long>(attrs.simTimeSeconds / attrs.dt) + 1;
@@ -924,43 +938,49 @@ void Ball_group::calibrate_dt(int const Step, const double& customSpeed = -1.)
         // }
         if (attrs.steps < 0)
         {
-            std::cerr<< "ERROR: STEPS IS NEGATIVE."<<std::endl;
-            std::cerr<< "simTimeSeconds/dt = " << attrs.simTimeSeconds / attrs.dt<<std::endl;
-            std::cerr<< "casted simTimeSeconds/dt (steps) = " << static_cast<int>(attrs.simTimeSeconds / attrs.dt)<<std::endl;
-            std::cerr<< "Exiting program now."<<std::endl;
+            message += "ERROR: STEPS IS NEGATIVE.\n";
+            message += "simTimeSeconds/dt = " + std::to_string(attrs.simTimeSeconds / attrs.dt)+'\n';
+            message += "casted simTimeSeconds/dt (steps) = " + std::to_string(static_cast<int>(attrs.simTimeSeconds / attrs.dt))+'\n';
+            message += "Exiting program now.\n";
+            MPI_print(std::cerr,message);
             exit(-1);
         }
 
-        std::cerr << "\tInitial Steps: " << attrs.steps << '\n';
+        message += "\tInitial Steps: " + std::to_string(attrs.steps) + '\n';
     } else {
         attrs.steps = static_cast<unsigned long long>(dtOld / attrs.dt) * (attrs.steps - Step) + Step;
         if (attrs.steps < 0)
         {
-            std::cerr<< "ERROR: STEPS IS NEGATIVE."<<std::endl;
-            std::cerr<< "dtOld/dt = " << dtOld / attrs.dt<<std::endl;
-            std::cerr<< "(steps - Step) + Step = " << (attrs.steps - Step) + Step<<std::endl;
-            std::cerr<< "Final steps = " << static_cast<unsigned long long>(dtOld / attrs.dt) * (attrs.steps - Step) + Step<<std::endl;
-            std::cerr<< "Exiting program now."<<std::endl;
+            message += "ERROR: STEPS IS NEGATIVE.\n";
+            message += "dtOld/dt = " + std::to_string(dtOld / attrs.dt) + '\n';
+            message += "(steps - Step) = " + std::to_string(attrs.steps - Step) + '\n';
+            message += "Step = " + std::to_string(Step) + '\n';
+            message += "Final steps = " + std::to_string(static_cast<unsigned long long>(dtOld / attrs.dt) * (attrs.steps - Step) + Step) + '\n';
+            message += "Exiting program now.'\n'";
+            MPI_print(std::cerr,message);
             exit(-1);
         }
-        std::cerr << "\tSteps: " << attrs.steps;
+        message += "\tSteps: " + std::to_string(attrs.steps);
     }
+    MPI_print(std::cerr,message);
 
+    message = "";
 
     if (attrs.timeResolution / attrs.dt > 1.) {
         attrs.skip = static_cast<int>(floor(attrs.timeResolution / attrs.dt));
-        std::cerr << "\tSkip: " << attrs.skip << '\n';
+        message += "\tSkip: " + std::to_string(attrs.skip) + '\n';
     } else {
-        std::cerr << "Desired time resolution is lower than dt. Setting to 1 second per skip.\n";
+        message += "Desired time resolution is lower than dt. Setting to 1 second per skip.\n";
         attrs.skip = static_cast<int>(floor(1. / attrs.dt));
     }
+    MPI_print(std::cerr,message);
 }
 
 // todo - make bigger balls favor the middle, or, smaller balls favor the outside.
 /// @brief Push balls apart until no overlaps
 void Ball_group::pushApart() const
 {
-    std::cerr << "Separating spheres - Current max overlap:\n";
+    MPI_print(std::cerr,std::string("Separating spheres - Current max overlap:\n"));
     /// Using acc array as storage for accumulated position change.
     int* counter = new int[attrs.num_particles];
     for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
@@ -1007,9 +1027,9 @@ void Ball_group::pushApart() const
         }
 
         if (overlapMax > 0) {
-            std::cerr << overlapMax << "                        \r";
+            MPI_print(std::cerr,std::string(std::to_string(overlapMax) + "                        \r"));//Why is there a \r here? Keeping until I know
         } else {
-            std::cerr << "\nSuccess!\n";
+            MPI_print(std::cerr,"\nSuccess!\n");
             break;
         }
         overlapMax = -1;
@@ -1054,8 +1074,8 @@ void Ball_group::calc_v_collapse()
             //     counter++;
             // }
         }
-        std::cerr << '(' << counter << " spheres ignored"
-                  << ") ";
+
+        MPI_print(std::cerr,'(' + std::to_string(counter) + " spheres ignored"+ ") \n");
     } else {
         for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
 
@@ -1069,7 +1089,7 @@ void Ball_group::calc_v_collapse()
         // This shouldn't apply to extremely destructive collisions because it is possible that no
         // particles are considered, so it will keep pausing.
         if (attrs.v_max < 1e-10) {
-            std::cerr << "\nMax velocity in system is less than 1e-10.\n";
+            MPI_print(std::cerr,"\nMax velocity in system is less than 1e-10.\n");
             system("pause");
         }
     }
@@ -2398,6 +2418,15 @@ void Ball_group::placeBalls(const int nBalls)
     std::cerr << "Mass: " << attrs.m_total << '\n';
 }
 
+inline void Ball_group::MPI_print(std::ostream& stream, const std::string& message) const
+{
+    if (getRank() == 0)
+    {
+        stream << message;
+    }
+}
+
+
 void Ball_group::updateDTK(const double& velocity)
 {
     calc_helpfuls();
@@ -2417,34 +2446,38 @@ void Ball_group::updateDTK(const double& velocity)
     // dt = .02 * sqrt((fourThirdsPiRho / regime_adjust) * r_min * r_min * r_min);
     attrs.dt = .01 * sqrt((attrs.fourThirdsPiRho / regime_adjust) * attrs.r_min * attrs.r_min * attrs.r_min); //NORMAL ONE
     // dt = .005 * sqrt((fourThirdsPiRho / regime_adjust) * r_min * r_min * r_min);
-    std::cerr << "==================" << '\n';
-    std::cerr << "dt set to: " << attrs.dt << '\n';
-    std::cerr << "kin set to: " << attrs.kin << '\n';
-    std::cerr << "kout set to: " << attrs.kout << '\n';
-    std::cerr << "h_min set to: " << attrs.h_min << '\n';
-    std::cerr << "Ha set to: " << attrs.Ha << '\n';
-    std::cerr << "u_s set to: " << attrs.u_s << '\n';
-    std::cerr << "u_r set to: " << attrs.u_r << '\n';
+    std::stringstream message;
+    message << "==================" << '\n';
+    message << "dt set to: " << attrs.dt << '\n';
+    message << "kin set to: " << attrs.kin << '\n';
+    message << "kout set to: " << attrs.kout << '\n';
+    message << "h_min set to: " << attrs.h_min << '\n';
+    message << "Ha set to: " << attrs.Ha << '\n';
+    message << "u_s set to: " << attrs.u_s << '\n';
+    message << "u_r set to: " << attrs.u_r << '\n';
     if (vdw_force_max > elastic_force_max)
     {
-        std::cerr << "In the vdw regime."<<std::endl;
+        message << "In the vdw regime.\n";
     }
     else
     {
-        std::cerr << "In the elastic regime."<<std::endl;
+        message << "In the elastic regime.\n";
     }
-    std::cerr << "==================" << '\n';
+    message << "==================" << std::endl;
+    MPI_print(std::cerr,message.str());
 }
 
 
 void Ball_group::simInit_cond_and_center(bool add_prefix)
 {
-    std::cerr << "==================" << '\n';
-    std::cerr << "dt: " << attrs.dt << '\n';
-    std::cerr << "k: " << attrs.kin << '\n';
-    std::cerr << "Skip: " << attrs.skip << '\n';
-    std::cerr << "Steps: " << attrs.steps << '\n';
-    std::cerr << "==================" << '\n';
+    std::string message("==================\ndt:"
+                        + std::to_string(attrs.dt) + '\n'
+                        + "k: " + std::to_string(attrs.kin) + '\n'
+                        + "Skip: " + std::to_string(attrs.skip) + '\n'
+                        + "Steps: " + std::to_string(attrs.steps) + '\n'
+                        + "==================\n");
+
+    MPI_print(std::cerr,message);
 
     if (attrs.num_particles > 1)
     {
@@ -2474,8 +2507,8 @@ void Ball_group::sim_init_two_cluster(
     const std::string& targetName)
 {
     // Load file data:
-    std::cerr << "TWO CLUSTER SIM\nFile 1: " << projectileName << '\t' << "File 2: " << targetName
-              << '\n';
+    std::string message("TWO CLUSTER SIM\nFile 1: " + projectileName + "\tFile 2: " + targetName + '\n');
+    MPI_print(std::cerr,message);
 
     // DART PROBE
     // ballGroup projectile(1);
@@ -2494,7 +2527,7 @@ void Ball_group::sim_init_two_cluster(
 
     attrs.num_particles = projectile.attrs.num_particles + target.attrs.num_particles;
     
-    std::cerr<<"Total number of particles in sim: "<<attrs.num_particles<<std::endl;
+    MPI_print(std::cerr,"Total number of particles in sim: "+std::to_string(attrs.num_particles) + '\n');
 
     // DO YOU WANT TO STOP EVERYTHING?
     // projectile.zeroAngVel();
@@ -2524,16 +2557,20 @@ void Ball_group::sim_init_two_cluster(
     // const double vBig = 0; // Dymorphous override.
 
     if (std::isnan(vSmall) || std::isnan(vBig)) {
-        std::cerr << "A VELOCITY WAS NAN!!!!!!!!!!!!!!!!!!!!!!\n\n";
+        MPI_print(std::cerr,"A VELOCITY WAS NAN!!!!!!!!!!!!!!!!!!!!!!\n\n");
         exit(EXIT_FAILURE);
     }
 
     projectile.kick(vec3(vSmall, 0, 0));
     target.kick(vec3(vBig, 0, 0));
 
-    fprintf(stderr, "\nTarget Velocity: %.2e\nProjectile Velocity: %.2e\n", vBig, vSmall);
+    std::ostringstream oss;
+    oss << "\nTarget Velocity: " << std::scientific << vBig
+        << "\nProjectile Velocity: " << vSmall << "\n\n";
+    MPI_print(std::cerr,oss.str());
+    //This is jobs line. Keeping it in case this new printing fails
+    // fprintf(message, "\nTarget Velocity: %.2e\nProjectile Velocity: %.2e\n", vBig, vSmall);
 
-    std::cerr << '\n';
     projectile.calc_momentum("Projectile");
     target.calc_momentum("Target");
 
@@ -2615,8 +2652,8 @@ int Ball_group::check_restart(std::string folder)
 std::string Ball_group::find_file_name(std::string path,int index)
 {
     std::string file;
-    std::string simDatacsv = "simData.csv";
-    std::string datah5 = "data.h5";
+    const std::string simDatacsv = "simData.csv";
+    const std::string datah5 = "data.h5";
     int file_index;
 
     for (const auto & entry : fs::directory_iterator(path))
@@ -2660,7 +2697,7 @@ std::string Ball_group::find_file_name(std::string path,int index)
                 }
                 else
                 {
-                    std::cerr<<"ERROR: filename convention is not recognized for file '"<<file<<"'"<<std::endl;
+                    MPI_print(std::cerr,"ERROR: filename convention is not recognized for file '"+file+"'\n");
                     exit(-1);
                 }
 
@@ -2676,7 +2713,7 @@ std::string Ball_group::find_file_name(std::string path,int index)
         }
     }
     
-    std::cerr<<"ERROR: file at path '"<<path<<"' with index "<<index<<"not found. Now exiting . . ."<<std::endl;
+    MPI_print(std::cerr,"ERROR: file at path '"+path+"' with index '"+std::to_string(index)+"' not found. Now exiting . . .\n");
     exit(-1);
 }
 
@@ -2747,27 +2784,27 @@ std::string Ball_group::find_restart_file_name(std::string path)
         std::string file2 = path + largest_file_name.substr(0,largest_file_name.size()-simDatacsv.size()) + "constants.csv";
         std::string file3 = path + largest_file_name.substr(0,largest_file_name.size()-simDatacsv.size()) + "energy.csv";
 
-        std::cerr<<"Removing the following files: \n";
-        std::cerr<<'\t'<<file1<<'\n';
-        std::cerr<<'\t'<<file2<<'\n';
-        std::cerr<<'\t'<<file3<<std::endl;
+        std::string message("Removing the following files: \n"
+                            +'\t'+file1+'\n'
+                            +'\t'+file2+'\n'
+                            +'\t'+file3+'\n');
         int status1 = remove(file1.c_str());
         int status2 = remove(file2.c_str());
         int status3 = remove(file3.c_str());
 
         if (status1 != 0)
         {
-            std::cout<<"File: "<<file1<<" could not be removed, now exiting with failure."<<std::endl;
+            MPI_print(std::cerr,"File: '"+file1+"' could not be removed, now exiting with failure.\n");
             exit(EXIT_FAILURE);
         }
         else if (status2 != 0)
         {
-            std::cout<<"File: "<<file2<<" could not be removed, now exiting with failure."<<std::endl;
+            MPI_print(std::cerr,"File: '"+file2+"' could not be removed, now exiting with failure.\n");
             exit(EXIT_FAILURE);
         }
         else if (status3 != 0)
         {
-            std::cout<<"File: "<<file3<<" could not be removed, now exiting with failure."<<std::endl;
+            MPI_print(std::cerr,"File: '"+file3+"' could not be removed, now exiting with failure.\n");
             exit(EXIT_FAILURE);
         }
         largest_file_name = second_largest_file_name;
@@ -2777,6 +2814,391 @@ std::string Ball_group::find_restart_file_name(std::string path)
 
 
 void Ball_group::sim_one_step(const bool write_step)
+{
+    int world_rank = getRank();
+    int world_size = getSize();
+    /// FIRST PASS - Update Kinematic Parameters:
+    // t.start_event("UpdateKinPar");
+    for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
+        // Update velocity half step:
+        velh[Ball] = vel[Ball] + .5 * acc[Ball] * attrs.dt;
+
+        // Update angular velocity half step:
+        wh[Ball] = w[Ball] + .5 * aacc[Ball] * attrs.dt;
+
+        // Update position:
+        pos[Ball] += velh[Ball] * attrs.dt;
+
+        // Reinitialize acceleration to be recalculated:
+        acc[Ball] = {0, 0, 0};
+
+        // Reinitialize angular acceleration to be recalculated:
+        aacc[Ball] = {0, 0, 0};
+    }
+    // t.end_event("UpdateKinPar");
+
+    double Ha = attrs.Ha;
+    double u_r = attrs.u_r;
+    double u_s = attrs.u_s;
+    double kin = attrs.kin;
+    double kout = attrs.kout;
+    double h_min = attrs.h_min;
+    double dt = attrs.dt;
+    int num_parts = attrs.num_particles;
+    int threads = attrs.OMPthreads;
+
+    
+    long long A;
+    long long B;
+    long long pc;
+    long long lllen = attrs.num_particles;
+    double t0 = omp_get_wtime();
+    #pragma omp declare reduction(vec3_sum : vec3 : omp_out += omp_in)
+    #pragma omp parallel for num_threads(threads)\
+            reduction(vec3_sum:acc[:num_parts],aacc[:num_parts]) reduction(+:PE) \
+            shared(world_rank,world_size,Ha,write_step,lllen,R,pos,vel,m,w,\
+                u_r,u_s,moi,kin,kout,distances,h_min,dt)\
+            default(none) private(A,B,pc) 
+    for (pc = world_rank + 1; pc <= (((lllen*lllen)-lllen)/2); pc += world_size)
+    {
+        long double pd = (long double)pc;
+        pd = (sqrt(pd*8.0L+1.0L)+1.0L)*0.5L;
+        pd -= 0.00001L;
+        A = (long long)pd;
+        B = (long long)((long double)pc-(long double)A*((long double)A-1.0L)*.5L-1.0L);
+
+ 
+        const double sumRaRb = R[A] + R[B];
+        const vec3 rVecab = pos[B] - pos[A];  // Vector from a to b.
+        const vec3 rVecba = -rVecab;
+        const double dist = (rVecab).norm();
+
+        //////////////////////
+        // const double grav_scale = 3.0e21;
+        //////////////////////
+
+        // Check for collision between Ball and otherBall:
+        double overlap = sumRaRb - dist;
+
+        vec3 totalForceOnA{0, 0, 0};
+
+        // Distance array element: 1,0    2,0    2,1    3,0    3,1    3,2 ...
+        int e = static_cast<unsigned>(A * (A - 1) * .5) + B;  // a^2-a is always even, so this works.
+        double oldDist = distances[e];
+        /////////////////////////////
+        // double inoutT;
+        /////////////////////////////
+        // Check for collision between Ball and otherBall.
+        if (overlap > 0) {
+
+
+
+            double k;
+            if (dist >= oldDist) {
+                k = kout;
+            } else {
+                k = kin;
+            }
+
+            // Cohesion (in contact) h must always be h_min:
+            // constexpr double h = h_min;
+            const double h = h_min;
+            const double Ra = R[A];
+            const double Rb = R[B];
+            const double h2 = h * h;
+            // constexpr double h2 = h * h;
+            const double twoRah = 2 * Ra * h;
+            const double twoRbh = 2 * Rb * h;
+
+            // const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
+            //                              ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
+            //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
+            //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
+            //                              rVecab.normalized();
+
+            // ==========================================
+            // Test new vdw force equation with less division
+            const double d1 = h2 + twoRah + twoRbh;
+            const double d2 = d1 + 4 * Ra * Rb;
+            const double numer = 64*Ha*Ra*Ra*Ra*Rb*Rb*Rb*(h+Ra+Rb);
+            const double denomrecip = 1/(6*d1*d1*d2*d2);
+            const vec3 vdwForceOnA = (numer*denomrecip)*rVecab.normalized();
+            // ==========================================
+
+            // Elastic force:
+            // vec3 elasticForceOnA{0, 0, 0};
+            // if (std::fabs(overlap) > 1e-6)
+            // {
+            //     elasticForceOnA = -k * overlap * .5 * (rVecab / dist);
+            // }
+            const vec3 elasticForceOnA = -k * overlap * .5 * (rVecab / dist);
+            ///////////////////////////////
+            // elasticForce[A] += elasticForceOnA;
+            // elasticForce[B] -= elasticForceOnA;
+            ///////////////////////////////
+            ///////////////////////////////
+            ///////material parameters for silicate composite from Reissl 2023
+            // const double Estar = 1e5*169; //in Pa
+            // const double nu2 = 0.27*0.27; // nu squared (unitless)
+            // const double prevoverlap = sumRaRb - oldDist;
+            // const double rij = sqrt(std::pow(Ra,2)-std::pow((Ra-overlap/2),2));
+            // const double Tvis = 15e-12; //Viscoelastic timescale (15ps)
+            // // const double Tvis = 5e-12; //Viscoelastic timescale (5ps)
+            // const vec3 viscoelaticforceOnA = -(2*Estar/nu2) * 
+            //                                  ((overlap - prevoverlap)/dt) * 
+            //                                  rij * Tvis * (rVecab / dist);
+            const vec3 viscoelaticforceOnA = {0,0,0};
+            ///////////////////////////////
+
+            // Gravity force:
+            // const vec3 gravForceOnA = (G * m[A] * m[B] * grav_scale / (dist * dist)) * (rVecab / dist); //SCALE MASS
+            const vec3 gravForceOnA = {0,0,0};
+            // const vec3 gravForceOnA = (G * m[A] * m[B] / (dist * dist)) * (rVecab / dist);
+
+            // Sliding and Rolling Friction:
+            vec3 slideForceOnA{0, 0, 0};
+            vec3 rollForceA{0, 0, 0};
+            vec3 torqueA{0, 0, 0};
+            vec3 torqueB{0, 0, 0};
+
+            // Shared terms:
+            const double elastic_force_A_mag = elasticForceOnA.norm();
+            const vec3 r_a = rVecab * R[A] / sumRaRb;  // Center to contact point
+            const vec3 r_b = rVecba * R[B] / sumRaRb;
+            const vec3 w_diff = w[A] - w[B];
+
+            // Sliding friction terms:
+            const vec3 d_vel = vel[B] - vel[A];
+            const vec3 frame_A_vel_B = d_vel - d_vel.dot(rVecab) * (rVecab / (dist * dist)) -
+                                       w[A].cross(r_a) - w[B].cross(r_a);
+
+            // Compute sliding friction force:
+            const double rel_vel_mag = frame_A_vel_B.norm();
+            // if (rel_vel_mag > 1e-20)  // Divide by zero protection.
+            // if (rel_vel_mag > 1e-8)  // Divide by zero protection.
+            ////////////////////////////////////////// CALC THIS AT INITIALIZATION for all combos os Ra,Rb
+            // const double u_scale = calc_VDW_force_mag(Ra,Rb,h_min_physical)/
+            //                         vdwForceOnA.norm();         //Friction coefficient scale factor
+            //////////////////////////////////////////
+            if (rel_vel_mag > 1e-13)  // NORMAL ONE Divide by zero protection.
+            {
+                // slideForceOnA = u_s * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
+                // In the frame of A, B applies force in the direction of B's velocity.
+                ///////////////////////////////////
+                // if (mu_scale)
+                // {
+                //     if (u_scale[e]*u_s > max_mu)
+                //     {
+                //         slideForceOnA = max_mu * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
+                //     }
+                //     else
+                //     {
+                //         slideForceOnA = u_scale[e] * u_s * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
+                //     }
+                // }
+                // else
+                // {
+                    slideForceOnA = u_s * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
+                // }
+                ///////////////////////////////////
+            }
+            //////////////////////////////////////
+            // slideForce[A] += slideForceOnA;
+            // slideForce[B] -= slideForceOnA;
+            //////////////////////////////////////
+
+
+            // Compute rolling friction force:
+            const double w_diff_mag = w_diff.norm();
+            // if (w_diff_mag > 1e-20)  // Divide by zero protection.
+            // if (w_diff_mag > 1e-8)  // Divide by zero protection.
+            if (w_diff_mag > 1e-13)  // NORMAL ONE Divide by zero protection.
+            {
+                // rollForceA = 
+                //     -u_r * elastic_force_A_mag * (w_diff).cross(r_a) / 
+                //     (w_diff).cross(r_a).norm();
+                /////////////////////////////////////
+                // if (mu_scale)
+                // {
+                //     if (u_scale[e]*u_r > max_mu)
+                //     {
+                //         rollForceA = 
+                //             -max_mu * elastic_force_A_mag * (w_diff).cross(r_a) / 
+                //             (w_diff).cross(r_a).norm();
+                //     }
+                //     else
+                //     {
+                //         rollForceA = 
+                //             -u_scale[e] * u_r * elastic_force_A_mag * (w_diff).cross(r_a) / 
+                //             (w_diff).cross(r_a).norm();
+                //     }
+                // }
+                // else
+                // {
+                    rollForceA = 
+                        -u_r * elastic_force_A_mag * (w_diff).cross(r_a) / 
+                        (w_diff).cross(r_a).norm();
+                // }
+                /////////////////////////////////////
+            }
+
+
+            // Total forces on a:
+            // totalForceOnA = gravForceOnA + elasticForceOnA + slideForceOnA + vdwForceOnA;
+            ////////////////////////////////
+            totalForceOnA = viscoelaticforceOnA + gravForceOnA + elasticForceOnA + slideForceOnA + vdwForceOnA;
+            ////////////////////////////////
+
+            // Total torque a and b:
+            torqueA = r_a.cross(slideForceOnA + rollForceA);
+            torqueB = r_b.cross(-slideForceOnA + rollForceA); // original code
+
+
+
+            aacc[A] += torqueA / moi[A];
+            aacc[B] += torqueB / moi[B];
+
+            if (write_step) {
+                // No factor of 1/2. Includes both spheres:
+                // PE += -G * m[A] * m[B] * grav_scale / dist + 0.5 * k * overlap * overlap;
+                // PE += -G * m[A] * m[B] / dist + 0.5 * k * overlap * overlap;
+
+                // Van Der Waals + elastic:
+                const double diffRaRb = R[A] - R[B];
+                const double z = sumRaRb + h;
+                const double two_RaRb = 2 * R[A] * R[B];
+                const double denom_sum = z * z - (sumRaRb * sumRaRb);
+                const double denom_diff = z * z - (diffRaRb * diffRaRb);
+                const double U_vdw =
+                    -Ha / 6 *
+                    (two_RaRb / denom_sum + two_RaRb / denom_diff + 
+                    log(denom_sum / denom_diff));
+                PE += U_vdw + 0.5 * k * overlap * overlap; ///TURN ON FOR REAL SIM
+            }
+        } else  // Non-contact forces:
+        {
+
+            // No collision: Include gravity and vdw:
+            // const vec3 gravForceOnA = (G * m[A] * m[B] * grav_scale / (dist * dist)) * (rVecab / dist);
+            const vec3 gravForceOnA = {0.0,0.0,0.0};
+            // Cohesion (non-contact) h must be positive or h + Ra + Rb becomes catastrophic cancellation:
+            double h = std::fabs(overlap);
+            if (h < h_min)  // If h is closer to 0 (almost touching), use hmin.
+            {
+                h = h_min;
+            }
+            const double Ra = R[A];
+            const double Rb = R[B];
+            const double h2 = h * h;
+            const double twoRah = 2 * Ra * h;
+            const double twoRbh = 2 * Rb * h;
+
+            // const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
+            //                              ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
+            //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
+            //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
+            //                              rVecab.normalized();
+            // ==========================================
+            // Test new vdw force equation with less division
+            const double d1 = h2 + twoRah + twoRbh;
+            const double d2 = d1 + 4 * Ra * Rb;
+            const double numer = 64*Ha*Ra*Ra*Ra*Rb*Rb*Rb*(h+Ra+Rb);
+            const double denomrecip = 1/(6*d1*d1*d2*d2);
+            const vec3 vdwForceOnA = (numer*denomrecip)*rVecab.normalized();
+            // ==========================================
+           
+            /////////////////////////////
+            totalForceOnA = vdwForceOnA + gravForceOnA;
+            // totalForceOnA = vdwForceOnA;
+            // totalForceOnA = gravForceOnA;
+            /////////////////////////////
+            if (write_step) {
+                // PE += -G * m[A] * m[B] * grav_scale / dist; // Gravitational
+
+                const double diffRaRb = R[A] - R[B];
+                const double z = sumRaRb + h;
+                const double two_RaRb = 2 * R[A] * R[B];
+                const double denom_sum = z * z - (sumRaRb * sumRaRb);
+                const double denom_diff = z * z - (diffRaRb * diffRaRb);
+                const double U_vdw =
+                    -Ha / 6 *
+                    (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
+                PE += U_vdw;  // Van Der Waals TURN ON FOR REAL SIM
+            }
+
+            // todo this is part of push_apart. Not great like this.
+            // For pushing apart overlappers:
+            // vel[A] = { 0,0,0 };
+            // vel[B] = { 0,0,0 };
+        }
+
+        // Newton's equal and opposite forces applied to acceleration of each ball:
+        acc[A] += totalForceOnA / m[A];
+        acc[B] -= totalForceOnA / m[B];
+
+
+        // So last distance can be known for COR:
+        distances[e] = dist;
+
+    }
+
+    #ifdef MPI_ENABLE
+        MPI_Allreduce(MPI_IN_PLACE,acc,attrs.num_particles*3,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE,aacc,attrs.num_particles*3,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+        double local_PE = PE;
+        PE = 0.0;
+        MPI_Reduce(&local_PE,&PE,1,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
+    #endif
+
+    // t.end_event("CalcForces/loopApplicablepairs");
+
+    // if (write_step) {
+    //     ballBuffer << '\n';  // Prepares a new line for incoming data.
+    //     // std::cerr<<"Writing "<<num_particles<<" balls"<<std::endl;
+    // }
+
+    // THIRD PASS - Calculate velocity for next step:
+    // t.start_event("CalcVelocityforNextStep");
+    for (int Ball = 0; Ball < attrs.num_particles; Ball++) 
+    {
+        // Velocity for next step:
+        vel[Ball] = velh[Ball] + .5 * acc[Ball] * attrs.dt;
+        w[Ball] = wh[Ball] + .5 * aacc[Ball] * attrs.dt;
+
+        /////////////////////////////////
+        // if (true) {
+        /////////////////////////////////
+        if (write_step && world_rank == 0) 
+        {
+            // Send positions and rotations to buffer:
+            int start = data->getWidth("simData")*attrs.num_writes+Ball*data->getSingleWidth("simData");
+            ballBuffer[start] = pos[Ball][0];
+            ballBuffer[start+1] = pos[Ball][1];
+            ballBuffer[start+2] = pos[Ball][2];
+            ballBuffer[start+3] = w[Ball][0];
+            ballBuffer[start+4] = w[Ball][1];
+            ballBuffer[start+5] = w[Ball][2];
+            ballBuffer[start+6] = w[Ball].norm();
+            ballBuffer[start+7] = vel[Ball][0];
+            ballBuffer[start+8] = vel[Ball][1];
+            ballBuffer[start+9] = vel[Ball][2];
+            ballBuffer[start+10] = 0;
+
+            KE += .5 * m[Ball] * vel[Ball].normsquared() +
+                    .5 * moi[Ball] * w[Ball].normsquared();  // Now includes rotational kinetic energy.
+            mom += m[Ball] * vel[Ball];
+            ang_mom += m[Ball] * pos[Ball].cross(vel[Ball]) + moi[Ball] * w[Ball];
+        }
+    }  // THIRD PASS END
+    if (write_step && world_rank == 0)
+    {
+        attrs.num_writes ++;
+    }
+    // t.end_event("CalcVelocityforNextStep");
+}  // one Step end
+
+
+void Ball_group::sim_one_step_GPU(const bool write_step)
 {
     int world_rank = getRank();
     int world_size = getSize();
