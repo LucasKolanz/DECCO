@@ -1075,7 +1075,7 @@ void Ball_group::calc_v_collapse()
             // }
         }
 
-        MPI_print(std::cerr,'(' + std::to_string(counter) + " spheres ignored"+ ") \n");
+        MPI_print(std::cerr,'(' + std::to_string(counter) + " spheres ignored"+ ") ");
     } else {
         for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
 

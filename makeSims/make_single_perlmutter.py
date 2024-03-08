@@ -35,14 +35,14 @@ if __name__ == '__main__':
 		exit(-1)
 
 
-	job_set_name = "test"
+	job_set_name = "testUpdate"
 	# folder_name_scheme = "T_"
 
 	# runs_at_once = 7
 	# attempts = [21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40]
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	# attempts = [i for i in range(10)]
-	attempts = [0] 
+	attempts = [1] 
 	# attempts_300 = [i for i in range(5)]
 
 	#test it out first
@@ -50,12 +50,12 @@ if __name__ == '__main__':
 	# attempts_300 = [0]
 
 	# N = [300,30,100]
-	N = [5]
+	N = [10]
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [3]
 
-	threads = 8
-	nodes = 2
+	threads = 1
+	nodes = 1
 
 	folders = []
 	for n in N:
@@ -84,7 +84,7 @@ if __name__ == '__main__':
 
 				input_json['temp'] = Temp
 				input_json['N'] = n
-				input_json['seed'] = rand_int()
+				input_json['seed'] = 2390330180
 				input_json['radiiDistribution'] = 'logNormal'
 				input_json['h_min'] = 0.5
 				input_json['dataFormat'] = "csv"
@@ -103,9 +103,9 @@ if __name__ == '__main__':
 				sbatchfile = ""
 				sbatchfile += "#!/bin/bash\n"
 				sbatchfile += "#SBATCH -A m2651\n"
-				sbatchfile += "#SBATCH -C gpu\n"
+				sbatchfile += "#SBATCH -C cpu\n"
 				sbatchfile += "#SBATCH -q regular\n"
-				sbatchfile += "#SBATCH -t 0:10:00\n"
+				sbatchfile += "#SBATCH -t 0:05:00\n"
 				sbatchfile += f"#SBATCH -J {job_set_name}\n"
 				sbatchfile += f"#SBATCH -N {nodes}\n"
 				# sbatchfile += "#SBATCH -G {}\n".format(node)
@@ -135,12 +135,12 @@ if __name__ == '__main__':
 
 				folders.append(job)
 
-# print(folders)
-# cwd = os.getcwd()
-# for folder in folders:
-# 	os.chdir(folder)
-# 	os.system('sbatch sbatchMulti.bash')
-# os.chdir(cwd)
+print(folders)
+cwd = os.getcwd()
+for folder in folders:
+	os.chdir(folder)
+	os.system('sbatch sbatchMulti.bash')
+os.chdir(cwd)
 
 
 
