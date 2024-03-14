@@ -80,7 +80,8 @@ else
 endif
 
 ifeq ($(MPI_TEST), 1)
-    CXXFLAGS += -DMPI_ENABLE
+    CXXFLAGS += -DMPI_ENABLE -I$(CRAY_MPICH_DIR)/include
+    LIBS += -L$(CRAY_MPICH_DIR)/lib
     CXX = mpiCC
     CXX = CC
 else
@@ -89,7 +90,7 @@ endif
 
 # Source files
 SOURCES = Collider.cpp 
-HPP = ../data/DECCOData.hpp ball_group.hpp
+HPP += ../data/DECCOData.hpp  ball_group.hpp ../utilities/Utils.hpp ../utilities/MPI_utilities.hpp
 
 # Object files for both regular and MOC-generated sources
 OBJECTS = $(SOURCES:.cpp=.o) 

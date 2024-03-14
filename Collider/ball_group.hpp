@@ -2097,7 +2097,8 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename)
     //file we are loading is csv file
     size_t _pos;
     int file_index;
-    MPIsafe_print(std::cerr,path+filename);
+    MPIsafe_print(std::cerr,path);
+    MPIsafe_print(std::cerr,filename);
     if (file.substr(file.size()-4,file.size()) == ".csv")
     {
         //decrease index by 1 so we have most recent finished sim
@@ -2801,18 +2802,18 @@ std::string Ball_group::find_restart_file_name(std::string path)
 
     if (csv)
     {
-        std::string file1 = path + largest_file_name;
-        std::string file2 = path + largest_file_name.substr(0,largest_file_name.size()-simDatacsv.size()) + "constants.csv";
-        std::string file3 = path + largest_file_name.substr(0,largest_file_name.size()-simDatacsv.size()) + "energy.csv";
-
-        std::string message("Removing the following files: \n"
-                            +'\t'+file1+'\n'
-                            +'\t'+file2+'\n'
-                            +'\t'+file3+'\n');
-        MPIsafe_print(std::cerr,message);
-
         if (getRank() == 0)
         {
+            std::string file1 = path + largest_file_name;
+            std::string file2 = path + largest_file_name.substr(0,largest_file_name.size()-simDatacsv.size()) + "constants.csv";
+            std::string file3 = path + largest_file_name.substr(0,largest_file_name.size()-simDatacsv.size()) + "energy.csv";
+
+            std::string message("Removing the following files: \n"
+                                +'\t'+file1+'\n'
+                                +'\t'+file2+'\n'
+                                +'\t'+file3+'\n');
+            MPIsafe_print(std::cerr,message);
+
             int status1 = remove(file1.c_str());
             int status2 = remove(file2.c_str());
             int status3 = remove(file3.c_str());

@@ -1,4 +1,4 @@
-
+#pragma once
 #include "../utilities/vec3.hpp"
 
 #ifdef MPI_ENABLE

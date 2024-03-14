@@ -31,8 +31,8 @@ def main():
 	folder2 = "/pscratch/sd/l/lpkolanz/SpaceLab/testHybrid/jobs/fullCompHybrid1/node_1/"
 	folder2 = "/pscratch/sd/l/lpkolanz/SpaceLab/testSqMat/jobs/fullCompSqMa1/node_1/"
 
-	folder1 = "/global/homes/l/lpkolanz/DECCOmain/SpaceLab_data/jobs/testOriginal0/N_10/T_3/"
-	folder2 = "/global/homes/l/lpkolanz/DECCOmain/SpaceLab_data/jobs/test2MPI0/N_10/T_3/"
+	folder1 = "/global/homes/l/lpkolanz/DECCOmain/SpaceLab_data/jobs/testrestartReference0/N_1210/T_3/"
+	folder2 = "/global/homes/l/lpkolanz/DECCOmain/SpaceLab_data/jobs/test2MPIrestart0/N_1210/T_3/"
 
 	# max_ind = -1
 	# for file in os.listdir(folder1):
@@ -69,7 +69,7 @@ def main():
 	temp = 3
 	show_FD_plots = False
 	allEnergy = []
-	for ind in [0,1,2,3,4,5,6,7,8,9]:
+	for ind in [1200]:
 		f1 = "{}_{}_simData.csv".format(ind,'_'.join(body))
 		f2 = "{}_{}_simData.csv".format(ind,'_'.join(body))
 		# f2 = "{}_simData.csv".format(ind)

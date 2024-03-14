@@ -38,8 +38,8 @@ if __name__ == '__main__':
 	job_set_name = "testUpdate"
 	job_set_name = "testMPI"
 	job_set_name = "test2MPI"
-	job_set_name = "test2MPIrestart"
 	job_set_name = "testrestartReference"
+	job_set_name = "test2MPIrestart"
 	# folder_name_scheme = "T_"
 
 	# runs_at_once = 7
@@ -58,8 +58,8 @@ if __name__ == '__main__':
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [3]
 
-	threads = 8
-	nodes = 1
+	threads = 32
+	nodes = 2
 
 	folders = []
 	for n in N:
@@ -136,6 +136,9 @@ if __name__ == '__main__':
 				os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
 				# if input_json['simType'] != "BPCA":
 				os.system("cp /global/homes/l/lpkolanz/old_Spacelab/SpaceLab/jobs/collidable_aggregate_1200/* {}".format(job))
+				os.system(f"touch {job}1200_2_R4e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_simData.csv")
+				os.system(f"touch {job}1200_2_R4e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_constants.csv")
+				os.system(f"touch {job}1200_2_R4e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_energy.csv")
 
 				folders.append(job)
 

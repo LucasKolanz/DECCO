@@ -1,5 +1,7 @@
+#pragma once
 #include "../default_files/dust_const.hpp"
 #include "../utilities/vec3.hpp"
+#include "../utilities/MPI_utilities.hpp"
 #include <filesystem>
 #include <iostream>
 #include <vector>
@@ -26,7 +28,7 @@ std::string getDataStringFromIndex(const int data_index)
 {
 	if (data_index < 0 || data_index > num_data_types-1)
 	{
-		std::cerr<<"DECCOData ERROR: data_index '"<<data_index<<"' is out of range."<<std::endl;
+		MPIsafe_print(std::cerr,"DECCOData ERROR: data_index '"+std::to_string(data_index)+"' is out of range.\n");
 		return "DECCOData ERROR";
 	}
 	return data_types[data_index];
@@ -42,7 +44,7 @@ int getDataIndexFromString(std::string data_type)
 			return i;
 		}
 	}
-	std::cerr<<"DECCOData ERROR: dataType '"<<data_type<<"' not found in class."<<std::endl;
+	MPIsafe_print(std::cerr,"DECCOData ERROR: dataType '"+data_type+"' not found in class.\n");
 	return -1;
 }
 
@@ -254,12 +256,15 @@ private:
 
 void printVec(std::vector<double> v)
 {
-	int i;
-	for (i = 0; i < v.size()-1; i++)
+	if (getRank() == 0)
 	{
-		std::cout<<v[i]<<", ";
+		int i;
+		for (i = 0; i < v.size()-1; i++)
+		{
+			std::cout<<v[i]<<", ";
+		}
+		std::cout<<v[i]<<std::endl;
 	}
-	std::cout<<v[i]<<std::endl;
 }
 
 #ifdef HDF5_ENABLE
@@ -319,7 +324,7 @@ class HDF5Handler {
 
 		        if (start > total_size)
 		        {
-		        	std::cerr<<"DECCOData ERROR: invalid start input"<<std::endl;
+		        	MPIsafe_print(std::cerr, "DECCOData ERROR: invalid start input\n");
 		        	return data;
 		        }
 
@@ -352,7 +357,7 @@ class HDF5Handler {
 			    dataset.close();
 			    file.close();
 		    } else {
-		        std::cerr << "File '" << filename << "' does not exist." << std::endl;
+		    	MPIsafe_print(std::cerr,"File '" << filename << "' does not exist.\n");
 		    }
 
 		    return data;
@@ -382,7 +387,7 @@ class HDF5Handler {
 
 		        if (start > total_size)
 		        {
-		        	MPIsafe_print(std::cerr,"DECCOData ERROR: invalid start input");
+		        	MPIsafe_print(std::cerr,"DECCOData ERROR: invalid start input\n");
 		        	return data;
 		        }
 
@@ -419,7 +424,7 @@ class HDF5Handler {
 			    dataset.close();
 			    file.close();
 		    } else {
-		        std::cerr << "File '" << readfile << "' does not exist." << std::endl;
+		    	MPIsafe_print(std::cerr,"File '" + readfile + "' does not exist.\n");
 		    }
 
 		    return data;
@@ -462,7 +467,7 @@ class HDF5Handler {
 		        dataspace.getSimpleExtentDims(dims_out, NULL);
 		        total_size = dims_out[0];
 		    } else {
-		        std::cerr << "File '" << readfile << "' does not exist." << std::endl;
+		    	MPIsafe_print(std::cerr,"File '" + readfile + "' does not exist.\n");
 		    }
 		    return total_size;
 		}
@@ -479,8 +484,8 @@ class HDF5Handler {
 	        if(std::filesystem::exists(file_read)) {
 	            file = H5::H5File(file_read, H5F_ACC_RDWR);
 	        } else {
-	            std::cerr << "File " << file_read << " doesn't exist." << std::endl;
-	            exit(-1);
+	        	MPIsafe_print(std::cerr,"File " << file_read << " doesn't exist.\n");
+	            MPIsafe_exit(-1);
 	        }
 
 	        if (datasetExists(file_read,"writes"))
@@ -519,8 +524,8 @@ class HDF5Handler {
 	        if(std::filesystem::exists(filename)) {
 	            file = H5::H5File(filename, H5F_ACC_RDWR);
 	        } else {
-	            std::cerr << "File " << filename << " doesn't exist." << std::endl;
-	            exit(-1);
+	        	MPIsafe_print(std::cerr,"File " + filename + " doesn't exist.\n");
+	            MPIsafe_exit(-1);
 	        }
 
 	        if (datasetExists(filename,"writes"))
@@ -657,7 +662,7 @@ class HDF5Handler {
 			    dataset.close();
 			    file.close();
 		    }else{
-            	std::cerr<<"File '"<<filename<<"' does not exist."<<std::endl;
+		    	MPIsafe_print("File '"+filename+"' does not exist.\n");
             }
             return;
 		}
@@ -726,13 +731,13 @@ class HDF5Handler {
 			    if (datasetExists(filename,datasetName)){
 			    	dataset = file.openDataSet(datasetName);
 			    }else{
-			        std::cerr << "dataset '"<<datasetName<<"' does not exist for file '"<<filename<<"' ." << std::endl;
+			    	MPIsafe_print(std::cerr,"dataset '"+datasetName+"' does not exist for file '"+filename+"' .\n");
 			    	return ERR_RET_MET;
 			    }
 
 			    // Check if the attribute's dataspace exists
 			    if (!attributeExists(dataset, metadataName)) {
-			        std::cerr << "Attribute 'metadata' does not exist for dataset '"<<datasetName<<"' in file '"<<filename<<"' ." << std::endl;
+			    	MPIsafe_print(std::cerr,"Attribute 'metadata' does not exist for dataset '"+datasetName+"' in file '"+filename+"' .\n");
 			        dataset.close();
 			        file.close();
 			    	return ERR_RET_MET;
@@ -750,10 +755,8 @@ class HDF5Handler {
 			    dataset.close();
 			    file.close();
             }else{
-            	std::cerr<<"File '"<<filename<<"' does not exist."<<std::endl;
+            	MPIsafe_print(std::cerr,"File '"+filename+"' does not exist.\n");
             }
-
-
 
 		    return metadata;
 		}
@@ -771,13 +774,13 @@ class HDF5Handler {
 			    if (datasetExists(metafile,datasetName)){
 			    	dataset = file.openDataSet(datasetName);
 			    }else{
-			        std::cerr << "dataset '"<<datasetName<<"' does not exist for file '"<<metafile<<"' ." << std::endl;
+			    	MPIsafe_print(std::cerr,"dataset '"+datasetName+"' does not exist for file '"+metafile+"' .\n");
 			    	return ERR_RET_MET;
 			    }
 
 			    // Check if the attribute's dataspace exists
 			    if (!attributeExists(dataset, metadataName)) {
-			        std::cerr << "Attribute "<<metadataName<<" does not exist for dataset '"<<datasetName<<"' in file '"<<metafile<<"' ." << std::endl;
+			    	MPIsafe_print(std::cerr,"Attribute "+metadataName+" does not exist for dataset '"+datasetName+"' in file '"+metafile+"' .\n");
 			        dataset.close();
 			        file.close();
 			    	return ERR_RET_MET;
@@ -795,7 +798,7 @@ class HDF5Handler {
 			    dataset.close();
 			    file.close();
             }else{
-            	std::cerr<<"File '"<<metafile<<"' does not exist."<<std::endl;
+            	MPIsafe_print(std::cerr,"File '"+metafile+"' does not exist.\n");
             }
 
 
@@ -939,8 +942,8 @@ class HDF5Handler {
 			}
 			else
 			{
-				std::cerr<<"File "<<filename<<" doesn't exist."<<std::endl;
-				exit(-1);
+				MPIsafe_print(std::cerr,"File "+filename+" doesn't exist.\n");
+				MPIsafe_exit(-1);
 			}
 	        // std::cout<<"datasetName: "<<datasetName<<std::endl;
 			// int i;
@@ -956,13 +959,13 @@ class HDF5Handler {
 	        try {
 			    dataset = file.openDataSet(datasetName);
 			} catch (const H5::Exception& error) {
-			    std::cerr<<"H5 ERROR: "<<error.getDetailMsg()<<std::endl;
+				MPIsafe_print(std::cerr,"H5 ERROR: "+error.getDetailMsg()+'\n');
 			}
 
 			try {
 			    dataspace = dataset.getSpace();
 			} catch (const H5::Exception& error) {
-			    std::cerr<<"H5 ERROR: "<<error.getDetailMsg()<<std::endl;
+				MPIsafe_print(std::cerr,"H5 ERROR: "+error.getDetailMsg()+'\n');
 			}
 
 	        // Get current size of the dataset
@@ -1061,11 +1064,11 @@ public:
 		}
 		else
 		{
-			std::cerr<<"DECCOData ERROR: storage_type '"<<storage_type<<"' not available."<<std::endl;
-			exit(-1);
+			MPIsafe_print(std::cerr,"DECCOData ERROR: storage_type '"+storage_type+"' not available.\n");
+			MPIsafe_exit(-1);
 		}
 		#ifndef HDF5_ENABLE
-			std::cerr<<"HDF5 not enabled. CSV format will be used for data."<<std::endl;
+			MPIsafe_print(std::cerr,"HDF5 not enabled. CSV format will be used for data.\n");
 			csvdata = true;
 			h5data = false;
 			if (storage_type != "csv")
@@ -1222,15 +1225,15 @@ public:
 					// 	std::cerr<<data_read[i]<<", ";
 					// }
 				}
-			#else
-				std::cerr<<"ERROR: csv file type not yet readable by DECCOData."<<std::endl;
-				exit(-1);
+			#else // csv's are still being read by functions in ball_group
+				MPIsafe_print(std::cerr,"ERROR: csv file type not yet readable by DECCOData.\n");
+				MPIsafe_exit(-1);
 			#endif	
 		}
 		else if (file.substr(file.size()-4,file.size()) == ".csv")
 		{
-			std::cerr<<"ERROR: csv file type not yet readable by DECCOData."<<std::endl;
-			exit(-1);
+			MPIsafe_print(std::cerr,"ERROR: csv file type not yet readable by DECCOData.\n");
+			MPIsafe_exit(-1);
 		}
 		return data_read;
 	}
@@ -1245,12 +1248,12 @@ public:
     		}
     		else
     		{
-    			std::cerr<<"Function WriteMeta only available for h5 ouput data format."<<std::endl;
-	    		exit(-1);	
+    			MPIsafe_print(std::cerr,"Function WriteMeta only available for h5 ouput data format.\n");
+				MPIsafe_exit(-1);
     		}
     	#else
-	    	std::cerr<<"Function WriteMeta only available for h5 ouput data format."<<std::endl;
-	    	exit(-1);
+    		MPIsafe_print(std::cerr,"Function WriteMeta only available for h5 ouput data format.\n");
+			MPIsafe_exit(-1);
 	    #endif
     }
 
@@ -1346,7 +1349,7 @@ public:
 		{
 			return genTimingMetaData();
 		}
-		std::cerr<<"DECCOData ERROR: data_index '"<<data_index<<"' is out of range."<<std::endl;
+		MPIsafe_print(std::cerr,"DECCOData ERROR: data_index '"+std::to_string(data_index)+"' is out of range.\n");
 		return "DECCOData ERROR";
 	}
 
