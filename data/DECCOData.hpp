@@ -1,6 +1,3 @@
-#ifdef HDF5_ENABLE
-	#include "H5Cpp.h"
-#endif
 #include "../default_files/dust_const.hpp"
 #include "../utilities/vec3.hpp"
 #include <filesystem>
@@ -8,6 +5,15 @@
 #include <vector>
 #include <sstream>
 #include <cmath>
+
+#ifdef HDF5_ENABLE
+	#include "H5Cpp.h"
+#endif
+
+#ifdef MPI_ENABLE
+	#include "mpi.h"
+#endif
+
 
 #define ERR_RET_MET "ERROR RETRIEVING METADATA"
 
@@ -376,7 +382,7 @@ class HDF5Handler {
 
 		        if (start > total_size)
 		        {
-		        	std::cerr<<"DECCOData ERROR: invalid start input"<<std::endl;
+		        	MPIsafe_print(std::cerr,"DECCOData ERROR: invalid start input");
 		        	return data;
 		        }
 

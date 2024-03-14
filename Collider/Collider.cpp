@@ -60,6 +60,10 @@ main(int argc, char* argv[])
         MPI_Init(&argc, &argv);
         MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
         MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+        if (world_rank == 0)
+        {
+            std::cerr<<"MPI enabled"<<std::endl;
+        }
     #else
         world_rank = 0;
         world_size = 1;
@@ -76,6 +80,9 @@ main(int argc, char* argv[])
         "Hello from rank %d\n",
         world_rank);
     fflush(stderr);
+    #ifdef MPI_ENABLE
+        MPI_Barrier(MPI_COMM_WORLD);
+    #endif
 
 
     //make dummy ball group to read input file
@@ -92,7 +99,7 @@ main(int argc, char* argv[])
     dummy.parse_input_file(location);
 
     //verify OpenMP threads
-    std::cerr<<"Max of "<<omp_get_max_threads()<<" threads on rank "<<world_rank<<"."<<std::endl;
+    std::cerr<<"Max of "<<omp_get_max_threads()<<" threads on rank "<<world_rank<<".\n";
 
 
     std::string radiiDist;
@@ -106,17 +113,16 @@ main(int argc, char* argv[])
     }
 
     //verify total time and frequency of writes
-    if (world_rank == 0)
-    {
-        std::cerr<<"simTimeSeconds: "<<dummy.attrs.simTimeSeconds<<std::endl;
-        std::cerr<<"timeResolution: "<<dummy.attrs.timeResolution<<std::endl;
-        std::cerr<<"Using "<<radiiDist<<" particle radii distribution"<<std::endl;
-    }
+    std::string message(
+        "simTimeSeconds: "+std::to_string(dummy.attrs.simTimeSeconds) + '\n' +
+        "timeResolution: "+std::to_string(dummy.attrs.timeResolution) + '\n' +
+        "Using "+radiiDist+" particle radii distribution\n");
+    MPIsafe_print(std::cerr,message);
 
     if (dummy.attrs.typeSim == dummy.attrs.collider)
     {
-        std::cerr<<"COLLIDER NOT IMPLIMENTED"<<std::endl;
-        exit(-1);
+        MPIsafe_print(std::cerr,"COLLIDER NOT IMPLIMENTED\n");
+        MPIsafe_exit(-1);
         // #ifdef MPI_ENABLE
         //     MPI_Barrier(MPI_COMM_WORLD);
         // #endif
@@ -133,10 +139,7 @@ main(int argc, char* argv[])
         }
         else
         {
-            if (world_rank == 0)
-            {
-                std::cerr<<"ERROR: if simType is BPCA, N >= 0 must be true."<<std::endl;
-            }
+            MPIsafe_print(std::cerr,"ERROR: if simType is BPCA, N >= 0 must be true.\n");
         }
     }
     else if (dummy.attrs.typeSim == dummy.attrs.relax)
@@ -148,39 +151,36 @@ main(int argc, char* argv[])
     }
     else
     {
-        if (world_rank == 0)
-        {
-            std::cerr<<"ERROR: input file needs to specify a simulation type (simType)."<<std::endl;
-        }
+        MPIsafe_print(std::cerr,"ERROR: input file needs to specify a simulation type (simType).\n");
     }
 
     if (world_rank == 0)
     {
         std::cerr<<"=========================================Finish Simulation========================================="<<std::endl;
-    }
+        t.end_event("WholeThing");
+        t.print_events();
+        t.save_events(dummy.attrs.output_folder + "timing.txt");
+    }  // end main
+
 
     #ifdef MPI_ENABLE
         MPI_Barrier(MPI_COMM_WORLD);
         MPI_Finalize();
     #endif
+}
 
-
-    t.end_event("WholeThing");
-    t.print_events();
-    t.save_events(dummy.attrs.output_folder + "timing.txt");
-}  // end main
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
 void collider(std::string path, std::string projectileName, std::string targetName)
 {
-    t.start_event("collider");
+    // t.start_event("collider");
     Ball_group O = Ball_group(path,std::string(projectileName),std::string(targetName));
     safetyChecks(O);
     O.sim_init_write();
     sim_looper(O,O.attrs.start_step);
-    t.end_event("collider");
+    // t.end_event("collider");
     O.freeMemory();
     return;
 }
@@ -192,12 +192,11 @@ void BPCA(std::string path, int num_balls)
     // int rest = -1;
     Ball_group O = Ball_group(path);  
     safetyChecks(O);
+    std::string message;
     if  (O.attrs.mid_sim_restart)
     {
-        if (world_rank == 0)
-        {
-            std::cerr<<"Asking for "<<get_num_threads(O)<<" threads."<<std::endl;
-        }
+        message = "Asking for "+std::to_string(get_num_threads(O))+" threads.\n";
+        MPIsafe_print(std::cerr,message);
         sim_looper(O,O.attrs.start_step);
     }
 
@@ -299,16 +298,17 @@ sim_looper(Ball_group &O,unsigned long long start_step=1)
 
     if (world_rank == 0)
     {   
-        std::cerr << "Beginning simulation...\n";
         O.attrs.startProgress = time(nullptr);
-
-        std::cerr<<"start step: "<<start_step<<std::endl;
-        std::cerr<<"Stepping through "<<O.attrs.steps<<" steps"<<std::endl;
-        std::cerr<<"Simulating "<<O.attrs.simTimeSeconds<<" seconds per sim."<<std::endl;
-        std::cerr<<"Writing out every "<<O.attrs.timeResolution<<" seconds."<<std::endl;
-        std::cerr<<"For a total of "<<O.attrs.simTimeSeconds/O.attrs.timeResolution<<" timesteps saved per sim."<<std::endl;
     }
 
+    std::string message(
+        "Beginning simulation...\nstart step:" +
+        std::to_string(start_step)+'\n' +
+        "Stepping through "+std::to_string(O.attrs.steps)+" steps.\n" + 
+        "Simulating "+std::to_string(O.attrs.simTimeSeconds)+" seconds per sim.\n" + 
+        "Writing out every "+std::to_string(O.attrs.timeResolution)+" seconds.\n" +
+        "For a total of "+std::to_string(O.attrs.simTimeSeconds/O.attrs.timeResolution)+" timesteps saved per sim.\n");
+    MPIsafe_print(std::cerr,message);
 
     //Set the number of threads to be appropriate
     O.attrs.OMPthreads = get_num_threads(O);
@@ -318,7 +318,10 @@ sim_looper(Ball_group &O,unsigned long long start_step=1)
         // simTimeElapsed += dt; //New code #1
         // Check if this is a write step:
         if (Step % O.attrs.skip == 0) {
-            t.start_event("writeProgressReport");
+            if (world_rank == 0)
+            {
+                t.start_event("writeProgressReport");
+            }
             writeStep = true;
             // std::cerr<<"Write step "<<Step<<std::endl;
 
@@ -348,8 +351,8 @@ sim_looper(Ball_group &O,unsigned long long start_step=1)
                 // progress, eta, real, simmed, real / simmed);
                 fflush(stdout);
                 O.attrs.startProgress = time(nullptr);
+                t.end_event("writeProgressReport");
             }
-            t.end_event("writeProgressReport");
         } else {
             writeStep = O.attrs.debug;
         }
@@ -426,201 +429,218 @@ sim_looper(Ball_group &O,unsigned long long start_step=1)
 void
 safetyChecks(Ball_group &O) //Should be ready to call sim_looper
 {
-    titleBar("SAFETY CHECKS");
+    #ifdef MPI_ENABLE
+        std::cerr<<std::flush;
+        MPI_Barrier(MPI_COMM_WORLD);
+    #endif
+    if (getRank() == 0)
+    {
+        titleBar("SAFETY CHECKS");
+        std::cerr<<std::flush;
+    }
+    #ifdef MPI_ENABLE
+        MPI_Barrier(MPI_COMM_WORLD);
+    #endif
+    
 
 
     if (O.attrs.output_folder == "")
     {
-        fprintf(stderr, "\noutput_folder NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\noutput_folder NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.data_directory == "")
     {
-        fprintf(stderr, "\ndata_directory NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\ndata_directory NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.soc <= 0) {
-        fprintf(stderr, "\nSOC NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\nSOC NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.v_collapse <= 0) {
-        fprintf(stderr, "\nvCollapse NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\nvCollapse NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.skip <= 1) {
-        fprintf(stderr, "\nSKIP NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\nSKIP NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.radiiDistribution != O.attrs.constant && O.attrs.radiiDistribution != O.attrs.logNorm) {
-        fprintf(stderr, "\nradiiDistribution NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\nradiiDistribution NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     } 
 
     if (O.attrs.typeSim != O.attrs.BPCA && O.attrs.typeSim != O.attrs.collider && O.attrs.typeSim != O.attrs.relax) {
-        fprintf(stderr, "\ntypeSim NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\ntypeSim NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     } 
 
     if (O.attrs.kin < 0) {
-        fprintf(stderr, "\nSPRING CONSTANT IN NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\nSPRING CONSTANT IN NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.kout < 0) {
-        fprintf(stderr, "\nSPRING CONSTANT OUT NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\nSPRING CONSTANT OUT NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.density < 0) {
-        fprintf(stderr, "\ndensity NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\ndensity NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.u_s < 0) {
-        fprintf(stderr, "\nu_s NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\nu_s NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.u_r < 0) {
-        fprintf(stderr, "\nu_r NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\nu_r NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.cor < 0) {
-        fprintf(stderr, "\ncor NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\ncor NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.simTimeSeconds < 0) {
-        fprintf(stderr, "\nsimTimeSeconds NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\nsimTimeSeconds NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.timeResolution < 0) {
-        fprintf(stderr, "\ntimeResolution NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\ntimeResolution NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.fourThirdsPiRho < 0) {
-        fprintf(stderr, "\nfourThirdsPiRho NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\nfourThirdsPiRho NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.scaleBalls < 0) {
-        fprintf(stderr, "\nscaleBalls NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\nscaleBalls NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.maxOverlap < 0) {
-        fprintf(stderr, "\nmaxOverlap NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\nmaxOverlap NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.kConsts < 0) {
-        fprintf(stderr, "\nkConsts NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\nkConsts NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.impactParameter < 0) {
-        fprintf(stderr, "\nimpactParameter NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\nimpactParameter NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.Ha < 0) {
-        fprintf(stderr, "\nHa NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\nHa NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.genBalls < 0) {
-        fprintf(stderr, "\ngenBalls NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\ngenBalls NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.typeSim == O.attrs.BPCA && O.attrs.N < 0) {
-        fprintf(stderr, "\nN NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\nN NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.typeSim == O.attrs.relax && O.attrs.relax_index < 0) {
         fprintf(stderr, "\nrestart_index NOT SET and in relax mode\n");
-        exit(EXIT_FAILURE);
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.attempts < 0) {
-        fprintf(stderr, "\nattempts NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\nattempts NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.spaceRange < 0) {
-        fprintf(stderr, "\nspaceRange NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\nspaceRange NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.spaceRangeIncrement < 0) {
-        fprintf(stderr, "\nspaceRangeIncrement NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\nspaceRangeIncrement NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.h_min < 0) {
-        fprintf(stderr, "\nh_min NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\nh_min NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.properties < 0) {
-        fprintf(stderr, "\nproperties NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\nproperties NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.dt <= 0) {
-        fprintf(stderr, "\nDT NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\nDT NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.steps == 0) {
-        fprintf(stderr, "\nSTEPS NOT SET\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "\nSTEPS NOT SET for rank %1d\n",getRank());
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     if (O.attrs.initial_radius <= 0) {
         fprintf(stderr, "\nCluster initialRadius not set\n");
-        exit(EXIT_FAILURE);
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
 
     for (int Ball = 0; Ball < O.attrs.num_particles; Ball++) {
         if (O.pos[Ball].norm() < vec3(1e-10, 1e-10, 1e-10).norm()) {
-            fprintf(stderr, "\nA ball position is [0,0,0]. Possibly didn't initialize positions properly.\n");
-            exit(EXIT_FAILURE);
+            fprintf(stderr, "\nA ball position is [0,0,0]. Possibly didn't initialize positions properly for rank %1d\n",getRank());
+            MPIsafe_exit(EXIT_FAILURE);
         }
 
 
         if (O.acc[Ball].norm() < vec3(1e-10, 1e-10, 1e-10).norm()) {
-            fprintf(stderr, "\nA balls acc is [0,0,0]. Possibly didn't initialize acceleration properly.\n");
-            exit(EXIT_FAILURE);
+            fprintf(stderr, "\nA balls acc is [0,0,0]. Possibly didn't initialize acceleration properly for rank %1d\n",getRank());
+            MPIsafe_exit(EXIT_FAILURE);
         }
 
         if (O.R[Ball] <= 0) {
-            fprintf(stderr, "\nA balls radius <= 0.\n");
-            exit(EXIT_FAILURE);
+            fprintf(stderr, "\nA balls radius <= 0 for rank %1d\n",getRank());
+            MPIsafe_exit(EXIT_FAILURE);
         }
 
         if (O.m[Ball] <= 0) {
-            fprintf(stderr, "\nA balls mass <= 0.\n");
-            exit(EXIT_FAILURE);
+            fprintf(stderr, "\nA balls mass <= 0 for rank %1d\n",getRank());
+            MPIsafe_exit(EXIT_FAILURE);
         }
 
         if (O.moi[Ball] <= 0) {
-            fprintf(stderr, "\nA balls moi <= 0.\n");
-            exit(EXIT_FAILURE);
+            fprintf(stderr, "\nA balls moi <= 0 for rank %1d\n",getRank());
+            MPIsafe_exit(EXIT_FAILURE);
         }
     }
 
-    titleBar("SAFETY PASSED");
+    fprintf(stderr, "SAFETY PASSED rank %1d\n",getRank());
+    fflush(stderr);
+
+    #ifdef MPI_ENABLE
+        MPI_Barrier(MPI_COMM_WORLD);
+    #endif
 }
 
 

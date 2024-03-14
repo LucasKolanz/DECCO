@@ -5,6 +5,7 @@
 #include "../utilities/vec3.hpp"
 #include "../utilities/linalg.hpp"
 #include "../utilities/Utils.hpp"
+#include "../utilities/MPI_utilities.hpp"
 #include "../data/DECCOData.hpp"
 #include "../timing/timing.hpp"
 
@@ -23,37 +24,19 @@
 #include <random>
 #include <omp.h>
 
-
 #ifdef MPI_ENABLE
     #include <mpi.h>
 #endif
+
 
 // using std::numbers::pi;
 using json = nlohmann::json;
 namespace fs = std::filesystem;
 extern const int bufferlines;
 
-int getSize()
-{
-    int world_size;
-    #ifdef MPI_ENABLE
-        MPI_Comm_size(MPI_COMM_WORLD,&world_size);
-    #else
-        world_size = 1;
-    #endif
-    return world_size;
-}
 
-int getRank()
-{
-    int world_rank;
-    #ifdef MPI_ENABLE
-        MPI_Comm_rank(MPI_COMM_WORLD,&world_rank);
-    #else
-        world_rank = 0;
-    #endif
-    return world_rank;
-}
+
+
 
 struct Ball_group_attributes
 {
@@ -355,7 +338,7 @@ public:
     void relax_init(std::string path);
     void BPCA_init(std::string path);
     std::string find_file_name(std::string path,int index);
-    void MPI_print(std::ostream& stream, const std::string& message) const;
+    
 
 
     void sim_one_step(const bool write_step);
@@ -412,8 +395,8 @@ Ball_group::Ball_group(std::string& path)
     }
     else if (attrs.typeSim == attrs.collider)
     {
-        MPI_print(std::cerr,"COLLIDER NOT IMPLIMENTED. NOW EXITING . . .\n");
-        exit(-1);
+        MPIsafe_print(std::cerr,"COLLIDER NOT IMPLIMENTED. NOW EXITING . . .\n");
+        MPIsafe_exit(-1);
     }
     else if (attrs.typeSim == attrs.relax)
     {
@@ -424,7 +407,7 @@ Ball_group::Ball_group(std::string& path)
         else
         {
             std::string message("ERROR: simType is relax but relax_index is ("+std::to_string(attrs.relax_index)+") < 0\n");
-            MPI_print(std::cerr,message);
+            MPIsafe_print(std::cerr,message);
         }
     }
         
@@ -459,8 +442,8 @@ void Ball_group::BPCA_init(std::string path)
     //find_restart_file_name will possibly delete one of the data files 
     if (restart == 2)
     {
-        MPI_print(std::cerr,"Simulation already complete. Now exiting. . .\n");
-        exit(0);
+        MPIsafe_print(std::cerr,"Simulation already complete. Now exiting. . .\n");
+        MPIsafe_exit(0);
     }
 
     std::string filename = find_restart_file_name(path); 
@@ -483,7 +466,7 @@ void Ball_group::BPCA_init(std::string path)
 
     if (!just_restart && restart==1)
     {
-        MPI_print(std::cerr,std::string("Loading sim "+path+filename+'\n'));
+        MPIsafe_print(std::cerr,std::string("Loading sim "+path+filename+'\n'));
         loadSim(path, filename);
         calc_v_collapse(); 
         if (attrs.dt < 0)
@@ -508,7 +491,7 @@ void Ball_group::BPCA_init(std::string path)
         }
         else
         {
-            MPI_print(std::cerr,"ERROR: genBalls > 2 not yet implimented (right)?\n");
+            MPIsafe_print(std::cerr,"ERROR: genBalls > 2 not yet implimented (right)?\n");
         }
 
         // if (mu_scale)
@@ -528,9 +511,9 @@ void Ball_group::BPCA_init(std::string path)
     else
     {
         std::string message("ERROR: restart code '"+std::to_string(restart)+"' not recognized.\n");
-        MPI_print(std::cerr,message);
+        MPIsafe_print(std::cerr,message);
 
-        exit(-1);
+        MPIsafe_exit(-1);
     }
 }
 
@@ -660,8 +643,8 @@ void Ball_group::init_data(int counter = 0)
     else
     {
         std::string message("ERROR: data_type '"+attrs.filetype+"' not supported.\n"); 
-        MPI_print(std::cerr,message);
-        exit(EXIT_FAILURE);
+        MPIsafe_print(std::cerr,message);
+        MPIsafe_exit(EXIT_FAILURE);
     }
     data = new DECCOData(sav_file,\
                         attrs.num_particles,attrs.steps/attrs.skip+1,attrs.steps);
@@ -679,13 +662,13 @@ void Ball_group::parse_input_file(std::string location)
             std::filesystem::path currentPath = std::filesystem::current_path();
             location = currentPath.string() + "/";
         } catch (const std::filesystem::filesystem_error& e) {
-            MPI_print(std::cerr,std::string("Error getting current directory: " + std::string(e.what()) + '\n'));
+            MPIsafe_print(std::cerr,std::string("Error getting current directory: " + std::string(e.what()) + '\n'));
             exit(-1);
         }
     }
     // std::string s_location(location);
     std::string json_file = location + "input.json";
-    MPI_print(std::cerr,std::string("Parsing input file: "+json_file+'\n'));
+    MPIsafe_print(std::cerr,std::string("Parsing input file: "+json_file+'\n'));
     std::ifstream ifs(json_file);
     json inputs = json::parse(ifs);
     attrs.output_folder = inputs["output_folder"];
@@ -735,7 +718,7 @@ void Ball_group::parse_input_file(std::string location)
     }
     
     
-    MPI_print(std::cerr,std::string("Writing seed '"+std::to_string(attrs.seed)+"' to seedFile.txt\n"));
+    MPIsafe_print(std::cerr,std::string("Writing seed '"+std::to_string(attrs.seed)+"' to seedFile.txt\n"));
     
     random_generator.seed(attrs.seed);//This was in the else but it should be outside so random_generator is always seeded the same as srand (right?)
     srand(attrs.seed);
@@ -924,7 +907,7 @@ void Ball_group::calibrate_dt(int const Step, const double& customSpeed = -1.)
             message += "\nk: " + std::to_string(attrs.kin) + "\tdt: " + std::to_string(attrs.dt) + '\n';
         }
     }
-    MPI_print(std::cerr,message);
+    MPIsafe_print(std::cerr,message);
 
     message = "";
 
@@ -942,7 +925,7 @@ void Ball_group::calibrate_dt(int const Step, const double& customSpeed = -1.)
             message += "simTimeSeconds/dt = " + std::to_string(attrs.simTimeSeconds / attrs.dt)+'\n';
             message += "casted simTimeSeconds/dt (steps) = " + std::to_string(static_cast<int>(attrs.simTimeSeconds / attrs.dt))+'\n';
             message += "Exiting program now.\n";
-            MPI_print(std::cerr,message);
+            MPIsafe_print(std::cerr,message);
             exit(-1);
         }
 
@@ -957,12 +940,12 @@ void Ball_group::calibrate_dt(int const Step, const double& customSpeed = -1.)
             message += "Step = " + std::to_string(Step) + '\n';
             message += "Final steps = " + std::to_string(static_cast<unsigned long long>(dtOld / attrs.dt) * (attrs.steps - Step) + Step) + '\n';
             message += "Exiting program now.'\n'";
-            MPI_print(std::cerr,message);
+            MPIsafe_print(std::cerr,message);
             exit(-1);
         }
         message += "\tSteps: " + std::to_string(attrs.steps);
     }
-    MPI_print(std::cerr,message);
+    MPIsafe_print(std::cerr,message);
 
     message = "";
 
@@ -973,14 +956,14 @@ void Ball_group::calibrate_dt(int const Step, const double& customSpeed = -1.)
         message += "Desired time resolution is lower than dt. Setting to 1 second per skip.\n";
         attrs.skip = static_cast<int>(floor(1. / attrs.dt));
     }
-    MPI_print(std::cerr,message);
+    MPIsafe_print(std::cerr,message);
 }
 
 // todo - make bigger balls favor the middle, or, smaller balls favor the outside.
 /// @brief Push balls apart until no overlaps
 void Ball_group::pushApart() const
 {
-    MPI_print(std::cerr,std::string("Separating spheres - Current max overlap:\n"));
+    MPIsafe_print(std::cerr,std::string("Separating spheres - Current max overlap:\n"));
     /// Using acc array as storage for accumulated position change.
     int* counter = new int[attrs.num_particles];
     for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
@@ -1027,9 +1010,9 @@ void Ball_group::pushApart() const
         }
 
         if (overlapMax > 0) {
-            MPI_print(std::cerr,std::string(std::to_string(overlapMax) + "                        \r"));//Why is there a \r here? Keeping until I know
+            MPIsafe_print(std::cerr,std::string(std::to_string(overlapMax) + "                        \r"));//Why is there a \r here? Keeping until I know
         } else {
-            MPI_print(std::cerr,"\nSuccess!\n");
+            MPIsafe_print(std::cerr,"\nSuccess!\n");
             break;
         }
         overlapMax = -1;
@@ -1075,7 +1058,7 @@ void Ball_group::calc_v_collapse()
             // }
         }
 
-        MPI_print(std::cerr,'(' + std::to_string(counter) + " spheres ignored"+ ") ");
+        MPIsafe_print(std::cerr,'(' + std::to_string(counter) + " spheres ignored"+ ") ");
     } else {
         for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
 
@@ -1089,7 +1072,7 @@ void Ball_group::calc_v_collapse()
         // This shouldn't apply to extremely destructive collisions because it is possible that no
         // particles are considered, so it will keep pausing.
         if (attrs.v_max < 1e-10) {
-            MPI_print(std::cerr,"\nMax velocity in system is less than 1e-10.\n");
+            MPIsafe_print(std::cerr,"\nMax velocity in system is less than 1e-10.\n");
             system("pause");
         }
     }
@@ -1457,8 +1440,9 @@ Ball_group Ball_group::dust_agglomeration_particle_init()
     {
         double a = std::sqrt(Kb*attrs.temp/projectile.m[0]);
         attrs.v_custom = max_bolt_dist(a); 
-        std::cerr<<"v_custom set to "<<attrs.v_custom<< "cm/s based on a temp of "
-                <<attrs.temp<<" degrees K."<<std::endl; 
+
+        std::string message("v_custom set to "+std::to_string(attrs.v_custom)+ "cm/s based on a temp of "+
+                std::to_string(attrs.temp)+" degrees K.\n"); 
     }
     projectile.vel[0] = -attrs.v_custom * projectile_direction;
 
@@ -1481,7 +1465,7 @@ Ball_group Ball_group::dust_agglomeration_particle_init()
 Ball_group Ball_group::add_projectile()
 {
     // Load file data:
-    std::cerr << "Add Particle\n";
+    MPIsafe_print(std::cerr,"Add Particle\n");
 
     Ball_group projectile = dust_agglomeration_particle_init();
     
@@ -1498,13 +1482,10 @@ Ball_group Ball_group::add_projectile()
     projectile.kick(-v_com);
     kick(-v_com);
 
-    fprintf(
-        stderr,
-        "\nTarget Velocity: %.2e\nProjectile Velocity: %.2e\n",
-        vel[0].norm(),
-        projectile.vel[0].norm());
-
-    std::cerr << '\n';
+    std::ostringstream oss;
+    oss << "\nTarget Velocity: " << std::scientific << vel[0].norm()
+        << "\nProjectile Velocity: " << projectile.vel[0].norm() << "\n\n";
+    MPIsafe_print(std::cerr,oss.str());
 
     projectile.calc_momentum("Projectile");
     calc_momentum("Target");
@@ -1901,7 +1882,7 @@ void Ball_group::loadConsts(const std::string& path, const std::string& filename
     std::string simDataFilepath = path + filename + "simData.csv";
 
     if (auto simDataStream = std::ifstream(simDataFilepath, std::ifstream::in)) {
-        std::cerr << "\nParsing last line of data.\n";
+        MPIsafe_print(std::cerr,"\nParsing last line of data.\n");
 
         simDataStream.seekg(-1, std::ios_base::end);  // go to 
          // spot before the EOF
@@ -1928,9 +1909,11 @@ void Ball_group::loadConsts(const std::string& path, const std::string& filename
         std::getline(simDataStream, line);  // Read the current line
         return line;
     } else {
-        std::cerr << "Could not open simData file: " << simDataFilepath << "... Exiting program."
-                  << '\n';
-        exit(EXIT_FAILURE);
+
+        std::string message("Could not open simData file: "+simDataFilepath+"... Exiting program.\n");
+        MPIsafe_print(std::cerr,message);
+        MPIsafe_exit(EXIT_FAILURE);
+        return "ERROR"; //This shouldn't return but not returning anything is giving a warning
     }
 }
 
@@ -2081,9 +2064,7 @@ void Ball_group::threeSizeSphere(const int nBalls)
 
 void Ball_group::generate_ball_field(const int nBalls)
 {
-    std::cerr << "CLUSTER FORMATION\n";
-
-    std::cerr<<nBalls<<std::endl;
+    MPIsafe_print(std::cerr,"CLUSTER FORMATION (with "+std::to_string(nBalls)+" balls)\n");
 
     allocate_group(nBalls);
 
@@ -2116,6 +2097,7 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename)
     //file we are loading is csv file
     size_t _pos;
     int file_index;
+    MPIsafe_print(std::cerr,path+filename);
     if (file.substr(file.size()-4,file.size()) == ".csv")
     {
         //decrease index by 1 so we have most recent finished sim
@@ -2138,21 +2120,22 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename)
             loadDatafromH5(path,file);
         #else
             std::cerr<<"ERROR: HDF5 not enabled. Please recompile with -DHDF5_ENABLE and try again."<<std::endl;
-            exit(EXIT_FAILURE);
+            MPIsafe_exit(EXIT_FAILURE);
         #endif
     }
     else
     {
-        std::cerr<<"ERROR: filename in loadSim is of unknown type."<<std::endl;
-        exit(EXIT_FAILURE);
+        MPIsafe_print(std::cerr,"ERROR: filename in loadSim is of unknown type.\n");
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
 
     calc_helpfuls();
 
-    std::cerr << "Balls: " << attrs.num_particles << '\n';
-    std::cerr << "Mass: " << attrs.m_total << '\n';
-    std::cerr << "Approximate radius: " << attrs.initial_radius << " cm.\n";
+    std::string message("Balls: " + std::to_string(attrs.num_particles) + '\n' + 
+                        "Mass: " + std::to_string(attrs.m_total) + '\n' +
+                        "Approximate radius: " + std::to_string(attrs.initial_radius) + " cm.\n");
+    MPIsafe_print(std::cerr,message);
 }
 
 void Ball_group::parse_meta_data(std::string metadata)
@@ -2216,6 +2199,9 @@ void Ball_group::parse_meta_data(std::string metadata)
 
 }
 
+
+
+
 #ifdef HDF5_ENABLE
 void Ball_group::loadDatafromH5(std::string path,std::string file)
 {
@@ -2234,12 +2220,51 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
         if (!HDF5Handler::sim_finished(path,file))
         {
             std::string rmfile = file;
-            int status = remove(rmfile.c_str());
+
+            #ifdef MPI_ENABLE
+                MPI_Barrier(MPI_COMM_WORLD);
+                
+                int status;
+                int send_result
+                //If multiple nodes, we don't want to delete until everyone has loaded
+                if (getRank() == 0)
+                {
+                    status = remove(rmfile.c_str());
+                    if (getSize() > 1)
+                    {
+                        for (int i = 1; i < getSize(); i++)
+                        {
+                            send_result = MPI_Send(&status, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+                            if (send_result != MPI_SUCCESS)
+                            {
+                                std::cerr<<"ERROR: MPI_Send to node "<<i<<" errored with code "<<send_result<<std::endl;   
+                                MPIsafe_exit(-1);
+                            }
+                        }
+
+                    }
+                }
+                else
+                {
+                    MPI_Status mpistat;
+                    MPI_Recv(&status, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &mpistat);
+                    //verify Recv worked
+                    if (mpistat.MPI_ERROR != MPI_SUCCESS)
+                    {
+                        std::cerr<<"ERROR: MPI_Recv for node "<<getRank()<<" errored with code "<<mpistat.MPI_ERROR<<std::endl;   
+                        MPIsafe_exit(-1);
+                    }
+                }
+            #else
+                int status = remove(rmfile.c_str());
+            #endif
+            
 
             if (status != 0)
             {
-                std::cerr<<"File: '"<<rmfile<<"' could not be removed, now exiting with failure."<<std::endl;
-                exit(EXIT_FAILURE);
+                std::string message("File: '"+std::to_string(rmfile)+"' could not be removed, now exiting with failure.\n");
+                MPIsafe_print(std::cerr,message);
+                MPIsafe_exit(EXIT_FAILURE);
             }
             file_index--;
             file = std::to_string(file_index) + file.substr(_pos,file.size());
@@ -2386,10 +2411,10 @@ void Ball_group::placeBalls(const int nBalls)
         }
         if (collisionDetected < oldCollisions) {
             oldCollisions = collisionDetected;
-            std::cerr << "Collisions: " << collisionDetected << "                        \r";
+            MPIsafe_print(std::cerr,"Collisions: "+std::to_string(collisionDetected)+'\n');
         }
         if (collisionDetected == 0) {
-            std::cerr << "\nSuccess!\n";
+            MPIsafe_print(std::cerr,"Success!\n");
             break;
         }
         if (failed == attrs.attempts - 1 ||
@@ -2400,8 +2425,9 @@ void Ball_group::placeBalls(const int nBalls)
                         nBalls)))  // Added the second part to speed up spatial constraint increase when
                                    // there are clearly too many collisions for the space to be feasible.
         {
-            std::cerr << "Failed " << attrs.spaceRange << ". Increasing range " << attrs.spaceRangeIncrement
-                      << "cm^3.\n";
+
+            std::string message("Failed "+std::to_string(attrs.spaceRange)+". Increasing range "+std::to_string(attrs.spaceRangeIncrement)+"cm^3.\n");
+            MPIsafe_print(std::cerr,message);
             attrs.spaceRange += attrs.spaceRangeIncrement;
             failed = 0;
             for (int Ball = 0; Ball < nBalls; Ball++) {
@@ -2413,18 +2439,13 @@ void Ball_group::placeBalls(const int nBalls)
         collisionDetected = 0;
     }
 
-    std::cerr << "Final spacerange: " << attrs.spaceRange << '\n';
-    std::cerr << "Initial Radius: " << get_radius(getCOM()) << '\n';
-    std::cerr << "Mass: " << attrs.m_total << '\n';
+    std::string message("Final spacerange: " + std::to_string(attrs.spaceRange)+'\n' +
+                        "Initial Radius: "+std::to_string(get_radius(getCOM()))+'\n' +
+                        "Mass: "+std::to_string(attrs.m_total)+'\n');
+    MPIsafe_print(std::cerr,message);
 }
 
-inline void Ball_group::MPI_print(std::ostream& stream, const std::string& message) const
-{
-    if (getRank() == 0)
-    {
-        stream << message;
-    }
-}
+
 
 
 void Ball_group::updateDTK(const double& velocity)
@@ -2464,20 +2485,20 @@ void Ball_group::updateDTK(const double& velocity)
         message << "In the elastic regime.\n";
     }
     message << "==================" << std::endl;
-    MPI_print(std::cerr,message.str());
+    MPIsafe_print(std::cerr,message.str());
 }
 
 
 void Ball_group::simInit_cond_and_center(bool add_prefix)
 {
-    std::string message("==================\ndt:"
+    std::string message("==================\ndt: "
                         + std::to_string(attrs.dt) + '\n'
-                        + "k: " + std::to_string(attrs.kin) + '\n'
+                        + "k : " + std::to_string(attrs.kin) + '\n'
                         + "Skip: " + std::to_string(attrs.skip) + '\n'
                         + "Steps: " + std::to_string(attrs.steps) + '\n'
                         + "==================\n");
 
-    MPI_print(std::cerr,message);
+    MPIsafe_print(std::cerr,message);
 
     if (attrs.num_particles > 1)
     {
@@ -2508,7 +2529,7 @@ void Ball_group::sim_init_two_cluster(
 {
     // Load file data:
     std::string message("TWO CLUSTER SIM\nFile 1: " + projectileName + "\tFile 2: " + targetName + '\n');
-    MPI_print(std::cerr,message);
+    MPIsafe_print(std::cerr,message);
 
     // DART PROBE
     // ballGroup projectile(1);
@@ -2527,7 +2548,7 @@ void Ball_group::sim_init_two_cluster(
 
     attrs.num_particles = projectile.attrs.num_particles + target.attrs.num_particles;
     
-    MPI_print(std::cerr,"Total number of particles in sim: "+std::to_string(attrs.num_particles) + '\n');
+    MPIsafe_print(std::cerr,"Total number of particles in sim: "+std::to_string(attrs.num_particles) + '\n');
 
     // DO YOU WANT TO STOP EVERYTHING?
     // projectile.zeroAngVel();
@@ -2557,8 +2578,8 @@ void Ball_group::sim_init_two_cluster(
     // const double vBig = 0; // Dymorphous override.
 
     if (std::isnan(vSmall) || std::isnan(vBig)) {
-        MPI_print(std::cerr,"A VELOCITY WAS NAN!!!!!!!!!!!!!!!!!!!!!!\n\n");
-        exit(EXIT_FAILURE);
+        MPIsafe_print(std::cerr,"A VELOCITY WAS NAN!!!!!!!!!!!!!!!!!!!!!!\n\n");
+        MPIsafe_exit(EXIT_FAILURE);
     }
 
     projectile.kick(vec3(vSmall, 0, 0));
@@ -2567,7 +2588,7 @@ void Ball_group::sim_init_two_cluster(
     std::ostringstream oss;
     oss << "\nTarget Velocity: " << std::scientific << vBig
         << "\nProjectile Velocity: " << vSmall << "\n\n";
-    MPI_print(std::cerr,oss.str());
+    MPIsafe_print(std::cerr,oss.str());
     //This is jobs line. Keeping it in case this new printing fails
     // fprintf(message, "\nTarget Velocity: %.2e\nProjectile Velocity: %.2e\n", vBig, vSmall);
 
@@ -2697,7 +2718,7 @@ std::string Ball_group::find_file_name(std::string path,int index)
                 }
                 else
                 {
-                    MPI_print(std::cerr,"ERROR: filename convention is not recognized for file '"+file+"'\n");
+                    MPIsafe_print(std::cerr,"ERROR: filename convention is not recognized for file '"+file+"'\n");
                     exit(-1);
                 }
 
@@ -2713,7 +2734,7 @@ std::string Ball_group::find_file_name(std::string path,int index)
         }
     }
     
-    MPI_print(std::cerr,"ERROR: file at path '"+path+"' with index '"+std::to_string(index)+"' not found. Now exiting . . .\n");
+    MPIsafe_print(std::cerr,"ERROR: file at path '"+path+"' with index '"+std::to_string(index)+"' not found. Now exiting . . .\n");
     exit(-1);
 }
 
@@ -2788,25 +2809,31 @@ std::string Ball_group::find_restart_file_name(std::string path)
                             +'\t'+file1+'\n'
                             +'\t'+file2+'\n'
                             +'\t'+file3+'\n');
-        int status1 = remove(file1.c_str());
-        int status2 = remove(file2.c_str());
-        int status3 = remove(file3.c_str());
+        MPIsafe_print(std::cerr,message);
 
-        if (status1 != 0)
+        if (getRank() == 0)
         {
-            MPI_print(std::cerr,"File: '"+file1+"' could not be removed, now exiting with failure.\n");
-            exit(EXIT_FAILURE);
+            int status1 = remove(file1.c_str());
+            int status2 = remove(file2.c_str());
+            int status3 = remove(file3.c_str());
+
+            if (status1 != 0)
+            {
+                MPIsafe_print(std::cerr,"File: '"+file1+"' could not be removed, now exiting with failure.\n");
+                MPIsafe_exit(EXIT_FAILURE);
+            }
+            else if (status2 != 0)
+            {
+                MPIsafe_print(std::cerr,"File: '"+file2+"' could not be removed, now exiting with failure.\n");
+                MPIsafe_exit(EXIT_FAILURE);
+            }
+            else if (status3 != 0)
+            {
+                MPIsafe_print(std::cerr,"File: '"+file3+"' could not be removed, now exiting with failure.\n");
+                MPIsafe_exit(EXIT_FAILURE);
+            }
         }
-        else if (status2 != 0)
-        {
-            MPI_print(std::cerr,"File: '"+file2+"' could not be removed, now exiting with failure.\n");
-            exit(EXIT_FAILURE);
-        }
-        else if (status3 != 0)
-        {
-            MPI_print(std::cerr,"File: '"+file3+"' could not be removed, now exiting with failure.\n");
-            exit(EXIT_FAILURE);
-        }
+        MPIsafe_barrier();
         largest_file_name = second_largest_file_name;
     }
     return largest_file_name;
