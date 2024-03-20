@@ -532,57 +532,57 @@ def get_COM(pos,mass):
 def main():
 
 
-	folder = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/lognorm6/N_100/T_100/"
-	folder = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/lognorm24/N_300/T_3/"
-	ind = where_did_error1_start(folder)
+	# folder = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/lognorm6/N_100/T_100/"
+	# folder = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/lognorm24/N_300/T_3/"
+	# ind = where_did_error1_start(folder)
 	# ind = error2_index(folder,True)
 	# print(ind)
 
 
-	# with open(project_path+"default_files/default_input.json",'r') as fp:
-	# 	input_json = json.load(fp)
+	with open(project_path+"default_files/default_input.json",'r') as fp:
+		input_json = json.load(fp)
 
 
-	# job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
-	# job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
-	# job = input_json["data_directory"] + 'jobs/lognorm$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobs/lognorm$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
 	
 
-	# attempts = [i for i in range(30)]
-	# # attempts = [0]
+	attempts = [i for i in range(30)]
+	# attempts = [0]
 
-	# N = [30,100,300]
-	# # N=[100]
+	N = [30,100,300]
+	# N=[100]
 
-	# Temps = [3,10,30,100,300,1000]
-	# # Temps = [3]
+	Temps = [3,10,30,100,300,1000]
+	# Temps = [3]
 
-	# errorDic = {}
+	errorDic = {}
 
-	# relax = False
+	relax = False
 
-	# if job.split("/")[-4].split("_")[-1].strip("$a$") == "relax":
-	# 	relax = True
+	if job.split("/")[-4].split("_")[-1].strip("$a$") == "relax":
+		relax = True
 
 
 
-	# # for i,error in enumerate([error6]):
-	# for i,error in enumerate([errorn1,error0,error1,error2,error3,error4,error5,error6]):
-	# 	print(f"======================================{error.__name__}======================================")
-	# 	error_folders = check_error(job,error,N,Temps,attempts,relax=relax)
-	# 	for folder in error_folders:
-	# 		if folder in errorDic.keys():
-	# 			errorDic[folder].append(i)
-	# 		else:
-	# 			errorDic[folder] = [f"{error.__name__}"]
+	# for i,error in enumerate([error6]):
+	for i,error in enumerate([errorn1,error0,error1,error2,error3,error4,error5,error6]):
+		print(f"======================================{error.__name__}======================================")
+		error_folders = check_error(job,error,N,Temps,attempts,relax=relax)
+		for folder in error_folders:
+			if folder in errorDic.keys():
+				errorDic[folder].append(i)
+			else:
+				errorDic[folder] = [f"{error.__name__}"]
 
-	# if not errorDic:
-	# 	print("No Errors detected")
-	# else:
-	# 	for key in errorDic.keys():
-	# 		print(f"Errors in folder {key}")
-	# 		for error in errorDic[key]:
-	# 			print(f"\t{error}")
+	if not errorDic:
+		print("No Errors detected")
+	else:
+		for key in errorDic.keys():
+			print(f"Errors in folder {key}")
+			for error in errorDic[key]:
+				print(f"\t{error}")
 
 
 

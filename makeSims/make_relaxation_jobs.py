@@ -59,12 +59,12 @@ if __name__ == '__main__':
 	runs_at_once = 12
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	attempts = [i for i in range(30)] 
-	# attempts = [25] 
+	# attempts = [0] 
 	N = [30,100,300]
 	# N = [300]
 	threads = []
 	Temps = [3,10,30,100,300,1000]
-	# Temps = [3]
+	# Temps = [1000]
 	folders = []
 	for attempt in attempts:
 		for n in N:

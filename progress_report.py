@@ -48,7 +48,15 @@ def get_status(job_base,\
 		for n_i,n in enumerate(N):
 			for T_i,Temp in enumerate(Temps):
 				job = job_base.replace("$a$",str(attempt)).replace("$n$",str(n)).replace("$t$",str(Temp))
-				stati[a_i,n_i,T_i] = status(job)
+				job_status = status(job)
+				if job_status == -1:
+					print(f"job doesnt exist: {job}")
+				elif job_status == 0:
+					print(f"job is initialized: {job}")
+				elif job_status == 1:
+					print(f"job is started: {job}")
+
+				stati[a_i,n_i,T_i] = job_status
 
 	return stati
 

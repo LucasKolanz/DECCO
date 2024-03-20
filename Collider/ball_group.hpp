@@ -437,7 +437,6 @@ void Ball_group::relax_init(std::string path)
     std::string filename = find_file_name(path,attrs.relax_index); 
 
     loadSim(path, filename.substr(filename.find_last_of('/')+1,filename.size()));
-
     zeroVel();
     // zeroAngVel();
 
@@ -1087,6 +1086,7 @@ void Ball_group::calc_helpfuls()
     attrs.r_min = getRmin();
     attrs.r_max = getRmax();
     attrs.m_total = getMass();
+
     attrs.initial_radius = get_radius(getCOM());
     attrs.soc = 4 * attrs.r_max + attrs.initial_radius;
     // soc = -1;
