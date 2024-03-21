@@ -12,9 +12,11 @@ relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
 
 plt.rcdefaults()
+plt.rcParams['font.size'] = 20
 
 def main():
-	fig,ax = plt.subplots(figsize=(479*6/200,368*3/200))
+	constant = 1.5
+	fig,ax = plt.subplots(figsize=(constant*1152*6/500 - .10, constant*1080*3/500 ))
 
 	grid = ImageGrid(fig,111,nrows_ncols=(3,6),axes_pad=0,share_all=True)
 
@@ -28,7 +30,7 @@ def main():
 
 	image_path = path + "data/figures/aggRenders/"
 	Nums = [30,100,300]
-	Nums = [30,100]
+	# Nums = [30,100]
 	temps = [3,10,30,100,300,1000]
 
 	cmaps = []
@@ -51,12 +53,12 @@ def main():
 
 			# Check if the image is grayscale
 			if image_array.ndim == 2:
-			    cmaps.append('gray')
+				cmaps.append('gray')
 			else:
-			    cmaps.append(None)
-			    # print("The image is grayscale, setting cmap to 'grey'.")
+				cmaps.append(None)
+				# print("The image is grayscale, setting cmap to 'grey'.")
 			# elif image_array.ndim == 3 and (image_array[:,:,0] == image_array[:,:,1]).all() and (image_array[:,:,1] == image_array[:,:,2]).all():
-			    # print("The image is RGB but all channels are identical, which means it's effectively grayscale.")
+				# print("The image is RGB but all channels are identical, which means it's effectively grayscale.")
 
 			# print(im.size)
 			images.append(im)
@@ -70,6 +72,8 @@ def main():
 	# loc = plticker.MultipleLocator(base=1.0) # this locator puts ticks at regular intervals
 	# ax.xaxis.set_major_locator(loc)
 	ax.yaxis.set(ticks=[5,15,25,30],ticklabels=['300','100','30',''])
+	ax.spines['top'].set_visible(False)
+	ax.spines['right'].set_visible(False)
 	index = 0
 	for axe,im in zip(grid,images):
 		axe.axis('off')

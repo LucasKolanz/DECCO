@@ -19,7 +19,7 @@ def main():
 	save_path = image_path+"edited/"
 	
 	Nums = [30,100]
-	# Nums = [30,100,300]
+	Nums = [300]
 	temps = [3,10,30,100,300,1000]
 
 	for N in Nums:
