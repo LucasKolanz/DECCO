@@ -40,7 +40,7 @@ if __name__ == '__main__':
 	job_set_name = "test2MPI"
 	job_set_name = "testrestartReference"
 	job_set_name = "test2MPIrestart"
-	job_set_name = "test2hdf5restart"
+	job_set_name = "test2hdf5restartFromh5"
 
 
 
@@ -88,7 +88,7 @@ if __name__ == '__main__':
 				input_json['MPInodes'] = nodes
 				# input_json['u_s'] = 0.5
 				# input_json['u_r'] = 0.5
-				input_json['note'] = "Reference job for restart mpi jobs."
+				input_json['note'] = "Test h5 restart from h5."
 				####################################
 
 				with open(job + "input.json",'w') as fp:
@@ -124,10 +124,11 @@ if __name__ == '__main__':
 				os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
 
 				os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
-				os.system("cp /global/homes/l/lpkolanz/old_Spacelab/SpaceLab/jobs/collidable_aggregate_1200/* {}".format(job))
-				os.system(f"touch {job}1200_2_R4e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_simData.csv")
-				os.system(f"touch {job}1200_2_R4e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_constants.csv")
-				os.system(f"touch {job}1200_2_R4e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_energy.csv")
+				os.system("cp /global/homes/l/lpkolanz/DECCOmain/SpaceLab_data/jobs/test2hdf5restart0/N_1210/T_3/1200_data.h5 {}".format(job))
+				# os.system("cp /global/homes/l/lpkolanz/old_Spacelab/SpaceLab/jobs/collidable_aggregate_1200/* {}".format(job))
+				# os.system(f"touch {job}1200_2_R4e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_simData.csv")
+				# os.system(f"touch {job}1200_2_R4e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_constants.csv")
+				# os.system(f"touch {job}1200_2_R4e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_energy.csv")
 
 				folders.append(job)
 

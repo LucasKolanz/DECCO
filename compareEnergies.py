@@ -33,6 +33,7 @@ def main():
 
 	folder1 = "/global/homes/l/lpkolanz/DECCOmain/SpaceLab_data/jobs/testrestartReference0/N_1210/T_3/"
 	folder2 = "/global/homes/l/lpkolanz/DECCOmain/SpaceLab_data/jobs/test2MPIrestart0/N_1210/T_3/"
+	folder2 = "/global/homes/l/lpkolanz/DECCOmain/SpaceLab_data/jobs/test2hdf5restart0/N_1210/T_3/"
 
 	# max_ind = -1
 	# for file in os.listdir(folder1):
@@ -99,12 +100,12 @@ def main():
 		print("================Comparing {}================".format(ind))
 		print("Data 1: {}".format(allEnergy[0]))
 		print("Data 2: {}".format(allEnergy[1]))
-		print("COM difference : {}".format(np.diff(COM,axis=0)))	
-		print("PE difference  : {}".format(np.diff(PE)))	
-		print("KE difference  : {}".format(np.diff(KE)))	
-		print("Etot difference: {}".format(np.diff(Etot)))	
-		print("p difference   : {}".format(np.diff(p)))	
-		print("L difference   : {}".format(np.diff(L)))	
+		print("COM difference : {}".format(np.diff(COM,axis=0)/COM[0]))	
+		print("PE difference  : {}".format(np.diff(PE)/PE[0]))	
+		print("KE difference  : {}".format(np.diff(KE)/KE[0]))	
+		print("Etot difference: {}".format(np.diff(Etot)/Etot[0]))	
+		print("p difference   : {}".format(np.diff(p)/p[0]))	
+		print("L difference   : {}".format(np.diff(L)/L[0]))	
 		print("====================END====================")
 
 		# data1 = np.loadtxt(folder1+f1,delimiter=",",dtype=np.float64,skiprows=1)[-1]

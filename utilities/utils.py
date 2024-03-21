@@ -168,7 +168,7 @@ def get_energy_file(data_folder,data_index=-1,relax=False):
 	# print("index: {}".format(index))
 
 	data_file = [file for file in files \
-				if file.endswith(f"{rel}energy.csv") and file.startswith(str(index))]
+				if (file.endswith(f"{rel}energy.csv") or file.endswith(f"{rel}data.h5")) and file.startswith(str(index))]
 	# print(data_file)
 
 	if len(data_file) == 1 or len(set(data_file)) == 1:
@@ -203,6 +203,30 @@ def get_line_h5data_from_file(file,linenum=-1):
 			if md[0] == "row width":
 				width = int(md[1])
 		dat = file['/simData'][:]
+
+		totlines = int(dat.shape[0]/width)
+		
+		if linenum < 0:
+			start = width*(totlines+linenum)
+		else:
+			start = width*(linenum)
+		stop = start + width
+
+		data = np.array(dat)[start:stop]
+
+	return data
+
+def get_line_h5_energy_data_from_file(file,linenum=-1):
+	width = -1
+	with h5py.File(file, 'r') as file:
+		# data = file['/simData'][:]
+		metadata = file['/energy'].attrs['metadata']
+		for meta in metadata.split("\n"):
+			md = meta.split(": ")
+			# print(meta.split(": "))
+			if md[0] == "row width":
+				width = int(md[1])
+		dat = file['/energy'][:]
 
 		totlines = int(dat.shape[0]/width)
 		
@@ -257,21 +281,25 @@ def get_line_data(data_folder,data_index=-1,linenum=-1,relax=False): #Works with
 
 def get_last_line_energy(data_folder,data_index=-1,relax=False):
 	energy_file = get_energy_file(data_folder,data_index,relax=relax)
-	try:
-		energy = np.loadtxt(data_folder + energy_file,skiprows=1,dtype=float,delimiter=',')
-		if energy.ndim > 1:
-			energy = energy[-1]
-		# print(energy)
-	except Exception as e:
-		with open(data_folder + energy_file) as f:
-			for line in f:
-				pass
-			last_line = line
-		energy = np.array([last_line.split(',')],dtype=np.float64)
-		print("ERROR CAUGHT getting energy in folder: {}".format(data_folder))
-		print(e)
-		# return None
-
+	if energy_file.endswith(".csv"):
+		try:
+			energy = np.loadtxt(data_folder + energy_file,skiprows=1,dtype=float,delimiter=',')
+			if energy.ndim > 1:
+				energy = energy[-1]
+			print(energy)
+		except Exception as e:
+			with open(data_folder + energy_file) as f:
+				for line in f:
+					pass
+				last_line = line
+			energy = np.array([last_line.split(',')],dtype=np.float64)
+			print("ERROR CAUGHT getting energy in folder: {}".format(data_folder))
+			print(e)
+			# return None
+	elif energy_file.endswith(".h5"):
+		energy = get_line_h5_energy_data_from_file(data_folder + energy_file,-1)
+	else:
+		print(f"ERROR: file extension not recognized for file '{energy_file}'")
 	# print("DATA LEN: {} for file {}{}".format(data.size,data_folder,data_file))
 	# print("FOR {} Balls".format(data.size/11))
 	return energy
