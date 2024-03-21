@@ -59,7 +59,7 @@ CXXFLAGS = -g -O2 -std=c++2a -fopenmp
 
 # Detect HDF5
 # HDF5_TEST := $(shell ldconfig -p | grep hdf5 >/dev/null 2>&1 && echo 1 || echo 0)
-HDF5_TEST = 0
+HDF5_TEST = 1
 MPI_TEST = 1
 
 
@@ -67,11 +67,14 @@ MPI_TEST = 1
 # Conditional HDF5 flags
 ifeq ($(HDF5_TEST), 1)
 
-    HDF5_CXXFLAGS = -I/usr/include/hdf5/serial
-    HDF5_LIBS = -L/usr/lib/x86_64-linux-gnu/hdf5/serial -lhdf5 -lhdf5_cpp
+    HDF5_CXXFLAGS = -I/usr/include/hdf5/serial #Perlmutter
 
-#     HDF5_CXXFLAGS = -I${HDF5_DIR}/include
-#     HDF5_LIBS = -L${HDF5_DIR}/lib -lhdf5 -lhdf5_cpp
+#     HDF5_CXXFLAGS = -I/usr/include/hdf5/serial
+#     HDF5_LIBS = -L/usr/lib/x86_64-linux-gnu/hdf5/serial -lhdf5 -lhdf5_cpp
+
+    #For Perlmutter and Novus
+    HDF5_CXXFLAGS = -I${HDF5_DIR}/include 
+    HDF5_LIBS = -L${HDF5_DIR}/lib -lhdf5 -lhdf5_cpp
 
     CXXFLAGS += $(HDF5_CXXFLAGS) -DHDF5_ENABLE
     LIBS = $(HDF5_LIBS)

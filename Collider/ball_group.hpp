@@ -2226,7 +2226,7 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
                 MPI_Barrier(MPI_COMM_WORLD);
                 
                 int status;
-                int send_result
+                int send_result;
                 //If multiple nodes, we don't want to delete until everyone has loaded
                 if (getRank() == 0)
                 {
@@ -2263,7 +2263,7 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
 
             if (status != 0)
             {
-                std::string message("File: '"+std::to_string(rmfile)+"' could not be removed, now exiting with failure.\n");
+                std::string message("File: '"+rmfile+"' could not be removed, now exiting with failure.\n");
                 MPIsafe_print(std::cerr,message);
                 MPIsafe_exit(EXIT_FAILURE);
             }

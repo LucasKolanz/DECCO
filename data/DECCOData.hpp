@@ -357,7 +357,7 @@ class HDF5Handler {
 			    dataset.close();
 			    file.close();
 		    } else {
-		    	MPIsafe_print(std::cerr,"File '" << filename << "' does not exist.\n");
+		    	MPIsafe_print(std::cerr,"File '" + filename + "' does not exist.\n");
 		    }
 
 		    return data;
@@ -484,7 +484,7 @@ class HDF5Handler {
 	        if(std::filesystem::exists(file_read)) {
 	            file = H5::H5File(file_read, H5F_ACC_RDWR);
 	        } else {
-	        	MPIsafe_print(std::cerr,"File " << file_read << " doesn't exist.\n");
+	        	MPIsafe_print(std::cerr,"File " + file_read + " doesn't exist.\n");
 	            MPIsafe_exit(-1);
 	        }
 
@@ -662,7 +662,7 @@ class HDF5Handler {
 			    dataset.close();
 			    file.close();
 		    }else{
-		    	MPIsafe_print("File '"+filename+"' does not exist.\n");
+		    	MPIsafe_print(std::cerr,"File '"+filename+"' does not exist.\n");
             }
             return;
 		}
