@@ -35,9 +35,6 @@ namespace fs = std::filesystem;
 extern const int bufferlines;
 
 
-
-
-
 struct Ball_group_attributes
 {
 
@@ -72,6 +69,12 @@ struct Ball_group_attributes
     double kin=-1;  // Spring constant
     double kout=-1;
 
+    //Don't copy these during add_particle. These are set at the beginning (or during) of sim_looper
+    int world_rank = -1;
+    int world_size = -1;
+    int num_pairs = -1;
+    bool write_step = false;
+
     const std::string sim_meta_data_name = "sim_info";
 
     int seed = -1;
@@ -91,7 +94,7 @@ struct Ball_group_attributes
     double v_max = -1;
     double v_max_prev = HUGE_VAL;
     double soc = -1;
-    
+
     ///none of these should be negative so verify they were set before using
     bool dynamicTime = false;
     double G = 6.67e-08;  // in dyn*cm^2*g^-2// Gravitational constant defaults to the actual value, but you can change it
@@ -180,6 +183,7 @@ struct Ball_group_attributes
             dt = other.dt;
             kin = other.kin;
             kout = other.kout;
+
 
             seed = other.seed;
             output_width = other.output_width;
@@ -277,6 +281,10 @@ public:
     vec3* w = nullptr;
     vec3* wh = nullptr;  ///< Angular velocity half step for integration purposes.
     vec3* aacc = nullptr;
+    #ifdef GPU_ENABLE
+        vec3* accsq = nullptr;
+        vec3* aaccsq = nullptr;
+    #endif
     double* R = nullptr;    ///< Radius
     double* m = nullptr;    ///< Mass
     double* moi = nullptr;  ///< Moment of inertia
@@ -338,12 +346,14 @@ public:
     void relax_init(std::string path);
     void BPCA_init(std::string path);
     std::string find_file_name(std::string path,int index);
-    
+    int get_num_threads();
 
 
-    void sim_one_step(const bool write_step);
-    void sim_one_step_GPU(const bool write_step);
-
+    void sim_one_step();
+    #ifdef GPU_ENABLE
+        void sim_one_step_GPU();
+    #endif
+    void sim_looper(unsigned long long start_step);
 
 
     
@@ -469,6 +479,7 @@ void Ball_group::BPCA_init(std::string path)
         MPIsafe_print(std::cerr,std::string("Loading sim "+path+filename+'\n'));
         loadSim(path, filename);
         calc_v_collapse(); 
+        // getMass();
         if (attrs.dt < 0)
             calibrate_dt(0, attrs.v_custom);
         simInit_cond_and_center(false);
@@ -1601,6 +1612,10 @@ void Ball_group::freeMemory() const
     delete[] R;
     delete[] m;
     delete[] moi;
+    #ifdef GPU_ENABLE
+        delete[] aaccsq;
+        delete[] accsq;
+    #endif
     // delete data;
     
 }
@@ -1868,10 +1883,10 @@ void Ball_group::loadConsts(const std::string& path, const std::string& filename
             moi[A] = std::stod(lineElement);
         }
     } else {
-        std::cerr << "Could not open constants file: " << constantsFilename << "... Exiting program."
-                  << '\n';
-        exit(EXIT_FAILURE);
+        MPIsafe_print(std::cerr,"Could not open constants file: " + constantsFilename + " ... Exiting program.\n");
+        MPIsafe_exit(EXIT_FAILURE);
     }
+    // getMass();
 }
 
 
@@ -2097,8 +2112,7 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename)
     //file we are loading is csv file
     size_t _pos;
     int file_index;
-    MPIsafe_print(std::cerr,path);
-    MPIsafe_print(std::cerr,filename);
+
     if (file.substr(file.size()-4,file.size()) == ".csv")
     {
         //decrease index by 1 so we have most recent finished sim
@@ -2120,7 +2134,7 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename)
             file_index = stoi(file.substr(0,_pos));
             loadDatafromH5(path,file);
         #else
-            std::cerr<<"ERROR: HDF5 not enabled. Please recompile with -DHDF5_ENABLE and try again."<<std::endl;
+            MPIsafe_print(std::cerr,"ERROR: HDF5 not enabled. Please recompile with -DHDF5_ENABLE and try again.\n");
             MPIsafe_exit(EXIT_FAILURE);
         #endif
     }
@@ -2134,8 +2148,8 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename)
     calc_helpfuls();
 
     std::string message("Balls: " + std::to_string(attrs.num_particles) + '\n' + 
-                        "Mass: " + std::to_string(attrs.m_total) + '\n' +
-                        "Approximate radius: " + std::to_string(attrs.initial_radius) + " cm.\n");
+                        "Mass: " + dToSci(attrs.m_total) + '\n' +
+                        "Approximate radius: " + dToSci(attrs.initial_radius) + " cm.\n");
     MPIsafe_print(std::cerr,message);
 }
 
@@ -2316,7 +2330,7 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
         energyBuffer = std::vector<double> (data->getWidth("energy")*bufferlines);
         ballBuffer = std::vector<double> (data->getWidth("simData")*bufferlines);
         
-        std::cerr<<"mid_sim_restart"<<std::endl;
+        MPIsafe_print(std::cerr,"mid_sim_restart\n");
         attrs.mid_sim_restart = true;
         attrs.start_step = attrs.skip*(writes-1)+1;
         attrs.start_index++;
@@ -2335,8 +2349,8 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
     }
     else
     {
-        std::cerr<<"ERROR: in setWrittenSoFar() output of value '"<<writes<<"'."<<std::endl;
-        exit(EXIT_FAILURE);
+        MPIsafe_print(std::cerr,"ERROR: in setWrittenSoFar() output of value '"+std::to_string(writes)+"'.\n");
+        MPIsafe_exit(EXIT_FAILURE);
     }
      
 }
@@ -2493,7 +2507,7 @@ void Ball_group::updateDTK(const double& velocity)
 void Ball_group::simInit_cond_and_center(bool add_prefix)
 {
     std::string message("==================\ndt: "
-                        + std::to_string(attrs.dt) + '\n'
+                        + dToSci(attrs.dt) + '\n'
                         + "k : " + std::to_string(attrs.kin) + '\n'
                         + "Skip: " + std::to_string(attrs.skip) + '\n'
                         + "Steps: " + std::to_string(attrs.steps) + '\n'
@@ -2670,6 +2684,48 @@ int Ball_group::check_restart(std::string folder)
     
 }
 
+//with a known slope and intercept, givin N, the number of particles, what is the 
+//optimum number of threads. The function then chooses the power of 2 that is closest
+//to this optimum
+int Ball_group::get_num_threads()
+{
+    int N = attrs.num_particles;
+    // //This is from speed tests on COSINE
+    // double slope = ;
+    // double intercept = ;
+
+    // double interpolatedValue = slope * n + intercept; // Linear interpolation
+    // return std::min(closestPowerOf2(interpolatedValue),attrs.MAXOMPthreads);        // Find the closest power of 2
+
+    //I could only test up to 16 threads so far. Not enough data for linear interp
+    
+
+    int threads;
+    // if (N < 0)
+    // {
+    //     std::cerr<<"ERROR: negative number of particles."<<std::endl;
+    //     exit(-1);
+    // }
+    // else if (N < 80)
+    // {
+    //     threads = 1;
+    // }
+    // else if (N < 100)
+    // {
+    //     threads = 2;
+    // }
+    // else
+    // {
+    //     threads = 16;
+    // }
+
+    // if (threads > attrs.MAXOMPthreads)
+    // {
+        threads = attrs.MAXOMPthreads;
+    // }
+    return threads;
+}
+
 
 std::string Ball_group::find_file_name(std::string path,int index)
 {
@@ -2841,7 +2897,7 @@ std::string Ball_group::find_restart_file_name(std::string path)
 }
 
 
-void Ball_group::sim_one_step(const bool write_step)
+void Ball_group::sim_one_step()
 {
     int world_rank = getRank();
     int world_size = getSize();
@@ -2874,6 +2930,7 @@ void Ball_group::sim_one_step(const bool write_step)
     double dt = attrs.dt;
     int num_parts = attrs.num_particles;
     int threads = attrs.OMPthreads;
+    bool write_step = attrs.write_step;
 
     
     long long A;
@@ -3225,13 +3282,15 @@ void Ball_group::sim_one_step(const bool write_step)
     // t.end_event("CalcVelocityforNextStep");
 }  // one Step end
 
-
-void Ball_group::sim_one_step_GPU(const bool write_step)
+#ifdef GPU_ENABLE
+void Ball_group::sim_one_step_GPU()
 {
-    int world_rank = getRank();
-    int world_size = getSize();
+    
     /// FIRST PASS - Update Kinematic Parameters:
     // t.start_event("UpdateKinPar");
+    #pragma acc parallel loop gang worker present(this,velh[0:num_particles],vel[0:num_particles],\
+        acc[0:num_particles],dt,wh[0:num_particles],w[0:num_particles],aacc[0:num_particles],\
+        pos[0:num_particles],attrs.num_particles)
     for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
         // Update velocity half step:
         velh[Ball] = vel[Ball] + .5 * acc[Ball] * attrs.dt;
@@ -3250,35 +3309,41 @@ void Ball_group::sim_one_step_GPU(const bool write_step)
     }
     // t.end_event("UpdateKinPar");
 
-    double Ha = attrs.Ha;
-    double u_r = attrs.u_r;
-    double u_s = attrs.u_s;
-    double kin = attrs.kin;
-    double kout = attrs.kout;
-    double h_min = attrs.h_min;
-    double dt = attrs.dt;
-    int num_parts = attrs.num_particles;
-    int threads = attrs.OMPthreads;
+    // int threads = attrs.OMPthreads;
 
-    
-    long long A;
-    long long B;
-    long long pc;
-    long long lllen = attrs.num_particles;
-    double t0 = omp_get_wtime();
-    #pragma omp declare reduction(vec3_sum : vec3 : omp_out += omp_in)
-    #pragma omp parallel for num_threads(threads)\
-            reduction(vec3_sum:acc[:num_parts],aacc[:num_parts]) reduction(+:PE) \
-            shared(world_rank,world_size,Ha,write_step,lllen,R,pos,vel,m,w,\
-                u_r,u_s,moi,kin,kout,distances,h_min,dt)\
-            default(none) private(A,B,pc) 
-    for (pc = world_rank + 1; pc <= (((lllen*lllen)-lllen)/2); pc += world_size)
+    // #pragma acc update device(accsq[0:num_particles*num_particles], aaccsq[0:num_particles*num_particles])
+
+    #pragma acc parallel loop gang worker num_gangs(108) \
+        present(attrs.num_particles,accsq[0:num_particles*num_particles],\
+            aaccsq[0:num_particles*num_particles])
+    for (int i = 0; i < attrs.num_particles*attrs.num_particles; ++i)
     {
-        long double pd = (long double)pc;
-        pd = (sqrt(pd*8.0L+1.0L)+1.0L)*0.5L;
-        pd -= 0.00001L;
-        A = (long long)pd;
-        B = (long long)((long double)pc-(long double)A*((long double)A-1.0L)*.5L-1.0L);
+        accsq[i] = {0.0,0.0,0.0};
+        aaccsq[i] = {0.0,0.0,0.0};
+    }
+
+
+    double pe = 0.0;
+    #pragma acc enter data copyin(pe)
+    // #pragma acc enter data copyin(writeS/tep)
+
+    double t0 = omp_get_wtime();
+
+    #pragma acc parallel loop gang worker num_gangs(108) num_workers(256) reduction(+:pe) \
+        present(pe,accsq[0:num_particles*num_particles],\
+            aaccsq[0:num_particles*num_particles],m[0:num_particles],\
+            moi[0:num_particles],w[0:num_particles],vel[0:num_particles],\
+            pos[0:num_particles],R[0:num_particles],distances[0:num_pairs],\
+            attrs.num_pairs,attrs.num_particles,attrs.Ha,attrs.kin,attrs.kout,attrs.h_min,\
+            attrs.u_s,attrs.u_r,attrs.write_step,attrs.world_rank,attrs.world_size)
+    for (int pc = attrs.world_rank+1; pc <= attrs.num_pairs; pc += attrs.world_size)
+    {
+
+        double pd = (double)pc;
+        pd = (sqrt(pd*8.0+1.0)+1.0)*0.5;
+        pd -= 0.00001;
+        int A = (int)pd;
+        int B = (int)((double)pc-(double)A*((double)A-1.0)*.5-1.0);
 
  
         const double sumRaRb = R[A] + R[B];
@@ -3308,14 +3373,14 @@ void Ball_group::sim_one_step_GPU(const bool write_step)
 
             double k;
             if (dist >= oldDist) {
-                k = kout;
+                k = attrs.kout;
             } else {
-                k = kin;
+                k = attrs.kin;
             }
 
             // Cohesion (in contact) h must always be h_min:
             // constexpr double h = h_min;
-            const double h = h_min;
+            const double h = attrs.h_min;
             const double Ra = R[A];
             const double Rb = R[B];
             const double h2 = h * h;
@@ -3333,7 +3398,7 @@ void Ball_group::sim_one_step_GPU(const bool write_step)
             // Test new vdw force equation with less division
             const double d1 = h2 + twoRah + twoRbh;
             const double d2 = d1 + 4 * Ra * Rb;
-            const double numer = 64*Ha*Ra*Ra*Ra*Rb*Rb*Rb*(h+Ra+Rb);
+            const double numer = 64*attrs.Ha*Ra*Ra*Ra*Rb*Rb*Rb*(h+Ra+Rb);
             const double denomrecip = 1/(6*d1*d1*d2*d2);
             const vec3 vdwForceOnA = (numer*denomrecip)*rVecab.normalized();
             // ==========================================
@@ -3411,7 +3476,7 @@ void Ball_group::sim_one_step_GPU(const bool write_step)
                 // }
                 // else
                 // {
-                    slideForceOnA = u_s * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
+                    slideForceOnA = attrs.u_s * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
                 // }
                 ///////////////////////////////////
             }
@@ -3449,7 +3514,7 @@ void Ball_group::sim_one_step_GPU(const bool write_step)
                 // else
                 // {
                     rollForceA = 
-                        -u_r * elastic_force_A_mag * (w_diff).cross(r_a) / 
+                        -attrs.u_r * elastic_force_A_mag * (w_diff).cross(r_a) / 
                         (w_diff).cross(r_a).norm();
                 // }
                 /////////////////////////////////////
@@ -3466,12 +3531,20 @@ void Ball_group::sim_one_step_GPU(const bool write_step)
             torqueA = r_a.cross(slideForceOnA + rollForceA);
             torqueB = r_b.cross(-slideForceOnA + rollForceA); // original code
 
+            vec3 aaccA = (1/moi[A])*torqueA;
+            vec3 aaccB = (1/moi[B])*torqueB;
 
+            aaccsq[A*attrs.num_particles+B].x = aaccA.x;
+            aaccsq[A*attrs.num_particles+B].y = aaccA.y;
+            aaccsq[A*attrs.num_particles+B].z = aaccA.z;
+            aaccsq[B*attrs.num_particles+A].x = aaccB.x;
+            aaccsq[B*attrs.num_particles+A].y = aaccB.y;
+            aaccsq[B*attrs.num_particles+A].z = aaccB.z;
 
-            aacc[A] += torqueA / moi[A];
-            aacc[B] += torqueB / moi[B];
+            // aacc[A] += torqueA / moi[A];
+            // aacc[B] += torqueB / moi[B];
 
-            if (write_step) {
+            if (attrs.write_step) {
                 // No factor of 1/2. Includes both spheres:
                 // PE += -G * m[A] * m[B] * grav_scale / dist + 0.5 * k * overlap * overlap;
                 // PE += -G * m[A] * m[B] / dist + 0.5 * k * overlap * overlap;
@@ -3483,10 +3556,10 @@ void Ball_group::sim_one_step_GPU(const bool write_step)
                 const double denom_sum = z * z - (sumRaRb * sumRaRb);
                 const double denom_diff = z * z - (diffRaRb * diffRaRb);
                 const double U_vdw =
-                    -Ha / 6 *
+                    -attrs.Ha / 6 *
                     (two_RaRb / denom_sum + two_RaRb / denom_diff + 
                     log(denom_sum / denom_diff));
-                PE += U_vdw + 0.5 * k * overlap * overlap; ///TURN ON FOR REAL SIM
+                pe += U_vdw + 0.5 * k * overlap * overlap; ///TURN ON FOR REAL SIM
             }
         } else  // Non-contact forces:
         {
@@ -3496,9 +3569,9 @@ void Ball_group::sim_one_step_GPU(const bool write_step)
             const vec3 gravForceOnA = {0.0,0.0,0.0};
             // Cohesion (non-contact) h must be positive or h + Ra + Rb becomes catastrophic cancellation:
             double h = std::fabs(overlap);
-            if (h < h_min)  // If h is closer to 0 (almost touching), use hmin.
+            if (h < attrs.h_min)  // If h is closer to 0 (almost touching), use hmin.
             {
-                h = h_min;
+                h = attrs.h_min;
             }
             const double Ra = R[A];
             const double Rb = R[B];
@@ -3515,7 +3588,7 @@ void Ball_group::sim_one_step_GPU(const bool write_step)
             // Test new vdw force equation with less division
             const double d1 = h2 + twoRah + twoRbh;
             const double d2 = d1 + 4 * Ra * Rb;
-            const double numer = 64*Ha*Ra*Ra*Ra*Rb*Rb*Rb*(h+Ra+Rb);
+            const double numer = 64*attrs.Ha*Ra*Ra*Ra*Rb*Rb*Rb*(h+Ra+Rb);
             const double denomrecip = 1/(6*d1*d1*d2*d2);
             const vec3 vdwForceOnA = (numer*denomrecip)*rVecab.normalized();
             // ==========================================
@@ -3525,7 +3598,7 @@ void Ball_group::sim_one_step_GPU(const bool write_step)
             // totalForceOnA = vdwForceOnA;
             // totalForceOnA = gravForceOnA;
             /////////////////////////////
-            if (write_step) {
+            if (attrs.write_step) {
                 // PE += -G * m[A] * m[B] * grav_scale / dist; // Gravitational
 
                 const double diffRaRb = R[A] - R[B];
@@ -3534,9 +3607,9 @@ void Ball_group::sim_one_step_GPU(const bool write_step)
                 const double denom_sum = z * z - (sumRaRb * sumRaRb);
                 const double denom_diff = z * z - (diffRaRb * diffRaRb);
                 const double U_vdw =
-                    -Ha / 6 *
+                    -attrs.Ha / 6 *
                     (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
-                PE += U_vdw;  // Van Der Waals TURN ON FOR REAL SIM
+                pe += U_vdw;  // Van Der Waals TURN ON FOR REAL SIM
             }
 
             // todo this is part of push_apart. Not great like this.
@@ -3546,13 +3619,49 @@ void Ball_group::sim_one_step_GPU(const bool write_step)
         }
 
         // Newton's equal and opposite forces applied to acceleration of each ball:
-        acc[A] += totalForceOnA / m[A];
-        acc[B] -= totalForceOnA / m[B];
+        vec3 accA = (1/m[A])*totalForceOnA; 
+        vec3 accB = -1.0*(1/m[B])*totalForceOnA; 
+
+        accsq[A*attrs.num_particles+B].x = accA.x;
+        accsq[A*attrs.num_particles+B].y = accA.y;
+        accsq[A*attrs.num_particles+B].z = accA.z;
+        accsq[B*attrs.num_particles+A].x = accB.x;
+        accsq[B*attrs.num_particles+A].y = accB.y;
+        accsq[B*attrs.num_particles+A].z = accB.z;
 
 
         // So last distance can be known for COR:
         distances[e] = dist;
 
+    }
+
+    // #pragma acc loop seq
+    #pragma acc parallel loop gang num_gangs(108) \
+        present(attrs.num_particles,acc[0:num_particles],aacc[0:num_particles],\
+            accsq[0:num_particles*num_particles],aaccsq[0:num_particles*num_particles])
+    for (int i = 0; i < attrs.num_particles; i++)
+    {
+        #pragma acc loop seq
+        for (int j = 0; j < attrs.num_particles; j++)
+        {
+            acc[i].x += accsq[i*attrs.num_particles+j].x;
+            acc[i].y += accsq[i*attrs.num_particles+j].y;
+            acc[i].z += accsq[i*attrs.num_particles+j].z;
+            aacc[i].x += aaccsq[i*attrs.num_particles+j].x;
+            aacc[i].y += aaccsq[i*attrs.num_particles+j].y;
+            aacc[i].z += aaccsq[i*attrs.num_particles+j].z;
+        }
+    // #pragma acc update self(acc[0:num_particles],aacc[0:num_particles]) //if(write_step)
+    // #pragma acc update self(acc[i],aacc[i]) //if(write_step)
+    }
+
+    #pragma acc update host(acc[0:num_particles],aacc[0:num_particles])
+    // std::cout<<aaccsq[0].x<<','<<aaccsq[0].y<<','<<aaccsq[0].z<<std::endl;
+    
+    if (attrs.write_step)
+    {
+        #pragma acc update host(pe)
+        PE = pe;
     }
 
     #ifdef MPI_ENABLE
@@ -3561,27 +3670,27 @@ void Ball_group::sim_one_step_GPU(const bool write_step)
         double local_PE = PE;
         PE = 0.0;
         MPI_Reduce(&local_PE,&PE,1,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
+        #pragma acc update device(acc[0:num_particles],aacc[0:num_particles])
     #endif
 
+
     // t.end_event("CalcForces/loopApplicablepairs");
-
-    // if (write_step) {
-    //     ballBuffer << '\n';  // Prepares a new line for incoming data.
-    //     // std::cerr<<"Writing "<<num_particles<<" balls"<<std::endl;
-    // }
-
-    // THIRD PASS - Calculate velocity for next step:
-    // t.start_event("CalcVelocityforNextStep");
-    for (int Ball = 0; Ball < attrs.num_particles; Ball++) 
-    {
+    #pragma acc parallel loop gang worker num_gangs(108) num_workers(256) \
+        present(acc[0:num_particles],aacc[0:num_particles],w[0:num_particles],\
+            vel[0:num_particles],velh[0:num_particles],wh[0:num_particles],attrs.num_particles,attrs.dt)
+    for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
         // Velocity for next step:
         vel[Ball] = velh[Ball] + .5 * acc[Ball] * attrs.dt;
         w[Ball] = wh[Ball] + .5 * aacc[Ball] * attrs.dt;
+    }  // THIRD PASS END
 
-        /////////////////////////////////
-        // if (true) {
-        /////////////////////////////////
-        if (write_step && world_rank == 0) 
+    // THIRD PASS - Calculate velocity for next step:
+    // t.start_event("CalcVelocityforNextStep");
+    if (attrs.write_step && attrs.world_rank == 0) 
+    {
+        #pragma acc update host(w[0:num_particles],vel[0:num_particles],pos[0:num_particles])// if(attrs.write_step && attrs.world_rank == 0)
+       
+        for (int Ball = 0; Ball < attrs.num_particles; Ball++) 
         {
             // Send positions and rotations to buffer:
             int start = data->getWidth("simData")*attrs.num_writes+Ball*data->getSingleWidth("simData");
@@ -3603,9 +3712,180 @@ void Ball_group::sim_one_step_GPU(const bool write_step)
             ang_mom += m[Ball] * pos[Ball].cross(vel[Ball]) + moi[Ball] * w[Ball];
         }
     }  // THIRD PASS END
-    if (write_step && world_rank == 0)
+    if (attrs.write_step && attrs.world_rank == 0)
     {
         attrs.num_writes ++;
     }
     // t.end_event("CalcVelocityforNextStep");
 }  // one Step end
+#endif
+
+void
+Ball_group::sim_looper(unsigned long long start_step=1)
+{
+
+    attrs.world_rank = getRank();
+    attrs.world_size = getSize();
+    attrs.num_pairs = static_cast<int>(attrs.num_particles*(attrs.num_particles-1)/2);
+
+    attrs.num_writes = 0;
+    unsigned long long Step;
+    // attrs.writeStep = false;
+
+    if (attrs.world_rank == 0)
+    {   
+        attrs.startProgress = time(nullptr);
+    }
+
+    std::string message(
+        "Beginning simulation...\nstart step:" +
+        std::to_string(start_step)+'\n' +
+        "Stepping through "+std::to_string(attrs.steps)+" steps.\n" + 
+        "Simulating "+dToSci(attrs.simTimeSeconds)+" seconds per sim.\n" + 
+        "Writing out every "+dToSci(attrs.timeResolution)+" seconds.\n" +
+        "For a total of "+dToSci(attrs.simTimeSeconds/attrs.timeResolution)+" timesteps saved per sim.\n");
+    MPIsafe_print(std::cerr,message);
+
+    //Set the number of threads to be appropriate
+    #ifndef GPU_ENABLE
+        attrs.OMPthreads = get_num_threads();
+    #else
+        #pragma acc enter data create(accsq[0:attrs.num_particles*attrs.num_particles],aaccsq[0:attrs.num_particles*attrs.num_particles])
+
+        // #pragma acc enter data copyin(this) 
+        #pragma acc enter data copyin(moi[0:num_particles],m[0:num_particles],\
+            w[0:num_particles],vel[0:num_particles],pos[0:num_particles],R[0:num_particles],\
+            distances[0:num_pairs]) 
+        #pragma acc enter data copyin(accsq[0:num_particles*num_particles],\
+            aaccsq[0:num_particles*num_particles],acc[0:num_particles],aacc[0:num_particles],\
+            velh[0:num_particles],wh[0:num_particles]) 
+        #pragma acc enter data copyin(attrs.dt,attrs.num_pairs,attrs.num_particles,attrs.Ha,attrs.kin,attrs.kout,attrs.h_min,\
+            attrs.u_s,attrs.u_r,attrs.world_rank,attrs.world_size,attrs.write_step)
+    #endif
+
+    for (Step = start_step; Step < attrs.steps; Step++)  // Steps start at 1 for non-restart because the 0 step is initial conditions.
+    {
+        // simTimeElapsed += dt; //New code #1
+        // Check if this is a write step:
+        if (Step % attrs.skip == 0) {
+            // if (world_rank == 0)
+            // {
+            //     t.start_event("writeProgressReport");
+            // }
+            attrs.write_step = true;
+            #ifdef GPU_ENABLE
+                #pragma acc update device(attrs.write_step)
+            #endif
+            // std::cerr<<"Write step "<<Step<<std::endl;
+
+            /////////////////////// Original code #1
+            attrs.simTimeElapsed += attrs.dt * attrs.skip;
+            ///////////////////////
+
+            if (attrs.world_rank == 0)
+            {
+                // Progress reporting:
+                float eta = ((time(nullptr) - attrs.startProgress) / static_cast<float>(attrs.skip) *
+                             static_cast<float>(attrs.steps - Step)) /
+                            3600.f;  // Hours.
+                float real = (time(nullptr) - attrs.start) / 3600.f;
+                float simmed = static_cast<float>(attrs.simTimeElapsed / 3600.f);
+                float progress = (static_cast<float>(Step) / static_cast<float>(attrs.steps) * 100.f);
+                fprintf(
+                    stderr,
+                    "%llu\t%2.0f%%\tETA: %5.2lf\tReal: %5.2f\tSim: %5.2f hrs\tR/S: %5.2f\n",
+                    Step,
+                    progress,
+                    eta,
+                    real,
+                    simmed,
+                    real / simmed);
+                // fprintf(stdout, "%u\t%2.0f%%\tETA: %5.2lf\tReal: %5.2f\tSim: %5.2f hrs\tR/S: %5.2f\n", Step,
+                // progress, eta, real, simmed, real / simmed);
+                fflush(stdout);
+                attrs.startProgress = time(nullptr);
+                // t.end_event("writeProgressReport");
+            }
+        } else {
+            attrs.write_step = attrs.debug;
+        }
+
+        // Physics integration step:
+        #ifndef GPU_ENABLE
+            sim_one_step();
+        #else
+            sim_one_step_GPU();
+        #endif
+
+        if (attrs.write_step) {
+            // t.start_event("writeStep");
+            // Write energy to stream:
+            ////////////////////////////////////
+            //TURN THIS ON FOR REAL RUNS!!!
+            // energyBuffer = std::vector<double> (data->getWidth("energy"));
+            // std::cerr<<"start,num_writes: "<<start<<','<<num_writes<<std::endl;
+            if (attrs.world_rank == 0)
+            {    
+                int start = data->getWidth("energy")*(attrs.num_writes-1);
+                energyBuffer[start] = attrs.simTimeElapsed;
+                energyBuffer[start+1] = PE;
+                energyBuffer[start+2] = KE;
+                energyBuffer[start+3] = PE+KE;
+                energyBuffer[start+4] = mom.norm();
+                energyBuffer[start+5] = ang_mom.norm();
+
+                if (Step / attrs.skip % 10 == 0) 
+                {
+
+                    std::cerr << "vMax = " << getVelMax() << " Steps recorded: " << Step / attrs.skip << '\n';
+                    std::cerr << "Data Write to "<<data->getFileName()<<"\n";
+                    
+                    data->Write(ballBuffer,"simData",bufferlines);
+
+                    ballBuffer.clear();
+                    ballBuffer = std::vector<double>(data->getWidth("simData")*bufferlines);
+                    data->Write(energyBuffer,"energy");
+                    energyBuffer.clear();
+                    energyBuffer = std::vector<double>(data->getWidth("energy")*bufferlines);
+
+                    attrs.num_writes = 0;
+
+                }  // Data export end
+                
+                attrs.lastWrite = time(nullptr);
+            }
+            
+            // Reinitialize energies for next step:
+            KE = 0;
+            PE = 0;
+            mom = {0, 0, 0};
+            ang_mom = {0, 0, 0};
+
+            if (attrs.dynamicTime) { calibrate_dt(Step, false); }
+            // t.end_event("writeStep");
+        }  // writestep end
+    }
+
+    #ifdef GPU_ENABLE
+        #pragma acc exit data delete(accsq[0:num_particles*num_particles],\
+            aaccsq[0:num_particles*num_particles],acc[0:num_particles],aacc[0:num_particles])
+        #pragma acc exit data delete(m[0:num_particles],w[0:num_particles],vel[0:num_particles],\
+            pos[0:num_particles],R[0:num_particles],distances[0:num_pairs])
+        #pragma acc exit data delete(attrs.dt,attrs.num_pairs,attrs.num_particles,attrs.Ha,\
+            attrs.kin,attrs.kout,attrs.h_min,attrs.u_s,attrs.u_r,attrs.world_rank,attrs.world_size,attrs.write_step)
+        // #pragma acc exit data delete(this)
+    #endif
+
+    if (attrs.world_rank == 0)
+    {
+        const time_t end = time(nullptr);
+
+        std::cerr << "Simulation complete! \n"
+                  << attrs.num_particles << " Particles and " << Step << '/' << attrs.steps << " Steps.\n"
+                  << "Simulated time: " << attrs.steps * attrs.dt << " seconds\n"
+                  << "Computation time: " << end - attrs.start << " seconds\n";
+        std::cerr << "\n===============================================================\n";
+    }
+
+
+}  // end simLooper

@@ -41,6 +41,9 @@ if __name__ == '__main__':
 	job_set_name = "testrestartReference"
 	job_set_name = "test2MPIrestart"
 	job_set_name = "test2hdf5restartFromh5"
+	job_set_name = "genericTest"
+	job_set_name = "GPU_test"
+
 
 
 
@@ -133,11 +136,11 @@ if __name__ == '__main__':
 				folders.append(job)
 
 print(folders)
-cwd = os.getcwd()
-for folder in folders:
-	os.chdir(folder)
-	os.system('sbatch sbatchMulti.bash')
-os.chdir(cwd)
+# cwd = os.getcwd()
+# for folder in folders:
+# 	os.chdir(folder)
+# 	os.system('sbatch sbatchMulti.bash')
+# os.chdir(cwd)
 
 
 

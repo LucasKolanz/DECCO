@@ -35,8 +35,9 @@ extern const int bufferlines;
 
 
 // Prototypes
-void
-sim_looper(Ball_group &O,unsigned long long start_step);
+// void
+// sim_looper(Ball_group &O,unsigned long long start_step);
+// int get_num_threads(Ball_group &O);
 void
 safetyChecks(Ball_group &O);
 void 
@@ -45,7 +46,6 @@ void
 relax(std::string path);
 void 
 collider(std::string path, std::string projectileName,std::string targetName);
-int get_num_threads(Ball_group &O);
 timey t;
 
 //////////////////////////////////////////////////////////////
@@ -114,8 +114,8 @@ main(int argc, char* argv[])
 
     //verify total time and frequency of writes
     std::string message(
-        "simTimeSeconds: "+std::to_string(dummy.attrs.simTimeSeconds) + '\n' +
-        "timeResolution: "+std::to_string(dummy.attrs.timeResolution) + '\n' +
+        "simTimeSeconds: "+dToSci(dummy.attrs.simTimeSeconds) + '\n' +
+        "timeResolution: "+dToSci(dummy.attrs.timeResolution) + '\n' +
         "Using "+radiiDist+" particle radii distribution\n");
     MPIsafe_print(std::cerr,message);
 
@@ -179,7 +179,7 @@ void collider(std::string path, std::string projectileName, std::string targetNa
     Ball_group O = Ball_group(path,std::string(projectileName),std::string(targetName));
     safetyChecks(O);
     O.sim_init_write();
-    sim_looper(O,O.attrs.start_step);
+    O.sim_looper(O.attrs.start_step);
     // t.end_event("collider");
     O.freeMemory();
     return;
@@ -195,9 +195,9 @@ void BPCA(std::string path, int num_balls)
     std::string message;
     if  (O.attrs.mid_sim_restart)
     {
-        message = "Asking for "+std::to_string(get_num_threads(O))+" threads.\n";
+        message = "Asking for "+std::to_string(O.get_num_threads())+" threads.\n";
         MPIsafe_print(std::cerr,message);
-        sim_looper(O,O.attrs.start_step);
+        O.sim_looper(O.attrs.start_step);
     }
 
     // Add projectile: For dust formation BPCA
@@ -209,10 +209,10 @@ void BPCA(std::string path, int num_balls)
         {
             std::cerr<<"I: "<<i<<std::endl;
             O.sim_init_write(i);
-            std::cerr<<"Asking for "<<get_num_threads(O)<<" threads."<<std::endl;
+            std::cerr<<"Asking for "<<O.get_num_threads()<<" threads."<<std::endl;
         }
 
-        sim_looper(O,1);
+        O.sim_looper(1);
         O.attrs.simTimeElapsed = 0;
     }
     // O.freeMemory();
@@ -230,7 +230,7 @@ void relax(std::string path)
     {
         O.sim_init_write(O.attrs.relax_index);
     }
-    sim_looper(O,1);
+    O.sim_looper(1);
 }
 
 // // Function to calculate the closest power of 2 to a given number.
@@ -244,186 +244,9 @@ void relax(std::string path)
 // }
 
 
-//with a known slope and intercept, givin N, the number of particles, what is the 
-//optimum number of threads. The function then chooses the power of 2 that is closest
-//to this optimum
-int get_num_threads(Ball_group &O)
-{
-    int N = O.attrs.num_particles;
-    // //This is from speed tests on COSINE
-    // double slope = ;
-    // double intercept = ;
-
-    // double interpolatedValue = slope * n + intercept; // Linear interpolation
-    // return std::min(closestPowerOf2(interpolatedValue),O.attrs.MAXOMPthreads);        // Find the closest power of 2
-
-    //I could only test up to 16 threads so far. Not enough data for linear interp
-    
-
-    int threads;
-    // if (N < 0)
-    // {
-    //     std::cerr<<"ERROR: negative number of particles."<<std::endl;
-    //     exit(-1);
-    // }
-    // else if (N < 80)
-    // {
-    //     threads = 1;
-    // }
-    // else if (N < 100)
-    // {
-    //     threads = 2;
-    // }
-    // else
-    // {
-    //     threads = 16;
-    // }
-
-    // if (threads > O.attrs.MAXOMPthreads)
-    // {
-        threads = O.attrs.MAXOMPthreads;
-    // }
-    return threads;
-}
 
 
-void
-sim_looper(Ball_group &O,unsigned long long start_step=1)
-{
-    int world_rank = getRank();
 
-    O.attrs.num_writes = 0;
-    unsigned long long Step;
-    bool writeStep = false;
-
-    if (world_rank == 0)
-    {   
-        O.attrs.startProgress = time(nullptr);
-    }
-
-    std::string message(
-        "Beginning simulation...\nstart step:" +
-        std::to_string(start_step)+'\n' +
-        "Stepping through "+std::to_string(O.attrs.steps)+" steps.\n" + 
-        "Simulating "+std::to_string(O.attrs.simTimeSeconds)+" seconds per sim.\n" + 
-        "Writing out every "+std::to_string(O.attrs.timeResolution)+" seconds.\n" +
-        "For a total of "+std::to_string(O.attrs.simTimeSeconds/O.attrs.timeResolution)+" timesteps saved per sim.\n");
-    MPIsafe_print(std::cerr,message);
-
-    //Set the number of threads to be appropriate
-    O.attrs.OMPthreads = get_num_threads(O);
-
-    for (Step = start_step; Step < O.attrs.steps; Step++)  // Steps start at 1 for non-restart because the 0 step is initial conditions.
-    {
-        // simTimeElapsed += dt; //New code #1
-        // Check if this is a write step:
-        if (Step % O.attrs.skip == 0) {
-            if (world_rank == 0)
-            {
-                t.start_event("writeProgressReport");
-            }
-            writeStep = true;
-            // std::cerr<<"Write step "<<Step<<std::endl;
-
-            /////////////////////// Original code #1
-            O.attrs.simTimeElapsed += O.attrs.dt * O.attrs.skip;
-            ///////////////////////
-
-            if (world_rank == 0)
-            {
-                // Progress reporting:
-                float eta = ((time(nullptr) - O.attrs.startProgress) / static_cast<float>(O.attrs.skip) *
-                             static_cast<float>(O.attrs.steps - Step)) /
-                            3600.f;  // Hours.
-                float real = (time(nullptr) - O.attrs.start) / 3600.f;
-                float simmed = static_cast<float>(O.attrs.simTimeElapsed / 3600.f);
-                float progress = (static_cast<float>(Step) / static_cast<float>(O.attrs.steps) * 100.f);
-                fprintf(
-                    stderr,
-                    "%llu\t%2.0f%%\tETA: %5.2lf\tReal: %5.2f\tSim: %5.2f hrs\tR/S: %5.2f\n",
-                    Step,
-                    progress,
-                    eta,
-                    real,
-                    simmed,
-                    real / simmed);
-                // fprintf(stdout, "%u\t%2.0f%%\tETA: %5.2lf\tReal: %5.2f\tSim: %5.2f hrs\tR/S: %5.2f\n", Step,
-                // progress, eta, real, simmed, real / simmed);
-                fflush(stdout);
-                O.attrs.startProgress = time(nullptr);
-                t.end_event("writeProgressReport");
-            }
-        } else {
-            writeStep = O.attrs.debug;
-        }
-
-        // Physics integration step:
-        O.sim_one_step(writeStep);
-        // O.sim_one_step_GPU(writeStep);
-
-        if (writeStep) {
-            // t.start_event("writeStep");
-            // Write energy to stream:
-            ////////////////////////////////////
-            //TURN THIS ON FOR REAL RUNS!!!
-            // O.energyBuffer = std::vector<double> (data->getWidth("energy"));
-            // std::cerr<<"start,num_writes: "<<start<<','<<O.num_writes<<std::endl;
-            if (world_rank == 0)
-            {    
-                int start = O.data->getWidth("energy")*(O.attrs.num_writes-1);
-                O.energyBuffer[start] = O.attrs.simTimeElapsed;
-                O.energyBuffer[start+1] = O.PE;
-                O.energyBuffer[start+2] = O.KE;
-                O.energyBuffer[start+3] = O.PE+O.KE;
-                O.energyBuffer[start+4] = O.mom.norm();
-                O.energyBuffer[start+5] = O.ang_mom.norm();
-
-                if (Step / O.attrs.skip % 10 == 0) 
-                {
-
-                    std::cerr << "vMax = " << O.getVelMax() << " Steps recorded: " << Step / O.attrs.skip << '\n';
-                    std::cerr << "Data Write to "<<O.data->getFileName()<<"\n";
-                    
-                    O.data->Write(O.ballBuffer,"simData",bufferlines);
-
-                    O.ballBuffer.clear();
-                    O.ballBuffer = std::vector<double>(O.data->getWidth("simData")*bufferlines);
-                    O.data->Write(O.energyBuffer,"energy");
-                    O.energyBuffer.clear();
-                    O.energyBuffer = std::vector<double>(O.data->getWidth("energy")*bufferlines);
-
-                    O.attrs.num_writes = 0;
-
-                }  // Data export end
-                
-                O.attrs.lastWrite = time(nullptr);
-            }
-            
-            // Reinitialize energies for next step:
-            O.KE = 0;
-            O.PE = 0;
-            O.mom = {0, 0, 0};
-            O.ang_mom = {0, 0, 0};
-
-            if (O.attrs.dynamicTime) { O.calibrate_dt(Step, false); }
-            // t.end_event("writeStep");
-        }  // writestep end
-    }
-
-
-    if (world_rank == 0)
-    {
-        const time_t end = time(nullptr);
-
-        std::cerr << "Simulation complete! \n"
-                  << O.attrs.num_particles << " Particles and " << Step << '/' << O.attrs.steps << " Steps.\n"
-                  << "Simulated time: " << O.attrs.steps * O.attrs.dt << " seconds\n"
-                  << "Computation time: " << end - O.attrs.start << " seconds\n";
-        std::cerr << "\n===============================================================\n";
-    }
-
-
-}  // end simLooper
 
 
 void

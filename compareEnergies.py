@@ -34,6 +34,7 @@ def main():
 	folder1 = "/global/homes/l/lpkolanz/DECCOmain/SpaceLab_data/jobs/testrestartReference0/N_1210/T_3/"
 	folder2 = "/global/homes/l/lpkolanz/DECCOmain/SpaceLab_data/jobs/test2MPIrestart0/N_1210/T_3/"
 	folder2 = "/global/homes/l/lpkolanz/DECCOmain/SpaceLab_data/jobs/test2hdf5restart0/N_1210/T_3/"
+	folder1 = "/global/homes/l/lpkolanz/DECCOmain/SpaceLab_data/jobs/test2hdf5restartFromh50/N_1210/T_3/"
 
 	# max_ind = -1
 	# for file in os.listdir(folder1):
@@ -70,7 +71,7 @@ def main():
 	temp = 3
 	show_FD_plots = False
 	allEnergy = []
-	for ind in [1200]:
+	for ind in [1201]:
 		f1 = "{}_{}_simData.csv".format(ind,'_'.join(body))
 		f2 = "{}_{}_simData.csv".format(ind,'_'.join(body))
 		# f2 = "{}_simData.csv".format(ind)

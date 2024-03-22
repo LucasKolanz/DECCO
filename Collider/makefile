@@ -61,9 +61,9 @@ CXXFLAGS = -g -O2 -std=c++2a -fopenmp
 # HDF5_TEST := $(shell ldconfig -p | grep hdf5 >/dev/null 2>&1 && echo 1 || echo 0)
 HDF5_TEST = 1
 MPI_TEST = 1
+GPU_TEST = 1
 
-
-
+CXX = CC
 # Conditional HDF5 flags
 ifeq ($(HDF5_TEST), 1)
 
@@ -85,10 +85,10 @@ endif
 ifeq ($(MPI_TEST), 1)
     CXXFLAGS += -DMPI_ENABLE -I$(CRAY_MPICH_DIR)/include
     LIBS += -L$(CRAY_MPICH_DIR)/lib
-    CXX = mpiCC
-    CXX = CC
-else
-    CXX = CC
+endif
+
+ifeq ($(GPU_TEST), 1)
+    CXXFLAGS += -DGPU_ENABLE 
 endif
 
 # Source files
