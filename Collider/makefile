@@ -60,7 +60,7 @@ CXXFLAGS = -g -O2 -std=c++2a -fopenmp
 # Detect HDF5
 # HDF5_TEST := $(shell ldconfig -p | grep hdf5 >/dev/null 2>&1 && echo 1 || echo 0)
 HDF5_TEST = 1
-MPI_TEST = 1
+MPI_TEST = 0
 GPU_TEST = 1
 
 CXX = CC

@@ -1580,6 +1580,9 @@ void Ball_group::allocate_group(const int nBalls)
     try {
         distances = new double[(attrs.num_particles * attrs.num_particles / 2) - (attrs.num_particles / 2)];
 
+        accsq = new vec3[attrs.num_particles*attrs.num_particles];
+        aaccsq = new vec3[attrs.num_particles*attrs.num_particles];
+
         pos = new vec3[attrs.num_particles];
         vel = new vec3[attrs.num_particles];
         velh = new vec3[attrs.num_particles];
@@ -3288,7 +3291,9 @@ void Ball_group::sim_one_step_GPU()
     
     /// FIRST PASS - Update Kinematic Parameters:
     // t.start_event("UpdateKinPar");
-    #pragma acc parallel loop gang worker present(this,velh[0:num_particles],vel[0:num_particles],\
+    double t0 = omp_get_wtime();
+
+    #pragma acc parallel loop gang worker present(velh[0:num_particles],vel[0:num_particles],\
         acc[0:num_particles],dt,wh[0:num_particles],w[0:num_particles],aacc[0:num_particles],\
         pos[0:num_particles],attrs.num_particles)
     for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
@@ -3310,12 +3315,13 @@ void Ball_group::sim_one_step_GPU()
     // t.end_event("UpdateKinPar");
 
     // int threads = attrs.OMPthreads;
+    double t1 = omp_get_wtime();
 
     // #pragma acc update device(accsq[0:num_particles*num_particles], aaccsq[0:num_particles*num_particles])
 
     #pragma acc parallel loop gang worker num_gangs(108) \
-        present(attrs.num_particles,accsq[0:num_particles*num_particles],\
-            aaccsq[0:num_particles*num_particles])
+        present(accsq[0:num_particles*num_particles],\
+            aaccsq[0:num_particles*num_particles],attrs.num_particles)
     for (int i = 0; i < attrs.num_particles*attrs.num_particles; ++i)
     {
         accsq[i] = {0.0,0.0,0.0};
@@ -3323,11 +3329,11 @@ void Ball_group::sim_one_step_GPU()
     }
 
 
-    double pe = 0.0;
-    #pragma acc enter data copyin(pe)
+    double t2 = omp_get_wtime();
+    // double pe = 0.0;
+    // #pragma acc enter data copyin(pe)
     // #pragma acc enter data copyin(writeS/tep)
 
-    double t0 = omp_get_wtime();
 
     #pragma acc parallel loop gang worker num_gangs(108) num_workers(256) reduction(+:pe) \
         present(pe,accsq[0:num_particles*num_particles],\
@@ -3559,7 +3565,7 @@ void Ball_group::sim_one_step_GPU()
                     -attrs.Ha / 6 *
                     (two_RaRb / denom_sum + two_RaRb / denom_diff + 
                     log(denom_sum / denom_diff));
-                pe += U_vdw + 0.5 * k * overlap * overlap; ///TURN ON FOR REAL SIM
+                PE += U_vdw + 0.5 * k * overlap * overlap; ///TURN ON FOR REAL SIM
             }
         } else  // Non-contact forces:
         {
@@ -3609,7 +3615,7 @@ void Ball_group::sim_one_step_GPU()
                 const double U_vdw =
                     -attrs.Ha / 6 *
                     (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
-                pe += U_vdw;  // Van Der Waals TURN ON FOR REAL SIM
+                PE += U_vdw;  // Van Der Waals TURN ON FOR REAL SIM
             }
 
             // todo this is part of push_apart. Not great like this.
@@ -3635,6 +3641,7 @@ void Ball_group::sim_one_step_GPU()
 
     }
 
+    double t3 = omp_get_wtime();
     // #pragma acc loop seq
     #pragma acc parallel loop gang num_gangs(108) \
         present(attrs.num_particles,acc[0:num_particles],aacc[0:num_particles],\
@@ -3655,14 +3662,15 @@ void Ball_group::sim_one_step_GPU()
     // #pragma acc update self(acc[i],aacc[i]) //if(write_step)
     }
 
+    double t4 = omp_get_wtime();
     #pragma acc update host(acc[0:num_particles],aacc[0:num_particles])
     // std::cout<<aaccsq[0].x<<','<<aaccsq[0].y<<','<<aaccsq[0].z<<std::endl;
     
     if (attrs.write_step)
     {
-        #pragma acc update host(pe)
-        PE = pe;
+        #pragma acc update host(PE)
     }
+    double t5 = omp_get_wtime();
 
     #ifdef MPI_ENABLE
         MPI_Allreduce(MPI_IN_PLACE,acc,attrs.num_particles*3,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
@@ -3684,6 +3692,7 @@ void Ball_group::sim_one_step_GPU()
         w[Ball] = wh[Ball] + .5 * aacc[Ball] * attrs.dt;
     }  // THIRD PASS END
 
+    double t6 = omp_get_wtime();
     // THIRD PASS - Calculate velocity for next step:
     // t.start_event("CalcVelocityforNextStep");
     if (attrs.write_step && attrs.world_rank == 0) 
@@ -3716,6 +3725,13 @@ void Ball_group::sim_one_step_GPU()
     {
         attrs.num_writes ++;
     }
+
+    std::cerr<<"update kinetic vars: "<<t1-t0<<"ms"<<std::endl;
+    std::cerr<<"zero sq mats: "<<t2-t1<<"ms"<<std::endl;
+    std::cerr<<"pair calculations: "<<t3-t2<<"ms"<<std::endl;
+    std::cerr<<"accum accel: "<<t4-t3<<"ms"<<std::endl;
+    std::cerr<<"host update: "<<t5-t4<<"ms"<<std::endl;
+    std::cerr<<"half step update: "<<t6-t5<<"ms"<<std::endl;
     // t.end_event("CalcVelocityforNextStep");
 }  // one Step end
 #endif
@@ -3760,7 +3776,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
             aaccsq[0:num_particles*num_particles],acc[0:num_particles],aacc[0:num_particles],\
             velh[0:num_particles],wh[0:num_particles]) 
         #pragma acc enter data copyin(attrs.dt,attrs.num_pairs,attrs.num_particles,attrs.Ha,attrs.kin,attrs.kout,attrs.h_min,\
-            attrs.u_s,attrs.u_r,attrs.world_rank,attrs.world_size,attrs.write_step)
+            attrs.u_s,attrs.u_r,attrs.world_rank,attrs.world_size,attrs.write_step,PE)
     #endif
 
     for (Step = start_step; Step < attrs.steps; Step++)  // Steps start at 1 for non-restart because the 0 step is initial conditions.
@@ -3773,6 +3789,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
             //     t.start_event("writeProgressReport");
             // }
             attrs.write_step = true;
+
             #ifdef GPU_ENABLE
                 #pragma acc update device(attrs.write_step)
             #endif
@@ -3809,6 +3826,9 @@ Ball_group::sim_looper(unsigned long long start_step=1)
         } else {
             attrs.write_step = attrs.debug;
         }
+
+
+        std::cerr<<"step: "<<Step<<"\tskip: "<<attrs.skip<<std::endl;
 
         // Physics integration step:
         #ifndef GPU_ENABLE
@@ -3858,6 +3878,9 @@ Ball_group::sim_looper(unsigned long long start_step=1)
             // Reinitialize energies for next step:
             KE = 0;
             PE = 0;
+            #ifdef GPU_ENABLE
+                #pragma acc update device(PE)
+            #endif
             mom = {0, 0, 0};
             ang_mom = {0, 0, 0};
 
@@ -3872,7 +3895,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
         #pragma acc exit data delete(m[0:num_particles],w[0:num_particles],vel[0:num_particles],\
             pos[0:num_particles],R[0:num_particles],distances[0:num_pairs])
         #pragma acc exit data delete(attrs.dt,attrs.num_pairs,attrs.num_particles,attrs.Ha,\
-            attrs.kin,attrs.kout,attrs.h_min,attrs.u_s,attrs.u_r,attrs.world_rank,attrs.world_size,attrs.write_step)
+            attrs.kin,attrs.kout,attrs.h_min,attrs.u_s,attrs.u_r,attrs.world_rank,attrs.world_size,attrs.write_step,PE)
         // #pragma acc exit data delete(this)
     #endif
 
