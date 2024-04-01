@@ -270,7 +270,7 @@ if __name__ == '__main__':
 
 	print(f"relax: {relax}")
 
-	new_data = True     
+	new_data = True
 	save_data = True
 	show_plots = True
 	save_plots = True

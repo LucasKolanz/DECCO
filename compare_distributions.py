@@ -18,7 +18,7 @@ def main():
 		input_json = json.load(fp)
 	
 	data_directory = input_json["data_directory"]
-	properties = 15 #number of columns to save for every Num
+	properties = 18 #number of columns to save for every Num
 
 	sav_lognorm = data_directory+'data/lognorm_relax_averageData.csv'
 	sav_const = data_directory+'data/const_relax_averageData.csv'
@@ -108,10 +108,12 @@ def main():
 			fradim_uncert[n,t] += ratio_fradim[n,t]*np.sqrt((yerr_FD[0,n,t]/FD_dataavg[0,n,t])**2 + (yerr_FD[1,n,t]/FD_dataavg[1,n,t])**2) #propagate uncertainty 
 
 		print(f"Ratio of const / lognorm dist for N={Nums[n]}:")
-		print(f"\tpor abc: {ratio_porabc[n,:]}")
-		print(f"\tpor kbm: {ratio_porkbm[n,:]}")
-		print(f"\tnum con: {ratio_numcon[n,:]}")
-		print(f"\tfra dim: {ratio_fradim[n,:]}")
+		print(f"\tporabc const: {contactsavg[0,n,:]}")
+		print(f"\tporabc lognorm: {contactsavg[1,n,:]}")
+		print(f"\tpor abc: {ratio_numcon[n,:]}")
+		# print(f"\tpor kbm: {ratio_porkbm[n,:]}")
+		# print(f"\tnum con: {ratio_numcon[n,:]}")
+		# print(f"\tfra dim: {ratio_fradim[n,:]}")
 
 
 	styles = ['-','--','-.','--.']

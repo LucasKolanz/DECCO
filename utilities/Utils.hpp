@@ -253,6 +253,8 @@ double lndpdf(double a,double sigma,double a_max)
             std::exp(-std::pow(log(a/a_max)-std::pow(sigma,2),2)/(2*std::pow(sigma,2)));
 }
 
+
+
 double lognorm_dist(double a_max,double sigma)
 {
     double Fa0,a0,test,maxVal;

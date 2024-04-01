@@ -12,8 +12,8 @@ def main():
 		input_json = json.load(fp)
 	
 	data_directory = input_json["data_directory"]
-	job_group = "lognorm_rel"
 	job_group = "const_rel"
+	job_group = "lognorm_rel"
 
 	image_path = data_directory + "data/figures/aggRenders/"
 	save_path = image_path+"edited/"

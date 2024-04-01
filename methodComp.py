@@ -32,8 +32,8 @@ def main():
 	data_prefolder = path + 'jobsOld/tempVarianceRand_attempt'
 	data_prefolder = path + 'jobsNovus/const'
 	data_prefolder = path + 'jobsCosine/lognorm'
-	data_prefolder = path + 'jobsCosine/lognorm_relax'
 	data_prefolder = path + 'jobsNovus/const_relax'
+	data_prefolder = path + 'jobsCosine/lognorm_relax'
 
 	dataset_name = data_prefolder.split("/")[-1]
 
@@ -41,7 +41,6 @@ def main():
 	# figure_folder = 'figuresCompare/'
 	figure_folder = path+'data/figures/'
 
-	properties = 15 #number of columns to save for every Num
 
 
 	temps = [3,10,30,100,300,1000]
@@ -56,7 +55,12 @@ def main():
 	# attempts = [18]
 
 	data = np.loadtxt(sav,delimiter=' ',dtype=np.float64)
-	# print(data.shape)
+	print(f"data.shape: {data.shape}")
+	print(data)
+	properties = int(data.shape[0]/3) #18 #number of columns for every agg size
+	print(properties)
+
+
 
 	# data = np.transpose(data)
 	# print(data.shape)
@@ -68,6 +72,7 @@ def main():
 
 	# headers = []
 	# order = [0,1,2,3,4,5,18,19,6,7,8,9,10,11,20,21,12,13,14,15,16,17,22,23]
+	#This order should be Rabc value, Rabc uncert, RKBM value, RKBM uncert, FD value, FD uncert, NC value, NC uncert
 	order30 = [0,1,3,4,6,7,9,10]
 	order100 = [i+properties for i in order30]
 	order300 = [i+2*properties for i in order30]
