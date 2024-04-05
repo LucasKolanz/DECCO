@@ -2,11 +2,19 @@
 #include "../default_files/dust_const.hpp"
 #include "../utilities/vec3.hpp"
 #include "../utilities/MPI_utilities.hpp"
-#include <filesystem>
 #include <iostream>
 #include <vector>
+#include <fstream>
 #include <sstream>
 #include <cmath>
+
+#ifdef EXPERIMENTAL_FILESYSTEM
+	#include <experimental/filesystem>
+	namespace fs = std::experimental::filesystem;
+#else
+	#include <filesystem>
+	namespace fs = std::filesystem;
+#endif
 
 #ifdef HDF5_ENABLE
 	#include "H5Cpp.h"
@@ -48,6 +56,8 @@ int getDataIndexFromString(std::string data_type)
 	return -1;
 }
 
+
+
 class CSVHandler
 {
 public:
@@ -64,7 +74,7 @@ public:
 		try
 		{
 			std::string meta = "";
-			if (!std::filesystem::exists(filename))
+			if (!fs::exists(filename))
 			{
 				int num_particles = width/single_ball_widths[0];
 				meta = genSimDataMetaData(num_particles);	
@@ -104,7 +114,7 @@ public:
 		{
 			std::string meta = "";
 
-			if (!std::filesystem::exists(filename))
+			if (!fs::exists(filename))
 			{
 				int num_particles = width/single_ball_widths[1];
 				meta = genEnergyMetaData();	
@@ -144,7 +154,7 @@ public:
 			//Consts has no meta data for csv
 			// std::string meta = "";
 
-			// if (!std::filesystem::exists(filename))
+			// if (!fs::exists(filename))
 			// {
 			// 	int num_particles = width/single_ball_widths[2];
 			// 	meta = genConstantsMetaData();	
@@ -182,7 +192,7 @@ public:
 	// 		std::ofstream constsWrite;
 	// 		constsWrite.open(filename, std::ofstream::app);
 
-	// 		if (!std::filesystem::exists(filename))
+	// 		if (!fs::exists(filename))
 	// 		{
 	// 			int num_particles = width/single_ball_widths[1];
 	// 			constsWrite << genEnergyMetaData();	
@@ -283,7 +293,7 @@ class HDF5Handler {
 		    // H5::DataSet dataset;
 		    // H5::DataSpace dataspace;
 
-		    if(std::filesystem::exists(filename)) {
+		    if(fs::exists(filename)) {
 		    	if (datasetExists(filename,datasetName))
 		    	{
 		    		// if (fixed)
@@ -312,7 +322,7 @@ class HDF5Handler {
 		// from zero then the length of the dataset, the whole dataset is returned.
 		std::vector<double> readFile(const std::string datasetName, hsize_t start=0, hsize_t len=0) {
 		    std::vector<double> data;
-		    if (std::filesystem::exists(filename)) {
+		    if (fs::exists(filename)) {
 		        H5::H5File file(filename, H5F_ACC_RDONLY);
 		        H5::DataSet dataset = file.openDataSet(datasetName);
 		        H5::DataSpace dataspace = dataset.getSpace();
@@ -375,7 +385,7 @@ class HDF5Handler {
 		// from zero then the length of the dataset, the whole dataset is returned.
 		static std::vector<double> static_readFile(const std::string datasetName, hsize_t start=0, hsize_t len=0,bool neg_offset=false,std::string readfile="") {
 		    std::vector<double> data;
-		    if (std::filesystem::exists(readfile)) {
+		    if (fs::exists(readfile)) {
 		        H5::H5File file(readfile, H5F_ACC_RDONLY);
 		        H5::DataSet dataset = file.openDataSet(datasetName);
 		        H5::DataSpace dataspace = dataset.getSpace();
@@ -458,7 +468,7 @@ class HDF5Handler {
 		static hsize_t get_data_length(std::string readfile,std::string datasetName)
 		{
 			hsize_t total_size;
-			if (std::filesystem::exists(readfile)) {
+			if (fs::exists(readfile)) {
 		        H5::H5File file(readfile, H5F_ACC_RDONLY);
 		        H5::DataSet dataset = file.openDataSet(datasetName);
 		        H5::DataSpace dataspace = dataset.getSpace();
@@ -481,7 +491,7 @@ class HDF5Handler {
 	        H5::DataSet dataset;
 	        int value = 0; // uninitialized value
 
-	        if(std::filesystem::exists(file_read)) {
+	        if(fs::exists(file_read)) {
 	            file = H5::H5File(file_read, H5F_ACC_RDWR);
 	        } else {
 	        	MPIsafe_print(std::cerr,"File " + file_read + " doesn't exist.\n");
@@ -521,7 +531,7 @@ class HDF5Handler {
 	        H5::DataSet dataset;
 	        int value = additional_writes; // Default value
 
-	        if(std::filesystem::exists(filename)) {
+	        if(fs::exists(filename)) {
 	            file = H5::H5File(filename, H5F_ACC_RDWR);
 	        } else {
 	        	MPIsafe_print(std::cerr,"File " + filename + " doesn't exist.\n");
@@ -606,7 +616,7 @@ class HDF5Handler {
 
         // std::vector<double> readFile(const std::string datasetName) {
         //     std::vector<double> data;
-        //     if(std::filesystem::exists(filename)) {
+        //     if(fs::exists(filename)) {
         //         H5::H5File file(filename, H5F_ACC_RDONLY);
         //         H5::DataSet dataset = file.openDataSet(datasetName);
         //         H5::DataSpace dataspace = dataset.getSpace();
@@ -626,7 +636,7 @@ class HDF5Handler {
         void attachMetadataToDataset(const std::string& metadata, const std::string& datasetName) 
         {
 		    // Initialize the HDF5 library
-        	if(std::filesystem::exists(filename)) {
+        	if(fs::exists(filename)) {
 			    H5::H5File file(filename, H5F_ACC_RDWR);
 	    		H5::DataSet dataset;
 			    // Open the specified dataset
@@ -672,7 +682,7 @@ class HDF5Handler {
         {
 		    // Initialize the HDF5 library
         	H5::H5File file;
-        	if(!std::filesystem::exists(filename)) 
+        	if(!fs::exists(filename)) 
         	{
         		file = H5::H5File(filename, H5F_ACC_TRUNC);
         	}
@@ -724,7 +734,7 @@ class HDF5Handler {
 		    std::string metadata;
 
 		    // Initialize the HDF5 library
-		    if(std::filesystem::exists(filename)) {
+		    if(fs::exists(filename)) {
 		    	H5::DataSet dataset;
                 H5::H5File file(filename, H5F_ACC_RDONLY);
 			    // Open the specified dataset
@@ -767,7 +777,7 @@ class HDF5Handler {
 		    std::string metadata;
 
 		    // Initialize the HDF5 library
-		    if(std::filesystem::exists(metafile)) {
+		    if(fs::exists(metafile)) {
 		    	H5::DataSet dataset;
                 H5::H5File file(metafile, H5F_ACC_RDONLY);
 			    // Open the specified dataset
@@ -936,7 +946,7 @@ class HDF5Handler {
 			H5::H5File file;
 		    H5::DataSet dataset;
 		    H5::DataSpace dataspace;
-		    if(std::filesystem::exists(filename)) 
+		    if(fs::exists(filename)) 
 		    {
 				file = H5::H5File(filename, H5F_ACC_RDWR);
 			}

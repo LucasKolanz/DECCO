@@ -55,15 +55,17 @@
 
 
 # Base CXXFLAGS, without HDF5-specific flags
-CXXFLAGS = -g -O2 -std=c++17 -fopenmp -fopenacc
+CXXFLAGS = -g -O2 -std=c++17 -fopenmp #-fopenacc 
 
 # Detect HDF5
 # HDF5_TEST := $(shell ldconfig -p | grep hdf5 >/dev/null 2>&1 && echo 1 || echo 0)
-HDF5_TEST = 1
+HDF5_TEST = 0
 MPI_TEST = 0
 GPU_TEST = 1
+EXPERIMENTAL_FILESYSTEM = 1
 
 CXX = CC
+# CXX = g++-12
 # Conditional HDF5 flags
 ifeq ($(HDF5_TEST), 1)
 
@@ -88,8 +90,13 @@ ifeq ($(MPI_TEST), 1)
 endif
 
 ifeq ($(GPU_TEST), 1)
-#     CXXFLAGS += -DGPU_ENABLE  -acc=gpu -Minfo=accel -Wl,-znoexecstack #-fopt-info-omp
-	CXXFLAGS += -DGPU_ENABLE -fopt-info-omp -Wl,-znoexecstack #-fopt-info-omp
+    CXXFLAGS += -DGPU_ENABLE  -acc=gpu -Minfo=accel -Wl,-znoexecstack #-fopt-info-omp
+# 	CXXFLAGS += -DGPU_ENABLE -Wl,-znoexecstack -fdump-tree-optimized
+endif
+
+ifeq ($(EXPERIMENTAL_FILESYSTEM),1)
+	CXXFLAGS += -DEXPERIMENTAL_FILESYSTEM
+	LIBS += -lstdc++fs
 endif
 
 # Source files
