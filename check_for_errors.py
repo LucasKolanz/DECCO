@@ -475,7 +475,8 @@ def are_spheres_connected(pos, radii):
 def error6(fullpath,relax=None):
 	num_files = len(glob.glob(fullpath+'*'))
 
-	if os.path.exists(fullpath+"timing.txt") and num_files > 1:
+	# if os.path.exists(fullpath+"timing.txt") and num_files > 1:
+	if  num_files > 1:
 
 		directory = os.fsencode(fullpath)
 		max_index = -1
@@ -493,11 +494,13 @@ def error6(fullpath,relax=None):
 				else:
 					index = int(filename.split("_")[0])
 				
-				if index > max_index:
+				if index > max_index and np.loadtxt(fullpath+filename,skiprows=1,delimiter=',',dtype=np.float64)[-1].size > 1:
 					max_index = index
 					max_filename = filename
 
 		simData = np.loadtxt(fullpath+max_filename,skiprows=1,delimiter=',',dtype=np.float64)[-1]
+		# print(fullpath+max_filename)
+		# print(simData)
 		simData = simData.reshape(int(simData.shape[0]/simData_properties),simData_properties) #now it is simData[ball,property]
 		pos = simData[:,:3]
 		constants = np.loadtxt(fullpath+max_filename.replace("simData.csv","constants.csv"),skiprows=0,delimiter=',',dtype=np.float64)
@@ -544,18 +547,18 @@ def main():
 
 
 	job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobs/lognorm$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobs/lognorm$a$/N_$n$/T_$t$/'
 	
 
 	attempts = [i for i in range(30)]
-	# attempts = [0]
+	# attempts = [1]
 
 	N = [30,100,300]
-	# N=[100]
+	# N=[300]
 
 	Temps = [3,10,30,100,300,1000]
-	# Temps = [3]
+	# Temps = [1000]
 
 	errorDic = {}
 
@@ -566,8 +569,8 @@ def main():
 
 
 
-	# for i,error in enumerate([error6]):
-	for i,error in enumerate([errorn1,error0,error1,error2,error3,error4,error5,error6]):
+	# for i,error in enumerate([errorn1,error0,error1,error2,error3,error4,error5,error6]):
+	for i,error in enumerate([error6]):
 		print(f"======================================{error.__name__}======================================")
 		error_folders = check_error(job,error,N,Temps,attempts,relax=relax)
 		for folder in error_folders:
@@ -592,53 +595,6 @@ def main():
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	# errorgen_folders = check_error(job,error_general,N,Temps,attempts)
-	# print(errorgen_folders)
-	# error1_folders = check_error(job,error1,N,Temps,attempts)
-	# print(error1_folders)
-
-	# error2_folders = check_error(job,error2,N,Temps,attempts)
-	# print(error2_folders)
-
-	###
-	### This section finds the index at which a folder had error2
-	###
-	# error2_folders,o = where_is_smallest_error2(job,error2_index,N,Temps,attempts)
-	# print(error2_folders)
-	# print(o)
-	# zipped = zip(error2_folders,o)
-	# for i in zipped:
-	# 	print(f"Error started at index {i[1]} for folder {i[0]}")
-	# mind = np.argmin(np.array(o))
-	# print(f'min index is {mind} for job {error2_folders[0][mind]}')
-
-
-	# folder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/erroredJobs/lognorm12/N_30/T_10/'
-	# folder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/error2Test10/N_10/T_10/'
-	# folder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/error2Test2/N_10/T_10/'
-
-	# print(error2_index(folder,True))
-	# print(error2(folder,True))
 
 if __name__ == '__main__':
 	main()

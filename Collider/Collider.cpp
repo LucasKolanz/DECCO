@@ -255,9 +255,9 @@ int get_num_threads(Ball_group &O)
     {
         threads = 2;
     }
-    else
+    else if (N < 175)
     {
-        threads = 16;
+        threads = 32;
     }
 
     if (threads > O.attrs.MAXOMPthreads)

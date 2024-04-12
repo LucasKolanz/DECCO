@@ -3,10 +3,55 @@ import json
 import multiprocessing as mp
 import subprocess
 import random
+from datetime import datetime
+import re
+
 
 relative_path = "../"
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
+
+random.seed(int(datetime.now().timestamp()))
+
+def get_squeue_output():
+    try:
+        # Run the squeue command and capture its output
+        result = subprocess.run(['squeue', '-o', '"%.20u %.25j"'], capture_output=True, text=True)
+        output = result.stdout
+        return output
+    except subprocess.CalledProcessError as e:
+        # Handle any errors that occur during the command execution
+        print(f"Error executing squeue: {e}")
+        return None
+
+def same_job(fullpath, job_name):
+
+	fpsplit = fullpath.split('/')
+
+	fpattrs = re.split(r'\D+',"".join(fpsplit[-4:-1]))
+	fpattrs = [int(i) for i in fpattrs if len(i) > 0]
+	
+	qattrs = re.split(r'\D+',job_name)
+	qattrs = [int(i) for i in qattrs if len(i) > 0]
+
+	if len(fpattrs) != len(qattrs):
+		print("ERROR IN same_job")
+		exit(0)
+
+	for i in range(len(qattrs)):
+		if fpattrs[i] != qattrs[i]:
+			return False
+	return True
+
+def on_queue(fullpath):
+	queue_out = get_squeue_output()
+	for line in queue_out.split('\n')[1:]:
+		line = line.strip('"').split()
+		if len(line) > 0:
+			if line[0] == "kolanzl":
+				if same_job(fullpath,line[1]):
+					return True
+	return False
 
 def rand_int():
 	# Generating a random integer from 0 to the maximum unsigned integer in C++
@@ -40,24 +85,16 @@ if __name__ == '__main__':
 	# folder_name_scheme = "T_"
 
 	# runs_at_once = 7
-	# attempts = [21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40]
-	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
+	
 	# attempts = [i for i in range(30)]
-	attempts = [i for i in range(30)]
-	# attempts = [2]
-	# attempts_300 = [i for i in range(30)]
-	# attempts = [1] 
+	attempts = [20]
 	attempts_300 = attempts
-
-	#test it out first
-	# attempts = [0]
-	# attempts_300 = [0]
 
 	node = 1
 	N = [30,100,300]
-	# N = [300]
+	N = [300]
 	Temps = [3,10,30,100,300,1000]
-	# Temps = [1000]
+	Temps = [1000]
 
 	folders = []
 	for n in N:
@@ -67,7 +104,7 @@ if __name__ == '__main__':
 		elif n == 100:
 			threads = 2
 		else:# n == 300:
-			threads = 16
+			threads = 32
 		temp_attempt = attempts
 		if n == 300:
 			temp_attempt = attempts_300
@@ -87,6 +124,8 @@ if __name__ == '__main__':
 
 				if os.path.exists(job+"timing.txt"):
 					print("Sim already complete")
+				elif on_queue(job):
+					print("Sim already on queue")
 				else:
 					#load default input file
 
