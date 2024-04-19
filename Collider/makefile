@@ -62,14 +62,14 @@ CXXFLAGS = -g -O2 -std=c++17 -fopenmp #-fopenacc
 HDF5_TEST = 0
 MPI_TEST = 0
 GPU_TEST = 1
-EXPERIMENTAL_FILESYSTEM = 1
+EXPERIMENTAL_FILESYSTEM = 0
 
 CXX = CC
-# CXX = g++-12
+CXX = nvc++
 # Conditional HDF5 flags
 ifeq ($(HDF5_TEST), 1)
 
-	HDF5_CXXFLAGS = -I/usr/include/hdf5/serial #Perlmutter
+# 	HDF5_CXXFLAGS = -I/usr/include/hdf5/serial #Perlmutter
 
 #     HDF5_CXXFLAGS = -I/usr/include/hdf5/serial
 #     HDF5_LIBS = -L/usr/lib/x86_64-linux-gnu/hdf5/serial -lhdf5 -lhdf5_cpp
@@ -90,7 +90,7 @@ ifeq ($(MPI_TEST), 1)
 endif
 
 ifeq ($(GPU_TEST), 1)
-    CXXFLAGS += -DGPU_ENABLE  -acc=gpu -Minfo=accel -Wl,-znoexecstack #-fopt-info-omp
+    CXXFLAGS += -DGPU_ENABLE -acc=gpu -Minfo=accel -Wl,-znoexecstack #-fopt-info-omp -gpu=cuda11.8
 # 	CXXFLAGS += -DGPU_ENABLE -Wl,-znoexecstack -fdump-tree-optimized
 endif
 

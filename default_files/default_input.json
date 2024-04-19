@@ -48,6 +48,6 @@
     "targetName": "",
     "output_prefix": "default",
     "output_folder": "default",
-    "data_directory": "/global/homes/l/lpkolanz/DECCOmain/SpaceLab_data/",
-    "project_directory": "/global/homes/l/lpkolanz/DECCOmain/SpaceLab/"
+    "data_directory": "/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/DECCObranch/SpaceLab_data/",
+    "project_directory": "/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/DECCObranch/SpaceLab/"
 }

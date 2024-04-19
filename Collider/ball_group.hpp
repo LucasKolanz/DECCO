@@ -3302,7 +3302,7 @@ void Ball_group::sim_one_step()
     // t.start_event("UpdateKinPar");
     double t0 = omp_get_wtime();
 
-    #pragma acc parallel loop gang worker present(velh[0:attrs.num_particles],vel[0:attrs.num_particles],\
+    #pragma acc parallel loop gang worker present(this,velh[0:attrs.num_particles],vel[0:attrs.num_particles],\
         acc[0:attrs.num_particles],attrs.dt,wh[0:attrs.num_particles],w[0:attrs.num_particles],aacc[0:attrs.num_particles],\
         pos[0:attrs.num_particles],attrs.num_particles)
     for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
@@ -3329,7 +3329,7 @@ void Ball_group::sim_one_step()
     // #pragma acc update device(accsq[0:num_particles*num_particles], aaccsq[0:num_particles*num_particles])
 
     #pragma acc parallel loop gang worker num_gangs(108) \
-        present(accsq[0:attrs.num_particles*attrs.num_particles],\
+        present(this,accsq[0:attrs.num_particles*attrs.num_particles],\
             aaccsq[0:attrs.num_particles*attrs.num_particles],attrs.num_particles)
     for (int i = 0; i < attrs.num_particles*attrs.num_particles; ++i)
     {
@@ -3345,7 +3345,7 @@ void Ball_group::sim_one_step()
 
 
     #pragma acc parallel loop gang worker num_gangs(108) num_workers(256) \
-        present(PE,accsq[0:attrs.num_particles*attrs.num_particles],\
+        present(this,PE,accsq[0:attrs.num_particles*attrs.num_particles],\
             aaccsq[0:attrs.num_particles*attrs.num_particles],m[0:attrs.num_particles],\
             moi[0:attrs.num_particles],w[0:attrs.num_particles],vel[0:attrs.num_particles],\
             pos[0:attrs.num_particles],R[0:attrs.num_particles],distances[0:attrs.num_pairs],\
@@ -3654,7 +3654,7 @@ void Ball_group::sim_one_step()
     double t3 = omp_get_wtime();
     // #pragma acc loop seq
     #pragma acc parallel loop gang num_gangs(108) \
-        present(attrs.num_particles,acc[0:attrs.num_particles],aacc[0:attrs.num_particles],\
+        present(this, attrs.num_particles,acc[0:attrs.num_particles],aacc[0:attrs.num_particles],\
             accsq[0:attrs.num_particles*attrs.num_particles],aaccsq[0:attrs.num_particles*attrs.num_particles])
     for (int i = 0; i < attrs.num_particles; i++)
     {
@@ -3694,7 +3694,7 @@ void Ball_group::sim_one_step()
 
     // t.end_event("CalcForces/loopApplicablepairs");
     #pragma acc parallel loop gang worker num_gangs(108) num_workers(256) \
-        present(acc[0:attrs.num_particles],aacc[0:attrs.num_particles],w[0:attrs.num_particles],\
+        present(this,acc[0:attrs.num_particles],aacc[0:attrs.num_particles],w[0:attrs.num_particles],\
             vel[0:attrs.num_particles],velh[0:attrs.num_particles],wh[0:attrs.num_particles],attrs.num_particles,attrs.dt)
     for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
         // Velocity for next step:
@@ -3736,12 +3736,12 @@ void Ball_group::sim_one_step()
         attrs.num_writes ++;
     }
 
-    std::cerr<<"update kinetic vars: "<<t1-t0<<"ms"<<std::endl;
-    std::cerr<<"zero sq mats: "<<t2-t1<<"ms"<<std::endl;
-    std::cerr<<"pair calculations: "<<t3-t2<<"ms"<<std::endl;
-    std::cerr<<"accum accel: "<<t4-t3<<"ms"<<std::endl;
-    std::cerr<<"host update: "<<t5-t4<<"ms"<<std::endl;
-    std::cerr<<"half step update: "<<t6-t5<<"ms"<<std::endl;
+    // std::cerr<<"update kinetic vars: "<<t1-t0<<"ms"<<std::endl;
+    // std::cerr<<"zero sq mats: "<<t2-t1<<"ms"<<std::endl;
+    // std::cerr<<"pair calculations: "<<t3-t2<<"ms"<<std::endl;
+    // std::cerr<<"accum accel: "<<t4-t3<<"ms"<<std::endl;
+    // std::cerr<<"host update: "<<t5-t4<<"ms"<<std::endl;
+    // std::cerr<<"half step update: "<<t6-t5<<"ms"<<std::endl;
     // t.end_event("CalcVelocityforNextStep");
 }  // one Step end
 #endif
@@ -3778,7 +3778,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
     #else
         #pragma acc enter data create(accsq[0:attrs.num_particles*attrs.num_particles],aaccsq[0:attrs.num_particles*attrs.num_particles])
 
-        // #pragma acc enter data copyin(this,attrs.num_particles) 
+        #pragma acc enter data copyin(this) 
         #pragma acc enter data copyin(moi[0:attrs.num_particles],m[0:attrs.num_particles],\
             w[0:attrs.num_particles],vel[0:attrs.num_particles],pos[0:attrs.num_particles],R[0:attrs.num_particles],\
             distances[0:attrs.num_pairs]) 
