@@ -3,10 +3,14 @@ import json
 import multiprocessing as mp
 import subprocess
 import random
+from datetime import datetime
+
 
 relative_path = "../"
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
+
+random.seed(datetime.now().timestamp())
 
 def rand_int():
 	# Generating a random integer from 0 to the maximum unsigned integer in C++

@@ -44,6 +44,8 @@ def get_status(job_base,\
 
 	stati = np.full((len(num_attempts),len(N),len(Temps)),fill_value=np.nan);
 
+	unfinished_jobs = []
+
 	for a_i,attempt in enumerate(attempts):
 		for n_i,n in enumerate(N):
 			for T_i,Temp in enumerate(Temps):
@@ -55,10 +57,11 @@ def get_status(job_base,\
 					print(f"job is initialized: {job}")
 				elif job_status == 1:
 					print(f"job is started: {job}")
+					unfinished_jobs.append(job)
 
 				stati[a_i,n_i,T_i] = job_status
 
-	return stati
+	return stati, unfinished_jobs
 
 def get_progress_bar(stati,length):
 	
@@ -100,12 +103,12 @@ def main():
 	job = curr_folder + 'jobs/weakseed$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'erroredJobs/lognorm$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'jobsNovus/testError$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobs/lognorm$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + 'jobsNovus/lognorm$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + 'jobsNovus/const$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + 'jobsNovus/const_relax$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobs/lognorm$a$/N_$n$/T_$t$/'
 	print(job)
 
 
@@ -118,7 +121,7 @@ def main():
 	Temps = [3,10,30,100,300,1000]
 	# Temps = [3]
 
-	job_status = get_status(job,N,Temps,attempts)
+	job_status,unfinished_jobs = get_status(job,N,Temps,attempts)
 	progress_bar_percents = np.full((len(N),len(Temps),3),fill_value=-1,dtype=np.float64)
 	lines = []
 
@@ -161,6 +164,8 @@ def main():
 	
 
 	print(output)
+
+	print(unfinished_jobs)
 
 	# linestart = int(len(line)/2 - len(section)/2)
 	# line[linestart:len(section)] = section[:]
