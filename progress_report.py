@@ -106,8 +106,8 @@ def main():
 	job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + 'jobsNovus/lognorm$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobsNovus/const$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + 'jobsNovus/const_relax$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobs/const$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + 'jobs/lognorm$a$/N_$n$/T_$t$/'
 	print(job)
 

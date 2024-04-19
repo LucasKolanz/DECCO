@@ -19,6 +19,8 @@
 #			be a part of the aggregate if the aggregate isn't totally relaxed. To make sure this is the case and 
 #			it isn't an actual error6, load the aggregate in Blender, select all balls and move them all into frame.
 #			If a ball is outside the aggregate, you will then be able to tell. 
+#
+# TODO: Error 7: Check for nan values in simData for finished and running jobs 
 
 
 import os
@@ -570,7 +572,7 @@ def main():
 
 
 	# for i,error in enumerate([errorn1,error0,error1,error2,error3,error4,error5,error6]):
-	for i,error in enumerate([error6]):
+	for i,error in enumerate([error7]):
 		print(f"======================================{error.__name__}======================================")
 		error_folders = check_error(job,error,N,Temps,attempts,relax=relax)
 		for folder in error_folders:

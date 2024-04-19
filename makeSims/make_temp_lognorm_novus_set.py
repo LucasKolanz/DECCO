@@ -86,16 +86,16 @@ if __name__ == '__main__':
 
 	# runs_at_once = 7
 	
-	# attempts = [i for i in range(30)]
-	attempts = [20]
-	attempts_300 = attempts
-
-	node = 1
+	attempts = [i for i in range(30)]
+	# attempts = [20]
 	N = [30,100,300]
-	N = [300]
+	# N = [300]
 	Temps = [3,10,30,100,300,1000]
-	Temps = [1000]
+	# Temps = [1000]
 
+
+	attempts_300 = attempts
+	node = 1
 	folders = []
 	for n in N:
 		threads = 1
@@ -104,7 +104,7 @@ if __name__ == '__main__':
 		elif n == 100:
 			threads = 2
 		else:# n == 300:
-			threads = 32
+			threads = 24
 		temp_attempt = attempts
 		if n == 300:
 			temp_attempt = attempts_300
