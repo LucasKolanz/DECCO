@@ -57,6 +57,14 @@ std::mt19937 random_generator(rd());
 //     return ret;
 // }
 
+std::string dToSci(double value) {
+    std::ostringstream oss;
+    oss << std::scientific << value;
+    std::string result = oss.str();
+
+    return result;
+}
+
 // Convert from vec3 to double3
 double3
 to_double3(const vec3& vec)

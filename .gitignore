@@ -31,6 +31,8 @@ RenderOption*
 
 slurm*.out
 
+**/*.ncu-rep
+
 #venv
 py3.7venv/
 
