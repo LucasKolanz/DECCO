@@ -1,3 +1,21 @@
+"""
+This file was originally written for SpaceLab/DECCO to trasnfer jobs from the cosine cluster to my desktop computer
+
+Author: Lucas Kolanz
+
+This file transfers all (finished) simulations that match a specified pattern from the COSINE cluster to the local computer
+this file is run from. The pattern of the folders will be kept the same, but will go into a parent directory in data_directory called "jobsCosine/" 
+It does this with scp and paramiko python libraries. Note that this file assumes you have an ssh config file that
+specifies the hostname, user, and the location of the identity file you use to ssh into the (in this case COSINE) system.
+
+This file is basically the same as novusTransfer.py except that the folder patterns are slightly different
+
+TODO: combine this and cosineTransfer into one file that takes a command line arg for which cluster to grab from
+
+"""
+
+
+
 from paramiko import SSHClient, SSHConfig, AutoAddPolicy
 from scp import SCPClient, SCPException
 import os

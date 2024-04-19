@@ -128,6 +128,8 @@ def main():
 			ax.errorbar(x=x_data,y=slope[rang[0]:rang[1]],
 						yerr=slope_sigma[rang[0]:rang[1]],
 						fmt='o',linewidth=2, capsize=6,label="N={}".format(N))
+		if N == 300:
+			print(slope[rang[0]:rang[1]])
 
 	plt.axvline(x = 0.1, color = 'black')
 	plt.axvline(x = 0.3, color = 'black')

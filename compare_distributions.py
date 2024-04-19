@@ -1,3 +1,14 @@
+"""
+This file was originally written for SpaceLab/DECCO to plot the ratio of porosity abc, porosity KBM, average number of contacts,
+and fractal dimension for two different sets of jobs.
+
+Author: Lucas Kolanz
+
+"""
+
+
+
+
 import os
 import json
 import numpy as np
@@ -7,9 +18,6 @@ import matplotlib.pyplot as plt
 relative_path = ""
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
-
-
-
 
 
 

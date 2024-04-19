@@ -11,11 +11,13 @@ relative_path = "../"
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
 
+
 random.seed(int(datetime.now().timestamp()))
 
 def get_squeue_output():
     try:
         # Run the squeue command and capture its output
+
         result = subprocess.run(['squeue', '-o', '"%.20u %.25j"'], capture_output=True, text=True)
         output = result.stdout
         return output
@@ -23,6 +25,7 @@ def get_squeue_output():
         # Handle any errors that occur during the command execution
         print(f"Error executing squeue: {e}")
         return None
+
 
 def same_job(fullpath, job_name):
 
@@ -86,12 +89,17 @@ if __name__ == '__main__':
 
 	# runs_at_once = 7
 	
+
+	# attempts = [i for i in range(30)]
 	attempts = [i for i in range(30)]
-	# attempts = [20]
+	attempts = [25]
+
+	attempts_300 = attempts
+
+	node = 1
 	N = [30,100,300]
 	# N = [300]
 	Temps = [3,10,30,100,300,1000]
-	# Temps = [1000]
 
 
 	attempts_300 = attempts
@@ -124,6 +132,7 @@ if __name__ == '__main__':
 
 				if os.path.exists(job+"timing.txt"):
 					print("Sim already complete")
+
 				elif on_queue(job):
 					print("Sim already on queue")
 				else:

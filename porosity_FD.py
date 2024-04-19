@@ -1,3 +1,18 @@
+"""
+This file was originally written for SpaceLab/DECCO to do data processing
+
+Author: Lucas Kolanz
+
+This file goes through all folders matching a specified pattern and calculates several values. These are, Porosity abc, Porosity KBM, 
+average number of contacts, fractal dimension, bulk density (1-Porosity_KBM), and the final angular momentum. This data is then averaged 
+over attempts and saved. The saved data contains the average, the uncertainty, and the number of attempts included in the average.
+
+"""
+
+
+
+
+
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
@@ -206,8 +221,8 @@ if __name__ == '__main__':
 	data_prefolder = path + 'jobsOld/tempVarianceRand_attempt'
 	data_prefolder = path + 'jobsCosine/lognorm'
 	data_prefolder = path + 'jobsNovus/const'
-	data_prefolder = path + 'jobsNovus/const_relax'
 	data_prefolder = path + 'jobsCosine/lognorm_relax'
+	data_prefolder = path + 'jobsNovus/const_relax'
 
 	dataset_name = data_prefolder.split("/")[-1]
 
@@ -270,15 +285,26 @@ if __name__ == '__main__':
 
 	print(f"relax: {relax}")
 
+	#Is there new data to calculate? -> set to True
+	#Use the data that is already saved? -> set to False
 	new_data = True
+	#Do you want to save the newly calculated data? 
+	#Only applicable if new_data is True
 	save_data = True
+	#Do you want to see plots of the data as they are made?
 	show_plots = True
+	#Do you want to save the plots once they are made?
 	save_plots = True
 
+	#Do you want to skip the fractal dimension since it takes a long time
 	make_FD = True
+	#Do you want to see the FD plots?
 	show_FD_plots = False
+	#Do you want to recalculate the octree data for ones that have
+	#already been calculated, and overwrite the already saved octree data?
 	overwrite_octree_data = False 
 	
+	#Useful for testing if two versions of the code give the similar enough output
 	find_stats = False
 	show_stat_plots = False
 
