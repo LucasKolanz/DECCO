@@ -1,3 +1,19 @@
+"""
+This file was originally written for SpaceLab/DECCO to check the seeds of all jobs in folders matching a specified pattern.
+
+Author: Lucas Kolanz
+
+This file is meant to go through all jobs contained in a specified file pattern and print out their seeds. All of these seeds should
+be different, and this file is meant to help verify that.
+
+TODO: use the seeds from input.json, not seedFile.txt. Save all seeds in a list to verify they are all unique.
+
+"""
+
+
+
+
+
 import os
 import json
 import glob

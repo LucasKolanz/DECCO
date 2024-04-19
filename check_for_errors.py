@@ -1,3 +1,17 @@
+"""
+This file was originally written for SpaceLab/DECCO to check for errors in the output of csv files.
+
+Author: Lucas Kolanz
+
+This file checks the output in all folders with a specified pattern to check for several errors, defined below. Adding
+errors to this file should be done by defining a function that, given a folder, will check if output files in that
+folder have the error. This function should then be added to the for loop at the bottom of the file.
+
+"""
+
+
+
+
 ##Check output of simulations for errors
 
 #Error -1: sim_err.log has ERROR in its tail output.

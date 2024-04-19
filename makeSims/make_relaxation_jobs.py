@@ -48,8 +48,8 @@ if __name__ == '__main__':
 	job_set_name = "const_relax"
 	job_group = "jobsNovus"
 
-	# job_set_name = "lognorm_relax"
-	# job_group = "jobsCosine"
+	job_set_name = "lognorm_relax"
+	job_group = "jobsCosine"
 	
 	rsize = job_set_name.split("_")[0]
 
@@ -57,15 +57,14 @@ if __name__ == '__main__':
 
 
 	runs_at_once = 12
-	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	attempts = [i for i in range(30)] 
-	# attempts = [0] 
+	# attempts = [18] 
 	N = [30,100,300]
-	# N = [300]
-	threads = []
+	# N = [30]
 	Temps = [3,10,30,100,300,1000]
 	# Temps = [1000]
 	folders = []
+	# threads = []
 	for attempt in attempts:
 		for n in N:
 			for Temp in Temps:

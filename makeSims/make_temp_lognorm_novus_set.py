@@ -3,10 +3,30 @@ import json
 import multiprocessing as mp
 import subprocess
 import random
+from datetime import datetime
+
 
 relative_path = "../"
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
+
+random.seed(datetime.now().timestamp())
+
+
+def get_squeue_output():
+    try:
+        # Run the squeue command and capture its output
+        result = subprocess.run(['squeue -o "\%.20u \%.25j"'], capture_output=True, text=True)
+        output = result.stdout
+        return output
+    except subprocess.CalledProcessError as e:
+        # Handle any errors that occur during the command execution
+        print(f"Error executing squeue: {e}")
+        return None
+
+def on_queue(fullpath):
+	print(get_squeue_output())
+	exit(0)
 
 def rand_int():
 	# Generating a random integer from 0 to the maximum unsigned integer in C++
@@ -44,7 +64,7 @@ if __name__ == '__main__':
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	# attempts = [i for i in range(30)]
 	attempts = [i for i in range(30)]
-	# attempts = [2]
+	attempts = [25]
 	# attempts_300 = [i for i in range(30)]
 	# attempts = [1] 
 	attempts_300 = attempts
@@ -55,9 +75,9 @@ if __name__ == '__main__':
 
 	node = 1
 	N = [30,100,300]
-	# N = [300]
+	N = [300]
 	Temps = [3,10,30,100,300,1000]
-	# Temps = [1000]
+	Temps = [3]
 
 	folders = []
 	for n in N:
@@ -87,6 +107,8 @@ if __name__ == '__main__':
 
 				if os.path.exists(job+"timing.txt"):
 					print("Sim already complete")
+				else if on_queue():
+					print("Sim already on queue")
 				else:
 					#load default input file
 

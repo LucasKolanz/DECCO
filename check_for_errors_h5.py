@@ -1,4 +1,17 @@
+"""
+This file was originally written for SpaceLab/DECCO to check for errors in the output of h5 files.
+
+Author: Lucas Kolanz
+
+This file checks the output in all folders with a specified pattern to check for several errors, defined below. Adding
+errors to this file should be done by defining a function that, given a folder, will check if output files in that
+folder have the error. This function should then be added to the for loop at the bottom of the file.
+
+"""
+
+
 ##Check output of simulations for errors
+
 
 #Error -1: sim_err.log has ERROR in its tail output.
 #
@@ -260,7 +273,8 @@ def error6(fullpath,relax=None):
 	return False
 
 
-
+#This is a wrapper function for any error function. It counts the valid paths, incicating how many of the checked
+#folders have completed jobs in them.
 def check_error(job_base,error,\
 				N=[30,100,300],\
 				Temps=[3,10,30,100,300,1000],\
@@ -309,6 +323,7 @@ def main():
 	with open(project_path+"default_files/default_input.json",'r') as fp:
 		input_json = json.load(fp)
 
+
 	job = curr_folder + 'jobs/tempVarianceRand_attempt$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'jobs/lognorm$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'jobs/weakseed$a$/N_$n$/T_$t$/'
@@ -351,34 +366,6 @@ def main():
 				print(f"\t{error}")
 
 
-	# error_folders = check_error(job,error1,N,Temps,attempts)
-	# error_folders.extend(check_error(job,error2,N,Temps,attempts))
-	# error_folders.extend(check_error(job,error4,N,Temps,attempts))
-
-	# print(error_folders)
-
-	# errorgen_folders = check_error(job,error_general,N,Temps,attempts)
-	# print(errorgen_folders)
-
-	###
-	### This section finds the index at which a folder had error2
-	###
-	# error2_folders,o = where_is_smallest_error2(job,error2_index,N,Temps,attempts)
-	# print(error2_folders)
-	# print(o)
-	# zipped = zip(error2_folders,o)
-	# for i in zipped:
-	# 	print(f"Error started at index {i[1]} for folder {i[0]}")
-	# mind = np.argmin(np.array(o))
-	# print(f'min index is {mind} for job {error2_folders[0][mind]}')
-
-
-	# folder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/erroredJobs/lognorm12/N_30/T_10/'
-	# folder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/error2Test10/N_10/T_10/'
-	# folder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/error2Test2/N_10/T_10/'
-
-	# print(error2_index(folder,True))
-	# print(error2(folder,True))
 
 if __name__ == '__main__':
 	main()
