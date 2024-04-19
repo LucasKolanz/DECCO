@@ -533,6 +533,36 @@ def error6(fullpath,relax=None):
 	return False
 
 
+def error7(fullpath, relax=None):
+	print(fullpath)
+	num_files = len(glob.glob(fullpath+'*'))
+
+	# if os.path.exists(fullpath+"timing.txt") and num_files > 1:
+	if  num_files > 1:
+
+		directory = os.fsencode(fullpath)
+		max_index = -1
+		max_filename = ""
+
+		rel = ""
+		if relax:
+			rel = "RELAX"
+		#find the highest index file
+		for file in os.listdir(directory):
+			filename = os.fsdecode(file)
+			if filename.endswith(f"{rel}simData.csv"):
+				simData = np.loadtxt(fullpath+filename,skiprows=1,delimiter=',',dtype=np.float64)
+			
+				if np.isnan(simData).any():
+					# print(f"NANs in {filename}")
+					return True
+				# else:
+					# print(f"NO NANS IN {filename}")
+	return False
+		
+
+
+
 
 
 def get_COM(pos,mass):
@@ -568,7 +598,7 @@ def main():
 	
 
 	attempts = [i for i in range(30)]
-	# attempts = [1]
+	# attempts = [28]
 
 	N = [30,100,300]
 	# N=[300]

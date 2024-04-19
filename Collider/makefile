@@ -2,6 +2,8 @@
 
 
 
+CXX = CC
+CXX = nvc++
 CXX = g++
 # CXX = CC
 
@@ -12,11 +14,9 @@ CXXFLAGS = -g -O2 -std=c++17 -fopenmp #-fopenacc
 # HDF5_TEST := $(shell ldconfig -p | grep hdf5 >/dev/null 2>&1 && echo 1 || echo 0)
 HDF5_TEST = 0
 MPI_TEST = 0
-GPU_TEST = 1
+GPU_TEST = 0
 EXPERIMENTAL_FILESYSTEM = 0
 
-CXX = CC
-CXX = nvc++
 # Conditional HDF5 flags
 ifeq ($(HDF5_TEST), 1)
 

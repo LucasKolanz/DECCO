@@ -1588,9 +1588,11 @@ void Ball_group::allocate_group(const int nBalls)
     try {
         distances = new double[(attrs.num_particles * attrs.num_particles / 2) - (attrs.num_particles / 2)];
 
-        accsq = new vec3[attrs.num_particles*attrs.num_particles];
-        aaccsq = new vec3[attrs.num_particles*attrs.num_particles];
-
+        #ifdef MPI_ENABLE
+            accsq = new vec3[attrs.num_particles*attrs.num_particles];
+            aaccsq = new vec3[attrs.num_particles*attrs.num_particles];
+        #endif
+            
         pos = new vec3[attrs.num_particles];
         vel = new vec3[attrs.num_particles];
         velh = new vec3[attrs.num_particles];
