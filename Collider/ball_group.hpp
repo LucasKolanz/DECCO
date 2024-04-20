@@ -3840,7 +3840,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
         }
 
 
-        std::cerr<<"step: "<<Step<<"\tskip: "<<attrs.skip<<std::endl;
+        // std::cerr<<"step: "<<Step<<"\tskip: "<<attrs.skip<<std::endl;
 
         // Physics integration step:
         sim_one_step();

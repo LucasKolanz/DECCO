@@ -92,7 +92,7 @@ if __name__ == '__main__':
 
 	# attempts = [i for i in range(30)]
 	attempts = [i for i in range(30)]
-	# attempts = [25]
+	# attempts = [90]
 
 	attempts_300 = attempts
 
