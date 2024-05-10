@@ -3,7 +3,6 @@
 import os
 import glob
 import numpy as np
-# import utils as u
 import h5py
 import json
 
@@ -31,7 +30,7 @@ def status(fullpath):
 	return 0
 
 
-
+#gets the status of every job following the pattern given in job_base
 def get_status(job_base,\
 				N=[30,100,300],\
 				Temps=[3,10,30,100,300,1000],\
@@ -52,11 +51,14 @@ def get_status(job_base,\
 				job = job_base.replace("$a$",str(attempt)).replace("$n$",str(n)).replace("$t$",str(Temp))
 				job_status = status(job)
 				if job_status == -1:
-					print(f"job doesnt exist: {job}")
+					# print(f"job doesnt exist: {job}")
+					pass
 				elif job_status == 0:
-					print(f"job is initialized: {job}")
+					# print(f"job is initialized: {job}")
+					pass
 				elif job_status == 1:
-					print(f"job is started: {job}")
+					# print(f"job is started: {job}")
+					
 					unfinished_jobs.append(job)
 
 				stati[a_i,n_i,T_i] = job_status
@@ -98,17 +100,9 @@ def main():
 	with open(project_path+"default_files/default_input.json",'r') as fp:
 		input_json = json.load(fp)
 
-	job = curr_folder + 'jobs/tempVarianceRand_attempt$a$/N_$n$/T_$t$/'
-	job = curr_folder + 'jobs/lognorm$a$/N_$n$/T_$t$/'
-	job = curr_folder + 'jobs/weakseed$a$/N_$n$/T_$t$/'
-	job = curr_folder + 'erroredJobs/lognorm$a$/N_$n$/T_$t$/'
-	job = curr_folder + 'jobsNovus/testError$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobsNovus/lognorm$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobsNovus/const_relax$a$/N_$n$/T_$t$/'
+	
 	job = input_json["data_directory"] + 'jobs/const$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobs/lognorm$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
 	print(job)
 
 
@@ -167,21 +161,6 @@ def main():
 
 	print(unfinished_jobs)
 
-	# linestart = int(len(line)/2 - len(section)/2)
-	# line[linestart:len(section)] = section[:]
-
-	# print("".join(line))
-
-	# separator = list(totlen*"_")
-	# separator[0] = "|"
-	# separator[-1] = "|"
-	# print("".join(separator))
-	# out_lines = []
-	# totlen = 50
-	# top = list(totlen*"_")
-	# top[0] = " "
-	# top[-1] = " "
-	# print("".join(top))
 	
 
 

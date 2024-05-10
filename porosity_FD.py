@@ -221,8 +221,8 @@ if __name__ == '__main__':
 	data_prefolder = path + 'jobsOld/tempVarianceRand_attempt'
 	data_prefolder = path + 'jobsCosine/lognorm'
 	data_prefolder = path + 'jobsNovus/const'
-	data_prefolder = path + 'jobsCosine/lognorm_relax'
 	data_prefolder = path + 'jobsNovus/const_relax'
+	data_prefolder = path + 'jobsCosine/lognorm_relax'
 
 	dataset_name = data_prefolder.split("/")[-1]
 

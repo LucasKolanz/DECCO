@@ -34,8 +34,12 @@ folder have the error. This function should then be added to the for loop at the
 #			it isn't an actual error6, load the aggregate in Blender, select all balls and move them all into frame.
 #			If a ball is outside the aggregate, you will then be able to tell. 
 #
-# TODO: Error 7: Check for nan values in simData for finished and running jobs 
+#Error 7: Check for nan values in simData for finished and running jobs 
 
+##TODO: Make error check file that keeps track of which errors have been checked for so we don't have to keep checking those
+#		every time this script is run. Need a good way to bypass this though if an error checking function has been changed.
+#		Wow, what if this is done with a hash of the error function and its other helper functions so if anything changes, it
+#		will just be run again.
 
 import os
 import glob
@@ -593,8 +597,8 @@ def main():
 
 
 	job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + 'jobs/lognorm$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
 	
 
 	attempts = [i for i in range(30)]
@@ -615,8 +619,8 @@ def main():
 
 
 
-	# for i,error in enumerate([errorn1,error0,error1,error2,error3,error4,error5,error6]):
-	for i,error in enumerate([error7]):
+	# for i,error in enumerate([error7]):
+	for i,error in enumerate([errorn1,error0,error1,error2,error3,error4,error5,error6,error7]):
 		print(f"======================================{error.__name__}======================================")
 		error_folders = check_error(job,error,N,Temps,attempts,relax=relax)
 		for folder in error_folders:

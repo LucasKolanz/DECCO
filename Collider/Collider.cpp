@@ -1,3 +1,11 @@
+//TODO: Restarting a relax job double copies the constant file into the RELAXconstants file, doubling its size and throwing off
+//      Porosity_FD.py. The double copy happens for RELAXenergy and RELAXsimData as well, but Porosity_FD only looks at the last line, 
+//      which is still good data. Should probably just delete all RELAX files that already exist for a RELAX restart. 
+
+
+
+
+
 #include "ball_group.hpp"
 // #include "../timing/timing.hpp"
 
