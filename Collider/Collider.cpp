@@ -4,6 +4,12 @@
 
 
 
+// This file was originally written for SpaceLab/DECCO take care of initialization and calling the correct functions from ball_group.hpp to 
+// carry out Soft Sphere, Discrete Element simulations 
+
+// Authors: Job Guidos and Lucas Kolanz
+
+
 
 
 #include "ball_group.hpp"
@@ -21,31 +27,15 @@
 #ifdef MPI_ENABLE
     #include <mpi.h>
 #endif
-// #include <filesystem>
-// namespace fs = std::filesystem;
 
 
-// String buffers to hold data in memory until worth writing to file:
-// std::stringstream ballBuffer;
-// std::stringstream energyBuffer;
-// std::stringstream contactBuffer;
+//How many lines will be saved to a buffer before being saved
 extern const int bufferlines;
 
 
-// These are used within simOneStep to keep track of time.
-// They need to survive outside its scope, and I don't want to have to pass them all.
-// const time_t start = time(nullptr);  // For end of program analysis
-// time_t startProgress;                // For progress reporting (gets reset)
-// time_t lastWrite;                    // For write control (gets reset)
-// bool writeStep;                      // This prevents writing to file every step (which is slow).
-// bool contact = false;
-// bool inital_contact = true;
 
 
 // Prototypes
-// void
-// sim_looper(Ball_group &O,unsigned long long start_step);
-// int get_num_threads(Ball_group &O);
 void
 safetyChecks(Ball_group &O);
 void 
@@ -181,6 +171,7 @@ main(int argc, char* argv[])
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
+//Initailizes and carries out Ball_group to collide two preexisting aggregates
 void collider(std::string path, std::string projectileName, std::string targetName)
 {
     // t.start_event("collider");
@@ -193,11 +184,11 @@ void collider(std::string path, std::string projectileName, std::string targetNa
     return;
 }
 
+//Initializes and carries out BPCA aggregate growth
 void BPCA(std::string path, int num_balls)
 {
     int world_rank = getRank();
 
-    // int rest = -1;
     Ball_group O = Ball_group(path);  
     safetyChecks(O);
     std::string message;
@@ -227,7 +218,7 @@ void BPCA(std::string path, int num_balls)
     return;
 }
 
-//Load file index, zero out velocity and angular velocity and run to let aggregate relax
+//Initalizes and carries out a relaxation run
 void relax(std::string path)
 {
     int world_rank = getRank();
@@ -527,7 +518,7 @@ safetyChecks(Ball_group &O) //Should be ready to call sim_looper
 //  kout = cor * kin;
 //}
 
-inline int twoDtoOneD(const int row, const int col, const int width)
-{
-    return width * row + col;
-}
+// inline int twoDtoOneD(const int row, const int col, const int width)
+// {
+//     return width * row + col;
+// }

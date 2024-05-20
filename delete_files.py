@@ -23,18 +23,31 @@ def delete_files(file_paths):
         except Exception as e:
             print(f"Error deleting file {path}: {e}")
 
-def get_all_files(root_dir, pattern):
+def get_all_files(root_dir, pattern, jobset_name, jobset_range=30):
     allfiles = []
-    for dirpath, dirnames, files in os.walk(root_dir):
-        for file in files:
-            if fnmatch.fnmatch(file, pattern):  # Match using glob pattern
-                filepath = os.path.join(dirpath, file)
-                allfiles.append(filepath)
-                # try:
-                #     os.remove(file_path)
-                #     print(f"Deleted: {file_path}")
-                # except Exception as e:
-                #     print(f"Error deleting {file_path}: {e}")
+
+    if type(jobset_range) is int:
+        jobset_range = list(range(jobset_range))
+    elif type(jobset_range) is not list:
+        print(f"ERROR: input variable jobset_range must be type list or int, not {type(jobset_range)}")
+        exit(-1)
+
+    dirrs = [f"{root_dir}{jobset_name}{i}/" for i in jobset_range]
+
+    # print(dirrs)
+    # exit(0)
+
+    for dirr in dirrs:
+        for dirpath, dirnames, files in os.walk(dirr):
+            for file in files:
+                if fnmatch.fnmatch(file, pattern):  # Match using glob pattern
+                    filepath = os.path.join(dirpath, file)
+                    allfiles.append(filepath)
+                    # try:
+                    #     os.remove(file_path)
+                    #     print(f"Deleted: {file_path}")
+                    # except Exception as e:
+                    #     print(f"Error deleting {file_path}: {e}")
     return allfiles
 
 
@@ -76,7 +89,10 @@ if __name__ == '__main__':
 
 
     target_directory = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/erroredRelaxJobs/'
-    target_directory = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/erroredJobs/'
+    target_directory = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/'
+    jobset_name = "const"
+    jobset_name = "constMinHmin"
+
     file_patterns = ['fractdim_ppb-*.csv']
     file_patterns.append('pointcloud*.pcd')
     # file_patterns.append('Collider*.o')
@@ -86,16 +102,16 @@ if __name__ == '__main__':
     all_output = []
     
     for file_pattern in file_patterns:
-        output = get_all_files(target_directory, file_pattern)
+        output = get_all_files(target_directory, file_pattern, jobset_name)
         all_output.extend(output)
         space = calculate_total_space(output)
-        print(f"{len(output)} files with pattern '{file_pattern}' in root directory '{target_directory}' taking up {space} ")
+        print(f"{len(output)} files with pattern '{file_pattern}' in root directory '{target_directory}{jobset_name}' taking up {space} ")
 
     # print(all_output)
 
-    if DELETE:
-        print(f"Deleting file patterns . . .")
-        delete_files(all_output)
+    # if DELETE:
+    #     print(f"Deleting file patterns . . .")
+    #     delete_files(all_output)
 
 
     print(f"Done")

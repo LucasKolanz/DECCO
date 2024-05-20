@@ -120,6 +120,7 @@ def main():
 	data_directory = input_json["data_directory"]
 
 	job_set_name = "lognorm"
+	job_set_name = "constMinHmin"
 
 	attempts = [i for i in range(40)]
 	# attempts = [0,1]

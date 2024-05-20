@@ -1,6 +1,13 @@
+// This file was originally written for SpaceLab/DECCO
+
+// The Ball_group class is meant to encompass all the balls in an aggregate collision or formation simulation
+
+// Authors: Job Guidos and Lucas Kolanz
+
+
+
 #pragma once
 #include "../default_files/dust_const.hpp"
-// #include "dust_const.hpp"
 #include "../external/json/single_include/nlohmann/json.hpp"
 #include "../utilities/vec3.hpp"
 #include "../utilities/linalg.hpp"
@@ -12,7 +19,6 @@
 #include <cmath>
 #include <iostream>
 #include <string>
-// #include <experimental/filesystem>
 #include <sstream>
 #include <fstream>
 #include <iomanip>
@@ -31,22 +37,23 @@
 
 #ifdef EXPERIMENTAL_FILESYSTEM
     #include <experimental/filesystem>
-    // namespace fs = std::experimental::filesystem;
+    namespace fs = std::experimental::filesystem;
 #else
     #include <filesystem>
-    // namespace fs = std::filesystem;
+    namespace fs = std::filesystem;
 #endif
 
 // using std::numbers::pi;
 using json = nlohmann::json;
-// extern namespace fs;
 extern const int bufferlines;
 
 
+//This struct is meant to encompass all values necessary to carry out a simulation, besides the physical
+//attributes, such as position, velocity, etc. Note: it is important to add variables to the "=" operator definition
+//if more attributes are added to this struct and they are expected to carry over from one sim to the next such as 
+//during a BPCA growth simulation.
 struct Ball_group_attributes
 {
-
-
     std::string project_path = "";
     std::string output_folder = "";
     std::string data_directory = "";
@@ -272,6 +279,9 @@ public:
     // bool mu_scale = false;
     /////////////////////////////////
 
+
+    //////////////////////////////////
+    //The following attributes are the physical characteristics of all balls contained in Ball_group
     vec3 mom = {0, 0, 0};
     vec3 ang_mom = {
         0,
@@ -296,12 +306,12 @@ public:
     double* R = nullptr;    ///< Radius
     double* m = nullptr;    ///< Mass
     double* moi = nullptr;  ///< Moment of inertia
-    // double* u_scale = nullptr; ///ADD TO COPY CONSTRUCTOR, ETC
+    //////////////////////////////////
 
-
+    //The DECCOData class takes care of reading and writing data in whatever format is specified in the input file 
     DECCOData* data = nullptr;
-    // std::unique_ptr<DECCOData> data;
     
+    //Buffers for energy and ball (pos,vel,etc.) data to avoid writing to disk too much
     std::vector<double> energyBuffer;
     std::vector<double> ballBuffer;
 
@@ -358,9 +368,7 @@ public:
 
 
     void sim_one_step();
-    // #ifdef GPU_ENABLE
-    //     // void sim_one_step_GPU();
-    // #endif
+
     void sim_looper(unsigned long long start_step);
 
 

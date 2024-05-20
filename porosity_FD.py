@@ -223,6 +223,7 @@ if __name__ == '__main__':
 	data_prefolder = path + 'jobsNovus/const'
 	data_prefolder = path + 'jobsNovus/const_relax'
 	data_prefolder = path + 'jobsCosine/lognorm_relax'
+	data_prefolder = path + 'jobsCosine/constMinHmin'
 
 	dataset_name = data_prefolder.split("/")[-1]
 
@@ -231,15 +232,15 @@ if __name__ == '__main__':
 	figure_folder = path+'data/figures/'
 
 
-	temps = [3,10,30,100,300,1000]
-	# temps = [1000]
+	# temps = [3,10,30,100,300,1000]
+	temps = [100]
 	Nums = [30,100,300]
-	# Nums = [300]
+	Nums = [300]
 	
 	
 	attempts = [i for i in range(30)]
 	# attempts = [i for i in range(2)]
-	# attempts = [18]
+	attempts = [1]
 
 
 
@@ -290,7 +291,7 @@ if __name__ == '__main__':
 	new_data = True
 	#Do you want to save the newly calculated data? 
 	#Only applicable if new_data is True
-	save_data = True
+	save_data = False
 	#Do you want to see plots of the data as they are made?
 	show_plots = True
 	#Do you want to save the plots once they are made?
