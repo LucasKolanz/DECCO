@@ -48,7 +48,6 @@
     "targetName": "",
     "output_prefix": "default",
     "output_folder": "default",
-
-    "data_directory": "/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/",
-    "project_directory": "/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab/"
+    "data_directory": "/media/kolanzl/easystore/SpaceLab_data/",
+    "project_directory": "/media/kolanzl/easystore/SpaceLab/"
 }
