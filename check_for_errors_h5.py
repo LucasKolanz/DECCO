@@ -1,4 +1,17 @@
+"""
+This file was originally written for SpaceLab/DECCO to check for errors in the output of h5 files.
+
+Author: Lucas Kolanz
+
+This file checks the output in all folders with a specified pattern to check for several errors, defined below. Adding
+errors to this file should be done by defining a function that, given a folder, will check if output files in that
+folder have the error. This function should then be added to the for loop at the bottom of the file.
+
+"""
+
+
 ##Check output of simulations for errors
+
 
 #Error -1: sim_err.log has ERROR in its tail output.
 #
@@ -8,11 +21,18 @@
 #
 #Error 2: Are there any nan values in sims that aren't the highest index, when timing.txt doesnt exist
 #
-#Error 3: Metadata check. Is there any metadata associated with the largest index file if timing.txt exists?
+#Error 3: Metadata check. Is there any metadata associated with the largest index file if timing.txt DOESN'T exists?
+#		  This is really more of a warning as it means the code won't restart from an ideal spot if stopped.
 #
 #Error 4: integer overflow in number of steps
 #
 #Error 5: did we get "Simulation complete!" within the last 10 lines of sim_error.log and timing.txt exists?
+#
+#Error 6: Are any balls not touching the aggregate at the end? (Only applicable to BPCA growth as an error)
+#			It seems to be possible for a ball to not be touching at the moment of the end of the simulation, but still
+#			be a part of the aggregate if the aggregate isn't totally relaxed. To make sure this is the case and 
+#			it isn't an actual error6, load the aggregate in Blender, select all balls and move them all into frame.
+#			If a ball is outside the aggregate, you will then be able to tell. 
 
 import os
 import glob
@@ -20,10 +40,13 @@ import numpy as np
 # import utils as u
 import h5py
 import json
+import check_for_errors as cfe
 
 relative_path = ""
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
+
+
 
 #returns the last line of the file file_path
 def tail(file_path,n):
@@ -45,7 +68,7 @@ def tail(file_path,n):
 		last_lines = f.read().decode()
 	return last_lines
 
-def errorn1(fullpath):
+def errorn1(fullpath,relax=False):
 	has_err = os.path.exists(fullpath+"sim_err.log")
 	has_errors = os.path.exists(fullpath+"sim_errors.txt")
 
@@ -66,7 +89,7 @@ def errorn1(fullpath):
 			break 
 	return error
 
-def error0(fullpath):
+def error0(fullpath,relax=False):
 	if os.path.exists(fullpath+"timing.txt"):
 		has_err = os.path.exists(fullpath+"sim_err.log")
 		has_errors = os.path.exists(fullpath+"sim_errors.txt")
@@ -89,7 +112,7 @@ def error0(fullpath):
 	return False
 
 #If fullpath has error1 in it, return 1, if not return 0
-def error1(fullpath):
+def error1(fullpath,relax=False):
 	if os.path.exists(fullpath+"timing.txt"):
 		# Loop through all files in the directory fullpath
 		for filename in os.listdir(fullpath):
@@ -119,7 +142,7 @@ def error1(fullpath):
 	return False
 	
 #If fullpath has error2 in it, return 1, if not return 0
-def error2(fullpath):
+def error2(fullpath,relax=False):
 	if not os.path.exists(fullpath+"timing.txt"):
 		max_ind = get_max_ind(fullpath)
 		# Loop through all files in the directory fullpath
@@ -150,7 +173,7 @@ def error2(fullpath):
 	return False
 
 #If fullpath has error3 in it, return 1, if not return 0
-def error3(fullpath):
+def error3(fullpath,relax=False):
 	if os.path.exists(fullpath+"timing.txt"):
 		max_ind = get_max_ind(fullpath)
 		file = fullpath+str(max_ind)+"_data.h5"
@@ -159,10 +182,12 @@ def error3(fullpath):
 			metadata = {attr: dataset.attrs[attr] for attr in dataset.attrs}
 			if len(metadata) > 0:
 				return False
-	return True
+			else:
+				return True
+	return False
 
 
-def error4(fullpath):
+def error4(fullpath,relax=False):
 	has_err = os.path.exists(fullpath+"sim_err.log")
 	has_errors = os.path.exists(fullpath+"sim_errors.txt")
 
@@ -186,7 +211,7 @@ def error4(fullpath):
 
 
 
-def error5(fullpath):
+def error5(fullpath,relax=False):
 	if os.path.exists(fullpath+"timing.txt"):
 		has_err = os.path.exists(fullpath+"sim_err.log")
 		has_errors = os.path.exists(fullpath+"sim_errors.txt")
@@ -210,10 +235,50 @@ def error5(fullpath):
 
 
 
+def error6(fullpath,relax=None):
+	if (os.path.exists(fullpath+"timing.txt")):
+		directory = os.fsencode(fullpath)
+
+		N = int(fullpath.split("/")[-3].split("_")[-1])
+		rel = ""
+		if relax:
+			rel = "RELAX"
+		#find the highest index file
+		for file in os.listdir(directory):
+			filename = os.fsdecode(file)
+			if filename.endswith(f"{rel}data.h5"):
+
+				index = int(filename.split("_")[0])
+				
+				if index == N-3:
+								
+					with h5py.File(fullpath+filename, 'r') as file:
+						constants = np.array(file['/constants'][:])
+						radii = constants[np.where(np.arange(constants.shape[0])%3==0)]
+						num_spheres = radii.shape[0]
+
+						simData_single_ball_width = 11
+
+						simData = np.array(file['/simData'][-simData_single_ball_width*num_spheres:])
+						simData = simData.reshape(num_spheres,simData_single_ball_width)
+						pos = simData[:,:3]
+
+						connected = cfe.are_spheres_connected(pos,radii)
+
+						if connected:
+							return False
+						else:
+							return True
+
+	return False
+
+
+#This is a wrapper function for any error function. It counts the valid paths, incicating how many of the checked
+#folders have completed jobs in them.
 def check_error(job_base,error,\
 				N=[30,100,300],\
 				Temps=[3,10,30,100,300,1000],\
-				num_attempts=30):
+				num_attempts=30,relax=False):
 
 	errors = []
 	if isinstance(num_attempts,int):
@@ -231,7 +296,7 @@ def check_error(job_base,error,\
 				if os.path.exists(job):
 					if os.path.exists(job+"timing.txt"):
 						valid_count += 1
-					output = error(job)
+					output = error(job,relax=relax)
 					if output > 0:
 						errors.append(job)
 				else:
@@ -258,29 +323,32 @@ def main():
 	with open(project_path+"default_files/default_input.json",'r') as fp:
 		input_json = json.load(fp)
 
+
 	job = curr_folder + 'jobs/tempVarianceRand_attempt$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'jobs/lognorm$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'jobs/weakseed$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'erroredJobs/lognorm$a$/N_$n$/T_$t$/'
 	job = curr_folder + 'jobsNovus/testError$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + 'jobsNovus/const$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobsNovus/const_relax$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobs/const$a$/N_$n$/T_$t$/'
 	print(job)
 
 
 	attempts = [i for i in range(30)]
-	# attempts = [19]
+	# attempts = [0]
 
 	N = [30,100,300]
 	# N=[100]
 
 	Temps = [3,10,30,100,300,1000]
-	# Temps = [1000]
+	# Temps = [3]
 
 	errorDic = {}
 
 
-	# for i,error in enumerate([error3]):
-	for i,error in enumerate([errorn1,error0,error1,error2,error3,error4]):
+	# for i,error in enumerate([error6]):
+	for i,error in enumerate([errorn1,error0,error1,error2,error3,error4,error6]):
 		print(f"======================================{error.__name__}======================================")
 		error_folders = check_error(job,error,N,Temps,attempts)
 		for folder in error_folders:
@@ -298,34 +366,6 @@ def main():
 				print(f"\t{error}")
 
 
-	# error_folders = check_error(job,error1,N,Temps,attempts)
-	# error_folders.extend(check_error(job,error2,N,Temps,attempts))
-	# error_folders.extend(check_error(job,error4,N,Temps,attempts))
-
-	# print(error_folders)
-
-	# errorgen_folders = check_error(job,error_general,N,Temps,attempts)
-	# print(errorgen_folders)
-
-	###
-	### This section finds the index at which a folder had error2
-	###
-	# error2_folders,o = where_is_smallest_error2(job,error2_index,N,Temps,attempts)
-	# print(error2_folders)
-	# print(o)
-	# zipped = zip(error2_folders,o)
-	# for i in zipped:
-	# 	print(f"Error started at index {i[1]} for folder {i[0]}")
-	# mind = np.argmin(np.array(o))
-	# print(f'min index is {mind} for job {error2_folders[0][mind]}')
-
-
-	# folder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/erroredJobs/lognorm12/N_30/T_10/'
-	# folder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/error2Test10/N_10/T_10/'
-	# folder = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/error2Test2/N_10/T_10/'
-
-	# print(error2_index(folder,True))
-	# print(error2(folder,True))
 
 if __name__ == '__main__':
 	main()

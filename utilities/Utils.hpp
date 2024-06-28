@@ -57,6 +57,14 @@ std::mt19937 random_generator(rd());
 //     return ret;
 // }
 
+std::string dToSci(double value) {
+    std::ostringstream oss;
+    oss << std::scientific << value;
+    std::string result = oss.str();
+
+    return result;
+}
+
 // Convert from vec3 to double3
 double3
 to_double3(const vec3& vec)
@@ -252,6 +260,8 @@ double lndpdf(double a,double sigma,double a_max)
     return M_2_SQRTPI/(a*sigma*2*M_SQRT2)*
             std::exp(-std::pow(log(a/a_max)-std::pow(sigma,2),2)/(2*std::pow(sigma,2)));
 }
+
+
 
 double lognorm_dist(double a_max,double sigma)
 {

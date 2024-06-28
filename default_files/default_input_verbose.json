@@ -8,6 +8,8 @@
 	"MPInodes": 1,
 	//What format should the data be saved in? default to "h5", other options: "csv" (not implimented)
 	"dataFormat": "h5",
+	//Only for relax jobs, which index of the data do you want to relax? Must be positive number.
+	"relaxIndex": -1,
 	//What is this sim for?
 	"note": "",
 	//How many openMP threads do you want?

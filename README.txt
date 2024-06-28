@@ -7,17 +7,17 @@ Dependencies:
 	nhloman json
 
 
-No installation is needed for SpaceLab. All you need is a g++ compiler and you should be good to go.
+No installation is needed for SpaceLab. All you need is a g++ compiler and you should be good to go. Optionaly you can use MPI and hdf5. If you want to use these, they must be installed and the makefile in folder Collider/ must be updates to point to mpi.h and H5Cpp.h, as well as the appropriate linker folders.
 
 To get started, all you need to do is run one of the "make_*.py" files and it will compile and run the specified jobs. These "make_*.py" files work by creating an input.json file for the simulation inputs, copying necessary files to the correct directores, and then compiling and running the individual jobs. Depending on your system, you may need to edit the Makefile provided.
 
 To initialize the submodule in the git folder run the follow command
 	python3 config.py
-It will configure the external git repo and set some default project variables
+It will configure the external git repo and set some default project variables. If changing the default variables fails, you will need to manually change the "data_directory" and "project_directory" variables in default_files/default_input.json. As described in the input.json section, "data_directory" should be the full path to what folder you want data to accumulate in, and "project_directory" should be the full path to the SpaceLab/ directory.  
 
 File/Directory scheme:
 When you make a new job set with a make_*.py file, there are several ways of organizing the resulting data. The first way to distinguish specific jobs is by setting the "job_set_name" variable in the make_*.py file. This will create a new folder in the form:
-	/*SpaceLabDir*/jobs/job_set_name
+	/*data_directory*/jobs/job_set_name
 This is useful both for small tests, where the output can go directly into the job_set_name folder, as well as large sets of jobs that can then have a further folder hierarchy to distinguish between specific jobs. In this case the make_*.py file may need to be edited to suit your job set's specific needs. For example, if I want a job set that has simulations for a set of temperatures for various aggregate final sizes, I might use the folder scheme:
 	/*SpaceLabDir*/jobs/job_set_name/N_{}/T_{}/
 Currently, if multiple runs of the same conditions (in this example, the conditions of N and T) then multiple job_set_name folders are made, distinguished by an index immediatly following job_set_name. For example:

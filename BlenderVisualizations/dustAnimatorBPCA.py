@@ -7,33 +7,42 @@ import fnmatch
 import os
 import h5py
 
-def get_filename(path,fileindex):
-	for file in os.listdir(path):
-		if file.endswith("simData.csv"):
-			filesplit = file.split("_")
-			if len(filesplit) > 2: #Job Guidos way of naming
-				if fileindex == 0:
-					if not filesplit[1].isnumeric():
-						return file
-				else:
+def get_filename(path,fileindex,relax = False):
+	rel = ""
+	if relax:
+		rel = "RELAX"
+		
+	if os.path.exists(path):
+		for file in os.listdir(path):
+			if file.endswith(f"{rel}simData.csv"):
+				filesplit = file.split("_")
+				if len(filesplit) > 2: #Job Guidos way of naming
+					if fileindex == 0:
+						if not filesplit[1].isnumeric():
+							return file
+					else:
+						if filesplit[0] == str(fileindex) and filesplit[1].isnumeric():
+							return file
+				else: #Lucas Kolanz way of naming
 					if filesplit[0] == str(fileindex):
 						return file
-			else: #Lucas Kolanz way of naming
-				if filesplit[0] == str(fileindex):
-					return file
-		elif file.startswith(str(fileindex)) and file.endswith(".h5"):
-			return file
+			elif file.startswith(str(fileindex)) and file.endswith(f"{rel}data.h5"):
+				return file
 	return -1
 			
 	
 
-def get_simData_and_consts(path,fileindex):
+def get_simData_and_consts(path,fileindex,relax = False):
 	numSpheres = -1
 	steps = -1
 	
-	filename = get_filename(path,fileindex)
+	filename = get_filename(path,fileindex,relax)
+	print(f"filename from get_filename: {filename}")
 	
-	if filename.endswith(".csv"):
+	if filename == -1:
+		return [-1,-1,-1,-1]
+	
+	elif  filename.endswith("simData.csv"):
 		
 		try:
 			print("fullpath: "+path+filename)
@@ -82,6 +91,7 @@ def get_simData_and_consts(path,fileindex):
 				print("=========================================================")
 				print(f"ERROR: there were {steps} writes in sim {filename}")
 				print("=========================================================")
+		
 				
 	return [simData,constants,numSpheres,steps]
 	
@@ -105,40 +115,45 @@ scaleUp = 1e5
 frameNum = 0
 
 
-	 
-path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab/jobs/large_aggregateNN_30/N_1000/'
-path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab/jobs/large_aggregateNN_30_1/N_1000/'
-path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab/jobs/tempVariance_attempt4/T_1000/'
-path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab/jobs/large_aggregateNN_30_3/N_1000/'
-path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab/jobs/large_aggregategridNN/N_1000/'
-path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/large_aggregate/N_1000/'
-path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab/jobs/large_aggregategridNN_1/N_1000/'
-path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab/jobs/large_aggregate_optO3_1/N_1000/T_3/'
-path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab/jobs/PairParallelTest1/N_1000/T_500/'
-path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab/jobs/test1/N_10/T_1000/'
-path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/error_checking1/N_1/T_1/'
-path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/cuttoff_test/c_1.2/'
-path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/step_back18/N_2/T_1/'
-path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/mu_max9/N_30/T_3/'
-path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/testingTime3/'
-path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/calibrateTest1/'
-path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_stable/SpaceLab/jobs/mu_max8/N_100/T_30/'
-path = '/home/lpkolanz/Desktop/SpaceLab/jobs/accuracyTest1/'
-path = '/home/lpkolanz/Desktop/SpaceLab/jobs/parTest/'
-path = '/home/lpkolanz/Desktop/SpaceLab_branch/SpaceLab/jobs/accuracyTest5/N_10/T_100/'
-path = '/home/lpkolanz/Desktop/SpaceLab/jobs/singleCoreComp/'
-path = '/home/lpkolanz/Desktop/SpaceLab/jobs/singleCoreComparison_COPY7/'
-path = '/home/lpkolanz/Desktop/SpaceLab/jobs/singleCoreComparison6/'
-path = '/home/lpkolanz/Desktop/SpaceLab_branch_copy/SpaceLab/testing/jobs/multiCoreTest1/'
-path = '/home/kolanzl/Desktop/SpaceLab_copy/SpaceLab_data/test1/N_5/T_3/'
-path = '/home/lucas/Desktop/SpaceLab_data/jobs/error2Test2/N_10/T_10/'
-path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm10/N_30/T_1000/'
-path = '/home/lucas/Desktop/SpaceLab_data/deleteme/'
+
+
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm_relax7(12)/N_300/T_3/'
+#path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm_relax0/N_300/T_1000/'
 
 
 
-simStart = 290
-simEnd = 299
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm_relax13/N_30/T_3/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm_relax7/N_30/T_10/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm_relax3/N_30/T_30/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm_relax5/N_30/T_100/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm_relax2/N_30/T_300/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm_relax4/N_30/T_1000/'
+
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm_relax10(6)/N_100/T_3/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm_relax1/N_100/T_10/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm_relax7/N_100/T_30/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm_relax0/N_100/T_100/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm_relax5/N_100/T_300/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm_relax3/N_100/T_1000/'
+
+
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsNovus/const_relax18/N_30/T_3/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsNovus/const_relax18/N_30/T_10/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsNovus/const_relax5/N_30/T_30/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsNovus/const_relax3/N_30/T_100/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsNovus/const_relax7/N_30/T_300/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsNovus/const_relax2/N_30/T_1000/'
+
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsNovus/const_relax0/N_100/T_3/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsNovus/const_relax8/N_100/T_10/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsNovus/const_relax7/N_100/T_30/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsNovus/const_relax1/N_100/T_100/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsNovus/const_relax0/N_100/T_300/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsNovus/const_relax0/N_100/T_1000/'
+
+
+simStart = 97
+simEnd = 97
 
 #csv = False
 #filename = ''  
@@ -146,7 +161,13 @@ simEnd = 299
 	
 #filename = str(simStart)+"_simData.csv"
 
-simData,constants,numSpheres,steps = get_simData_and_consts(path,simStart)
+simData,constants,numSpheres,steps = get_simData_and_consts(path,simStart,relax=False)
+
+if isinstance(simData,int) and simData == -1:
+	print(f"No data found for folder: {path}")
+	raise ValueError("simData is -1 indicating an error in get_simData_and_consts")
+
+
 
 sphereSet = []
 actionSet = []
@@ -172,7 +193,7 @@ for sphere in range(numSpheres):
 for sim in range(simStart,simEnd+1):
 	if frameNum > 1:
 		print(simData.shape)        
-		simData,constants,numSpheres,steps = get_simData_and_consts(path,sim)
+		simData,constants,numSpheres,steps = get_simData_and_consts(path,sim,True)
 #		print(sim)
 #		print(simData.shape)
 #		print(numSpheres)

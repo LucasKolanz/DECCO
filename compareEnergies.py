@@ -2,7 +2,10 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-sys.path.append("/home/lpkolanz/Desktop/SpaceLab_branch/SpaceLab")
+relative_path = ""
+relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
+project_path = os.path.abspath(relative_path) + '/'
+sys.path.append(project_path+"utilities/")
 import utils as u
 import porosity_FD as p
 
@@ -27,6 +30,11 @@ def main():
 	folder1 = "/global/homes/l/lpkolanz/SpaceLab/jobs/full2400Collide1/thread_32/"
 	folder2 = "/pscratch/sd/l/lpkolanz/SpaceLab/testHybrid/jobs/fullCompHybrid1/node_1/"
 	folder2 = "/pscratch/sd/l/lpkolanz/SpaceLab/testSqMat/jobs/fullCompSqMa1/node_1/"
+
+	folder1 = "/global/homes/l/lpkolanz/DECCOmain/SpaceLab_data/jobs/testrestartReference0/N_1210/T_3/"
+	folder2 = "/global/homes/l/lpkolanz/DECCOmain/SpaceLab_data/jobs/test2MPIrestart0/N_1210/T_3/"
+	folder2 = "/global/homes/l/lpkolanz/DECCOmain/SpaceLab_data/jobs/test2hdf5restart0/N_1210/T_3/"
+	folder1 = "/global/homes/l/lpkolanz/DECCOmain/SpaceLab_data/jobs/test2hdf5restartFromh50/N_1210/T_3/"
 
 	# max_ind = -1
 	# for file in os.listdir(folder1):
@@ -59,11 +67,11 @@ def main():
 
 	
 
-	N = 5
-	temp = 100
+	N = 10
+	temp = 3
 	show_FD_plots = False
 	allEnergy = []
-	for ind in [1]:
+	for ind in [1201]:
 		f1 = "{}_{}_simData.csv".format(ind,'_'.join(body))
 		f2 = "{}_{}_simData.csv".format(ind,'_'.join(body))
 		# f2 = "{}_simData.csv".format(ind)
@@ -93,12 +101,12 @@ def main():
 		print("================Comparing {}================".format(ind))
 		print("Data 1: {}".format(allEnergy[0]))
 		print("Data 2: {}".format(allEnergy[1]))
-		print("COM difference : {}".format(np.diff(COM,axis=0)))	
-		print("PE difference  : {}".format(np.diff(PE)))	
-		print("KE difference  : {}".format(np.diff(KE)))	
-		print("Etot difference: {}".format(np.diff(Etot)))	
-		print("p difference   : {}".format(np.diff(p)))	
-		print("L difference   : {}".format(np.diff(L)))	
+		print("COM difference : {}".format(np.diff(COM,axis=0)/COM[0]))	
+		print("PE difference  : {}".format(np.diff(PE)/PE[0]))	
+		print("KE difference  : {}".format(np.diff(KE)/KE[0]))	
+		print("Etot difference: {}".format(np.diff(Etot)/Etot[0]))	
+		print("p difference   : {}".format(np.diff(p)/p[0]))	
+		print("L difference   : {}".format(np.diff(L)/L[0]))	
 		print("====================END====================")
 
 		# data1 = np.loadtxt(folder1+f1,delimiter=",",dtype=np.float64,skiprows=1)[-1]

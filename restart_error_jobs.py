@@ -109,14 +109,20 @@ def main():
 
 	curr_folder = os.getcwd() + '/'
 
-	job_folder = 'jobs/'###FOR RUNNIN ON COSINE/NOVUS
 	job_folder = 'jobsNovus/'##FOR RUNNING ON LOCAL TESTING NOVUS JOBS
 	job_folder = 'jobsCosine/'##FOR RUNNING ON LOCAL TESTING COSINE JOBS
+	job_folder = 'jobs/'###FOR RUNNIN ON COSINE/NOVUS
 	move_job_folder = 'erroredJobs/' ##either way move here
 
 	job = input_json["data_directory"] + job_folder + 'constant$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + job_folder + 'constant_relax$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + job_folder + 'lognorm_relax$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + job_folder + 'lognorm$a$/N_$n$/T_$t$/'
 	# move_folder = curr_folder + 'erroredJobs/lognorm$a$/N_$n$/T_$t$/'
+
+	relax = False
+	if job.split("/")[-4].split("_")[-1].strip("$a$") == "relax":
+		relax = True
 
 	attempts = [i for i in range(30)]
 	# attempts = [1]
@@ -126,19 +132,23 @@ def main():
 
 	Temps = [3,10,30,100,300,1000]
 	# Temps = [3]
-
-	if job_folder == "jobsCosine/":
-		error_folders = cfe.check_error(job,cfe.errorn1,N,Temps,attempts)
-		error_folders.extend(cfe.check_error(job,cfe.error0,N,Temps,attempts))
-		error_folders.extend(cfe.check_error(job,cfe.error1,N,Temps,attempts))
-		error_folders.extend(cfe.check_error(job,cfe.error2,N,Temps,attempts))
-		error_folders.extend(cfe.check_error(job,cfe.error3,N,Temps,attempts))
-		error_folders.extend(cfe.check_error(job,cfe.error4,N,Temps,attempts))
+	# print(job.split('/')[-4].strip("$a$"))
+	# print(job)
+	# if job_folder == "jobsCosine/":
+	if job.split('/')[-4].strip("$a$") == "lognorm":
+		# error_folders = cfe.check_error(job,cfe.errorn1,N,Temps,attempts)
+		error_folders = cfe.check_error(job,cfe.error5,N,Temps,attempts,relax=relax)
+		# error_folders.extend(cfe.check_error(job,cfe.error0,N,Temps,attempts))
+		# error_folders.extend(cfe.check_error(job,cfe.error1,N,Temps,attempts))
+		# error_folders.extend(cfe.check_error(job,cfe.error2,N,Temps,attempts))
+		# error_folders.extend(cfe.check_error(job,cfe.error3,N,Temps,attempts))
+		# error_folders.extend(cfe.check_error(job,cfe.error4,N,Temps,attempts))
 		error_folders = list(set(error_folders))
 		# print(error_folders)
 
-	elif job_folder == "jobsNovus/":
-		error_folders = cfeh5.check_error(job,cfeh5.errorn1,N,Temps,attempts)
+	# elif job_folder == "jobsNovus/":
+	elif job.split('/')[-4].strip("$a$") == "constant":
+		error_folders = cfeh5.check_error(job,cfeh5.errorn1,N,Temps,attempts,relax=relax)
 		error_folders.extend(cfeh5.check_error(job,cfeh5.error0,N,Temps,attempts))
 		error_folders.extend(cfeh5.check_error(job,cfeh5.error1,N,Temps,attempts))
 		error_folders.extend(cfeh5.check_error(job,cfeh5.error2,N,Temps,attempts))

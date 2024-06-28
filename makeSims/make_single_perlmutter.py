@@ -2,6 +2,7 @@ import os
 import json
 import multiprocessing as mp
 import subprocess
+import random
 
 relative_path = "../"
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
@@ -17,7 +18,7 @@ def rand_int():
 def run_job(location):
 	output_file = location + "sim_output.txt"
 	error_file = location + "sim_errors.txt"
-	cmd = [f"{location}ColliderSingleCore.x",location]
+	cmd = [f"{location}Collider.x",location]
 
 	with open(output_file,"a") as out, open(error_file,"a") as err:
 		subprocess.run(cmd,stdout=out,stderr=err)
@@ -28,30 +29,36 @@ if __name__ == '__main__':
 
 	try:
 		# os.chdir("{}ColliderSingleCore".format(curr_folder))
-		subprocess.run(["make","-C",project_path+"ColliderSingleCore"], check=True)
+		subprocess.run(["make","-C",project_path+"Collider"], check=True)
 	except:
 		print('compilation failed')
 		exit(-1)
 
 
-	job_set_name = "test"
-	# folder_name_scheme = "T_"
+	job_set_name = "testUpdate"
+	job_set_name = "testMPI"
+	job_set_name = "test2MPI"
+	job_set_name = "testrestartReference"
+	job_set_name = "test2MPIrestart"
+	job_set_name = "test2hdf5restartFromh5"
+	job_set_name = "genericTest"
+	job_set_name = "GPU_test"
 
-	# runs_at_once = 7
-	# attempts = [21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40]
-	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
-	# attempts = [i for i in range(10)]
+
 	attempts = [0] 
-	# attempts_300 = [i for i in range(5)]
 
 	#test it out first
 	# attempts = [0]
 	# attempts_300 = [0]
 
 	# N = [300,30,100]
-	N = [5]
+	N = [10]
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [3]
+
+	threads = 1
+	nodes = 1
+
 
 	folders = []
 	for n in N:
@@ -80,14 +87,16 @@ if __name__ == '__main__':
 
 				input_json['temp'] = Temp
 				input_json['N'] = n
-				input_json['seed'] = rand_int()
-				input_json['radiiDistribution'] = 'logNormal'
+				input_json['seed'] = 2390330180
+				input_json['radiiDistribution'] = 'constant'
 				input_json['h_min'] = 0.5
-				input_json['dataFormat'] = "h5"
+				input_json['dataFormat'] = "csv"
 				input_json['output_folder'] = job
+				input_json['OMPthreads'] = threads
+				input_json['MPInodes'] = nodes
 				# input_json['u_s'] = 0.5
 				# input_json['u_r'] = 0.5
-				input_json['note'] = "Testing on Perlmutter"
+				input_json['note'] = "Test h5 restart from h5."
 				####################################
 
 				with open(job + "input.json",'w') as fp:
@@ -97,20 +106,23 @@ if __name__ == '__main__':
 				sbatchfile = ""
 				sbatchfile += "#!/bin/bash\n"
 				sbatchfile += "#SBATCH -A m2651\n"
-				sbatchfile += "#SBATCH -C gpu\n"
+				sbatchfile += "#SBATCH -C cpu\n"
 				sbatchfile += "#SBATCH -q regular\n"
-				sbatchfile += "#SBATCH -t 0:10:00\n"
-				sbatchfile += "#SBATCH -J {}\n".format(job_set_name)
-				sbatchfile += "#SBATCH -N {}\n".format(1)#(node)
+
+				sbatchfile += "#SBATCH -t 2:00:00\n"
+				# sbatchfile += "#SBATCH -t 0:05:00\n"
+				sbatchfile += f"#SBATCH -J {job_set_name}\n"
+				sbatchfile += f"#SBATCH -N {nodes}\n"
 				# sbatchfile += "#SBATCH -G {}\n".format(node)
 				# sbatchfile += "#SBATCH -c {}\n\n".foramt(2*thread)
 				sbatchfile += 'module load cray-hdf5\n'
-				# sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(thread)
+
+				sbatchfile += f'export OMP_NUM_THREADS={threads}\n'
 				sbatchfile += 'export SLURM_CPU_BIND="cores"\n'
 				
 				# sbatchfile += "srun -n {} -c {} --cpu-bind=cores numactl --interleave=all ./ColliderMultiCore.x {} 2>sim_err.log 1>sim_out.log".format(node,thread*2,job)
 				# sbatchfile += "srun -n {} -c {} ./ColliderSingleCore.o {} {} 2>sim_err.log 1>sim_out.log".format(node,thread*2,job,n)
-				sbatchfile += f"srun -n {node} -c {thread*2} {job}ColliderSingleCore.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+				sbatchfile += f"srun -n {nodes} -c {threads*2} --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 
 
 				
@@ -118,28 +130,22 @@ if __name__ == '__main__':
 					sfp.write(sbatchfile)
 
 				#add run script and executable to folders
-				# os.system(f"cp {project_path}default_files/run_sim.py {job}run_sim.py")
-				os.system(f"cp {project_path}ColliderSingleCore/ColliderSingleCore.x {job}ColliderSingleCore.x")
-				os.system(f"cp {project_path}ColliderSingleCore/ColliderSingleCore.cpp {job}ColliderSingleCore.cpp")
-				# os.system("cp default_files/run_multicore_sim.py {}run_multicore_sim.py".format(job))
-				# os.system("cp ColliderMultiCore/ColliderMultiCore.x {}ColliderMultiCore.x".format(job))
-				os.system(f"cp {project_path}ColliderSingleCore/ball_group.hpp {job}ball_group.hpp")
-				# if input_json['simType'] != "BPCA":
-				# 	os.system("cp ../jobs/collidable_aggregate_1200/* {}".format(job))
+				os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
+				os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
+
+				os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
+				os.system("cp /global/homes/l/lpkolanz/DECCOmain/SpaceLab_data/jobs/test2hdf5restart0/N_1210/T_3/1200_data.h5 {}".format(job))
+				# os.system("cp /global/homes/l/lpkolanz/old_Spacelab/SpaceLab/jobs/collidable_aggregate_1200/* {}".format(job))
+				# os.system(f"touch {job}1200_2_R4e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_simData.csv")
+				# os.system(f"touch {job}1200_2_R4e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_constants.csv")
+				# os.system(f"touch {job}1200_2_R4e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_energy.csv")
 
 				folders.append(job)
 
 print(folders)
-cwd = os.getcwd()
-for folder in folders:
-	os.chdir(folder)
-	os.system('sbatch sbatchMulti.bash')
-os.chdir(cwd)
+# cwd = os.getcwd()
+# for folder in folders:
+# 	os.chdir(folder)
+# 	os.system('sbatch sbatchMulti.bash')
+# os.chdir(cwd)
 
-
-
-
-
-
-
-	

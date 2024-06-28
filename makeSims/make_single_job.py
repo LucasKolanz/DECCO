@@ -13,6 +13,13 @@ project_path = os.path.abspath(relative_path) + '/'
 	
 	# cmd = ["srun","-n","1","-c","2","{}ColliderSingleCore.x".format(location), location, str(num_balls)]
 
+def rand_int():
+	# Generating a random integer from 0 to the maximum unsigned integer in C++
+	# In C++, the maximum value for an unsigned int is typically 2^32 - 1
+	max_unsigned_int_cpp = 2**32 - 1
+	random_unsigned_int = random.randint(0, max_unsigned_int_cpp)
+	return random_unsigned_int
+
 def run_job(location):
 	output_file = location + "sim_output.txt"
 	error_file = location + "sim_errors.txt"
@@ -75,7 +82,7 @@ if __name__ == '__main__':
 				input_json['OMPthreads'] = 1
 				input_json['MPInodes'] = 1
 
-				input_json['seed'] = 2493303778
+				input_json['seed'] = rand_int()
 				input_json['radiiDistribution'] = 'logNormal'
 				# input_json['h_min'] = 0.5
 				input_json['dataFormat'] = "csv"

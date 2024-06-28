@@ -1,4 +1,5 @@
 {
+    "relaxIndex": -1,
     "dataFormat": "h5",
     "note": "",
     "OMPthreads": 1,
@@ -47,6 +48,6 @@
     "targetName": "",
     "output_prefix": "default",
     "output_folder": "default",
-    "data_directory": "/global/homes/l/lpkolanz/DECCO/SpaceLab_data/",
-    "project_directory": "/global/homes/l/lpkolanz/DECCO/SpaceLab/"
+    "data_directory": "/media/kolanzl/easystore/SpaceLab_data/",
+    "project_directory": "/media/kolanzl/easystore/SpaceLab/"
 }

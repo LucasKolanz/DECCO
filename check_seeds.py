@@ -1,3 +1,19 @@
+"""
+This file was originally written for SpaceLab/DECCO to check the seeds of all jobs in folders matching a specified pattern.
+
+Author: Lucas Kolanz
+
+This file is meant to go through all jobs contained in a specified file pattern and print out their seeds. All of these seeds should
+be different, and this file is meant to help verify that.
+
+TODO: use the seeds from input.json, not seedFile.txt. Save all seeds in a list to verify they are all unique.
+
+"""
+
+
+
+
+
 import os
 import json
 import glob
@@ -19,19 +35,16 @@ def get_attempt(folder):
 	folder_base = folder 
 	i = 1000
 	folder = folder_base.replace("$a$",str(i))
-	# print(folder+"timing.txt")
-	# print(os.path.exists(folder+"timing.txt"))
+
 	while os.path.exists(folder+"timing.txt"):
 		i += 1
 		folder = folder_base.replace("$a$",str(i))
-		# print(folder+"timing.txt")
-		# print(os.path.exists(folder+"timing.txt"))
 
-	# print(folder)
 	return i
 
 
 def main():
+	#Open SpaceLab default file for directory information
 	with open(project_path+"default_files/default_input.json",'r') as fp:
 		input_json = json.load(fp)
 	
@@ -60,6 +73,7 @@ def main():
 				folder = base_job.replace("$a$",str(a)).replace("$n$",str(n)).replace("$t$",str(t))
 
 				if os.path.exists(folder+"seedFile.txt"):
+					#extract seed and print
 					with open(folder+"seedFile.txt",'r') as f:
 						print(f.read())
 

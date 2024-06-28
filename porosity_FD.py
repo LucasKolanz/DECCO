@@ -1,3 +1,18 @@
+"""
+This file was originally written for SpaceLab/DECCO to do data processing
+
+Author: Lucas Kolanz
+
+This file goes through all folders matching a specified pattern and calculates several values. These are, Porosity abc, Porosity KBM, 
+average number of contacts, fractal dimension, bulk density (1-Porosity_KBM), and the final angular momentum. This data is then averaged 
+over attempts and saved. The saved data contains the average, the uncertainty, and the number of attempts included in the average.
+
+"""
+
+
+
+
+
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
@@ -62,14 +77,14 @@ def get_principal_moi(mass,data):
 	return Ip
 
 #returns the total magnitude of the orbital angular momentum
-def angular_momentum(folder,data_index=-1):
-	pos,vel,w,radius,mass,moi = u.get_all_data(data_folder,data_index=data_index,linenum=-1)
+def angular_momentum(folder,data_index=-1,linenum=-1,relax=False):
+	pos,vel,w,radius,mass,moi = u.get_all_data(folder,data_index=data_index,linenum=linenum,relax=relax)
 	if pos is None:
 		return np.nan
 	num_balls = pos.shape[0]
 
 	#get the total spin 
-	com = u.COM(folder,data_index)
+	com = u.COM(folder,data_index,relax=relax)
 	angmom = np.array([0.0,0.0,0.0],dtype=np.float64)
 
 	for ball in list(range(num_balls)):
@@ -80,11 +95,11 @@ def angular_momentum(folder,data_index=-1):
 
 	return np.linalg.norm(angmom)
 
-def porosity_measure1(data_folder,data_index=-1):
-	data,radius,mass,moi = u.get_data(data_folder,data_index)
+def porosity_measure1(data_folder,data_index=-1,relax=False):
+	data,radius,mass,moi = u.get_data(data_folder,data_index,relax=relax)
 	if data is None:
 		return np.nan
-	num_balls = data.shape[0]
+	# num_balls = data.shape[0]
 
 	effective_radius = np.power(np.sum(np.power(radius,3)),1/3) 
 
@@ -107,11 +122,11 @@ def porosity_measure1(data_folder,data_index=-1):
 
 	return porosity
 
-def porosity_measure2(data_folder,data_index=-1):
-	data,radius,mass,moi = u.get_data(data_folder,data_index)
+def porosity_measure2(data_folder,data_index=-1,relax=False):
+	data,radius,mass,moi = u.get_data(data_folder,data_index,relax=relax)
 	if data is None:
 		return np.nan
-	num_balls = data.shape[0]
+	# num_balls = data.shape[0]
 
 	effective_radius = np.power(np.sum(np.power(radius,3)),1/3)  
 	# effective_radius = radius*np.power(num_balls,1/3) 
@@ -127,10 +142,58 @@ def porosity_measure2(data_folder,data_index=-1):
 	porosity = 1-np.power((effective_radius/RKBM),3)
 	return porosity
 
-# def dist(i,j,)
+def bulk_density(data_folder,data_index=-1,relax=False):
+	data,radius,mass,moi = u.get_data(data_folder,data_index,relax=relax)
+	if data is None:
+		return np.nan
+	# num_balls = data.shape[0]
 
-def number_of_contacts(data_folder,data_index=-1,line=-1):
-	data,radius,mass,moi = u.get_data(data_folder,data_index,line)
+	tot_mass = np.sum(mass)
+	monomer_density = mass[0]/((4/3)*np.pi*radius[0]**3)
+
+	gyration_radius = get_gyration_radius(data_folder,data_index,relax)
+
+	Vol = (4*np.pi/3)*(5/3)**(3/2)*gyration_radius**3
+
+	density = tot_mass/Vol
+
+	return density/monomer_density
+
+
+
+def get_gyration_radius(data_folder,data_index=-1,relax=False):
+	data,radius,mass,moi = u.get_data(data_folder,data_index,relax=relax)
+	if data is None:
+		return np.nan
+
+	effective_radius = np.power(np.sum(np.power(radius,3)),1/3)  
+	# effective_radius = radius*np.power(num_balls,1/3) 
+		
+	principal_moi = get_principal_moi(np.mean(mass),data)
+	# principal_moi = get_principal_moi(mass,data)
+
+	alphai = principal_moi/(0.4*np.sum(mass)*effective_radius**2)
+	# alphai = principal_moi/(0.4*num_balls*mass*effective_radius**2)
+
+	RKBM = np.sqrt(np.sum(alphai)/3) * effective_radius
+
+	return RKBM*np.sqrt(3/5) #RKBM is sqrt(5/3)*R_gyration
+
+# def dist(i,j,)
+def max_number_of_contacts(data_folder,data_index=-1,relax=False):
+	print(data_folder)
+	line = 0
+	max_nc = -1
+	nc = number_of_contacts(data_folder,data_index,line,relax)
+	while not np.isnan(nc):
+		max_nc = max(max_nc,nc)
+		line += 1 
+		nc = number_of_contacts(data_folder,data_index,line,relax)
+	return max_nc
+
+
+def number_of_contacts(data_folder,data_index=-1,line=-1,relax=False):
+	data,radius,mass,moi = u.get_data(data_folder,data_index,line,relax=relax)
 
 	if data is None:
 		return np.nan
@@ -144,7 +207,7 @@ def number_of_contacts(data_folder,data_index=-1,line=-1):
 	for i in range(num_balls):
 		for j in range(num_balls):
 			if i != j:
-				contacts[i,j] = (dist(i,j) <= radius[i]+radius[j])
+				contacts[i,j] = (dist(i,j) <= (radius[i]+radius[j]))
 
 	
 	return np.mean(np.sum(contacts,axis=1))
@@ -153,16 +216,14 @@ if __name__ == '__main__':
 	with open(project_path+"default_files/default_input.json",'r') as fp:
 		input_json = json.load(fp)
 	
-	# job = curr_folder + 'jobs/' + job_set_name + str(attempt) + '/'
 	path = input_json["data_directory"]
-	# data_prefolder = path + 'jobs/calibrateTest'
-	# data_prefolder = path + 'jobs/mu_max'
-	# data_prefolder = path + 'jobs/h_max'
-	# data_prefolder = path + 'jobs/lognorm'
-	# data_prefolder = path + 'jobs/tempVarianceRand_attempt'
+
 	data_prefolder = path + 'jobsOld/tempVarianceRand_attempt'
 	data_prefolder = path + 'jobsCosine/lognorm'
 	data_prefolder = path + 'jobsNovus/const'
+	data_prefolder = path + 'jobsNovus/const_relax'
+	data_prefolder = path + 'jobsCosine/lognorm_relax'
+	data_prefolder = path + 'jobsCosine/constMinHmin'
 
 	dataset_name = data_prefolder.split("/")[-1]
 
@@ -171,18 +232,16 @@ if __name__ == '__main__':
 	figure_folder = path+'data/figures/'
 
 
-	# temps = [10]
-	temps = [3,10,30,100,300,1000]
-	# temps = [3]
+	# temps = [3,10,30,100,300,1000]
+	temps = [100]
 	Nums = [30,100,300]
-	# Nums = [5]
+	Nums = [300]
 	
 	
 	attempts = [i for i in range(30)]
-	# attempts = [1]
-	attempts300 = attempts
-	# attempts300 = [i for i in range(9)]
-	# data = [] 
+	# attempts = [i for i in range(2)]
+	attempts = [1]
+
 
 
 	
@@ -211,28 +270,42 @@ if __name__ == '__main__':
 	yerr_angmom = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
 	angmom_numruns = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
 
+	BD_dataavg = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
+	BD_datastd = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
+	yerr_BD = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
+	BD_numruns = np.full(shape=(len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
 
-	properties = 15 #number of columns to save for every Num
 
-	# porositiesabcavg[:] = np.nan
-	# porositiesKBMavg[:] = np.nan
-	# porositiesabcstd[:] = np.nan
-	# porositiesKBMstd[:] = np.nan
-	# contactsavg[:] = np.nan
-	# contactsstd[:] = np.nan
-	# FD_dataavg[:] = np.nan
-	# FD_datastd[:] = np.nan
-	# yerr_abc[:] = np.nan
-	# yerr_KBM[:] = np.nan
-	# yerr_FD[:] = np.nan
-	# yerr_ca[:] = np.nan
+	properties = 18 #number of columns to save for every Num
 
-	new_data = True     
-	save_data = True
+
+
+	relax = False
+	if dataset_name.split('_')[-1] == "relax":
+		relax = True
+
+	print(f"relax: {relax}")
+
+	#Is there new data to calculate? -> set to True
+	#Use the data that is already saved? -> set to False
+	new_data = True
+	#Do you want to save the newly calculated data? 
+	#Only applicable if new_data is True
+	save_data = False
+	#Do you want to see plots of the data as they are made?
 	show_plots = True
-	make_FD = False
+	#Do you want to save the plots once they are made?
+	save_plots = True
+
+	#Do you want to skip the fractal dimension since it takes a long time
+	make_FD = True
+	#Do you want to see the FD plots?
 	show_FD_plots = False
+	#Do you want to recalculate the octree data for ones that have
+	#already been calculated, and overwrite the already saved octree data?
 	overwrite_octree_data = False 
+	
+	#Useful for testing if two versions of the code give the similar enough output
 	find_stats = False
 	show_stat_plots = False
 
@@ -241,38 +314,35 @@ if __name__ == '__main__':
 	if new_data:
 		std_dev = []
 		std_err = []
-		# attempts = [attempts[3]]
-		num_attempts = np.max([len(attempts),len(attempts300)])
+		num_attempts = len(attempts)
 		angmom = np.full(shape=(len(Nums),len(temps),num_attempts),fill_value=np.nan,dtype=np.float64)
 		porositiesabc = np.full(shape=(len(Nums),len(temps),num_attempts),fill_value=np.nan,dtype=np.float64)
 		porositiesKBM = np.full(shape=(len(Nums),len(temps),num_attempts),fill_value=np.nan,dtype=np.float64) 
 		FD_data = np.full(shape=(len(Nums),len(temps),num_attempts),fill_value=np.nan,dtype=np.float64)
 		contacts = np.full(shape=(len(Nums),len(temps),num_attempts),fill_value=np.nan,dtype=float)
+		BD_data = np.full(shape=(len(Nums),len(temps),num_attempts),fill_value=np.nan,dtype=np.float64)
 
 		for i,temp in enumerate(temps):
 			for n,N in enumerate(Nums):
-				# if N == 300:
-				# 	a = attempts300
-				# else:
-				# 	a = attempts
-				a = attempts
-				for j,attempt in enumerate(a):
-					# temp = 100
-					# N = 300
-					# attempt = 12
-					# data_folder = data_prefolder + str(attempt) + '/'
+				for j,attempt in enumerate(attempts):
 					data_folder = data_prefolder + str(attempt) + '/' + 'N_' + str(N) + '/T_' + str(temp) + '/'
-					# print(data_folder)
 					count = 0
 					if os.path.exists(data_folder):
-						if os.path.exists(data_folder+"timing.txt") or u.find_max_index(data_folder) >= N-3:
-							porositiesabc[n,i,j] = porosity_measure1(data_folder,N-3)
-							porositiesKBM[n,i,j] = porosity_measure2(data_folder,N-3)
-							contacts[n,i,j] = number_of_contacts(data_folder,N-3)
-							angmom[n,i,j] = angular_momentum(data_folder,N-3)
+						#We want to go into the next if block only if the simulation is finished. This is true
+						#if timing.txt is in there. If the simulation is too old, it wont have timing.txt and you 
+						#have to go off the indices of the data. But this will only work if it isn't a relax job.
+						#Relax jobs are new enough they will all have timing.txt if they are done, however, they 
+						#will also have a large enough file index from the start of the sim due to the copy over
+						#of initial conditions. 
+						if os.path.exists(data_folder+"timing.txt") or (not relax and u.find_max_index(data_folder) >= N-3):
+							porositiesabc[n,i,j] = porosity_measure1(data_folder,N-3,relax=relax)
+							porositiesKBM[n,i,j] = porosity_measure2(data_folder,N-3,relax=relax)
+							contacts[n,i,j] = max_number_of_contacts(data_folder,N-3,relax=relax)
+							angmom[n,i,j] = angular_momentum(data_folder,N-3,relax=relax)
+							BD_data[n,i,j] = bulk_density(data_folder,N-3,relax=relax)
 
 							if not np.isnan(porositiesabc[n,i,j]) and make_FD:
-								o3dv = u.o3doctree(data_folder,overwrite_data=overwrite_octree_data,index=N-3,Temp=temp)
+								o3dv = u.o3doctree(data_folder,overwrite_data=overwrite_octree_data,index=N-3,Temp=temp,relax=relax)
 								o3dv.make_tree()
 								FD_data[n,i,j] = o3dv.calc_fractal_dimension(show_graph=show_FD_plots)
 
@@ -377,10 +447,8 @@ if __name__ == '__main__':
 		########## End printing stat values ##########
 
 		for i,N in enumerate(Nums):
-			if N == 300:
-				a = attempts300
-			else:
-				a = attempts
+			
+			a = attempts
 			
 			notnan = ~np.isnan(angmom[i])
 			if np.sum(notnan) == 0:
@@ -410,6 +478,11 @@ if __name__ == '__main__':
 			contactsstd[i] = np.nanstd(contacts[i],axis=1)
 			contacts_numruns[i] = np.count_nonzero(~np.isnan(contacts[i]),axis=1)
 			yerr_ca[i] = contactsstd[i]/np.sqrt(contacts_numruns[i])
+			
+			BD_dataavg[i] = np.nanmean(BD_data[i],axis=1)
+			BD_datastd[i] = np.nanstd(BD_data[i],axis=1)
+			BD_numruns[i] = np.count_nonzero(~np.isnan(BD_data[i]),axis=1)
+			yerr_BD[i] = BD_datastd[i]/np.sqrt(BD_numruns[i])
 
 		headers = ['Temperature']
 		data = np.full(shape=(len(Nums)*properties,len(porositiesabcavg[0])),fill_value=np.nan,dtype=np.float64)
@@ -452,6 +525,13 @@ if __name__ == '__main__':
 			headers.append('N={} total angular momentum number of runs'.format(N))
 			data[i*properties+14,:] = angmom_numruns[i]
 
+			headers.append('N={} average bulk density'.format(N))
+			data[i*properties+15,:] = BD_dataavg[i]
+			headers.append('N={} bulk density std err'.format(N))
+			data[i*properties+16,:] = yerr_BD[i]
+			headers.append('N={} bulk density number of runs'.format(N))
+			data[i*properties+17,:] = BD_numruns[i]
+
 		data = np.array(data)
 		
 		if save_data:
@@ -466,7 +546,7 @@ if __name__ == '__main__':
 		for i,N in enumerate(Nums):
 			porositiesabcavg[i] = data[i*properties,:]
 			yerr_abc[i] = data[i*properties+1,:]
-			ABC_numruns = data[i*properties+2,:]
+			ABC_numruns[i] = data[i*properties+2,:]
 
 			porositiesKBMavg[i] = data[i*properties+3,:]
 			yerr_KBM[i] = data[i*properties+4,:]
@@ -484,14 +564,19 @@ if __name__ == '__main__':
 			yerr_angmom[i] = data[i*properties+13,:]
 			angmom_numruns[i] = data[i*properties+14,:]
 
+			BD_dataavg[i] = data[i*properties+15,:]
+			yerr_BD[i] = data[i*properties+16,:]
+			BD_numruns[i] = data[i*properties+17,:]
+
 
 	
 	print("======================Starting figures======================")
+	print(data.shape)
 	print("Data has {} nan values".format(np.count_nonzero(np.isnan(data))))
 	
 
 	styles = ['-','--','-.','--.']
-	colors = ['g','b','r','orange','black']
+	colors = ['g','b','r','orange','black','red']
 	length = len(temps)
 
 	
@@ -633,7 +718,7 @@ if __name__ == '__main__':
 
 	# plot each porosity measure separately
 	plt.rcParams.update({'font.size': 15})
-	for i,method in enumerate(["Rabc","RKBM","FD","# Contacts","Ang mom"]):
+	for i,method in enumerate(["Rabc","RKBM","FD","# Contacts","Ang mom","Bulk Density"]):
 		# if Nums[i] == 300:
 		# 	a = attempts300
 		# else:
@@ -649,6 +734,9 @@ if __name__ == '__main__':
 			ax.set_ylabel('Avg # Contacts')
 		elif i == 4:	
 			ax.set_ylabel('Total Angular Momentum')
+		elif i == 5:
+			ax.set_ylabel('Avg Bulk Density')
+
 
 # for i,N in enumerate(Nums):
 # 			headers.append('N={} abc porosity'.format(N))
@@ -722,7 +810,8 @@ if __name__ == '__main__':
 		if True:
 			fig.legend(loc='upper right',bbox_to_anchor=(0.98, 0.97))
 		plt.tight_layout()
-		plt.savefig("{}{}_FractDimandPorositySimNums_{}.png".format(figure_folder,dataset_name,method.replace(" ","")))
+		if save_plots:
+			plt.savefig("{}{}_{}_avgPlot.png".format(figure_folder,dataset_name,method.replace(" ","")))
 		if show_plots:
 			plt.show()
 

@@ -1,3 +1,22 @@
+"""
+This file was originally written for SpaceLab/DECCO and used to configure the project for new installs.
+
+Author: Lucas Kolanz
+
+This file attempts to find the project directory based on the location of this file. It then sets the values of 
+"project_directory" and "data_directory" in the [Spacelab]/default_files/default_input.json file. This is necessary
+because the code will be referencing these values when it saves stuff.
+
+This file also runs some git functions in order to configure the json submodule that SpaceLab uses to parse json files.
+
+TODO: the line "project_dir = '/'.join(__file__.split('/')[:-1]) + '/'" fails on cluster based systems but works fine
+      on regular personal computers. Need a more universal way of determining the project directory.
+
+"""
+
+
+
+
 import os
 import json
 
@@ -69,13 +88,16 @@ def read_json_file(file_path):
 if __name__ == '__main__':
     project_dir = '/'.join(__file__.split('/')[:-1]) + '/'
     #write the global directory to project_directory json variable
-    update_json_file(project_dir+"default_files/default_input.json","project_directory",project_dir)
-    update_json_file(project_dir+"default_files/default_input.json","data_directory",project_dir[:-1]+"_data/")
+    json_file = project_dir+"default_files/default_input.json"
+    update_json_file(json_file,"project_directory",project_dir)
+    update_json_file(json_file,"data_directory",project_dir[:-1]+"_data/")
 
     os.system("git submodule init")
     os.system("git submodule update")
-    #make project folders
-    # if not os.path.exists("jobs/"):
-    #     os.mkdir("jobs/")
+
+    
+    data_dir = read_json_file(json_file)["data_directory"]
+    if not os.path.exists(f"{data_dir}/data/figures/aggRenders/edited/"):
+        os.makedirs(f"{data_dir}/data/figures/aggRenders/edited/")
 
     

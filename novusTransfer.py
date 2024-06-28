@@ -1,3 +1,19 @@
+"""
+This file was originally written for SpaceLab/DECCO to trasnfer jobs from the novus cluster to my local machine
+
+Author: Lucas Kolanz
+
+This file transfers all (finished) simulations that match a specified pattern from the Novus cluster to the local computer
+this file is run from. The pattern of the folders will be kept the same, but will go into a parent directory in data_directory called "jobsNovus/" 
+It does this with scp and paramiko python libraries. Note that this file assumes you have an ssh config file that
+specifies the hostname, user, and the location of the identity file you use to ssh into the (in this case COSINE) system.
+
+This file is basically the same as cosineTransfer.py except that the folder patterns are slightly different.
+
+TODO: combine this and cosineTransfer into one file that takes a command line arg for which cluster to grab from
+
+"""
+
 from paramiko import SSHClient, SSHConfig, AutoAddPolicy
 from scp import SCPClient, SCPException
 import os
@@ -103,47 +119,63 @@ def main():
 		input_json = json.load(fp)
 	data_directory = input_json["data_directory"]
 
-	job_set_name = "const"
+	job_set_names = ["const","lognorm"]
+	job_set_names = ["const"]
+	job_set_names = ["lognorm"]
+	
 
 	attempts = [i for i in range(30)]
 	# attempts = [0,1]
 	attempts_300 = attempts
 
+	jobfolder = ""
+
 
 	N = [30,100,300]
-	# N=[100]
+	N=[30,100,300]
 
 	Temps = [3,10,30,100,300,1000]
 	# Temps = [3]
+	for j_i,job_set_name in enumerate(job_set_names):
+		if job_set_name == "lognorm":
+			jobfolder = "jobsCosine"
+		elif job_set_name == "const":
+			jobfolder = "jobsNovus"
+		else:
+			print("ERROR: unrecognized job_set_name.")
+			exit(0)
+		for n in N:
+			for Temp in Temps:
+				temp_attempt = attempts
+				if n == 300:
+					temp_attempt = attempts_300
+				for attempt in temp_attempt:
+					
+					local_job_folder = data_directory  + jobfolder + '/' + job_set_name + str(attempt) + '/'\
+								+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
+					remote_job_folder = remote_base_folder + 'jobs/' + job_set_name + str(attempt) + '/'\
+								+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
 
-	error_folders = []
-	for n in N:
-		for Temp in Temps:
-			temp_attempt = attempts
-			if n == 300:
-				temp_attempt = attempts_300
-			for attempt in temp_attempt:
-				local_job_folder = data_directory  + 'jobsNovus/' + job_set_name + str(attempt) + '/'\
-							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
-				remote_job_folder = remote_base_folder + 'jobs/' + job_set_name + str(attempt) + '/'\
-							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
+					if os.path.exists(local_job_folder+"timing.txt"): #Have we already copied this job over?
+						print(f"Job already copied: {remote_job_folder}")
+						continue
 
-				if os.path.exists(local_job_folder+"timing.txt"): #Have we already copied this job over?
-					print(f"Job already copied: {remote_job_folder}")
-					continue
+					#If you want to scp a whole folder recursivly it will copy the final folder 
+					#which is stupid. To counter this, take out the last folder in local_path
+					#since these are the same folder
+					local_job_folder = '/'.join(local_job_folder.split('/')[:-2]) + '/'
+					
 
-				#If you want to scp a whole folder recursivly it will copy the final folder 
-				#which is stupid. To counter this, take out the last folder in local_path
-				#since these are the same folder
-				local_job_folder = '/'.join(local_job_folder.split('/')[:-2]) + '/'
-				
+					# remote_files_exists = list_remote_files('Novus', remote_job_folder)
+					# if len(remote_files_exists) > 1:
+					# 	print(f"Remote folder {remote_job_folder} has {len(remote_files_exists)} files")
 
-				remote_file_exists = list_remote_files('Novus', remote_job_folder+"timing.txt")
-				if len(remote_file_exists) > 0 and "timing.txt" == remote_file_exists[0].split('/')[-1]:
-					if not os.path.exists(local_job_folder): #folder doesnt exist locally so make the folder(s)
-						os.makedirs(local_job_folder)
-					print(f"Copying {remote_job_folder}")
-					scp_transfer_with_ssh_config('Novus',remote_job_folder,local_job_folder,recursive=True)
+					remote_file_exists = list_remote_files('Novus', remote_job_folder+"timing.txt")
+					if len(remote_file_exists) > 0 and "timing.txt" == remote_file_exists[0].split('/')[-1]:
+						if not os.path.exists(local_job_folder): #folder doesnt exist locally so make the folder(s)
+							os.makedirs(local_job_folder)
+						print(f"Copying {remote_job_folder}")
+						scp_transfer_with_ssh_config('Novus',remote_job_folder,local_job_folder,recursive=True)
 
 
 if __name__ == '__main__':

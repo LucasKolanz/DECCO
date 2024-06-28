@@ -11,11 +11,13 @@ int main()
 	int n = 1000000;
 	srand(static_cast<int>(time(nullptr)));
 	std::ofstream G("randomGaussian.txt",std::ios::app);
+	std::ofstream L("randomLogNorm.txt",std::ios::app);
 	std::ofstream R("rand.txt",std::ios::app);
 
 	for (int i = 0; i < n; i++)
 	{
 		G<<random_gaussian()<<std::endl;
+		L<<lolognorm_dist
 		R<<rand()<<std::endl;
 	}
 
