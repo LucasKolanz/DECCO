@@ -1502,52 +1502,60 @@ Ball_group Ball_group::BPCA_projectile_init()
 //        including an random offset linearly dependant on radius 
 Ball_group Ball_group::BCCA_projectile_init(const bool symmetric=true)
 {
-    // Random particle to origin
-    Ball_group projectile(1);
+    // if symmetric, ball group should just be a copy
+    // otherwise, get an aggregate from a differnt folder
+
+    Ball_group projectile;
+
+    if (symmetric)
+    {
+        projectile = *this;
+    }
+    else
+    {
+        projectile = Ball_group(attrs.num_particles);
+    }
+
+    //find velocity of projectile
+    if (attrs.temp > 0)
+    {
+        double a = std::sqrt(Kb*attrs.temp/projectile.getMass());
+        attrs.v_custom = max_bolt_dist(a); 
+
+        std::string message("v_custom set to "+std::to_string(attrs.v_custom)+ "cm/s based on a temp of "+
+                std::to_string(attrs.temp)+" degrees K.\n"); 
+    }
 
     // Particle random position at twice radius of target:
     // We want the farthest from origin since we are offsetting form origin. Not com.
     const auto cluster_radius = get_radius(vec3(0, 0, 0));
 
     const vec3 projectile_direction = rand_unit_vec3();
-    projectile.pos[0] = projectile_direction * (cluster_radius + attrs.scaleBalls * 4);
-    if (attrs.radiiDistribution == constant)
-    {
-        // std::cout<<"radiiFraction: "<<radiiFraction<<std::endl;
-        projectile.R[0] = attrs.scaleBalls;  //MAKE BOTH VERSIONS SAME
-        // projectile.R[0] = scaleBalls/radiiFraction;  //limit of 1.4// rand_between(1,3)*1e-5;
-        // std::cout<<"(constant) Particle added with radius of "<<projectile.R[0]<<std::endl;
-    }
-    else
-    {
-        projectile.R[0] = lognorm_dist(attrs.scaleBalls*std::exp(-5*std::pow(attrs.lnSigma,2)/2),attrs.lnSigma);
-        // std::cout<<"(lognorm) Particle added with radius of "<<projectile.R[0]<<std::endl;
-    }
-    projectile.w[0] = {0, 0, 0};
-    projectile.m[0] = attrs.density * 4. / 3. * pi * std::pow(projectile.R[0], 3);
-    // Velocity toward origin:
-    if (attrs.temp > 0)
-    {
-        double a = std::sqrt(Kb*attrs.temp/projectile.m[0]);
-        attrs.v_custom = max_bolt_dist(a); 
 
-        std::string message("v_custom set to "+std::to_string(attrs.v_custom)+ "cm/s based on a temp of "+
-                std::to_string(attrs.temp)+" degrees K.\n"); 
+    for (int i = 0; i < attrs.num_particles; ++i)
+    {
+
+        projectile.pos[i] += projectile_direction * (cluster_radius + attrs.scaleBalls * 4);
+
+        // Velocity toward origin:
+        projectile.vel[i] = -attrs.v_custom * projectile_direction;
+        
+        // projectile.R[0] = 1e-5;  // rand_between(1,3)*1e-5;
+        // projectile.moi[0] = calc_moi(projectile.R[0], projectile.m[0]);
     }
-    projectile.vel[0] = -attrs.v_custom * projectile_direction;
 
     
-    // projectile.R[0] = 1e-5;  // rand_between(1,3)*1e-5;
-    projectile.moi[0] = calc_moi(projectile.R[0], projectile.m[0]);
 
   
 
     const double3x3 local_coords = local_coordinates(to_double3(projectile_direction));
     
-    const vec3 offset = random_offset(local_coords,projectile.pos[0],projectile.vel[0],projectile.R[0]); 
+    const vec3 offset = random_offset(local_coords,projectile.getCOM(),projectile.vel[0],projectile.R[0]); 
 
-    projectile.pos[0] -= offset;
-
+    for (int i = 0; i < attrs.num_particles; ++i)
+    {
+        projectile.pos[i] -= offset;
+    }
 
     
     return projectile;

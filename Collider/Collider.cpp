@@ -31,18 +31,13 @@
 
 //How many lines will be saved to a buffer before being saved
 extern const int bufferlines;
-// extern enum distributions {constant, logNorm};
-// extern enum simType {BPCA, BCCA, collider, relax};
-
 
 
 // Prototypes
 void
 safetyChecks(Ball_group &O);
 void 
-runBPCA(std::string path, int num_balls);
-void 
-runBCCA(std::string path, int num_balls);
+runAggregation(std::string path, int num_balls);
 void 
 runRelax(std::string path);
 void 
@@ -129,32 +124,18 @@ main(int argc, char* argv[])
         // #endif
         // runCollider(argv[1],dummy.projectileName,dummy.targetName);
     }
-    else if (dummy.attrs.typeSim == BPCA)
+    else if (dummy.attrs.typeSim == BPCA || dummy.attrs.typeSim == BCCA)
     {
         if (dummy.attrs.N >=  0)
         {
             #ifdef MPI_ENABLE
                 MPI_Barrier(MPI_COMM_WORLD);
             #endif
-            runBPCA(dummy.attrs.output_folder,dummy.attrs.N);
+            runAggregation(dummy.attrs.output_folder,dummy.attrs.N);
         }
         else
         {
             MPIsafe_print(std::cerr,"ERROR: if simType is BPCA, N >= 0 must be true.\n");
-        }
-    }
-    else if (dummy.attrs.typeSim == BCCA)
-    {
-        if (dummy.attrs.N >=  0)
-        {
-            #ifdef MPI_ENABLE
-                MPI_Barrier(MPI_COMM_WORLD);
-            #endif
-            runBCCA(dummy.attrs.output_folder,dummy.attrs.N);
-        }
-        else
-        {
-            MPIsafe_print(std::cerr,"ERROR: if simType is BCCA, N >= 0 must be true.\n");
         }
     }
     else if (dummy.attrs.typeSim == relax)
@@ -202,7 +183,7 @@ void runCollider(std::string path, std::string projectileName, std::string targe
 }
 
 //Initializes and carries out BPCA aggregate growth
-void runBCCA(std::string path, int num_balls)
+void runAggregation(std::string path, int num_balls)
 {
     int world_rank = getRank();
 
@@ -216,44 +197,14 @@ void runBCCA(std::string path, int num_balls)
         O.sim_looper(O.attrs.start_step);
     }
 
-    // Add projectile: For dust formation BPCA
-    for (int i = O.attrs.start_index; i < num_balls; i++) {
-        // t.start_event("add_projectile");
-        O = O.add_projectile(O.attrs.typeSim);
-        // t.end_event("add_projectile");
-        if (world_rank == 0)
-        {
-            std::cerr<<"I: "<<i<<std::endl;
-            O.sim_init_write(i);
-            std::cerr<<"Asking for "<<O.get_num_threads()<<" threads."<<std::endl;
-        }
+    int increment = -1;
 
-        O.sim_looper(1);
-        O.attrs.simTimeElapsed = 0;
-    }
-    // O.freeMemory();
-    return;
-}
-
-//Initializes and carries out BPCA aggregate growth
-void runBPCA(std::string path, int num_balls)
-{
-    int world_rank = getRank();
-
-    Ball_group O = Ball_group(path);  
-    safetyChecks(O);
-    std::string message;
-    if  (O.attrs.mid_sim_restart)
+    // Add projectile: For dust formation BPCA or BCCA
+    for (int i = O.attrs.start_index; i < num_balls; i+=increment) 
     {
-        message = "Asking for "+std::to_string(O.get_num_threads())+" threads.\n";
-        MPIsafe_print(std::cerr,message);
-        O.sim_looper(O.attrs.start_step);
-    }
-
-    // Add projectile: For dust formation BPCA
-    for (int i = O.attrs.start_index; i < num_balls; i++) {
         // t.start_event("add_projectile");
         O = O.add_projectile(O.attrs.typeSim);
+        increment = O.attrs.num_particles;
         // t.end_event("add_projectile");
         if (world_rank == 0)
         {
@@ -264,6 +215,12 @@ void runBPCA(std::string path, int num_balls)
 
         O.sim_looper(1);
         O.attrs.simTimeElapsed = 0;
+
+        if (increment == -1)
+        {
+            MPIsafe_print(std::cerr,"ERROR: increment is -1");
+            MPIsafe_exit(EXIT_FAILURE);
+        }
     }
     // O.freeMemory();
     return;
