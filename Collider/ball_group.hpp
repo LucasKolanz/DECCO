@@ -46,6 +46,8 @@
 // using std::numbers::pi;
 using json = nlohmann::json;
 extern const int bufferlines;
+enum distributions {constant, logNorm};
+enum simType {BPCA, BCCA, collider, relax};
 
 
 //This struct is meant to encompass all values necessary to carry out a simulation, besides the physical
@@ -94,11 +96,14 @@ struct Ball_group_attributes
 
     int seed = -1;
     int output_width = -1;
-    enum distributions {constant, logNorm};
     distributions radiiDistribution;
-    enum simType {BPCA, collider, relax};
     simType typeSim = BPCA; //Default to BPCA for now
     double lnSigma = 0.2; //sigma for log normal distribution 
+
+    //Variable only has an effect for BCCA simulations (typeSim = BCCA)
+    //if true, projectile is copy of target, if false, projectile is taken from a 
+    //different, random simulation that has already made it to this point.
+    bool symmetric = true; 
 
     // Useful values:
     double r_min = -1;
@@ -132,6 +137,7 @@ struct Ball_group_attributes
     double Ha = -1.0;         // Hamaker constant for vdw force
     double h_min = -1.0;  // 1e8 * std::numeric_limits<double>::epsilon(), // 2.22045e-10 (epsilon is 2.22045e-16)
     double cone = -1.0;  // Cone of particles ignored moving away from center of mass. Larger angle ignores more.
+
 
     // Simulation Structure
     int properties = -1;  // Number of columns in simData file per ball
@@ -204,6 +210,7 @@ struct Ball_group_attributes
             output_width = other.output_width;
             radiiDistribution = other.radiiDistribution;
             typeSim = other.typeSim;
+            symmetric = other.symmetric;
             lnSigma = other.lnSigma;
 
             r_min = other.r_min;
@@ -273,6 +280,10 @@ struct Ball_group_attributes
 class Ball_group
 {
 public:
+    // enum distributions {constant, logNorm};
+    // enum simType {BPCA, BCCA, collider, relax};
+    
+
     Ball_group_attributes attrs;
 
     /////////////////////////////////
@@ -348,9 +359,10 @@ public:
     double calc_mass(const double& radius, const double& density);
     double calc_moi(const double& radius, const double& mass);
     Ball_group spawn_particles(const int count);
-    vec3 dust_agglomeration_offset(const double3x3 local_coords,vec3 projectile_pos,vec3 projectile_vel,const double projectile_rad);
-    Ball_group dust_agglomeration_particle_init();
-    Ball_group add_projectile();
+    vec3 random_offset(const double3x3 local_coords,vec3 projectile_pos,vec3 projectile_vel,const double projectile_rad);
+    Ball_group BPCA_projectile_init();
+    Ball_group BCCA_projectile_init(const bool symmetric);
+    Ball_group add_projectile(const simType);
     void merge_ball_group(const Ball_group& src);
     void freeMemory() const;
     std::string find_restart_file_name(std::string path);
@@ -361,8 +373,8 @@ public:
     void init_data(int counter);
     std::string get_data_info();
     void parse_meta_data(std::string metadata);
-    void relax_init(std::string path);
-    void BPCA_init(std::string path);
+    void relaxInit(std::string path);
+    void aggregationInit(std::string path);
     std::string find_file_name(std::string path,int index);
     int get_num_threads();
 
@@ -415,20 +427,20 @@ Ball_group::Ball_group(std::string& path)
 {
     parse_input_file(path);
 
-    if (attrs.typeSim == attrs.BPCA)
+    if (attrs.typeSim == BPCA || attrs.typeSim == BCCA)
     {
-        BPCA_init(path);
+        aggregationInit(path);
     }
-    else if (attrs.typeSim == attrs.collider)
+    else if (attrs.typeSim == collider)
     {
         MPIsafe_print(std::cerr,"COLLIDER NOT IMPLIMENTED. NOW EXITING . . .\n");
         MPIsafe_exit(-1);
     }
-    else if (attrs.typeSim == attrs.relax)
+    else if (attrs.typeSim == relax)
     {
         if (attrs.relax_index > 0)
         {
-            relax_init(path);
+            relaxInit(path);
         }
         else
         {
@@ -440,7 +452,7 @@ Ball_group::Ball_group(std::string& path)
 }
 
 // Initializes relax job (only new, not for restart)
-void Ball_group::relax_init(std::string path)
+void Ball_group::relaxInit(std::string path)
 {
     std::string filename = find_file_name(path,attrs.relax_index); 
 
@@ -458,8 +470,8 @@ void Ball_group::relax_init(std::string path)
 }
 
 
-// Initializes BPCA job for restart or new job
-void Ball_group::BPCA_init(std::string path)
+// Initializes BPCA and BCCA job for restart or new job
+void Ball_group::aggregationInit(std::string path)
 {
     int restart = check_restart(path);
 
@@ -542,6 +554,8 @@ void Ball_group::BPCA_init(std::string path)
         MPIsafe_exit(-1);
     }
 }
+
+
 
 // /// @brief For continuing a sim.
 // /// @param fullpath is the filename and path excluding the suffix _simData.csv, _constants.csv, etc.
@@ -652,7 +666,7 @@ void Ball_group::init_data(int counter = 0)
 
     std::string type = "";
     
-    if (attrs.typeSim == attrs.relax)
+    if (attrs.typeSim == relax)
     {
         type = "RELAX";
     }
@@ -702,17 +716,22 @@ void Ball_group::parse_input_file(std::string location)
 
     if (inputs["simType"] == "BPCA")
     {
-        attrs.typeSim = attrs.BPCA;
+        attrs.typeSim = BPCA;
+    }
+    else if (inputs["simType"] == "BCCA")
+    {
+        attrs.typeSim = BCCA;
     }
     else if (inputs["simType"] == "collider")
     {
-        attrs.typeSim = attrs.collider;
+        attrs.typeSim = collider;
     }
     else if (inputs["simType"] == "relax")
     {
-        attrs.typeSim = attrs.relax;
+        attrs.typeSim = relax;
         attrs.relax_index = inputs["relaxIndex"];
     }
+
 
     if (inputs["dataFormat"] == "h5" || inputs["dataFormat"] == "hdf5")
     {
@@ -753,11 +772,11 @@ void Ball_group::parse_input_file(std::string location)
     std::transform(temporary_distribution.begin(), temporary_distribution.end(), temporary_distribution.begin(), ::tolower);
     if (temporary_distribution == "lognormal" || temporary_distribution == "lognorm")
     {
-        attrs.radiiDistribution = attrs.logNorm;
+        attrs.radiiDistribution = logNorm;
     }
     else
     {
-        attrs.radiiDistribution = attrs.constant;
+        attrs.radiiDistribution = constant;
     }
     attrs.N = inputs["N"];
     attrs.dynamicTime = inputs["dynamicTime"];
@@ -1390,7 +1409,10 @@ Ball_group Ball_group::spawn_particles(const int count)
 //@param projectile_pos is projectile's position before offset is applied
 //@param projectile_vel is projectile's velocity
 //@param projectile_rad is projectile's radius
-vec3 Ball_group::dust_agglomeration_offset(
+//@returns the vector from the original particle position to the new position
+
+//TODO:: Make this work with two aggregates instead of just a particle and aggregate
+vec3 Ball_group::random_offset(
     const double3x3 local_coords,
     vec3 projectile_pos,
     vec3 projectile_vel,
@@ -1415,40 +1437,25 @@ vec3 Ball_group::dust_agglomeration_offset(
             }
         }
     } while (!intersect);
-    return new_position;
+
+    return projectile_pos-new_position;
 }
 
 // @brief returns new ball group consisting of one particle
 //        where particle is given initial conditions
 //        including an random offset linearly dependant on radius 
-Ball_group Ball_group::dust_agglomeration_particle_init()
+Ball_group Ball_group::BPCA_projectile_init()
 {
     // Random particle to origin
     Ball_group projectile(1);
-    // projectile.radiiDistribution = radiiDistribution;
-    // projectile.radiiFraction = radiiFraction;
-    // // projectile.data = data;
-    // //carry over folders
-    // projectile.project_path = project_path;
-    // projectile.output_folder = output_folder;
-    // projectile.data_directory = data_directory;
-    // projectile.projectileName = projectileName;
-    // projectile.targetName = targetName;
-    // projectile.output_prefix = output_prefix;
 
-    // projectile.skip = skip;
-    // projectile.steps = steps;
-
-    // projectile.dt=dt;
-    // projectile.kin=kin;  // Spring constant
-    // projectile.kout=kout;
     // Particle random position at twice radius of target:
     // We want the farthest from origin since we are offsetting form origin. Not com.
     const auto cluster_radius = get_radius(vec3(0, 0, 0));
 
     const vec3 projectile_direction = rand_unit_vec3();
     projectile.pos[0] = projectile_direction * (cluster_radius + attrs.scaleBalls * 4);
-    if (attrs.radiiDistribution == attrs.constant)
+    if (attrs.radiiDistribution == constant)
     {
         // std::cout<<"radiiFraction: "<<radiiFraction<<std::endl;
         projectile.R[0] = attrs.scaleBalls;  //MAKE BOTH VERSIONS SAME
@@ -1481,20 +1488,95 @@ Ball_group Ball_group::dust_agglomeration_particle_init()
 
     const double3x3 local_coords = local_coordinates(to_double3(projectile_direction));
     
-    projectile.pos[0] = dust_agglomeration_offset(local_coords,projectile.pos[0],projectile.vel[0],projectile.R[0]);
+    const vec3 offset = random_offset(local_coords,projectile.pos[0],projectile.vel[0],projectile.R[0]); 
+
+    projectile.pos[0] -= offset;
 
 
     
     return projectile;
 }
 
+// @brief returns new ball group consisting of one particle
+//        where particle is given initial conditions
+//        including an random offset linearly dependant on radius 
+Ball_group Ball_group::BCCA_projectile_init(const bool symmetric=true)
+{
+    // if symmetric, ball group should just be a copy
+    // otherwise, get an aggregate from a differnt folder
+
+    Ball_group projectile;
+
+    if (symmetric)
+    {
+        projectile = *this;
+    }
+    else
+    {
+        projectile = Ball_group(attrs.num_particles);
+    }
+
+    //find velocity of projectile
+    if (attrs.temp > 0)
+    {
+        double a = std::sqrt(Kb*attrs.temp/projectile.getMass());
+        attrs.v_custom = max_bolt_dist(a); 
+
+        std::string message("v_custom set to "+std::to_string(attrs.v_custom)+ "cm/s based on a temp of "+
+                std::to_string(attrs.temp)+" degrees K.\n"); 
+    }
+
+    // Particle random position at twice radius of target:
+    // We want the farthest from origin since we are offsetting form origin. Not com.
+    const auto cluster_radius = get_radius(vec3(0, 0, 0));
+
+    const vec3 projectile_direction = rand_unit_vec3();
+
+    for (int i = 0; i < attrs.num_particles; ++i)
+    {
+
+        projectile.pos[i] += projectile_direction * (cluster_radius + attrs.scaleBalls * 4);
+
+        // Velocity toward origin:
+        projectile.vel[i] = -attrs.v_custom * projectile_direction;
+        
+        // projectile.R[0] = 1e-5;  // rand_between(1,3)*1e-5;
+        // projectile.moi[0] = calc_moi(projectile.R[0], projectile.m[0]);
+    }
+
+    
+
+  
+
+    const double3x3 local_coords = local_coordinates(to_double3(projectile_direction));
+    
+    const vec3 offset = random_offset(local_coords,projectile.getCOM(),projectile.vel[0],projectile.R[0]); 
+
+    for (int i = 0; i < attrs.num_particles; ++i)
+    {
+        projectile.pos[i] -= offset;
+    }
+
+    
+    return projectile;
+}
+
 // Uses previous O as target and adds one particle to hit it:
-Ball_group Ball_group::add_projectile()
+Ball_group Ball_group::add_projectile(const simType simtype)
 {
     // Load file data:
     MPIsafe_print(std::cerr,"Add Particle\n");
 
-    Ball_group projectile = dust_agglomeration_particle_init();
+    Ball_group projectile;
+    
+    if (simtype == BPCA)
+    {
+        projectile = BPCA_projectile_init();
+    }
+    else if (simtype == BCCA)
+    {
+        projectile = BCCA_projectile_init(attrs.symmetric);
+    }
     
     // Collision velocity calculation:
     const vec3 p_target{calc_momentum("p_target")};
@@ -2109,7 +2191,7 @@ void Ball_group::generate_ball_field(const int nBalls)
          // in parse_input_file
     // const int seedSave = static_cast<int>(time(nullptr));
     // srand(seedSave);
-    if (attrs.radiiDistribution == attrs.constant)
+    if (attrs.radiiDistribution == constant)
     {
         oneSizeSphere(nBalls);
     }

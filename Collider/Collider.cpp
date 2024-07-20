@@ -33,17 +33,15 @@
 extern const int bufferlines;
 
 
-
-
 // Prototypes
 void
 safetyChecks(Ball_group &O);
 void 
-BPCA(std::string path, int num_balls);
+runAggregation(std::string path, int num_balls);
 void 
-relax(std::string path);
+runRelax(std::string path);
 void 
-collider(std::string path, std::string projectileName,std::string targetName);
+runCollider(std::string path, std::string projectileName,std::string targetName);
 timey t;
 
 //////////////////////////////////////////////////////////////
@@ -101,11 +99,11 @@ main(int argc, char* argv[])
 
 
     std::string radiiDist;
-    if (dummy.attrs.radiiDistribution == dummy.attrs.logNorm)
+    if (dummy.attrs.radiiDistribution == logNorm)
     {
         radiiDist = "logNormal";
     }
-    else if (dummy.attrs.radiiDistribution == dummy.attrs.constant)
+    else if (dummy.attrs.radiiDistribution == constant)
     {
         radiiDist = "constant";
     }
@@ -117,35 +115,35 @@ main(int argc, char* argv[])
         "Using "+radiiDist+" particle radii distribution\n");
     MPIsafe_print(std::cerr,message);
 
-    if (dummy.attrs.typeSim == dummy.attrs.collider)
+    if (dummy.attrs.typeSim == collider)
     {
         MPIsafe_print(std::cerr,"COLLIDER NOT IMPLIMENTED\n");
         MPIsafe_exit(-1);
         // #ifdef MPI_ENABLE
         //     MPI_Barrier(MPI_COMM_WORLD);
         // #endif
-        // collider(argv[1],dummy.projectileName,dummy.targetName);
+        // runCollider(argv[1],dummy.projectileName,dummy.targetName);
     }
-    else if (dummy.attrs.typeSim == dummy.attrs.BPCA)
+    else if (dummy.attrs.typeSim == BPCA || dummy.attrs.typeSim == BCCA)
     {
         if (dummy.attrs.N >=  0)
         {
             #ifdef MPI_ENABLE
                 MPI_Barrier(MPI_COMM_WORLD);
             #endif
-            BPCA(dummy.attrs.output_folder,dummy.attrs.N);
+            runAggregation(dummy.attrs.output_folder,dummy.attrs.N);
         }
         else
         {
             MPIsafe_print(std::cerr,"ERROR: if simType is BPCA, N >= 0 must be true.\n");
         }
     }
-    else if (dummy.attrs.typeSim == dummy.attrs.relax)
+    else if (dummy.attrs.typeSim == relax)
     {
         #ifdef MPI_ENABLE
             MPI_Barrier(MPI_COMM_WORLD);
         #endif
-        relax(dummy.attrs.output_folder);
+        runRelax(dummy.attrs.output_folder);
     }
     else
     {
@@ -172,7 +170,7 @@ main(int argc, char* argv[])
 //////////////////////////////////////////////////////////////
 
 //Initailizes and carries out Ball_group to collide two preexisting aggregates
-void collider(std::string path, std::string projectileName, std::string targetName)
+void runCollider(std::string path, std::string projectileName, std::string targetName)
 {
     // t.start_event("collider");
     Ball_group O = Ball_group(path,std::string(projectileName),std::string(targetName));
@@ -185,7 +183,7 @@ void collider(std::string path, std::string projectileName, std::string targetNa
 }
 
 //Initializes and carries out BPCA aggregate growth
-void BPCA(std::string path, int num_balls)
+void runAggregation(std::string path, int num_balls)
 {
     int world_rank = getRank();
 
@@ -199,10 +197,14 @@ void BPCA(std::string path, int num_balls)
         O.sim_looper(O.attrs.start_step);
     }
 
-    // Add projectile: For dust formation BPCA
-    for (int i = O.attrs.start_index; i < num_balls; i++) {
+    int increment = -1;
+
+    // Add projectile: For dust formation BPCA or BCCA
+    for (int i = O.attrs.start_index; i < num_balls; i+=increment) 
+    {
         // t.start_event("add_projectile");
-        O = O.add_projectile();
+        O = O.add_projectile(O.attrs.typeSim);
+        increment = O.attrs.num_particles;
         // t.end_event("add_projectile");
         if (world_rank == 0)
         {
@@ -213,13 +215,19 @@ void BPCA(std::string path, int num_balls)
 
         O.sim_looper(1);
         O.attrs.simTimeElapsed = 0;
+
+        if (increment == -1)
+        {
+            MPIsafe_print(std::cerr,"ERROR: increment is -1");
+            MPIsafe_exit(EXIT_FAILURE);
+        }
     }
     // O.freeMemory();
     return;
 }
 
 //Initalizes and carries out a relaxation run
-void relax(std::string path)
+void runRelax(std::string path)
 {
     int world_rank = getRank();
     Ball_group O = Ball_group(path);  
@@ -333,12 +341,12 @@ safetyChecks(Ball_group &O) //Should be ready to call sim_looper
         MPIsafe_exit(EXIT_FAILURE);
     }
 
-    if (O.attrs.radiiDistribution != O.attrs.constant && O.attrs.radiiDistribution != O.attrs.logNorm) {
+    if (O.attrs.radiiDistribution != constant && O.attrs.radiiDistribution != logNorm) {
         fprintf(stderr, "\nradiiDistribution NOT SET for rank %1d\n",getRank());
         MPIsafe_exit(EXIT_FAILURE);
     } 
 
-    if (O.attrs.typeSim != O.attrs.BPCA && O.attrs.typeSim != O.attrs.collider && O.attrs.typeSim != O.attrs.relax) {
+    if (O.attrs.typeSim != BPCA && O.attrs.typeSim != BCCA && O.attrs.typeSim != collider && O.attrs.typeSim != relax) {
         fprintf(stderr, "\ntypeSim NOT SET for rank %1d\n",getRank());
         MPIsafe_exit(EXIT_FAILURE);
     } 
@@ -418,12 +426,12 @@ safetyChecks(Ball_group &O) //Should be ready to call sim_looper
         MPIsafe_exit(EXIT_FAILURE);
     }
 
-    if (O.attrs.typeSim == O.attrs.BPCA && O.attrs.N < 0) {
+    if (O.attrs.typeSim == BPCA && O.attrs.N < 0) {
         fprintf(stderr, "\nN NOT SET for rank %1d\n",getRank());
         MPIsafe_exit(EXIT_FAILURE);
     }
 
-    if (O.attrs.typeSim == O.attrs.relax && O.attrs.relax_index < 0) {
+    if (O.attrs.typeSim == relax && O.attrs.relax_index < 0) {
         fprintf(stderr, "\nrestart_index NOT SET and in relax mode\n");
         MPIsafe_exit(EXIT_FAILURE);
     }

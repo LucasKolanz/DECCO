@@ -38,8 +38,8 @@ def get_data(file,dtype=""):
 def main():
 	folder1 = "/home/lucas/Desktop/SpaceLab_data/oldVersionCSVData/"
 	folder2 = "/home/lucas/Desktop/SpaceLab_data/jobs/errorckcsv1/N_10/T_3/"
-	folder1 = "/global/homes/l/lpkolanz/DECCO/SpaceLab_data/jobs/masterComp5/N_10/T_3/" #Compare to 5 because new calculation order
-	folder2 = "/global/homes/l/lpkolanz/DECCO/SpaceLab_data/jobs/masterComp13/N_10/T_3/"
+	folder1 = "/home/lucas/Desktop/SpaceLab_data/jobs/TEST0/N_5/T_3/" #Compare to 5 because new calculation order
+	folder2 = "/home/lucas/Desktop/SpaceLab_data/jobs/TEST1/N_5/T_3/"
 
 	N = 10
 	temp = 100
