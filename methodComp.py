@@ -104,6 +104,12 @@ def main():
 		slope_sigma.append(np.sqrt(S(sigma)/delta))
 
 
+	# Update rcParams before creating the figure
+	plt.rcParams.update({
+	    'font.size': 18,
+	    'text.usetex': True,
+	    'text.latex.preamble': r'\usepackage{amsmath} \usepackage{bm}'
+	})
 	fig,ax = plt.subplots(figsize=(10,5))
 	dummy_x_data = [0,.2,.4,.6]
 	for N in [30,100,300]:
@@ -135,17 +141,24 @@ def main():
 	plt.axvline(x = 0.3, color = 'black')
 	plt.axvline(x = 0.5, color = 'black')
 
-	ax.xaxis.set(ticks=dummy_x_data,
-			ticklabels=['Rabc','RKBM','FD','NC'])
 
-	ax.set_ylabel('Slope')
+
+
+	ax.xaxis.set(ticks=dummy_x_data,
+			ticklabels=[r'$\bm{\mathcal{P}_{abc}$',r'$\bm{\mathcal{P}_{KBM}$',r'$\bm{\mathcal{D}_{f}}$',r'$\bm{\mathcal{ANC}}$'])
+
+	ax.set_ylabel('Sensitivity to Temperature')
 
 	ax.set_ylim(-0.0010770496039509136, 0.02782241381226227)
 
-	fig.legend()
+	fig.legend(loc='lower left',bbox_to_anchor=(0.785,0.65))
+	# fig.legend(loc='lower left',bbox_to_anchor=(0.99,0.7))
 
 	print(f"ylim: {ax.get_ylim()}")
 
+
+
+	fig.tight_layout()
 	plt.savefig(figure_folder+f'/{dataset_name}_methodComp.png')
 
 	plt.show()

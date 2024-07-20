@@ -127,6 +127,12 @@ def main():
 	styles = ['-','--','-.','--.']
 	colors = ['g','b','r','orange','black']
 
+	plt.rcParams.update({
+	    'font.size': 18,
+	    'text.usetex': True,
+	    'text.latex.preamble': r'\usepackage{amsmath} \usepackage{bm}'
+	})
+
 	datas = [ratio_porabc,ratio_porkbm,ratio_fradim,ratio_numcon]
 	methods = ["por abc","por kbm","fra dim","num con"]
 	errs = [porabc_uncert,porkbm_uncert,fradim_uncert,numcon_uncert]
@@ -139,13 +145,15 @@ def main():
 				ax.errorbar(temps,data[n],yerr=errs[d_i][n],\
 							label="N={}".format(Nums[n]),color=colors[d_i],linestyle=styles[n],zorder=5)
 			ax.set_xlabel('Temp (K)')
-			ax.set_title('Ratio of const/lognorm')
+			# ax.set_title('Ratio of const/lognorm')
 			ax.set_ylabel('Ratio')
 
 			ax.axhline(1)
 			ax.set_xscale('log')
 
-			fig.legend()
+			if d_i == 2:
+				fig.legend(loc='lower right',bbox_to_anchor=(0.97, 0.17))
+			plt.tight_layout()
 			plt.savefig(f"{figure_folder}distComp_{methods[d_i].replace(' ','_')}.png")
 			plt.show()
 			plt.close("all")

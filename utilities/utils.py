@@ -774,16 +774,12 @@ class o3doctree(object):
 						self.show_pcd(pcd,self.verbose)
 				else:
 					pcdverb = 'Making'
-					# radii = np.linspace(self.dm.radius/100,self.dm.radius,100)
-					# accum = [self.dm.ppb*(radius**2/self.dm.radius**2) for radius in radii]
-					# accum = np.array(accum,dtype=int)
-					# accum = np.where(accum < 100, 100, accum)
 					point_cloud = self.dm.gen_whole_pt_cloud()
-					# point_cloud = point_cloud[:sum(accum)]
 					pcd = o3d.geometry.PointCloud()
 					pcd.points = o3d.utility.Vector3dVector(point_cloud)
 					pcd.colors = o3d.utility.Vector3dVector(np.random.uniform(0, 1, size=point_cloud.shape))
-					o3d.io.write_point_cloud(pcd_file, pcd)
+					#Saving the pointcloud doesn't really help
+					# o3d.io.write_point_cloud(pcd_file, pcd)
 					if self.visualize_pcd:
 						self.show_pcd(pcd,self.verbose)
 					# exit(0)
@@ -800,7 +796,8 @@ class o3doctree(object):
 					self.show_octree(octree,self.verbose)
 				octree.convert_from_point_cloud(pcd, size_expand=0.01)
 
-				o3d.io.write_octree(oct_file, octree)
+				#Until the documentation for open3d says what file extension works for octree data, this can't be saved
+				# o3d.io.write_octree(oct_file, octree)
 
 
 			if self.verbose:

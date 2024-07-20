@@ -221,9 +221,9 @@ if __name__ == '__main__':
 	data_prefolder = path + 'jobsOld/tempVarianceRand_attempt'
 	data_prefolder = path + 'jobsCosine/lognorm'
 	data_prefolder = path + 'jobsNovus/const'
+	data_prefolder = path + 'jobsCosine/constMinHmin'
 	data_prefolder = path + 'jobsNovus/const_relax'
 	data_prefolder = path + 'jobsCosine/lognorm_relax'
-	data_prefolder = path + 'jobsCosine/constMinHmin'
 
 	dataset_name = data_prefolder.split("/")[-1]
 
@@ -232,15 +232,15 @@ if __name__ == '__main__':
 	figure_folder = path+'data/figures/'
 
 
-	# temps = [3,10,30,100,300,1000]
-	temps = [100]
+	temps = [3,10,30,100,300,1000]
+	# temps = [100]
 	Nums = [30,100,300]
-	Nums = [300]
+	# Nums = [300]
 	
 	
 	attempts = [i for i in range(30)]
 	# attempts = [i for i in range(2)]
-	attempts = [1]
+	# attempts = [1]
 
 
 
@@ -291,7 +291,7 @@ if __name__ == '__main__':
 	new_data = True
 	#Do you want to save the newly calculated data? 
 	#Only applicable if new_data is True
-	save_data = False
+	save_data = True
 	#Do you want to see plots of the data as they are made?
 	show_plots = True
 	#Do you want to save the plots once they are made?
@@ -541,7 +541,9 @@ if __name__ == '__main__':
 
 		# headers = np.loadtxt(sav,delimiter=',',dtype=str)[0]
 		data = np.loadtxt(sav,delimiter=' ',skiprows=0,dtype=np.float64)
-
+		print(data)
+		print(data.shape)
+		print(porositiesabcavg.shape)
 
 		for i,N in enumerate(Nums):
 			porositiesabcavg[i] = data[i*properties,:]
@@ -715,9 +717,13 @@ if __name__ == '__main__':
 	# 	if show_plots:
 	# 		plt.show()
 	#	plt.close("all")
-
+	plt.rcParams.update({
+	    'font.size': 18,
+	    'text.usetex': True,
+	    'text.latex.preamble': r'\usepackage{amsmath} \usepackage{bm}'
+	})
 	# plot each porosity measure separately
-	plt.rcParams.update({'font.size': 15})
+	# plt.rcParams.update({'font.size': 15})
 	for i,method in enumerate(["Rabc","RKBM","FD","# Contacts","Ang mom","Bulk Density"]):
 		# if Nums[i] == 300:
 		# 	a = attempts300
@@ -725,13 +731,15 @@ if __name__ == '__main__':
 		# 	a = attempts
 		
 		fig,ax = plt.subplots()
-		if i < 2:
-			ax.set_ylabel('Porosity')
+		if i == 0:
+			ax.set_ylabel(r'$\bm{\mathcal{P}_{abc}}$')
+		elif i == 1:
+			ax.set_ylabel(r'$\bm{\mathcal{P}_{KBM}}$')
 		elif i == 2:
 			# ax = ax.twinx()
-			ax.set_ylabel('Avg Fractal Dimension')
+			ax.set_ylabel(r'$\bm{\mathcal{D}_{f}}$')
 		elif i == 3:
-			ax.set_ylabel('Avg # Contacts')
+			ax.set_ylabel(r'$\bm{\mathcal{ANC}}$')
 		elif i == 4:	
 			ax.set_ylabel('Total Angular Momentum')
 		elif i == 5:
@@ -800,15 +808,15 @@ if __name__ == '__main__':
 					label="N={}".format(N),color=colors[i],\
 					linestyle=styles[j],marker='.',markersize=10,zorder=5)
 
-			for k, txt in enumerate(data[3*i+2+properties*j]):
-				ax.annotate("{:0.0f}".format(txt), (temps[k], data[3*i+properties*j][k]))
+			# for k, txt in enumerate(data[3*i+2+properties*j]):
+			# 	ax.annotate("{:0.0f}".format(txt), (temps[k], data[3*i+properties*j][k]))
 
 		bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
 		ax.set_xlabel('Temperature in K')
-		ax.set_title('{} {} vs Temp'.format(dataset_name,method))
+		# ax.set_title('{} {} vs Temp'.format(dataset_name,method))
 		ax.set_xscale('log')
-		if True:
-			fig.legend(loc='upper right',bbox_to_anchor=(0.98, 0.97))
+		if i == 1:
+			fig.legend(loc='upper right',bbox_to_anchor=(0.97, 0.96))
 		plt.tight_layout()
 		if save_plots:
 			plt.savefig("{}{}_{}_avgPlot.png".format(figure_folder,dataset_name,method.replace(" ","")))

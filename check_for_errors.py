@@ -301,6 +301,7 @@ def error0(fullpath,relax=False):
 
 	if os.path.exists(fullpath+"timing.txt") and num_files > 1:
 		has_err = os.path.exists(fullpath+"sim_err.log")
+		print(f"has_err: {has_err}")
 		has_errors = os.path.exists(fullpath+"sim_errors.txt")
 
 		error_file = ''
