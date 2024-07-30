@@ -41,7 +41,7 @@ runAggregation(std::string path, int num_balls);
 void 
 runRelax(std::string path);
 void 
-runCollider(std::string path, std::string projectileName,std::string targetName);
+runCollider(std::string path);
 timey t;
 
 //////////////////////////////////////////////////////////////
@@ -117,12 +117,12 @@ main(int argc, char* argv[])
 
     if (dummy.attrs.typeSim == collider)
     {
-        MPIsafe_print(std::cerr,"COLLIDER NOT IMPLIMENTED\n");
-        MPIsafe_exit(-1);
-        // #ifdef MPI_ENABLE
-        //     MPI_Barrier(MPI_COMM_WORLD);
-        // #endif
-        // runCollider(argv[1],dummy.projectileName,dummy.targetName);
+        // MPIsafe_print(std::cerr,"COLLIDER NOT IMPLIMENTED\n");
+        // MPIsafe_exit(-1);
+        #ifdef MPI_ENABLE
+            MPI_Barrier(MPI_COMM_WORLD);
+        #endif
+        runCollider(argv[1]);
     }
     else if (dummy.attrs.typeSim == BPCA || dummy.attrs.typeSim == BCCA)
     {
@@ -170,10 +170,10 @@ main(int argc, char* argv[])
 //////////////////////////////////////////////////////////////
 
 //Initailizes and carries out Ball_group to collide two preexisting aggregates
-void runCollider(std::string path, std::string projectileName, std::string targetName)
+void runCollider(std::string path)
 {
     // t.start_event("collider");
-    Ball_group O = Ball_group(path,std::string(projectileName),std::string(targetName));
+    Ball_group O = Ball_group(path);
     safetyChecks(O);
     O.sim_init_write();
     O.sim_looper(O.attrs.start_step);

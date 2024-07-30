@@ -331,7 +331,7 @@ public:
     explicit Ball_group(const int nBalls);
     // explicit Ball_group(const std::string& path, const std::string& filename, int start_file_index);
     explicit Ball_group(std::string& path);
-    explicit Ball_group(const std::string& path,const std::string& projectileName,const std::string& targetName,const double& customVel);
+    // explicit Ball_group(const std::string& path,const std::string& projectileName,const std::string& targetName,const double& customVel);
     Ball_group(const Ball_group& rhs);
     Ball_group& operator=(const Ball_group& rhs);
     void parse_input_file(std::string location);
@@ -373,8 +373,9 @@ public:
     void init_data(int counter);
     std::string get_data_info();
     void parse_meta_data(std::string metadata);
-    void relaxInit(std::string path);
-    void aggregationInit(std::string path);
+    void relaxInit(const std::string path);
+    void aggregationInit(const std::string path);
+    void colliderInit(const std::string path);
     std::string find_file_name(std::string path,int index);
     int get_num_threads();
 
@@ -433,6 +434,7 @@ Ball_group::Ball_group(std::string& path)
     }
     else if (attrs.typeSim == collider)
     {
+        colliderInit(path);
         MPIsafe_print(std::cerr,"COLLIDER NOT IMPLIMENTED. NOW EXITING . . .\n");
         MPIsafe_exit(-1);
     }
@@ -452,7 +454,7 @@ Ball_group::Ball_group(std::string& path)
 }
 
 // Initializes relax job (only new, not for restart)
-void Ball_group::relaxInit(std::string path)
+void Ball_group::relaxInit(const std::string path)
 {
     std::string filename = find_file_name(path,attrs.relax_index); 
 
@@ -469,9 +471,18 @@ void Ball_group::relaxInit(std::string path)
 
 }
 
+void Ball_group::colliderInit(const std::string path)
+{
+    parse_input_file(std::string(path));
+    // std::cerr<<path<<std::endl;
+    sim_init_two_cluster(path, attrs.projectileName, attrs.targetName);
+    calc_v_collapse();
+    calibrate_dt(0, attrs.v_custom);
+    simInit_cond_and_center(true);
+}
 
 // Initializes BPCA and BCCA job for restart or new job
-void Ball_group::aggregationInit(std::string path)
+void Ball_group::aggregationInit(const std::string path)
 {
     int restart = check_restart(path);
 
@@ -573,20 +584,20 @@ void Ball_group::aggregationInit(std::string path)
 /// @param projectileName
 /// @param targetName
 /// @param customVel To condition for specific vMax.
-Ball_group::Ball_group(
-    const std::string& path,
-    const std::string& projectileName,
-    const std::string& targetName,
-    const double& customVel=-1.)
-{
-    parse_input_file(std::string(path));
-    // std::cerr<<path<<std::endl;
-    sim_init_two_cluster(path, projectileName, targetName);
-    calc_v_collapse();
-    if (customVel > 0){calibrate_dt(0, customVel);}
-    else {calibrate_dt(0, attrs.v_custom);}
-    simInit_cond_and_center(true);
-}
+// Ball_group::Ball_group(
+//     const std::string& path,
+//     const std::string& projectileName,
+//     const std::string& targetName,
+//     const double& customVel=-1.)
+// {
+//     parse_input_file(std::string(path));
+//     // std::cerr<<path<<std::endl;
+//     sim_init_two_cluster(path, projectileName, targetName);
+//     calc_v_collapse();
+//     if (customVel > 0){calibrate_dt(0, customVel);}
+//     else {calibrate_dt(0, attrs.v_custom);}
+//     simInit_cond_and_center(true);
+// }
 
 Ball_group& Ball_group::operator=(const Ball_group& rhs)
 {

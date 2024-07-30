@@ -48,6 +48,6 @@
     "targetName": "",
     "output_prefix": "default",
     "output_folder": "default",
-    "data_directory": "/home/lucas/Desktop/SpaceLab_data/",
-    "project_directory": "/home/lucas/Desktop/SpaceLab/"
+    "data_directory": "/media/kolanzl/easystore/SpaceLab_data/",
+    "project_directory": "/media/kolanzl/easystore/SpaceLab/"
 }

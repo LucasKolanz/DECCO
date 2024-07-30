@@ -88,12 +88,16 @@
 	"y1Rot": 0, //Cluster two y axis rotation
 	"simTimeElapsed": 0,
 
-	"projectileName": "",
-	"targetName": "",
+	//Note: these fields must be filled in for collider mode 
+	"projectileName": "", //absolute path to the target in collider mode
+	"targetName": "", //absolute path to the projectile in collider mode
+
 	"output_folder": "default", //absolute path to where the output from this sim will go
 	"project_path": "default", //default is wherever SpaceLab lives
 	"output_prefix": "default", //not sure this is necessary as it is automatically set by sim
 
+
+	
 	"data_directory": "/home/lucas/Desktop/SpaceLab_data/", //absolute path to the base directory data will be stored
     "project_directory": "/home/lucas/Desktop/SpaceLab/" //absoluted path to the base directory of the project
 }
