@@ -40,7 +40,7 @@ if __name__ == '__main__':
 		print('compilation failed')
 		exit(-1)
 		
-	job_set_name = "TESTCollider"
+	job_set_name = "videoCollision"
 
 	# folder_name_scheme = "T_"
 
@@ -50,6 +50,9 @@ if __name__ == '__main__':
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	attempts = [0] 
 	folders = []
+
+	MPInodes = 4
+	threads = 10
 	for attempt in attempts:
 
 		#load default input file
@@ -69,8 +72,8 @@ if __name__ == '__main__':
 		# input_json['temp'] = Temp
 		# input_json['N'] = n
 		input_json['output_folder'] = job
-		input_json['OMPthreads'] = 10
-		input_json['MPInodes'] = 1
+		input_json['OMPthreads'] = threads
+		input_json['MPInodes'] = MPInodes
 
 		# input_json['seed'] = rand_int()
 		input_json['seed'] = 100
@@ -79,8 +82,8 @@ if __name__ == '__main__':
 		input_json['dataFormat'] = "csv"
 		input_json['simType'] = "collider"
 
-		input_json['projectileName'] = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax7/N_300/T_3/"
-		input_json['targetNmae'] = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax7/N_300/T_3/"
+		input_json['projectileName'] = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/colliderTP/"
+		input_json['targetNmae'] = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/colliderTP/"
 
 		# input_json['u_s'] = 0.5
 		# input_json['u_r'] = 0.5
@@ -90,37 +93,78 @@ if __name__ == '__main__':
 		with open(job + "input.json",'w') as fp:
 			json.dump(input_json,fp,indent=4)
 
-		#add run script and executable to folders
+		sbatchfile = ""
+		sbatchfile += "#!/bin/bash\n"
+		# sbatchfile += "#SBATCH -A m2651\n"
+		# sbatchfile += "#SBATCH -C gpu\n"
+		# sbatchfile += "#SBATCH -q regular\n"
+		# sbatchfile += "#SBATCH -t 0:10:00\n"
+		sbatchfile += f"#SBATCH -J coll\n"
+		sbatchfile += f"#SBATCH -N {MPInodes}\n"
+		sbatchfile += f"#SBATCH -n {MPInodes}\n"
+		sbatchfile += f"#SBATCH -c {threads}\n\n"
+		# sbatchfile += "#SBATCH -N {}\n".format(1)#(node)
+
+		# sbatchfile += "#SBATCH -G {}\n".format(node)
+		# sbatchfile += 'module load gpu\n'
+
+		sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(threads)
+		sbatchfile += 'export SLURM_CPU_BIND="cores"\n'
+		# sbatchfile += 'module load hdf5/1.14.3\n'
+		sbatchfile += 'module load hdf5/1.10.8\n'
+		
+		# sbatchfile += f"srun -n {node} -c {threads} --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+		sbatchfile += f"srun -n {MPInodes} -c {threads} --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+
+
+		
+		with open(job+"sbatchMulti.bash",'w') as sfp:
+			sfp.write(sbatchfile)
+
+		#add run script and executable to folders 
 		# os.system(f"cp {project_path}default_files/run_sim.py {job}run_sim.py")
 		os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
 		os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
 		os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
 
+		folders.append(job)
+
+print(folders)
+cwd = os.getcwd()
+for folder in folders:
+	os.chdir(folder)
+	os.system('sbatch sbatchMulti.bash')
+os.chdir(cwd)
+
 		# os.system(f"cp /home/lucas/Desktop/SpaceLab_data/test2/N_5/T_3/*data.h5 {job}.")
 		
-		folders.append(job)
+		
 	# print(folders)
 
 
-	print(folders)
 
-	# for i in range(0,len(folders),runs_at_once):
-	# 	with mp.Pool(processes=runs_at_once) as pool:
-	# 		pool.starmap(run_job,inputs[i:i+runs_at_once]) 
+
+
+###############For running locally
+	# print(folders)
+
+	# # for i in range(0,len(folders),runs_at_once):
+	# # 	with mp.Pool(processes=runs_at_once) as pool:
+	# # 		pool.starmap(run_job,inputs[i:i+runs_at_once]) 
 	
-	with mp.Pool(processes=runs_at_once) as pool:
-		for folder in folders:
-			# input_data = inputs[i:i+runs_at_once]
-			pool.apply_async(run_job, (folder,))
+	# with mp.Pool(processes=runs_at_once) as pool:
+	# 	for folder in folders:
+	# 		# input_data = inputs[i:i+runs_at_once]
+	# 		pool.apply_async(run_job, (folder,))
 
-		pool.close()
-		pool.join()
+	# 	pool.close()
+	# 	pool.join()
 
-	print(folders)
-	cwd = os.getcwd()
-	for folder in folders:
-		os.chdir(folder)
-		os.system('qsub qsub.bash')
-	os.chdir(cwd)
+	# print(folders)
+	# cwd = os.getcwd()
+	# for folder in folders:
+	# 	os.chdir(folder)
+	# 	os.system('qsub qsub.bash')
+	# os.chdir(cwd)
 
 	
