@@ -174,9 +174,13 @@ void runCollider(std::string path)
 {
     // t.start_event("collider");
     Ball_group O = Ball_group(path);
+    std::cerr<<"Ball_group initiated"<<std::endl;
     safetyChecks(O);
+    std::cerr<<"safety checked"<<std::endl;
     O.sim_init_write();
+    std::cerr<<"ssim init wrote"<<std::endl;
     O.sim_looper(O.attrs.start_step);
+    std::cerr<<"looper finished"<<std::endl;
     // t.end_event("collider");
     O.freeMemory();
     return;

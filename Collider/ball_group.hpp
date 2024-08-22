@@ -435,8 +435,8 @@ Ball_group::Ball_group(std::string& path)
     else if (attrs.typeSim == collider)
     {
         colliderInit(path);
-        MPIsafe_print(std::cerr,"COLLIDER NOT IMPLIMENTED. NOW EXITING . . .\n");
-        MPIsafe_exit(-1);
+        // MPIsafe_print(std::cerr,"COLLIDER NOT IMPLIMENTED. NOW EXITING . . .\n");
+        // MPIsafe_exit(-1);
     }
     else if (attrs.typeSim == relax)
     {
@@ -2659,7 +2659,6 @@ void Ball_group::sim_init_two_cluster(
     // Load file data:
     std::string message("TWO CLUSTER SIM\nFile 1: " + projectileName + "\tFile 2: " + targetName + '\n');
     MPIsafe_print(std::cerr,message);
-
     // DART PROBE
     // ballGroup projectile(1);
     // projectile.pos[0] = { 8814, 0, 0 };
@@ -2669,11 +2668,15 @@ void Ball_group::sim_init_two_cluster(
     // projectile.m[0] = 560000;
     // projectile.moi[0] = .4 * projectile.m[0] * projectile.R[0] * projectile.R[0];
 
+    std::string projectilePath = projectileName.substr(0,projectileName.find_last_of('/')+1);
+    std::string targetPath = targetName.substr(0,targetName.find_last_of('/')+1);
+    std::string pName = projectileName.substr(projectileName.find_last_of('/')+1,projectileName.length());
+    std::string tName = targetName.substr(targetName.find_last_of('/')+1,targetName.length());
 
     Ball_group projectile;
-    projectile.loadSim(path, projectileName);
+    projectile.loadSim(projectilePath, pName);
     Ball_group target;
-    target.loadSim(path, targetName);
+    target.loadSim(targetPath, tName);
 
     attrs.num_particles = projectile.attrs.num_particles + target.attrs.num_particles;
     
@@ -2684,7 +2687,6 @@ void Ball_group::sim_init_two_cluster(
     // projectile.zeroVel();
     // target.zeroAngVel();
     // target.zeroVel();
-
 
     // Calc info to determined cluster positioning and collisions velocity:
     projectile.updateGPE();
