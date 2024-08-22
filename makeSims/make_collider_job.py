@@ -79,8 +79,8 @@ if __name__ == '__main__':
 		input_json['dataFormat'] = "csv"
 		input_json['simType'] = "collider"
 
-		input_json['projectileName'] = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax7/N_300/T_3/"
-		input_json['targetNmae'] = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax7/N_300/T_3/"
+		input_json['projectileName'] = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax7/N_300/T_3/297_RELAXsimData.csv"
+		input_json['targetName'] = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax7/N_300/T_3/297_RELAXsimData.csv"
 
 		# input_json['u_s'] = 0.5
 		# input_json['u_r'] = 0.5
@@ -116,11 +116,11 @@ if __name__ == '__main__':
 		pool.close()
 		pool.join()
 
-	print(folders)
-	cwd = os.getcwd()
-	for folder in folders:
-		os.chdir(folder)
-		os.system('qsub qsub.bash')
-	os.chdir(cwd)
+	# print(folders)
+	# cwd = os.getcwd()
+	# for folder in folders:
+	# 	os.chdir(folder)
+	# 	os.system('qsub qsub.bash')
+	# os.chdir(cwd)
 
 	
