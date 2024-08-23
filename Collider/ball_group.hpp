@@ -476,9 +476,13 @@ void Ball_group::colliderInit(const std::string path)
     parse_input_file(std::string(path));
     // std::cerr<<path<<std::endl;
     sim_init_two_cluster(path, attrs.projectileName, attrs.targetName);
+    std::cerr<<"HERERER0"<<std::endl;
     calc_v_collapse();
+    std::cerr<<"HERERER1"<<std::endl;
     calibrate_dt(0, attrs.v_custom);
+    std::cerr<<"HERERER2"<<std::endl;
     simInit_cond_and_center(true);
+    std::cerr<<"HERERER3"<<std::endl;
 }
 
 // Initializes BPCA and BCCA job for restart or new job
@@ -1183,6 +1187,7 @@ void Ball_group::offset(const double& rad1, const double& rad2, const double& im
     if (attrs.num_particles > 1) {
         for (size_t i = 0; i < attrs.num_particles; i++) {
             const auto this_radius = (pos[i] - center).norm();
+            std::cerr<<this_radius<<std::endl;
             if (this_radius > radius) radius = this_radius;
         }
     } else {
@@ -2263,7 +2268,8 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename)
 
     std::string message("Balls: " + std::to_string(attrs.num_particles) + '\n' + 
                         "Mass: " + dToSci(attrs.m_total) + '\n' +
-                        "Approximate radius: " + dToSci(attrs.initial_radius) + " cm.\n");
+                        "Approximate radius: " + dToSci(attrs.initial_radius) + " cm.\n" +
+                        "SOC: " + dToSci(attrs.soc) + '\n');
     MPIsafe_print(std::cerr,message);
 }
 
@@ -2657,6 +2663,7 @@ void Ball_group::sim_init_two_cluster(
     const std::string& targetName)
 {
     // Load file data:
+    std::cerr<<targetName<<std::endl;
     std::string message("TWO CLUSTER SIM\nFile 1: " + projectileName + "\tFile 2: " + targetName + '\n');
     MPIsafe_print(std::cerr,message);
     // DART PROBE

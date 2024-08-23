@@ -51,7 +51,7 @@ if __name__ == '__main__':
 	attempts = [0] 
 	folders = []
 
-	MPInodes = 4
+	MPInodes = 1
 	threads = 10
 	for attempt in attempts:
 
@@ -82,8 +82,8 @@ if __name__ == '__main__':
 		input_json['dataFormat'] = "csv"
 		input_json['simType'] = "collider"
 
-		input_json['projectileName'] = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/colliderTP/"
-		input_json['targetNmae'] = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/colliderTP/"
+		input_json['projectileName'] = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/colliderTP/297_RELAXsimData.csv"
+		input_json['targetName'] = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/colliderTP/297_RELAXsimData.csv"
 		# input_json['projectileName'] = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax7/N_300/T_3/297_RELAXsimData.csv"
 		# input_json['targetName'] = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax7/N_300/T_3/297_RELAXsimData.csv"
 
