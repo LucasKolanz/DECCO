@@ -69,8 +69,8 @@ if __name__ == '__main__':
 
 		####################################
 		######Change input values here######
-		# input_json['temp'] = Temp
-		# input_json['N'] = n
+		# input_json['temp'] = 3
+		# input_json['N'] = 5
 		input_json['output_folder'] = job
 		input_json['OMPthreads'] = threads
 		input_json['MPInodes'] = MPInodes
@@ -80,8 +80,11 @@ if __name__ == '__main__':
 		# input_json['radiiDistribution'] = 'logNormal'
 		# input_json['h_min'] = 0.5
 		input_json['dataFormat'] = "csv"
+		# input_json['simType'] = "BPCA"
 		input_json['simType'] = "collider"
 
+		# input_json['projectileName'] = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/colliderTP/297_simData.csv"
+		# input_json['targetName'] = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/colliderTP/297_simData.csv"
 		input_json['projectileName'] = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/colliderTP/297_RELAXsimData.csv"
 		input_json['targetName'] = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/colliderTP/297_RELAXsimData.csv"
 		# input_json['projectileName'] = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax7/N_300/T_3/297_RELAXsimData.csv"

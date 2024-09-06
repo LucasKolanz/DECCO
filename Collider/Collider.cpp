@@ -178,7 +178,7 @@ void runCollider(std::string path)
     safetyChecks(O);
     std::cerr<<"safety checked"<<std::endl;
     O.sim_init_write();
-    std::cerr<<"ssim init wrote"<<std::endl;
+    std::cerr<<"sim init wrote"<<std::endl;
     O.sim_looper(O.attrs.start_step);
     std::cerr<<"looper finished"<<std::endl;
     // t.end_event("collider");
@@ -336,7 +336,7 @@ safetyChecks(Ball_group &O) //Should be ready to call sim_looper
     }
 
     if (O.attrs.v_collapse <= 0) {
-        fprintf(stderr, "\nvCollapse NOT SET for rank %1d\n",getRank());
+        fprintf(stderr, "\nv_collapse NOT SET for rank %1d\n",getRank());
         MPIsafe_exit(EXIT_FAILURE);
     }
 

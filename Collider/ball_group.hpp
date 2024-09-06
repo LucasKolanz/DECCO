@@ -342,12 +342,12 @@ public:
     void pushApart() const;
     void calc_v_collapse();
     [[nodiscard]] double getVelMax();
-    void calc_helpfuls();
+    void calc_helpfuls(const bool includeRadius=true);
     double get_soc();    
     void kick(const vec3& vec) const;
     vec3 calc_momentum(const std::string& of) const;
     void offset(const double& rad1, const double& rad2, const double& impactParam) const;
-    [[nodiscard]] double get_radius(const vec3& center) const;
+    [[nodiscard]] double getRadius(const vec3& center) const;
     void updateGPE();
     void sim_init_write(int counter);
     [[nodiscard]] vec3 getCOM() const;
@@ -363,7 +363,7 @@ public:
     Ball_group BPCA_projectile_init();
     Ball_group BCCA_projectile_init(const bool symmetric);
     Ball_group add_projectile(const simType);
-    void merge_ball_group(const Ball_group& src);
+    void merge_ball_group(const Ball_group& src,const bool includeRadius=true);
     void freeMemory() const;
     std::string find_restart_file_name(std::string path);
     int check_restart(std::string folder);
@@ -473,16 +473,11 @@ void Ball_group::relaxInit(const std::string path)
 
 void Ball_group::colliderInit(const std::string path)
 {
-    parse_input_file(std::string(path));
-    // std::cerr<<path<<std::endl;
+    // parse_input_file(std::string(path));
     sim_init_two_cluster(path, attrs.projectileName, attrs.targetName);
-    std::cerr<<"HERERER0"<<std::endl;
-    calc_v_collapse();
-    std::cerr<<"HERERER1"<<std::endl;
+    calc_v_collapse(); //Move this into sim_init_two_clusters so it is run when aggregates are centered at origin. Use the larger of the two if different
     calibrate_dt(0, attrs.v_custom);
-    std::cerr<<"HERERER2"<<std::endl;
     simInit_cond_and_center(true);
-    std::cerr<<"HERERER3"<<std::endl;
 }
 
 // Initializes BPCA and BCCA job for restart or new job
@@ -1086,6 +1081,10 @@ void Ball_group::calc_v_collapse()
     // Sim fall velocity onto cluster:
     // vCollapse shrinks if a ball escapes but velMax should take over at that point, unless it is
     // ignoring far balls.
+    // std::cerr<<"start calc collapse"<<std::endl;
+    // std::cerr<<"attrs.G: "<<attrs.G<<std::endl;
+    // std::cerr<<"attrs.m_total: "<<attrs.m_total<<std::endl;
+    // std::cerr<<"attrs.initial_radius: "<<attrs.initial_radius<<std::endl;
     double position = 0;
     while (position < attrs.initial_radius) {
         // todo - include vdw!!!
@@ -1093,6 +1092,7 @@ void Ball_group::calc_v_collapse()
         position += attrs.v_collapse * 0.1;
     }
     attrs.v_collapse = fabs(attrs.v_collapse);
+    // std::cerr<<"finish calc collapse"<<std::endl;
 }
 
 /// get max velocity
@@ -1145,13 +1145,13 @@ double Ball_group::get_soc()
     return attrs.soc;
 }
 
-void Ball_group::calc_helpfuls()
+void Ball_group::calc_helpfuls(const bool includeRadius)
 {
     attrs.r_min = getRmin();
     attrs.r_max = getRmax();
     attrs.m_total = getMass();
 
-    attrs.initial_radius = get_radius(getCOM());
+    if (includeRadius) {attrs.initial_radius = getRadius(getCOM());}
     attrs.soc = 4 * attrs.r_max + attrs.initial_radius;
     // soc = -1;
 }   
@@ -1181,13 +1181,12 @@ void Ball_group::offset(const double& rad1, const double& rad2, const double& im
 }
 
 /// Approximate the radius of the ballGroup.
-[[nodiscard]] double Ball_group::get_radius(const vec3& center) const
+[[nodiscard]] double Ball_group::getRadius(const vec3& center) const
 {
     double radius = 0;
     if (attrs.num_particles > 1) {
         for (size_t i = 0; i < attrs.num_particles; i++) {
             const auto this_radius = (pos[i] - center).norm();
-            std::cerr<<this_radius<<std::endl;
             if (this_radius > radius) radius = this_radius;
         }
     } else {
@@ -1434,7 +1433,7 @@ vec3 Ball_group::random_offset(
     vec3 projectile_vel,
     const double projectile_rad)
 {
-    const auto cluster_radius = get_radius(vec3(0, 0, 0));
+    const auto cluster_radius = getRadius(vec3(0, 0, 0));
     bool intersect = false;
     int count = 0;
     vec3 new_position = vec3(0,0,0);
@@ -1467,7 +1466,7 @@ Ball_group Ball_group::BPCA_projectile_init()
 
     // Particle random position at twice radius of target:
     // We want the farthest from origin since we are offsetting form origin. Not com.
-    const auto cluster_radius = get_radius(vec3(0, 0, 0));
+    const auto cluster_radius = getRadius(vec3(0, 0, 0));
 
     const vec3 projectile_direction = rand_unit_vec3();
     projectile.pos[0] = projectile_direction * (cluster_radius + attrs.scaleBalls * 4);
@@ -1544,7 +1543,7 @@ Ball_group Ball_group::BCCA_projectile_init(const bool symmetric=true)
 
     // Particle random position at twice radius of target:
     // We want the farthest from origin since we are offsetting form origin. Not com.
-    const auto cluster_radius = get_radius(vec3(0, 0, 0));
+    const auto cluster_radius = getRadius(vec3(0, 0, 0));
 
     const vec3 projectile_direction = rand_unit_vec3();
 
@@ -1643,7 +1642,7 @@ Ball_group Ball_group::add_projectile(const simType simtype)
 
 /// @brief Add another ballGroup into this one.
 /// @param src The ballGroup to be added.
-void Ball_group::merge_ball_group(const Ball_group& src)
+void Ball_group::merge_ball_group(const Ball_group& src,const bool includeRadius)
 {
     // Copy incoming data to the end of the currently loaded data.
     std::memcpy(
@@ -1683,7 +1682,7 @@ void Ball_group::merge_ball_group(const Ball_group& src)
     // kout=src.kout;
     // data = src.data;
 
-    calc_helpfuls();
+    calc_helpfuls(includeRadius);
 }
 
 /// Allocate balls
@@ -1959,6 +1958,8 @@ void Ball_group::parseSimData(std::string line)
     allocate_group(count);
     std::stringstream chosenLine(line);  // This is the last line of the read file, containing all data
                                          // for all balls at last time step
+    
+
     // Get position and angular velocity data:
     for (int A = 0; A < attrs.num_particles; A++) {
         for (int i = 0; i < 3; i++)  // Position
@@ -2013,9 +2014,9 @@ void Ball_group::loadConsts(const std::string& path, const std::string& filename
 /// Get last line of previous simData by filename.
 [[nodiscard]] std::string Ball_group::getLastLine(const std::string& path, const std::string& filename)
 {
-    std::string simDataFilepath = path + filename + "simData.csv";
 
-    if (auto simDataStream = std::ifstream(simDataFilepath, std::ifstream::in)) {
+
+    if (auto simDataStream = std::ifstream(path+filename, std::ifstream::in)) {
         MPIsafe_print(std::cerr,"\nParsing last line of data.\n");
 
         simDataStream.seekg(-1, std::ios_base::end);  // go to 
@@ -2044,7 +2045,7 @@ void Ball_group::loadConsts(const std::string& path, const std::string& filename
         return line;
     } else {
 
-        std::string message("Could not open simData file: "+simDataFilepath+"... Exiting program.\n");
+        std::string message("Could not open simData file: "+path+filename+"... Exiting program.\n");
         MPIsafe_print(std::cerr,message);
         MPIsafe_exit(EXIT_FAILURE);
         return "ERROR"; //This shouldn't return but not returning anything is giving a warning
@@ -2192,7 +2193,7 @@ void Ball_group::threeSizeSphere(const int nBalls)
 
     std::cerr << "Final spacerange: " << attrs.spaceRange << '\n';
     std::cerr << "m_total: " << attrs.m_total << '\n';
-    std::cerr << "Initial Radius: " << get_radius(getCOM()) << '\n';
+    std::cerr << "Initial Radius: " << getRadius(getCOM()) << '\n';
     std::cerr << "Mass: " << getMass() << '\n';
 }
 
@@ -2219,7 +2220,7 @@ void Ball_group::generate_ball_field(const int nBalls)
     calc_helpfuls();
     // threeSizeSphere(nBalls);
 
-    attrs.output_prefix = std::to_string(nBalls) + "_R" + scientific(get_radius(getCOM())) + "_v" +
+    attrs.output_prefix = std::to_string(nBalls) + "_R" + scientific(getRadius(getCOM())) + "_v" +
                     scientific(attrs.v_custom) + "_cor" + rounder(sqrtf(attrs.cor), 4) + "_mu" + rounder(attrs.u_s, 3) +
                     "_rho" + rounder(attrs.density, 4);
 }
@@ -2234,17 +2235,47 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename)
 
     if (file.substr(file.size()-4,file.size()) == ".csv")
     {
-        //decrease index by 1 so we have most recent finished sim
+
         _pos = file.find_first_of("_");
         size_t _lastpos = file.find_last_of("_");
         
         file_index = stoi(file.substr(0,_pos));
-
-        file = std::to_string(file_index) + file.substr(_pos,_lastpos-(_pos-1));
+        
+        //If this is false, then its the old way of naming
+        if (_pos == _lastpos)
+        {
+            file = filename;
+        }
+        else
+        {
+            file = std::to_string(file_index) + file.substr(_pos,_lastpos-(_pos-1));
+        }
         attrs.start_index = file_index+1;//shouldnt be file_index-1 because that is just the one we read, we will write to the next index
 
-        parseSimData(getLastLine(path, file));
-        loadConsts(path, file);
+        std::string simFile;
+        if (filename.substr(filename.length()-11,filename.length()) != "simData.csv")
+        {
+            simFile = filename + "simData.csv";
+        }
+        else
+        {
+            simFile = filename;
+        }
+
+        std::string constFile = simFile.substr(0,filename.length()-11);
+        // if (filename.substr(filename.length()-11,filename.length()) != "simData.csv")
+        // {
+        //     constFile = filename + "constants.csv";
+        // }
+        // else
+        // {
+        //     constFile = filename.substr(0,filename.length()-11) + "constants.csv";
+        // }
+
+
+
+        parseSimData(getLastLine(path, simFile));
+        loadConsts(path, constFile);
     }
     else if (file.substr(file.size()-3,file.size()) == ".h5")
     {
@@ -2575,7 +2606,7 @@ void Ball_group::placeBalls(const int nBalls)
     }
 
     std::string message("Final spacerange: " + std::to_string(attrs.spaceRange)+'\n' +
-                        "Initial Radius: "+std::to_string(get_radius(getCOM()))+'\n' +
+                        "Initial Radius: "+std::to_string(getRadius(getCOM()))+'\n' +
                         "Mass: "+std::to_string(attrs.m_total)+'\n');
     MPIsafe_print(std::cerr,message);
 }
@@ -2663,7 +2694,6 @@ void Ball_group::sim_init_two_cluster(
     const std::string& targetName)
 {
     // Load file data:
-    std::cerr<<targetName<<std::endl;
     std::string message("TWO CLUSTER SIM\nFile 1: " + projectileName + "\tFile 2: " + targetName + '\n');
     MPIsafe_print(std::cerr,message);
     // DART PROBE
@@ -2681,9 +2711,14 @@ void Ball_group::sim_init_two_cluster(
     std::string tName = targetName.substr(targetName.find_last_of('/')+1,targetName.length());
 
     Ball_group projectile;
+    projectile.parse_input_file(projectilePath);
     projectile.loadSim(projectilePath, pName);
+    projectile.calc_v_collapse();
+
     Ball_group target;
+    target.parse_input_file(targetPath);
     target.loadSim(targetPath, tName);
+    target.calc_v_collapse();
 
     attrs.num_particles = projectile.attrs.num_particles + target.attrs.num_particles;
     
@@ -2735,9 +2770,12 @@ void Ball_group::sim_init_two_cluster(
 
     allocate_group(projectile.attrs.num_particles + target.attrs.num_particles);
 
+    // double new_v_collapse = (projectile.attrs.v_collapse >= target.attrs.v_collapse) ? projectile.attrs.v_collapse : target.attrs.v_collapse;
+
     merge_ball_group(target);
     merge_ball_group(projectile);  // projectile second so smallest ball at end and largest ball at front
                                    // for dt/k calcs.
+    // attrs.v_collapse = new_v_collapse;
 
     attrs.output_prefix = projectileName + targetName + "T" + rounder(attrs.KEfactor, 4) + "_vBig" +
                     scientific(vBig) + "_vSmall" + scientific(vSmall) + "_IP" +
