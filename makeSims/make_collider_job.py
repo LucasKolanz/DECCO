@@ -48,7 +48,7 @@ if __name__ == '__main__':
 
 	runs_at_once = 1
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
-	attempts = [0] 
+	attempts = [1] 
 	folders = []
 
 	MPInodes = 1
@@ -75,9 +75,11 @@ if __name__ == '__main__':
 		input_json['OMPthreads'] = threads
 		input_json['MPInodes'] = MPInodes
 
-		# input_json['seed'] = rand_int()
+		input_json['simTimeSeconds'] = 0.001
+		input_json['timeResolution'] = 2e-4
+
 		input_json['seed'] = 100
-		# input_json['radiiDistribution'] = 'logNormal'
+		input_json['v_custom'] = 5
 		# input_json['h_min'] = 0.5
 		input_json['dataFormat'] = "csv"
 		# input_json['simType'] = "BPCA"

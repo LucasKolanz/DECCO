@@ -811,12 +811,13 @@ void Ball_group::parse_input_file(std::string location)
     
     if (inputs["v_custom"] == std::string("default"))
     {
-        attrs.v_custom = 0.36301555459799423;
+        attrs.v_custom = -1;
     }
     else
     {
         attrs.v_custom = inputs["v_custom"];
     }
+
     attrs.temp = inputs["temp"]; // this will modify v_custom in oneSizeSphere
     double temp_kConst = inputs["kConsts"];
     attrs.kConsts = temp_kConst * (attrs.fourThirdsPiRho / (attrs.maxOverlap * attrs.maxOverlap));
@@ -2735,7 +2736,9 @@ void Ball_group::sim_init_two_cluster(
     target.updateGPE();
 
     projectile.offset(
-        projectile.attrs.initial_radius, target.attrs.initial_radius + target.getRmax() * 2, attrs.impactParameter);
+        (projectile.attrs.initial_radius + target.attrs.initial_radius)*3, 0.0, attrs.impactParameter);
+        //Next line was the original. Testing above line
+        // projectile.attrs.initial_radius, target.attrs.initial_radius + target.getRmax() * 2, attrs.impactParameter);
 
     //      const double PEsys = projectile.PE + target.PE + (-G * projectile.mTotal * target.mTotal /
     //(projectile.getCOM() - target.getCOM()).norm());
