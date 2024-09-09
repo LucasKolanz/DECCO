@@ -5,12 +5,16 @@ from mathutils import *
 from math import *
 import fnmatch
 import os
-import h5py
+
+
+#import h5py
 
 def get_filename(path,fileindex,relax = False):
 	rel = ""
 	if relax:
 		rel = "RELAX"
+		print("RELAX JOB")
+
 		
 	if os.path.exists(path):
 		for file in os.listdir(path):
@@ -152,16 +156,51 @@ path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsNovu
 path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsNovus/const_relax0/N_100/T_1000/'
 
 
-simStart = 97
-simEnd = 97
+#path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm_relax0/N_300/T_3/'
+#path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm_relax0/N_300/T_10/'
+#path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm_relax0/N_300/T_30/'
+#path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm_relax0/N_300/T_100/'
+#path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm_relax0/N_300/T_300/'
+#path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm_relax0/N_300/T_1000/'
+
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsNovus/const_relax1/N_300/T_3/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsNovus/const_relax9/N_300/T_10/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsNovus/const_relax17/N_300/T_30/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsNovus/const_relax5/N_300/T_100/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsNovus/const_relax4/N_300/T_300/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm10/N_300/T_1000/'
+path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsNovus/const10/N_300/T_1000/'
+
+
+#path = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/lognorm_relax2/N_100/T_3/'
+path = '/home/lucas/Desktop/SpaceLab_data/jobs/TEST0/N_5/T_3/'
+path = '/home/lucas/Desktop/SpaceLab_data/jobs/TESTBCCA0/N_5/T_3/'
+
+#path = '/home/kolanzl/Desktop/Visualize/V3/'
+#path = '/home/kolanzl/Desktop/Visualize/V2/'
+#path = '/home/kolanzl/Desktop/Visualize/V5/'
+#path = '/home/kolanzl/Desktop/Visualize/V15/'
+
+path = '/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax15/N_300/T_3/'
+path = '/media/kolanzl/easystore/SpaceLab_data/temp/'
+
+simStart = 297
+simEnd = 297
 
 #csv = False
 #filename = ''  
+just_last_line = False
+rel = False
+job_group_suffix = path.split('/')[-4].split('_')[-1]
+job_group_suffix = [i for i in job_group_suffix if not i.isnumeric()]
+job_group_suffix = "".join(job_group_suffix)
 
-	
+if job_group_suffix == "relax":
+	rel = True
+
 #filename = str(simStart)+"_simData.csv"
 
-simData,constants,numSpheres,steps = get_simData_and_consts(path,simStart,relax=False)
+simData,constants,numSpheres,steps = get_simData_and_consts(path,simStart,relax=rel)
 
 if isinstance(simData,int) and simData == -1:
 	print(f"No data found for folder: {path}")
@@ -193,7 +232,7 @@ for sphere in range(numSpheres):
 for sim in range(simStart,simEnd+1):
 	if frameNum > 1:
 		print(simData.shape)        
-		simData,constants,numSpheres,steps = get_simData_and_consts(path,sim,True)
+		simData,constants,numSpheres,steps = get_simData_and_consts(path,sim,rel)
 #		print(sim)
 #		print(simData.shape)
 #		print(numSpheres)
@@ -202,12 +241,18 @@ for sim in range(simStart,simEnd+1):
 		sphereSet.append(bpy.data.objects.new("Mball." + str(numSpheres),sphereMesh))
 		print(len(sphereSet))
 		sphere += 1
+#		print(f"HERERE: {numSpheres-1}")
 		bpy.context.scene.collection.objects.link(sphereSet[numSpheres-1]) # link the object to the scene collection
 		sphereSet[sphere].scale = (scaleUp*constants[numSpheres-1,0],scaleUp*constants[numSpheres-1,0],scaleUp*constants[numSpheres-1,0])
 		sphereSet[sphere].location = (scaleUp*simData[0][0 + properties*(numSpheres-1)],scaleUp*simData[0][1 + properties*(numSpheres-1)],scaleUp*simData[0][2 + properties*(numSpheres-1)]) 
 		sphereSet[sphere].rotation_mode = "XYZ"
 
-	for step in range(steps):
+	
+	if just_last_line:
+		show_steps = [steps-1]
+	else:
+		show_steps = list(range(steps))
+	for step in show_steps:
 #        print("step: ",step) 
 		if step % steps / 10 == 0:
 			print(str(step/steps*100)+'%')
