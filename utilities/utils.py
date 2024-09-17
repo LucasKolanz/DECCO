@@ -1,3 +1,7 @@
+#TODO: move the getting data stuff into the other python helper file and keep this one for calculations
+#	   and such
+
+
 import numpy as np
 import random
 from scipy.spatial.transform import Rotation as R
@@ -347,6 +351,16 @@ def format_vel(data):
 	data = np.reshape(data,(int(data.size/data_columns),data_columns))
 	data = data[:,7:10] #vel is after 3x pos, 3x w, 1x w mag, and is 3 long
 	return data
+
+def calcCOM(pos,mass):
+	com = np.array([0,0,0],dtype=np.float64)
+	mtot = 0
+
+	for ball in range(pos.shape[0]):
+		com += mass[ball]*pos[ball]
+		mtot += mass[ball]
+
+	return com/mtot
 
 def COM(data_folder,data_index=-1,relax=False):
 	data = get_last_line_data(data_folder,data_index,relax=relax)

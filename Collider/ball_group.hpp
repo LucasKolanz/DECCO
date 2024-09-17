@@ -392,7 +392,8 @@ private:
     void init_conditions();
     [[nodiscard]] double getRmin();
     [[nodiscard]] double getRmax();
-    [[nodiscard]] double getMassMax() const;
+    [[nodiscard]] double getMmin() const;
+    [[nodiscard]] double getMmax() const;
     void parseSimData(std::string line);
     void loadConsts(const std::string& path, const std::string& filename);
     [[nodiscard]] static std::string getLastLine(const std::string& path, const std::string& filename);
@@ -465,6 +466,8 @@ void Ball_group::relaxInit(const std::string path)
     calc_v_collapse(); 
     if (attrs.dt < 0)
     {
+        // if (attrs.v_custom < 0.36){calibrate_dt(0, 0.36);} //This value of 0.36 seems to work well, but a better approximation would be beneficial
+        // else {calibrate_dt(0, attrs.v_custom);}
         calibrate_dt(0, attrs.v_custom);
     }
     simInit_cond_and_center(false);
@@ -954,13 +957,15 @@ void Ball_group::calibrate_dt(int const Step, const double& customSpeed = -1.)
         message += '\n';
 
         // Take whichever velocity is greatest:
-        message += std::to_string(attrs.v_collapse) + " = vCollapse | vMax = " + std::to_string(attrs.v_max);
+        message += dToSci(attrs.v_collapse) + " = vCollapse | vMax = " + dToSci(attrs.v_max);
         if (attrs.v_max < attrs.v_collapse) { attrs.v_max = attrs.v_collapse; }
+
+        // if (attrs.v_max < 1.0) { attrs.v_max = 1.0; }
 
         if (attrs.v_max < attrs.v_max_prev) {
             updateDTK(attrs.v_max);
             attrs.v_max_prev = attrs.v_max;
-            message += "\nk: " + std::to_string(attrs.kin) + "\tdt: " + std::to_string(attrs.dt) + '\n';
+            message += "\nk: " + dToSci(attrs.kin) + "\tdt: " + dToSci(attrs.dt) + '\n';
         }
     }
     MPIsafe_print(std::cerr,message);
@@ -1077,23 +1082,46 @@ void Ball_group::pushApart() const
     delete[] counter;
 }
 
+
+
 void Ball_group::calc_v_collapse()
 {
     // Sim fall velocity onto cluster:
     // vCollapse shrinks if a ball escapes but velMax should take over at that point, unless it is
     // ignoring far balls.
-    // std::cerr<<"start calc collapse"<<std::endl;
-    // std::cerr<<"attrs.G: "<<attrs.G<<std::endl;
-    // std::cerr<<"attrs.m_total: "<<attrs.m_total<<std::endl;
-    // std::cerr<<"attrs.initial_radius: "<<attrs.initial_radius<<std::endl;
+
+    double twoRminh;
+    double twoRmaxh;
+    double vdwforce;
+    double distance,distance2;
+    double m_min = getMmin();
+
     double position = 0;
-    while (position < attrs.initial_radius) {
+    // while (position < attrs.initial_radius) {
+    while (position < attrs.initial_radius-attrs.h_min) {
         // todo - include vdw!!!
-        attrs.v_collapse += attrs.G * attrs.m_total / (attrs.initial_radius * attrs.initial_radius) * 0.1;
+
+        //This is like the smallest ball falling into the largest ball due only to vdw force
+        //starting at initial_radius to h_min
+        distance = attrs.initial_radius-attrs.h_min-position;
+        distance2 = distance*distance;
+        twoRminh = 2 * attrs.r_min * distance;
+        twoRmaxh = 2 * attrs.r_max * distance;
+        vdwforce = attrs.Ha / 6 * 64 * attrs.r_max * attrs.r_max * attrs.r_max * attrs.r_min * attrs.r_min * attrs.r_min *
+                                 ((attrs.h_min + attrs.r_max + attrs.r_min) / ((distance2 + twoRmaxh + twoRminh) * (distance2 + twoRmaxh + twoRminh) *
+                                                             ((distance2 + twoRmaxh + twoRminh) + 4 * attrs.r_max * attrs.r_min) *
+                                                             ((distance2 + twoRmaxh + twoRminh) + 4 * attrs.r_max * attrs.r_min)));
+        attrs.v_collapse += vdwforce/m_min * 0.1;
+
+
+        //v_collapse due to gravity
+        //Why is the radius always initial_radius and not initial_radius - position?
+        // attrs.v_collapse += attrs.G * attrs.m_total / (attrs.initial_radius * attrs.initial_radius) * 0.1;
+        
         position += attrs.v_collapse * 0.1;
     }
     attrs.v_collapse = fabs(attrs.v_collapse);
-    // std::cerr<<"finish calc collapse"<<std::endl;
+    // std::cerr<<"finish calc collapse: "<<attrs.v_collapse<<std::endl;
 }
 
 /// get max velocity
@@ -1119,7 +1147,7 @@ void Ball_group::calc_v_collapse()
             // }
         }
 
-        MPIsafe_print(std::cerr,'(' + std::to_string(counter) + " spheres ignored"+ ") ");
+        MPIsafe_print(std::cerr,'(' + std::to_string(counter) + " spheres ignored"+ ") \n");
     } else {
         for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
 
@@ -1934,15 +1962,26 @@ void Ball_group::init_conditions()
     return attrs.r_max;
 }
 
-
-[[nodiscard]] double Ball_group::getMassMax() const
+[[nodiscard]] double Ball_group::getMmin() const
 {
-    double mMax = m[0];
-    for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
-        if (m[Ball] > mMax) { mMax = m[Ball]; }
+    double m_min = m[0];
+    for (int Ball = 1; Ball < attrs.num_particles; Ball++) {
+        if (m[Ball] < m_min) { m_min = m[Ball]; }
     }
-    return mMax;
+    return m_min;
 }
+
+[[nodiscard]] double Ball_group::getMmax() const
+{
+    double m_max = m[0];
+    for (int Ball = 1; Ball < attrs.num_particles; Ball++) {
+        if (m[Ball] > m_max) { m_max = m[Ball]; }
+    }
+    return m_max;
+}
+
+
+
 
 
 void Ball_group::parseSimData(std::string line)
@@ -2617,15 +2656,34 @@ void Ball_group::placeBalls(const int nBalls)
 
 void Ball_group::updateDTK(const double& velocity)
 {
+    std::string initMessage = "Setting dt and k based on a velocity of "+dToSci(velocity)+" cm/s\n";
+    MPIsafe_print(std::cerr,initMessage);
     calc_helpfuls();
     attrs.kin = attrs.kConsts * attrs.r_max * velocity * velocity;
     attrs.kout = attrs.cor * attrs.kin;
     const double h2 = attrs.h_min * attrs.h_min;
-    const double four_R_min = 4 * attrs.r_min * attrs.h_min;
-    const double vdw_force_max = attrs.Ha / 6 * 64 * attrs.r_min * attrs.r_min * attrs.r_min * attrs.r_min * attrs.r_min * attrs.r_min *
-                                 ((attrs.h_min + attrs.r_min + attrs.r_min) / ((h2 + four_R_min) * (h2 + four_R_min) *
-                                                             (h2 + four_R_min + 4 * attrs.r_min * attrs.r_min) *
-                                                             (h2 + four_R_min + 4 * attrs.r_min * attrs.r_min)));
+    // const double four_R_min = 4 * attrs.r_min * attrs.h_min;
+    // const double vdw_force_max = attrs.Ha / 6 * 64 * attrs.r_min * attrs.r_min * attrs.r_min * attrs.r_min * attrs.r_min * attrs.r_min *
+    //                              ((attrs.h_min + attrs.r_min + attrs.r_min) / ((h2 + four_R_min) * (h2 + four_R_min) *
+    //                                                          (h2 + four_R_min + 4 * attrs.r_min * attrs.r_min) *
+    //                                                          (h2 + four_R_min + 4 * attrs.r_min * attrs.r_min)));
+
+    const double twoRminh = 2 * attrs.r_min * attrs.h_min;
+    const double twoRmaxh = 2 * attrs.r_max * attrs.h_min;
+    const double vdw_force_max = attrs.Ha / 6 * 64 * attrs.r_max * attrs.r_max * attrs.r_max * attrs.r_min * attrs.r_min * attrs.r_min *
+                                 ((attrs.h_min + attrs.r_max + attrs.r_min) / ((h2 + twoRmaxh + twoRminh) * (h2 + twoRmaxh + twoRminh) *
+                                                             ((h2 + twoRmaxh + twoRminh) + 4 * attrs.r_max * attrs.r_min) *
+                                                             ((h2 + twoRmaxh + twoRminh) + 4 * attrs.r_max * attrs.r_min)));
+
+    // const double four_R_max = 4 * attrs.r_max * attrs.h_min;
+    // const double vdw_force_max2 = attrs.Ha / 6 * 64 * attrs.r_max * attrs.r_max * attrs.r_max * attrs.r_max * attrs.r_max * attrs.r_max *
+    //                              ((attrs.h_min + attrs.r_max + attrs.r_max) / ((h2 + four_R_max) * (h2 + four_R_max) *
+    //                                                          (h2 + four_R_max + 4 * attrs.r_max * attrs.r_max) *
+    //                                                          (h2 + four_R_max + 4 * attrs.r_max * attrs.r_max)));
+    // std::cerr<<"vdw: "<<vdw_force_max/getMmin()<<std::endl;
+    // std::cerr<<"vdw1: "<<vdw_force_max1/getMmin()<<std::endl;
+    // std::cerr<<"vdw2: "<<vdw_force_max2/getMmax()<<std::endl;
+
     // todo is it rmin*rmin or rmin*rmax
     const double elastic_force_max = attrs.kin * attrs.maxOverlap * attrs.r_min;
     const double regime = (vdw_force_max > elastic_force_max) ? vdw_force_max : elastic_force_max;
@@ -2660,7 +2718,7 @@ void Ball_group::simInit_cond_and_center(bool add_prefix)
 {
     std::string message("==================\ndt: "
                         + dToSci(attrs.dt) + '\n'
-                        + "k : " + std::to_string(attrs.kin) + '\n'
+                        + "k : " + dToSci(attrs.kin) + '\n'
                         + "Skip: " + std::to_string(attrs.skip) + '\n'
                         + "Steps: " + std::to_string(attrs.steps) + '\n'
                         + "==================\n");

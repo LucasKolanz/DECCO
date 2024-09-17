@@ -110,14 +110,15 @@ def main():
 	curr_folder = os.getcwd() + '/'
 
 	job_folder = 'jobsNovus/'##FOR RUNNING ON LOCAL TESTING NOVUS JOBS
-	job_folder = 'jobsCosine/'##FOR RUNNING ON LOCAL TESTING COSINE JOBS
 	job_folder = 'jobs/'###FOR RUNNIN ON COSINE/NOVUS
+	job_folder = 'jobsCosine/'##FOR RUNNING ON LOCAL TESTING COSINE JOBS
 	move_job_folder = 'erroredJobs/' ##either way move here
 
 	job = input_json["data_directory"] + job_folder + 'constant$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + job_folder + 'constant_relax$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + job_folder + 'lognorm_relax$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + job_folder + 'lognorm$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + job_folder + 'lognorm_relax$a$/N_$n$/T_$t$/'
+	print(job)
 	# move_folder = curr_folder + 'erroredJobs/lognorm$a$/N_$n$/T_$t$/'
 
 	relax = False
@@ -134,15 +135,19 @@ def main():
 	# Temps = [3]
 	# print(job.split('/')[-4].strip("$a$"))
 	# print(job)
+
+	error_folders = []
+
 	# if job_folder == "jobsCosine/":
-	if job.split('/')[-4].strip("$a$") == "lognorm":
-		# error_folders = cfe.check_error(job,cfe.errorn1,N,Temps,attempts)
-		error_folders = cfe.check_error(job,cfe.error5,N,Temps,attempts,relax=relax)
-		# error_folders.extend(cfe.check_error(job,cfe.error0,N,Temps,attempts))
-		# error_folders.extend(cfe.check_error(job,cfe.error1,N,Temps,attempts))
-		# error_folders.extend(cfe.check_error(job,cfe.error2,N,Temps,attempts))
-		# error_folders.extend(cfe.check_error(job,cfe.error3,N,Temps,attempts))
-		# error_folders.extend(cfe.check_error(job,cfe.error4,N,Temps,attempts))
+	if job.split('/')[-4].strip("$a$") == "lognorm" or job.split('/')[-4].strip("$a$") == "lognorm_relax":
+		# error_folders = cfe.check_error(job,cfe.errorn1,N,Temps,attempts,relax)
+		# error_folders.extend(cfe.check_error(job,cfe.error0,N,Temps,attempts,relax))
+		# error_folders.extend(cfe.check_error(job,cfe.error1,N,Temps,attempts,relax))
+		# error_folders.extend(cfe.check_error(job,cfe.error2,N,Temps,attempts,relax))
+		# error_folders.extend(cfe.check_error(job,cfe.error3,N,Temps,attempts,relax))
+		# error_folders.extend(cfe.check_error(job,cfe.error4,N,Temps,attempts,relax))
+		error_folders.extend(cfe.check_error(job,cfe.error5,N,Temps,attempts,relax=relax))
+		# error_folders.extend(cfe.check_error(job,cfe.error6,N,Temps,attempts,relax=relax))
 		error_folders = list(set(error_folders))
 		# print(error_folders)
 
@@ -160,7 +165,7 @@ def main():
 		print("check job_folder in restart_error_jobs.py")
 
 	for folder in error_folders:
-		# print(folder)
+		print(folder)
 
 		restart_job(folder,test=True,move_folder=folder.replace(job_folder,move_job_folder)) #if move_folder is specified it will move the errored jobs
 		# restart_job(folder,test=False,move_folder='') #keep move_folder empty if Deleting and restarting jobs

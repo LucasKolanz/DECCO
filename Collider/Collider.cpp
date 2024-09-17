@@ -95,7 +95,7 @@ main(int argc, char* argv[])
     dummy.parse_input_file(location);
 
     //verify OpenMP threads
-    std::cerr<<"Max of "<<omp_get_max_threads()<<" threads on rank "<<world_rank<<".\n";
+    std::cerr<<"Max possible threads on rank "<<world_rank<<": "<<omp_get_max_threads()<<".\n";
 
 
     std::string radiiDist;
