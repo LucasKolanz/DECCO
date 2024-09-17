@@ -48,11 +48,14 @@ if __name__ == '__main__':
 
 	runs_at_once = 1
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
-	attempts = [2] 
+	attempts = [6] 
 	folders = []
 
-	MPInodes = 1
-	threads = 10
+	totalNodes = 1
+	MPITasksPerNode = 2
+	totalMPITasks = totalNodes*MPITasksPerNode
+	threadsPerTask = 24
+	# threadsPerTask = 48
 	for attempt in attempts:
 
 		#load default input file
@@ -72,14 +75,17 @@ if __name__ == '__main__':
 		# input_json['temp'] = 3
 		# input_json['N'] = 5
 		input_json['output_folder'] = job
-		input_json['OMPthreads'] = threads
-		input_json['MPInodes'] = MPInodes
+		input_json['OMPthreads'] = threadsPerTask
+		input_json['MPInodes'] = totalMPITasks
 
-		input_json['simTimeSeconds'] = 0.0001
-		input_json['timeResolution'] = 2e-4
+		# input_json['simTimeSeconds'] = 0.001  
+		# input_json['timeResolution'] = 1e-5
+
+		input_json['simTimeSeconds'] = 0.001
+		input_json['timeResolution'] = (1e-5)/5.0
 
 		input_json['seed'] = 100
-		input_json['v_custom'] = 5
+		input_json['v_custom'] = 100
 		# input_json['h_min'] = 0.5
 		input_json['dataFormat'] = "csv"
 		# input_json['simType'] = "BPCA"
@@ -89,8 +95,12 @@ if __name__ == '__main__':
 		# input_json['targetName'] = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/colliderTP/297_simData.csv"
 		input_json['projectileName'] = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/colliderTP/297_RELAXsimData.csv"
 		input_json['targetName'] = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/colliderTP/297_RELAXsimData.csv"
-		# input_json['projectileName'] = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax7/N_300/T_3/297_RELAXsimData.csv"
+		# # input_json['projectileName'] = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax7/N_300/T_3/297_RELAXsimData.csv"
 		# input_json['targetName'] = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax7/N_300/T_3/297_RELAXsimData.csv"
+
+		# input_json['projectileName'] = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/colliderTP1/27_RELAXsimData.csv"
+		# input_json['targetName'] = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/colliderTP1/27_RELAXsimData.csv"
+		
 
 		# input_json['u_s'] = 0.5
 		# input_json['u_r'] = 0.5
@@ -106,22 +116,30 @@ if __name__ == '__main__':
 		# sbatchfile += "#SBATCH -C gpu\n"
 		# sbatchfile += "#SBATCH -q regular\n"
 		# sbatchfile += "#SBATCH -t 0:10:00\n"
+		# sbatchfile += f'#SBATCH --partition=dri.q\n'
 		sbatchfile += f"#SBATCH -J coll\n"
-		sbatchfile += f"#SBATCH -N {MPInodes}\n"
-		sbatchfile += f"#SBATCH -n {MPInodes}\n"
-		sbatchfile += f"#SBATCH -c {threads}\n\n"
+		sbatchfile += f"#SBATCH --nodes {totalNodes}\n"
+		sbatchfile += f"#SBATCH --ntasks-per-node {totalMPITasks}\n"
+		sbatchfile += f"#SBATCH --cpus-per-task {threadsPerTask}\n\n"
 		# sbatchfile += "#SBATCH -N {}\n".format(1)#(node)
 
 		# sbatchfile += "#SBATCH -G {}\n".format(node)
 		# sbatchfile += 'module load gpu\n'
 
-		sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(threads)
-		sbatchfile += 'export SLURM_CPU_BIND="cores"\n'
+		sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(threadsPerTask)
+		# sbatchfile += 'export SLURM_CPU_BIND="socket"\n'
 		# sbatchfile += 'module load hdf5/1.14.3\n'
-		sbatchfile += 'module load hdf5/1.10.8\n'
+		# sbatchfile += 'module load hdf5/1.10.8\n'
+		sbatchfile += 'module load gnu12/12.3.0\n'
+		sbatchfile += 'module load openmpi4/4.1.6\n'
+		# sbatchfile += 'module swap openmpi4/4.1.6 mpich\n'
+
 		
 		# sbatchfile += f"srun -n {node} -c {threads} --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
-		sbatchfile += f"srun -n {MPInodes} -c {threads} --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+		# sbatchfile += f"srun --ntasks-per-node={MPITasksPerNode} --cpus-per-task={threadsPerTask} --cpu-bind=socket numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+		# sbatchfile += f"mpirun --bind-to socket --map-by node numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+		# sbatchfile += f"mpirun -n {totalMPITasks} numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+		sbatchfile += f"mpirun -n {totalMPITasks} {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 
 
 		

@@ -2,6 +2,7 @@ import os
 import json
 import multiprocessing as mp
 import subprocess
+import numpy as np
 
 relative_path = "../"
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
@@ -71,9 +72,10 @@ if __name__ == '__main__':
 	# # 		for Temp in Temps:
 
 	runvals = [[9,300,3],[26,100,1000],[22,300,3],[23,300,3],[24,300,3],[26,300,3],[29,300,3],[22,300,10],[23,300,10],[24,300,10],[25,300,10],[26,300,10],[24,300,30],[25,300,30],[4,300,1000]]
-	print(len(runvals))
-	exit(0)
-	for i in range(len(runvals)):
+	runvals = np.array(runvals)
+	# print(runvals.shape)
+	# exit(0)
+	for i in range(runvals.shape[0]):
 		attempt = runvals[i,0]
 		n = runvals[i,1]
 		Temp = runvals[i,2]
@@ -160,7 +162,6 @@ if __name__ == '__main__':
 				
 				with open(job+"sbatch.bash",'w') as sfp:
 					sfp.write(sbatchfile)
-
 
 
 				#add run script and executable to folders

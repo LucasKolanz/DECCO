@@ -50,6 +50,7 @@ if __name__ == '__main__':
 
 	job_set_name = "lognorm_relax"
 	job_group = "jobsCosine"
+
 	
 	rsize = job_set_name.split("_")[0]
 
@@ -120,6 +121,7 @@ if __name__ == '__main__':
 						
 						os.system(f"cp {copyjob}{n-3}* {job}.")
 						# os.system(f"cp {copyjob}input.json {job}.")
+
 
 
 						#add run script and executable to folders

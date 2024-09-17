@@ -70,6 +70,10 @@ main(int argc, char* argv[])
         t.start_event("WholeThing");
         std::cerr<<"=========================================Start Simulation========================================="<<std::endl;
     }
+    #ifdef MPI_ENABLE
+        MPI_Barrier(MPI_COMM_WORLD);
+    #endif
+
     //Verify we have all the nodes we asked for
     fprintf(
         stderr,
@@ -95,8 +99,14 @@ main(int argc, char* argv[])
     dummy.parse_input_file(location);
 
     //verify OpenMP threads
+    #ifdef MPI_ENABLE
+        MPI_Barrier(MPI_COMM_WORLD);
+    #endif
     std::cerr<<"Max of "<<omp_get_max_threads()<<" threads on rank "<<world_rank<<".\n";
-
+    std::cerr<<std::flush;
+    #ifdef MPI_ENABLE
+        MPI_Barrier(MPI_COMM_WORLD);
+    #endif
 
     std::string radiiDist;
     if (dummy.attrs.radiiDistribution == logNorm)
@@ -174,13 +184,13 @@ void runCollider(std::string path)
 {
     // t.start_event("collider");
     Ball_group O = Ball_group(path);
-    std::cerr<<"Ball_group initiated"<<std::endl;
+    // std::cerr<<"Ball_group initiated"<<std::endl;
     safetyChecks(O);
-    std::cerr<<"safety checked"<<std::endl;
+    // std::cerr<<"safety checked"<<std::endl;
     O.sim_init_write();
-    std::cerr<<"sim init wrote"<<std::endl;
+    // std::cerr<<"sim init wrote"<<std::endl;
     O.sim_looper(O.attrs.start_step);
-    std::cerr<<"looper finished"<<std::endl;
+    // std::cerr<<"looper finished"<<std::endl;
     // t.end_event("collider");
     O.freeMemory();
     return;

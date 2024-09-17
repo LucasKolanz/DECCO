@@ -1238,7 +1238,7 @@ std::string Ball_group::get_data_info()
 
 void Ball_group::sim_init_write(int counter=0)
 {
-    std::cerr<<"Sim init write for index: "<<counter<<std::endl;
+    MPIsafe_print(std::cerr,"Sim init write for index: " + std::to_string(counter));
     init_data(counter);
 
     // if (counter > 0) { filename.insert(0, std::to_string(counter) + '_'); }
@@ -1694,7 +1694,8 @@ void Ball_group::allocate_group(const int nBalls)
     try {
         distances = new double[(attrs.num_particles * attrs.num_particles / 2) - (attrs.num_particles / 2)];
 
-        #ifdef MPI_ENABLE
+        // #ifdef MPI_ENABLE
+        #ifdef GPU_ENABLE
             accsq = new vec3[attrs.num_particles*attrs.num_particles];
             aaccsq = new vec3[attrs.num_particles*attrs.num_particles];
         #endif
