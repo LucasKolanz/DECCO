@@ -26,7 +26,7 @@ folder have the error. This function should then be added to the for loop at the
 #
 #Error 4: integer overflow in number of steps
 #
-#Error 5: Are any balls within a few radii of the center of mass? If not, balls might not be contacting the growing aggregate
+#Error 5: Are any balls not within a few radii of the center of mass? If not, balls might not be contacting the growing aggregate
 #
 #Error 6: Are any balls not touching the aggregate at the end? (Only applicable to BPCA growth as an error)
 #			It seems to be possible for a ball to not be touching at the moment of the end of the simulation, but still
@@ -597,9 +597,11 @@ def main():
 		input_json = json.load(fp)
 
 
-	job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + 'jobs/lognorm$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
+
+	print(f'data from: {job}')
 	
 
 	attempts = [i for i in range(30)]
@@ -614,16 +616,16 @@ def main():
 	errorDic = {}
 
 	relax = False
-
 	if job.split("/")[-4].split("_")[-1].strip("$a$") == "relax":
 		relax = True
 
 
 
-	# for i,error in enumerate([error7]):
+	# for i,error in enumerate([error5,error6]):
 	for i,error in enumerate([errorn1,error0,error1,error2,error3,error4,error5,error6,error7]):
 		print(f"======================================{error.__name__}======================================")
 		error_folders = check_error(job,error,N,Temps,attempts,relax=relax)
+		print(error_folders)
 		for folder in error_folders:
 			if folder in errorDic.keys():
 				errorDic[folder].append(i)

@@ -58,10 +58,11 @@ if __name__ == '__main__':
 
 
 	runs_at_once = 12
+	# runs_at_once = 1
 	attempts = [i for i in range(30)] 
-	# attempts = [18] 
+	# attempts = [26] 
 	N = [30,100,300]
-	# N = [30]
+	# N = [100]
 	Temps = [3,10,30,100,300,1000]
 	# Temps = [1000]
 	folders = []
@@ -138,6 +139,7 @@ if __name__ == '__main__':
 
 
 	print(folders)
+	print(len(folders))
 
 	# for i in range(0,len(folders),runs_at_once):
 	# 	with mp.Pool(processes=runs_at_once) as pool:

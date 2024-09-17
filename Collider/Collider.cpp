@@ -102,11 +102,12 @@ main(int argc, char* argv[])
     #ifdef MPI_ENABLE
         MPI_Barrier(MPI_COMM_WORLD);
     #endif
-    std::cerr<<"Max of "<<omp_get_max_threads()<<" threads on rank "<<world_rank<<".\n";
+    std::cerr<<"Max possible threads on rank "<<world_rank<<": "<<omp_get_max_threads()<<".\n";
     std::cerr<<std::flush;
     #ifdef MPI_ENABLE
         MPI_Barrier(MPI_COMM_WORLD);
     #endif
+
 
     std::string radiiDist;
     if (dummy.attrs.radiiDistribution == logNorm)

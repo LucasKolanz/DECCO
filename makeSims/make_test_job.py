@@ -20,12 +20,12 @@ if __name__ == '__main__':
 		print('compilation failed')
 		exit(-1)
 		
-	job_set_name = "accuracyTest"
+	job_set_name = "vdwForcetest"
 	# folder_name_scheme = "T_"
 
 	runs_at_once = 1
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
-	attempts = [8] 
+	attempts = [0] 
 	N = [10]
 	Temps = [100]
 	folders = []
@@ -52,6 +52,7 @@ if __name__ == '__main__':
 				input_json['seed'] = 101
 				input_json['radiiDistribution'] = 'constant'
 				# input_json['kConsts'] = 3e3
+				input_json['relaxIndex'] = n-3
 				input_json['h_min'] = 0.5
 				# input_json['u_s'] = 0.5
 				# input_json['u_r'] = 0.5
