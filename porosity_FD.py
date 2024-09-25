@@ -288,7 +288,7 @@ if __name__ == '__main__':
 
 	#Is there new data to calculate? -> set to True
 	#Use the data that is already saved? -> set to False
-	new_data = True
+	new_data = False
 	#Do you want to save the newly calculated data? 
 	#Only applicable if new_data is True
 	save_data = True
@@ -308,6 +308,10 @@ if __name__ == '__main__':
 	#Useful for testing if two versions of the code give the similar enough output
 	find_stats = False
 	show_stat_plots = False
+
+	#Do you want the number of runs next to each point on the plots
+	#so you know how many more runs need to finish
+	include_totals = True
 
 		# pass
 
@@ -808,8 +812,9 @@ if __name__ == '__main__':
 					label="N={}".format(N),color=colors[i],\
 					linestyle=styles[j],marker='.',markersize=10,zorder=5)
 
-			# for k, txt in enumerate(data[3*i+2+properties*j]):
-			# 	ax.annotate("{:0.0f}".format(txt), (temps[k], data[3*i+properties*j][k]))
+			if include_totals:
+				for k, txt in enumerate(data[3*i+2+properties*j]):
+					ax.annotate("{:0.0f}".format(txt), (temps[k], data[3*i+properties*j][k]))
 
 		bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
 		ax.set_xlabel('Temperature in K')
