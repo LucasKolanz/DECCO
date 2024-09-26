@@ -330,7 +330,7 @@ public:
 
     explicit Ball_group(const int nBalls);
     // explicit Ball_group(const std::string& path, const std::string& filename, int start_file_index);
-    explicit Ball_group(std::string& path);
+    explicit Ball_group(std::string& path,const bool deletePartialFiles);
     // explicit Ball_group(const std::string& path,const std::string& projectileName,const std::string& targetName,const double& customVel);
     Ball_group(const Ball_group& rhs);
     Ball_group& operator=(const Ball_group& rhs);
@@ -366,7 +366,7 @@ public:
     Ball_group add_projectile(const simType);
     void merge_ball_group(const Ball_group& src,const bool includeRadius=true);
     void freeMemory() const;
-    std::string find_restart_file_name(std::string path);
+    std::string find_restart_file_name(std::string path,const bool deletePartialFiles);
     int check_restart(std::string folder);
     #ifdef HDF5_ENABLE
         void loadDatafromH5(std::string path, std::string file);
@@ -375,7 +375,7 @@ public:
     std::string get_data_info();
     void parse_meta_data(std::string metadata);
     void relaxInit(const std::string path);
-    void aggregationInit(const std::string path);
+    void aggregationInit(const std::string path,const bool deletePartialFiles);
     void colliderInit(const std::string path);
     std::string find_file_name(std::string path,int index);
     int get_num_threads();
@@ -396,6 +396,7 @@ private:
     [[nodiscard]] double getMmin() const;
     [[nodiscard]] double getMmax() const;
     void parseSimData(std::string line);
+    std::string get_rand_projectile_file(std::string folder);
     void loadConsts(const std::string& path, const std::string& filename);
     [[nodiscard]] static std::string getLastLine(const std::string& path, const std::string& filename);
     // void simDataWrite(std::string& outFilename);
@@ -426,13 +427,13 @@ Ball_group::Ball_group(const int nBalls)
 
 /// @brief For generating a new ballGroup of any simTypes
 /// @param path is a path to the job folder
-Ball_group::Ball_group(std::string& path)
+Ball_group::Ball_group(std::string& path, const bool deletePartialFiles=true)
 {
     parse_input_file(path);
 
     if (attrs.typeSim == BPCA || attrs.typeSim == BCCA)
     {
-        aggregationInit(path);
+        aggregationInit(path,deletePartialFiles);
     }
     else if (attrs.typeSim == collider)
     {
@@ -534,9 +535,10 @@ void Ball_group::colliderInit(const std::string path)
 }
 
 // Initializes BPCA and BCCA job for restart or new job
-void Ball_group::aggregationInit(const std::string path)
+void Ball_group::aggregationInit(const std::string path,const bool checkRestart=true)
 {
     int restart = check_restart(path);
+    std::cerr<<"RESTART:::   "<<restart<<std::endl;
 
     // If the simulation is complete exit now. Otherwise, the call to 
     //find_restart_file_name will possibly delete one of the data files 
@@ -546,7 +548,7 @@ void Ball_group::aggregationInit(const std::string path)
         MPIsafe_exit(0);
     }
 
-    std::string filename = find_restart_file_name(path); 
+    std::string filename = find_restart_file_name(path,checkRestart); 
     bool just_restart = false;
 
     if (filename != "")
@@ -1596,6 +1598,86 @@ Ball_group Ball_group::BPCA_projectile_init()
     return projectile;
 }
 
+//TODO::: make sure projectile file exists and is in a state to use.
+// Also, make sure we are grabbing the correct file index
+
+//given the folder this BCCA job is running in, this function returns 
+//a random other attempt from this group of jobs.
+std::string Ball_group::get_rand_projectile_file(std::string folder)
+{
+    //Look for which folder "SpaceLab_data" is in.
+    //The attempt number should be in two folders from that
+    std::vector<int> slashes;
+    for (int i = 0; i < folder.length(); ++i)
+    {
+        if (folder[i] == '/')
+        {
+            slashes.push_back(i);
+            // std::cerr<<i<<std::endl;
+        }
+    }
+
+    int start,len,found_i;
+    bool found = false;
+    for (int i = 0; i < slashes.size()-1; ++i)
+    {
+        start = slashes[i]+1;
+        len = slashes[i+1] - start;
+        if (folder.substr(start,len) == "SpaceLab_data")
+        {
+            found = true;
+            found_i = i;
+            break;
+        }
+
+    }
+
+    std::string attempts_folder;
+    std::string attempts_folder_prefix;
+    std::string prefix_suffix; 
+    std::string everything_before_attempt;
+    std::string everything_after_attempt;
+    if (found)
+    {
+        start = 0;
+        len = slashes[found_i+1+1] - start;
+        attempts_folder = folder.substr(start,len+1);
+
+        start = slashes[found_i+2]+1;
+        len = slashes[found_i+2+1] - start;
+        attempts_folder_prefix = folder.substr(start,len);
+        //Important the next line is above the line that changes attempt_folder_prefix
+        // std::cerr<<attempts_folder_prefix<<std::endl;
+        prefix_suffix = std::to_string(extractNumberFromString(attempts_folder_prefix));
+        attempts_folder_prefix = attempts_folder_prefix.substr(0,attempts_folder_prefix.length()-prefix_suffix.length());
+        everything_before_attempt = folder.substr(0,attempts_folder.length()+attempts_folder_prefix.length());
+        everything_after_attempt = folder.substr(attempts_folder.length()+attempts_folder_prefix.length()+prefix_suffix.length(),folder.length());
+    }
+    else
+    {
+        std::string message("ERROR: SpaceLab_data folder not found. Total attempts could not be determined.");
+        MPIsafe_print(std::cerr,message);
+        MPIsafe_exit(-1);
+    }
+
+    std::vector<int> attempts;
+    std::string fold;
+    for (const auto & entry : fs::directory_iterator(attempts_folder))
+    {
+        fold = entry.path();
+
+        // std::cerr<<fold<<std::endl;
+        if (fold.substr(attempts_folder.length(),attempts_folder_prefix.length()) == attempts_folder_prefix)
+        {
+            attempts.push_back(extractNumberFromString(fold));
+        }
+    }
+
+    std::string att = std::to_string(attempts[rand_int_between(0,attempts.size()-1)]);
+    
+    return everything_before_attempt + att + everything_after_attempt;
+}
+
 // @brief returns new ball group consisting of one particle
 //        where particle is given initial conditions
 //        including an random offset linearly dependant on radius 
@@ -1614,7 +1696,14 @@ Ball_group Ball_group::BCCA_projectile_init(const bool symmetric=true)
     }
     else
     {
-        projectile = Ball_group(attrs.num_particles);
+        // strip off the "{index}_" at the end of the file name because this constructor
+        // doesnt need it
+        std::string rand_projectile_file = data->getFileName().substr(0,data->getFileName().length()-2);
+        rand_projectile_file = get_rand_projectile_file(rand_projectile_file);
+        std::cerr<<"Getting random projectile from: "<<rand_projectile_file<<std::endl;
+        // exit(0);
+        // projectile = Ball_group(rand_projectile_file);
+        projectile = Ball_group(rand_projectile_file,false);
     }
 
     //find velocity of projectile
@@ -3082,7 +3171,7 @@ std::string Ball_group::find_file_name(std::string path,int index)
 }
 
 
-std::string Ball_group::find_restart_file_name(std::string path)
+std::string Ball_group::find_restart_file_name(std::string path, const bool deletePartialFiles=false)
 {
     std::string file;
     std::string largest_file_name;
@@ -3142,7 +3231,7 @@ std::string Ball_group::find_restart_file_name(std::string path)
         }
     }
 
-    if (csv)
+    if (csv && deletePartialFiles)
     {
         if (getRank() == 0)
         {

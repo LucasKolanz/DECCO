@@ -5,6 +5,7 @@
 #include <string>
 #include <fstream>
 #include <cmath>
+#include <cctype>
 #include <iostream>
 #include <sstream>
 
@@ -56,6 +57,30 @@ std::mt19937 random_generator(rd());
 //     ss >> ret; 
 //     return ret;
 // }
+
+int extractNumberFromString(const std::string& s) 
+{
+    size_t length = s.length();
+    size_t index = length;
+
+    // Move backwards through the string to find where the digits start
+    while (index > 0 && std::isdigit(static_cast<unsigned char>(s[index - 1]))) {
+        --index;
+    }
+
+    if (index == length) {
+        // No digits found at the end
+        return -1;  // Return -1 or handle as appropriate
+    }
+
+    std::string numeric_part = s.substr(index);
+    try {
+        return std::stoi(numeric_part);
+    } catch (const std::exception&) {
+        // Handle conversion errors
+        return -1;
+    }
+}
 
 std::string dToSci(double value) {
     std::ostringstream oss;
@@ -207,6 +232,13 @@ rand_between(const double min, const double max)
     double f = (double)rand() / RAND_MAX;
     // double f = (double)get_rand() / RAND_MAX;
     return min + f * (max - min);
+}
+
+inline int
+rand_int_between(const int min, const int max)
+{
+    std::uniform_int_distribution<> dist(min, max);
+    return dist(random_generator);
 }
 
 // Returns a random unit vector.

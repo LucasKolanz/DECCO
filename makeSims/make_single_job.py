@@ -2,6 +2,7 @@ import os
 import json
 import multiprocessing as mp
 import subprocess
+import random
 
 relative_path = "../"
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
@@ -13,12 +14,12 @@ project_path = os.path.abspath(relative_path) + '/'
 	
 	# cmd = ["srun","-n","1","-c","2","{}ColliderSingleCore.x".format(location), location, str(num_balls)]
 
-# def rand_int():
-# 	# Generating a random integer from 0 to the maximum unsigned integer in C++
-# 	# In C++, the maximum value for an unsigned int is typically 2^32 - 1
-# 	max_unsigned_int_cpp = 2**32 - 1
-# 	random_unsigned_int = random.randint(0, max_unsigned_int_cpp)
-# 	return random_unsigned_int
+def rand_int():
+	# Generating a random integer from 0 to the maximum unsigned integer in C++
+	# In C++, the maximum value for an unsigned int is typically 2^32 - 1
+	max_unsigned_int_cpp = 2**32 - 1
+	random_unsigned_int = random.randint(0, max_unsigned_int_cpp)
+	return random_unsigned_int
 
 def run_job(location):
 	output_file = location + "sim_output.txt"
@@ -51,9 +52,9 @@ if __name__ == '__main__':
 
 	SPECIAL_FOLDER = ""#"/home/lucas/Desktop/SpaceLab_data/largejob/"
 
-	runs_at_once = 1
+	runs_at_once = 3
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
-	attempts = [0] 
+	attempts = [0,1,2] 
 	N = [8]
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
@@ -83,13 +84,13 @@ if __name__ == '__main__':
 				input_json['OMPthreads'] = 1
 				input_json['MPInodes'] = 1
 
-				# input_json['seed'] = rand_int()
-				input_json['seed'] = 100
+				input_json['seed'] = rand_int()
+				# input_json['seed'] = 100
 				input_json['radiiDistribution'] = 'logNormal'
 				# input_json['h_min'] = 0.5
 				input_json['dataFormat'] = "csv"
 				input_json['simType'] = "BCCA"
-				input_json['symmetric'] = "true"
+				input_json['symmetric'] = "false"
 				# input_json['u_s'] = 0.5
 				# input_json['u_r'] = 0.5
 				# input_json['note'] = "Does this work at all?"
