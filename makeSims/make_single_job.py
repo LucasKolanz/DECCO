@@ -51,10 +51,10 @@ if __name__ == '__main__':
 
 	SPECIAL_FOLDER = ""#"/home/lucas/Desktop/SpaceLab_data/largejob/"
 
-	runs_at_once = 7
+	runs_at_once = 1
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	attempts = [0] 
-	N = [5]
+	N = [8]
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [3]
@@ -89,6 +89,7 @@ if __name__ == '__main__':
 				# input_json['h_min'] = 0.5
 				input_json['dataFormat'] = "csv"
 				input_json['simType'] = "BCCA"
+				input_json['symmetric'] = "true"
 				# input_json['u_s'] = 0.5
 				# input_json['u_r'] = 0.5
 				# input_json['note'] = "Does this work at all?"

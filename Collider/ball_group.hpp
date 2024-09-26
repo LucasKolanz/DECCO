@@ -361,6 +361,7 @@ public:
     Ball_group spawn_particles(const int count);
     vec3 random_offset(const double3x3 local_coords,vec3 projectile_pos,vec3 projectile_vel,const double projectile_rad);
     Ball_group BPCA_projectile_init();
+    void calc_max_bolt_velocity(double temp, double mass);
     Ball_group BCCA_projectile_init(const bool symmetric);
     Ball_group add_projectile(const simType);
     void merge_ball_group(const Ball_group& src,const bool includeRadius=true);
@@ -452,6 +453,55 @@ Ball_group::Ball_group(std::string& path)
         }
     }
         
+}
+
+Ball_group::Ball_group(const Ball_group& rhs)
+{
+
+
+    if (attrs.num_particles != rhs.attrs.num_particles)
+    {
+        *this = Ball_group(rhs.attrs.num_particles);
+    }
+
+    if (this != &rhs)
+    {
+        attrs = rhs.attrs;
+        mom = rhs.mom;
+        ang_mom = rhs.ang_mom;  // Can be vec3 because they only matter for writing out to file. Can process
+                                // on host.
+        PE = rhs.PE;
+        KE = rhs.KE;
+
+
+
+        for (int i = 0; i < rhs.attrs.num_pairs; ++i)
+        {
+            distances[i] = rhs.distances[i];
+        }
+
+        for (int i = 0; i < rhs.attrs.num_particles; ++i)
+        {
+            pos[i] = rhs.pos[i];
+            vel[i] = rhs.vel[i];
+            velh[i] = rhs.velh[i];  ///< Velocity half step for integration purposes.
+            acc[i] = rhs.acc[i];
+            w[i] = rhs.w[i];
+            wh[i] = rhs.wh[i];  ///< Angular velocity half step for integration purposes.
+            aacc[i] = rhs.aacc[i];
+            R[i] = rhs.R[i];      ///< Radius
+            m[i] = rhs.m[i];      ///< Mass
+            moi[i] = rhs.moi[i];  ///< Moment of inertia            
+        }
+
+
+        data = rhs.data;
+    }
+   
+
+    // return *this;
+
+
 }
 
 // Initializes relax job (only new, not for restart)
@@ -553,6 +603,10 @@ void Ball_group::aggregationInit(const std::string path)
 
         attrs.m_total = getMass();
         calc_v_collapse();
+
+        //We can't trust v_collapse to set the correct k and dt. So just set it to 1 here
+        attrs.v_custom = 1;
+        
         // std::cerr<<"INIT VCUSTOM "<<v_custom<<std::endl;
         calibrate_dt(0, attrs.v_custom);
         simInit_cond_and_center(true);
@@ -613,7 +667,6 @@ Ball_group& Ball_group::operator=(const Ball_group& rhs)
     PE = rhs.PE;
     KE = rhs.KE;
 
-
     distances = rhs.distances;
 
     pos = rhs.pos;
@@ -629,43 +682,12 @@ Ball_group& Ball_group::operator=(const Ball_group& rhs)
 
 
     data = rhs.data;
-
-   
 
     return *this;
+    
 }
 
-Ball_group::Ball_group(const Ball_group& rhs)
-{
 
-
-    attrs = rhs.attrs;
-
-    mom = rhs.mom;
-    ang_mom = rhs.ang_mom;  // Can be vec3 because they only matter for writing out to file. Can process
-                            // on host.
-
-    PE = rhs.PE;
-    KE = rhs.KE;
-
-    distances = rhs.distances;
-
-    pos = rhs.pos;
-    vel = rhs.vel;
-    velh = rhs.velh;  ///< Velocity half step for integration purposes.
-    acc = rhs.acc;
-    w = rhs.w;
-    wh = rhs.wh;  ///< Angular velocity half step for integration purposes.
-    aacc = rhs.aacc;
-    R = rhs.R;      ///< Radius
-    m = rhs.m;      ///< Mass
-    moi = rhs.moi;  ///< Moment of inertia
-
-
-    data = rhs.data;
-
-
-}
 
 void Ball_group::init_data(int counter = 0)
 {
@@ -725,6 +747,11 @@ void Ball_group::parse_input_file(std::string location)
     std::ifstream ifs(json_file);
     json inputs = json::parse(ifs);
     attrs.output_folder = inputs["output_folder"];
+    if (attrs.output_folder == "")
+    {
+        MPIsafe_print(std::cerr,"ERROR: output_folder not specified in input.json. This cannot be left blank.");
+        MPIsafe_exit(-1);
+    }
     attrs.data_directory = inputs["data_directory"];
 
     if (inputs["simType"] == "BPCA")
@@ -734,6 +761,19 @@ void Ball_group::parse_input_file(std::string location)
     else if (inputs["simType"] == "BCCA")
     {
         attrs.typeSim = BCCA;
+        if (inputs["symmetric"] == "True" || inputs["symmetric"] == "true" || inputs["symmetric"] == "1")
+        {
+            attrs.symmetric = true;
+        }
+        else if (inputs["symmetric"] == "False" || inputs["symmetric"] == "false" || inputs["symmetric"] == "0")
+        {
+            attrs.symmetric = false;
+        }
+        else
+        {
+            MPIsafe_print(std::cerr,"Simulation input 'symmetric' must be either true or false. Setting to 'true' as default.");
+            attrs.symmetric = true;
+        }
     }
     else if (inputs["simType"] == "collider")
     {
@@ -791,6 +831,9 @@ void Ball_group::parse_input_file(std::string location)
     {
         attrs.radiiDistribution = constant;
     }
+    
+
+
     attrs.N = inputs["N"];
     attrs.dynamicTime = inputs["dynamicTime"];
     attrs.G = inputs["G"];
@@ -974,12 +1017,6 @@ void Ball_group::calibrate_dt(int const Step, const double& customSpeed = -1.)
 
     if (Step == 0 or dtOld < 0) {
         attrs.steps = static_cast<unsigned long long>(attrs.simTimeSeconds / attrs.dt) + 1;
-        // std::cout<<simTimeSeconds / dt - steps*1.0<<std::endl;
-        // if (simTimeSeconds / dt == steps) //There is one too few writes in the sim if this is true
-        // {
-        //     std::cout<<"IT HAPPENED, numparts: "<<num_particles<<std::endl;
-        //     steps += 1;
-        // }
         if (attrs.steps < 0)
         {
             message += "ERROR: STEPS IS NEGATIVE.\n";
@@ -1095,31 +1132,44 @@ void Ball_group::calc_v_collapse()
     double vdwforce;
     double distance,distance2;
     double m_min = getMmin();
-
     double position = 0;
-    // while (position < attrs.initial_radius) {
-    while (position < attrs.initial_radius-attrs.h_min) {
-        // todo - include vdw!!!
+    double temp_dt = 0.1;
 
-        //This is like the smallest ball falling into the largest ball due only to vdw force
-        //starting at initial_radius to h_min
-        distance = attrs.initial_radius-attrs.h_min-position;
-        distance2 = distance*distance;
-        twoRminh = 2 * attrs.r_min * distance;
-        twoRmaxh = 2 * attrs.r_max * distance;
-        vdwforce = attrs.Ha / 6 * 64 * attrs.r_max * attrs.r_max * attrs.r_max * attrs.r_min * attrs.r_min * attrs.r_min *
-                                 ((attrs.h_min + attrs.r_max + attrs.r_min) / ((distance2 + twoRmaxh + twoRminh) * (distance2 + twoRmaxh + twoRminh) *
-                                                             ((distance2 + twoRmaxh + twoRminh) + 4 * attrs.r_max * attrs.r_min) *
-                                                             ((distance2 + twoRmaxh + twoRminh) + 4 * attrs.r_max * attrs.r_min)));
-        attrs.v_collapse += vdwforce/m_min * 0.1;
+    //The do while loop takes care of the case when 0.1 is way too big for dt 
+    //(particularly with vdw forces) and the inner loop overshoots too much 
+    do
+    {
+        position = 0;
+        attrs.v_collapse = 0;
+        // std::cerr<<"HERE: "<<attrs.initial_radius-attrs.h_min<<std::endl;
+        // std::cerr<<"temp_dt: "<<temp_dt<<std::endl;
+        // while (position < attrs.initial_radius) {
+        while (position < attrs.initial_radius-attrs.h_min) {
+            // todo - include vdw!!!
+
+            //This is like the smallest ball falling into the largest ball due only to vdw force
+            //starting at initial_radius to h_min
+            distance = attrs.initial_radius-attrs.h_min-position;
+            distance2 = distance*distance;
+            twoRminh = 2 * attrs.r_min * distance;
+            twoRmaxh = 2 * attrs.r_max * distance;
+            vdwforce = attrs.Ha / 6 * 64 * attrs.r_max * attrs.r_max * attrs.r_max * attrs.r_min * attrs.r_min * attrs.r_min *
+                                     ((attrs.h_min + attrs.r_max + attrs.r_min) / ((distance2 + twoRmaxh + twoRminh) * (distance2 + twoRmaxh + twoRminh) *
+                                                                 ((distance2 + twoRmaxh + twoRminh) + 4 * attrs.r_max * attrs.r_min) *
+                                                                 ((distance2 + twoRmaxh + twoRminh) + 4 * attrs.r_max * attrs.r_min)));
+            attrs.v_collapse += vdwforce/m_min * temp_dt;
 
 
-        //v_collapse due to gravity
-        //Why is the radius always initial_radius and not initial_radius - position?
-        // attrs.v_collapse += attrs.G * attrs.m_total / (attrs.initial_radius * attrs.initial_radius) * 0.1;
-        
-        position += attrs.v_collapse * 0.1;
-    }
+            //v_collapse due to gravity
+            //Why is the radius always initial_radius and not initial_radius - position?
+            // attrs.v_collapse += attrs.G * attrs.m_total / (attrs.initial_radius * attrs.initial_radius) * temp_dt;
+            
+            position += attrs.v_collapse * temp_dt;
+            // std::cerr<<position<<std::endl;
+        }
+        temp_dt /= 2;
+    }while (position > (attrs.initial_radius-attrs.h_min)*2);
+
     attrs.v_collapse = fabs(attrs.v_collapse);
     // std::cerr<<"finish calc collapse: "<<attrs.v_collapse<<std::endl;
 }
@@ -1147,7 +1197,7 @@ void Ball_group::calc_v_collapse()
             // }
         }
 
-        MPIsafe_print(std::cerr,'(' + std::to_string(counter) + " spheres ignored"+ ") \n");
+        // MPIsafe_print(std::cerr,'(' + std::to_string(counter) + " spheres ignored"+ ") \n");
     } else {
         for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
 
@@ -1266,7 +1316,7 @@ std::string Ball_group::get_data_info()
 
 void Ball_group::sim_init_write(int counter=0)
 {
-    MPIsafe_print(std::cerr,"Sim init write for index: " + std::to_string(counter));
+    MPIsafe_print(std::cerr,"Sim init write for index: " + std::to_string(counter) + '\n');
     init_data(counter);
 
     // if (counter > 0) { filename.insert(0, std::to_string(counter) + '_'); }
@@ -1485,6 +1535,15 @@ vec3 Ball_group::random_offset(
     return projectile_pos-new_position;
 }
 
+void Ball_group::calc_max_bolt_velocity(double temp, double mass)
+{
+    double a = std::sqrt(Kb*temp/mass);
+    attrs.v_custom = max_bolt_dist(a); 
+
+    std::string message("v_custom set to "+std::to_string(attrs.v_custom)+ "cm/s based on a temp of "+
+            std::to_string(attrs.temp)+" degrees K.\n"); 
+}
+
 // @brief returns new ball group consisting of one particle
 //        where particle is given initial conditions
 //        including an random offset linearly dependant on radius 
@@ -1516,11 +1575,7 @@ Ball_group Ball_group::BPCA_projectile_init()
     // Velocity toward origin:
     if (attrs.temp > 0)
     {
-        double a = std::sqrt(Kb*attrs.temp/projectile.m[0]);
-        attrs.v_custom = max_bolt_dist(a); 
-
-        std::string message("v_custom set to "+std::to_string(attrs.v_custom)+ "cm/s based on a temp of "+
-                std::to_string(attrs.temp)+" degrees K.\n"); 
+        calc_max_bolt_velocity(attrs.temp,projectile.m[0]);
     }
     projectile.vel[0] = -attrs.v_custom * projectile_direction;
 
@@ -1551,9 +1606,11 @@ Ball_group Ball_group::BCCA_projectile_init(const bool symmetric=true)
 
     Ball_group projectile;
 
+
     if (symmetric)
     {
-        projectile = *this;
+        // projectile = *this;
+        projectile = Ball_group(*this);
     }
     else
     {
@@ -1570,13 +1627,14 @@ Ball_group Ball_group::BCCA_projectile_init(const bool symmetric=true)
                 std::to_string(attrs.temp)+" degrees K.\n"); 
     }
 
-    // Particle random position at twice radius of target:
+    // projectile random position at twice radius of target + projectile:
     // We want the farthest from origin since we are offsetting form origin. Not com.
-    const auto cluster_radius = getRadius(vec3(0, 0, 0));
+    const auto cluster_radius = getRadius(vec3(0, 0, 0)) + projectile.getRadius(vec3(0, 0, 0));
+
 
     const vec3 projectile_direction = rand_unit_vec3();
 
-    for (int i = 0; i < attrs.num_particles; ++i)
+    for (int i = 0; i < projectile.attrs.num_particles; ++i)
     {
 
         projectile.pos[i] += projectile_direction * (cluster_radius + attrs.scaleBalls * 4);
@@ -1596,7 +1654,7 @@ Ball_group Ball_group::BCCA_projectile_init(const bool symmetric=true)
     
     const vec3 offset = random_offset(local_coords,projectile.getCOM(),projectile.vel[0],projectile.R[0]); 
 
-    for (int i = 0; i < attrs.num_particles; ++i)
+    for (int i = 0; i < projectile.attrs.num_particles; ++i)
     {
         projectile.pos[i] -= offset;
     }
@@ -1609,7 +1667,8 @@ Ball_group Ball_group::BCCA_projectile_init(const bool symmetric=true)
 Ball_group Ball_group::add_projectile(const simType simtype)
 {
     // Load file data:
-    MPIsafe_print(std::cerr,"Add Particle\n");
+    MPIsafe_print(std::cerr,"Add Projectile\n");
+
 
     Ball_group projectile;
     
@@ -1662,8 +1721,8 @@ Ball_group Ball_group::add_projectile(const simType simtype)
     {
         new_group.calibrate_dt(0, attrs.v_custom);
     }
-    new_group.init_conditions();
 
+    new_group.init_conditions();
     new_group.to_origin();
    
     return new_group;
@@ -1719,6 +1778,8 @@ void Ball_group::allocate_group(const int nBalls)
 {
     attrs.num_particles = nBalls;
 
+    std::cerr<<"allocating group of size: "<<nBalls<<std::endl;
+
     try {
         distances = new double[(attrs.num_particles * attrs.num_particles / 2) - (attrs.num_particles / 2)];
 
@@ -1772,6 +1833,7 @@ void Ball_group::freeMemory() const
 // Initialize accelerations and energy calculations:
 void Ball_group::init_conditions()
 {
+
     // SECOND PASS - Check for collisions, apply forces and torques:
     for (int A = 1; A < attrs.num_particles; A++)  // cuda
     {
@@ -1943,6 +2005,7 @@ void Ball_group::init_conditions()
         mom += m[Ball] * vel[Ball];
         ang_mom += m[Ball] * pos[Ball].cross(vel[Ball]) + moi[Ball] * w[Ball];
     }
+
 }
 
 [[nodiscard]] double Ball_group::getRmin()
@@ -2232,10 +2295,10 @@ void Ball_group::threeSizeSphere(const int nBalls)
         collisionDetected = 0;
     }
 
-    std::cerr << "Final spacerange: " << attrs.spaceRange << '\n';
-    std::cerr << "m_total: " << attrs.m_total << '\n';
-    std::cerr << "Initial Radius: " << getRadius(getCOM()) << '\n';
-    std::cerr << "Mass: " << getMass() << '\n';
+    std::cerr << "Final spacerange: " << dToSci(attrs.spaceRange) << '\n';
+    std::cerr << "m_total: " << dToSci(attrs.m_total) << '\n';
+    std::cerr << "Initial Radius: " << dToSci(getRadius(getCOM())) << '\n';
+    std::cerr << "Mass: " << dToSci(getMass()) << '\n';
 }
 
 void Ball_group::generate_ball_field(const int nBalls)
@@ -2646,9 +2709,9 @@ void Ball_group::placeBalls(const int nBalls)
         collisionDetected = 0;
     }
 
-    std::string message("Final spacerange: " + std::to_string(attrs.spaceRange)+'\n' +
-                        "Initial Radius: "+std::to_string(getRadius(getCOM()))+'\n' +
-                        "Mass: "+std::to_string(attrs.m_total)+'\n');
+    std::string message("Final spacerange: " + dToSci(attrs.spaceRange)+'\n' +
+                        "Initial Radius: "+dToSci(getRadius(getCOM()))+'\n' +
+                        "Mass: "+dToSci(attrs.m_total)+'\n');
     MPIsafe_print(std::cerr,message);
 }
 
@@ -3188,6 +3251,8 @@ void Ball_group::sim_one_step()
         // Check for collision between Ball and otherBall:
         double overlap = sumRaRb - dist;
 
+        
+
         vec3 totalForceOnA{0, 0, 0};
 
         // Distance array element: 1,0    2,0    2,1    3,0    3,1    3,2 ...
@@ -3282,8 +3347,7 @@ void Ball_group::sim_one_step()
 
             // Compute sliding friction force:
             const double rel_vel_mag = frame_A_vel_B.norm();
-            // if (rel_vel_mag > 1e-20)  // Divide by zero protection.
-            // if (rel_vel_mag > 1e-8)  // Divide by zero protection.
+
             ////////////////////////////////////////// CALC THIS AT INITIALIZATION for all combos os Ra,Rb
             // const double u_scale = calc_VDW_force_mag(Ra,Rb,h_min_physical)/
             //                         vdwForceOnA.norm();         //Friction coefficient scale factor
@@ -3356,6 +3420,8 @@ void Ball_group::sim_one_step()
             ////////////////////////////////
             totalForceOnA = viscoelaticforceOnA + gravForceOnA + elasticForceOnA + slideForceOnA + vdwForceOnA;
             ////////////////////////////////
+
+            
 
             // Total torque a and b:
             torqueA = r_a.cross(slideForceOnA + rollForceA);
@@ -3444,6 +3510,8 @@ void Ball_group::sim_one_step()
         acc[A] += totalForceOnA / m[A];
         acc[B] -= totalForceOnA / m[B];
 
+        
+
 
         // So last distance can be known for COR:
         distances[e] = dist;
@@ -3460,10 +3528,6 @@ void Ball_group::sim_one_step()
 
     // t.end_event("CalcForces/loopApplicablepairs");
 
-    // if (write_step) {
-    //     ballBuffer << '\n';  // Prepares a new line for incoming data.
-    //     // std::cerr<<"Writing "<<num_particles<<" balls"<<std::endl;
-    // }
 
     // THIRD PASS - Calculate velocity for next step:
     // t.start_event("CalcVelocityforNextStep");
@@ -3962,6 +4026,7 @@ void
 Ball_group::sim_looper(unsigned long long start_step=1)
 {
 
+
     attrs.world_rank = getRank();
     attrs.world_size = getSize();
     attrs.num_pairs = static_cast<int>(attrs.num_particles*(attrs.num_particles-1)/2);
@@ -4003,6 +4068,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
 
     for (Step = start_step; Step < attrs.steps; Step++)  // Steps start at 1 for non-restart because the 0 step is initial conditions.
     {
+
         // simTimeElapsed += dt; //New code #1
         // Check if this is a write step:
         if (Step % attrs.skip == 0) {
@@ -4079,7 +4145,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
                 if (Step / attrs.skip % 10 == 0) 
                 {
 
-                    std::cerr << "vMax = " << getVelMax() << " Steps recorded: " << Step / attrs.skip << '\n';
+                    std::cerr << "vMax = " << getVelMax() << "\n Steps recorded: " << Step / attrs.skip << '\n';
                     std::cerr << "Data Write to "<<data->getFileName()<<"\n";
                     
                     data->Write(ballBuffer,"simData",bufferlines);

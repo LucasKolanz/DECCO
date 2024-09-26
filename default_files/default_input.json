@@ -5,6 +5,7 @@
     "OMPthreads": 1,
     "MPInodes": 1,
     "simType": "BPCA",
+    "symmetric": "true",
     "N": -1,
     "radiiFraction": 1,
     "radiiDistribution": "constant",
@@ -48,6 +49,6 @@
     "targetName": "",
     "output_prefix": "default",
     "output_folder": "default",
-    "data_directory": "/home/kolanzl/novus/kolanzl/SpaceLab_data/",
-    "project_directory": "/home/kolanzl/novus/kolanzl/SpaceLab/"
+    "data_directory": "/media/kolanzl/easystore/SpaceLab_data/",
+    "project_directory": "/media/kolanzl/easystore/SpaceLab/"
 }

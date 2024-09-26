@@ -16,6 +16,10 @@
 	"OMPthreads": 1,
 	//Type of simulation, default to "BPCA", other options: "collider"
 	"simType": "BPCA",
+	//If simType is BCCA, true will collide copies of the aggregate to grow
+	//false will find another attempt that is complete to grow the aggregate
+	//If simType is not BCCA this is ignored.
+	"symmetric": "true",
 	//Number of balls to add to a BPCA simulation. If simType is not "BPCA" this 
 	//value will be ignored
 	"N": -1,
@@ -92,7 +96,8 @@
 	"projectileName": "", //absolute path to the target in collider mode
 	"targetName": "", //absolute path to the projectile in collider mode
 
-	"output_folder": "default", //absolute path to where the output from this sim will go
+	//NOTE: output_folder must be specified. There is no default
+	"output_folder": "", //absolute path to where the output from this sim will go
 	"project_path": "default", //default is wherever SpaceLab lives
 	"output_prefix": "default", //not sure this is necessary as it is automatically set by sim
 

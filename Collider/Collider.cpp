@@ -198,6 +198,8 @@ void runCollider(std::string path)
 }
 
 //Initializes and carries out BPCA aggregate growth
+//path is the global path to the job folder
+//num_balls is the total number of balls in the final aggregate
 void runAggregation(std::string path, int num_balls)
 {
     int world_rank = getRank();
@@ -205,27 +207,48 @@ void runAggregation(std::string path, int num_balls)
     Ball_group O = Ball_group(path);  
     safetyChecks(O);
     std::string message;
-    if  (O.attrs.mid_sim_restart)
+    message = "Asking for "+std::to_string(O.get_num_threads())+" threads.\n";
+    MPIsafe_print(std::cerr,message);
+
+    if  (!O.attrs.mid_sim_restart)
     {
-        message = "Asking for "+std::to_string(O.get_num_threads())+" threads.\n";
-        MPIsafe_print(std::cerr,message);
+        O.sim_init_write(O.attrs.genBalls);
+        O.attrs.start_index = O.attrs.genBalls;
+        O.sim_looper(1);
+    }
+    else
+    {
         O.sim_looper(O.attrs.start_step);
     }
 
-    int increment = -1;
+    //Make an inital aggregate if this is BCCA
+    //NOTE::: THIS SHOLD HAPPEN FOR EITHER BCCA OR BPCA
+    //        MORE TESTTNG NEEDS TO HAPPEN FOR BPCA AS IT STANDS
+    // if (O.attrs.typeSim == BCCA)
+    // {
+    // if (world_rank==0)
+    // {
+    //     std::cerr<<"Asking for "<<O.get_num_threads()<<" threads."<<std::endl;
+    // }
+    // O.sim_looper(1);
+    // }
+
+    int increment = 1; // This should be 1 for BPCA, if not BPCA, set in for loop
 
     // Add projectile: For dust formation BPCA or BCCA
     for (int i = O.attrs.start_index; i < num_balls; i+=increment) 
     {
         // t.start_event("add_projectile");
         O = O.add_projectile(O.attrs.typeSim);
-        increment = O.attrs.num_particles;
+        if (O.attrs.typeSim == BCCA)
+        {
+            increment = O.attrs.num_particles/2;
+        }
         // t.end_event("add_projectile");
         if (world_rank == 0)
         {
-            std::cerr<<"I: "<<i<<std::endl;
-            O.sim_init_write(i);
-            std::cerr<<"Asking for "<<O.get_num_threads()<<" threads."<<std::endl;
+            O.sim_init_write(O.attrs.num_particles);
+            std::cerr<<"Asking for "<<O.get_num_threads()<<" thread(s)."<<std::endl;
         }
 
         O.sim_looper(1);
