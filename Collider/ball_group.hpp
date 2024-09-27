@@ -30,6 +30,8 @@
 #include <memory>
 #include <random>
 #include <omp.h>
+#include <chrono>
+#include <thread>
 
 #ifdef MPI_ENABLE
     #include <mpi.h>
@@ -330,7 +332,7 @@ public:
 
     explicit Ball_group(const int nBalls);
     // explicit Ball_group(const std::string& path, const std::string& filename, int start_file_index);
-    explicit Ball_group(std::string& path,const bool deletePartialFiles);
+    explicit Ball_group(std::string& path,const int index=-1);
     // explicit Ball_group(const std::string& path,const std::string& projectileName,const std::string& targetName,const double& customVel);
     Ball_group(const Ball_group& rhs);
     Ball_group& operator=(const Ball_group& rhs);
@@ -366,7 +368,7 @@ public:
     Ball_group add_projectile(const simType);
     void merge_ball_group(const Ball_group& src,const bool includeRadius=true);
     void freeMemory() const;
-    std::string find_restart_file_name(std::string path,const bool deletePartialFiles);
+    std::string find_whole_file_name(std::string path,const int index=-1);
     int check_restart(std::string folder);
     #ifdef HDF5_ENABLE
         void loadDatafromH5(std::string path, std::string file);
@@ -375,7 +377,7 @@ public:
     std::string get_data_info();
     void parse_meta_data(std::string metadata);
     void relaxInit(const std::string path);
-    void aggregationInit(const std::string path,const bool deletePartialFiles);
+    void aggregationInit(const std::string path,const int index=-1);
     void colliderInit(const std::string path);
     std::string find_file_name(std::string path,int index);
     int get_num_threads();
@@ -396,7 +398,7 @@ private:
     [[nodiscard]] double getMmin() const;
     [[nodiscard]] double getMmax() const;
     void parseSimData(std::string line);
-    std::string get_rand_projectile_file(std::string folder);
+    std::string get_rand_projectile(std::string folder);
     void loadConsts(const std::string& path, const std::string& filename);
     [[nodiscard]] static std::string getLastLine(const std::string& path, const std::string& filename);
     // void simDataWrite(std::string& outFilename);
@@ -411,6 +413,8 @@ private:
     void simInit_cond_and_center(bool add_prefix);
     void sim_continue(const std::string& path);
     void sim_init_two_cluster(const std::string& path,const std::string& projectileName,const std::string& targetName);
+    void verify_projectile(const std::string projectile_folder, const int index, const double max_wait_time);
+
 };
 
 /// @brief For creating a new ballGroup of size nBalls
@@ -427,13 +431,17 @@ Ball_group::Ball_group(const int nBalls)
 
 /// @brief For generating a new ballGroup of any simTypes
 /// @param path is a path to the job folder
-Ball_group::Ball_group(std::string& path, const bool deletePartialFiles=true)
+/// @param index is the index of the file to load. If index is less than 0
+///        then the code will check if this is a restart and delete partial files if applicable
+///        If index is greater than or equal to 0 these checks are bypassed and
+///        the specified index is simply loaded (for BCCA projectile loading)
+Ball_group::Ball_group(std::string& path, const int index)
 {
     parse_input_file(path);
 
     if (attrs.typeSim == BPCA || attrs.typeSim == BCCA)
     {
-        aggregationInit(path,deletePartialFiles);
+        aggregationInit(path,index);
     }
     else if (attrs.typeSim == collider)
     {
@@ -535,20 +543,31 @@ void Ball_group::colliderInit(const std::string path)
 }
 
 // Initializes BPCA and BCCA job for restart or new job
-void Ball_group::aggregationInit(const std::string path,const bool checkRestart=true)
+// index is -1 by default. If index >= 0 then this isnt a restart 
+// and this shouldnt delete any files. 
+void Ball_group::aggregationInit(const std::string path,const int index)
 {
-    int restart = check_restart(path);
-    std::cerr<<"RESTART:::   "<<restart<<std::endl;
+    int restart;
+    if (index < 0)
+    {
+        restart = check_restart(path);
+    }
+    else
+    {
+        restart = 1;
+    }
+    // std::cerr<<"RESTART:::   "<<restart<<std::endl;
 
     // If the simulation is complete exit now. Otherwise, the call to 
-    //find_restart_file_name will possibly delete one of the data files 
+    //find_whole_file_name will possibly delete one of the data files 
     if (restart == 2)
     {
         MPIsafe_print(std::cerr,"Simulation already complete. Now exiting. . .\n");
         MPIsafe_exit(0);
     }
 
-    std::string filename = find_restart_file_name(path,checkRestart); 
+    std::string filename = find_whole_file_name(path,index); 
+
     bool just_restart = false;
 
     if (filename != "")
@@ -1598,12 +1617,43 @@ Ball_group Ball_group::BPCA_projectile_init()
     return projectile;
 }
 
-//TODO::: make sure projectile file exists and is in a state to use.
-// Also, make sure we are grabbing the correct file index
+//make sure projectile file with this index exists and is in a state to use.
+//If it is not, wait for a while and check again, up to max wait time (in seconds). Default is 24 hours
+void Ball_group::verify_projectile(const std::string projectile_folder,const int index, const double max_wait_time=86400)
+{
+
+    std::string file_base = projectile_folder+std::to_string(index);
+
+    //check that file exists, if not wait until it exists or max wait time reached
+    std::ifstream f;
+    int time_slept = 0;
+    int interval = 10; //seconds
+    while (time_slept>=max_wait_time)
+    {
+        f.open(file_base+"_checkpoint.txt");
+        if (f.good())
+        {
+            f.close();
+            break;
+        }
+        f.close();
+        std::this_thread::sleep_for(std::chrono::seconds(interval));
+        time_slept += interval;
+        MPIsafe_print(std::cerr,"Waited "+std::to_string(interval)+" seconds for the projectile to checkpoint.\n");
+    }
+
+    if (time_slept>=max_wait_time)
+    {
+        MPIsafe_print(std::cerr,"ERROR: verify_projectile waited the max time of "+std::to_string(max_wait_time)+" seconds for projectile to checkpoint but it didn't :(. Now exiting.");
+        MPIsafe_exit(-1);
+    }
+
+    MPIsafe_print(std::cerr,"Waited a total of "+std::to_string(time_slept)+" second(s) for the projectile to checkpoint.\n");
+}
 
 //given the folder this BCCA job is running in, this function returns 
 //a random other attempt from this group of jobs.
-std::string Ball_group::get_rand_projectile_file(std::string folder)
+std::string Ball_group::get_rand_projectile(std::string folder)
 {
     //Look for which folder "SpaceLab_data" is in.
     //The attempt number should be in two folders from that
@@ -1698,12 +1748,15 @@ Ball_group Ball_group::BCCA_projectile_init(const bool symmetric=true)
     {
         // strip off the "{index}_" at the end of the file name because this constructor
         // doesnt need it
-        std::string rand_projectile_file = data->getFileName().substr(0,data->getFileName().length()-2);
-        rand_projectile_file = get_rand_projectile_file(rand_projectile_file);
-        std::cerr<<"Getting random projectile from: "<<rand_projectile_file<<std::endl;
+        std::string rand_projectile_folder = data->getFileName().substr(0,data->getFileName().length()-1-std::to_string(attrs.num_particles).length());
+        rand_projectile_folder = get_rand_projectile(rand_projectile_folder);
+        std::cerr<<"Getting random projectile from: "<<rand_projectile_folder<<std::endl;
+        
+        verify_projectile(rand_projectile_folder,attrs.num_particles);
+
         // exit(0);
         // projectile = Ball_group(rand_projectile_file);
-        projectile = Ball_group(rand_projectile_file,false);
+        projectile = Ball_group(rand_projectile_folder,attrs.num_particles);
     }
 
     //find velocity of projectile
@@ -3171,7 +3224,7 @@ std::string Ball_group::find_file_name(std::string path,int index)
 }
 
 
-std::string Ball_group::find_restart_file_name(std::string path, const bool deletePartialFiles=false)
+std::string Ball_group::find_whole_file_name(std::string path, const int index)
 {
     std::string file;
     std::string largest_file_name;
@@ -3190,6 +3243,7 @@ std::string Ball_group::find_restart_file_name(std::string path, const bool dele
         file = file.erase(0,pos+1);
 
         //Is the data in csv format?
+        //If so, find largest and second largest file index
         if (file.size() > simDatacsv.size() && file.substr(file.size()-simDatacsv.size(),file.size()) == simDatacsv)
         {
             // file_count++;
@@ -3231,7 +3285,21 @@ std::string Ball_group::find_restart_file_name(std::string path, const bool dele
         }
     }
 
-    if (csv && deletePartialFiles)
+    //if index is greater than zero we know if its csv or h5 so just return here
+    if (index >= 0)
+    {
+        if (csv)
+        {
+            return std::to_string(index) + "_" + simDatacsv;
+        }
+        else
+        {
+            return std::to_string(index) + "_" + datah5;
+        }
+    }
+
+
+    if (csv && index < 0)
     {
         if (getRank() == 0)
         {
@@ -4234,7 +4302,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
                 if (Step / attrs.skip % 10 == 0) 
                 {
 
-                    std::cerr << "vMax = " << getVelMax() << "\n Steps recorded: " << Step / attrs.skip << '\n';
+                    std::cerr << "vMax = " << getVelMax() << "\nSteps recorded: " << Step / attrs.skip << '\n';
                     std::cerr << "Data Write to "<<data->getFileName()<<"\n";
                     
                     data->Write(ballBuffer,"simData",bufferlines);
@@ -4287,5 +4355,5 @@ Ball_group::sim_looper(unsigned long long start_step=1)
         std::cerr << "\n===============================================================\n";
     }
 
-
+    data->write_checkpoint();
 }  // end simLooper

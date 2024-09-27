@@ -1367,6 +1367,19 @@ public:
 	{
 		return filename;
 	}
+
+	bool write_checkpoint()
+	{
+		std::ofstream output(filename+"checkpoint.txt");
+		if (not output.good()) 
+		{
+	        auto const errNo = errno;
+	        std::string errMessage = "Failed to create file "+filename+"checkpoint.txt: "+std::to_string(errNo)+": "+std::strerror(errNo);
+	        throw std::runtime_error(errMessage);
+	        return false;
+    	}
+    	return true;
+	}
 	
 
 	~DECCOData(){};
@@ -1538,4 +1551,5 @@ private:
 		}
 		return meta_data;
 	}
+
 };
