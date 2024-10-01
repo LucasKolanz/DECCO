@@ -45,16 +45,16 @@ if __name__ == '__main__':
 	job_set_name = "errorckcsvlognorm"
 	job_set_name = "errorckh5lognorm"
 	job_set_name = "overflowerror"
-	job_set_name = "TESTBCCA"
+	job_set_name = "TESTBCCATWO"
 	# job_set_name = "TEST"
 
 	# folder_name_scheme = "T_"
 
 	SPECIAL_FOLDER = ""#"/home/lucas/Desktop/SpaceLab_data/largejob/"
 
-	runs_at_once = 3
+	runs_at_once = 11
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
-	attempts = [0,1,2] 
+	attempts = [0,1,2,3,4,5,6,7,8,9] 
 	N = [256]
 	threads = []
 	# Temps = [3,10,30,100,300,1000]

@@ -8,6 +8,17 @@
 #include <cctype>
 #include <iostream>
 #include <sstream>
+#include "../external/json/single_include/nlohmann/json.hpp"
+#include "../utilities/MPI_utilities.hpp"
+
+
+#ifdef EXPERIMENTAL_FILESYSTEM
+    #include <experimental/filesystem>
+    namespace fs = std::experimental::filesystem;
+#else
+    #include <filesystem>
+    namespace fs = std::filesystem;
+#endif
 
 using namespace linalg;
 using linalg::cross;
@@ -57,6 +68,24 @@ std::mt19937 random_generator(rd());
 //     ss >> ret; 
 //     return ret;
 // }
+
+nlohmann::json getJsonFromFolder(std::string location)
+{
+    if (location == "")
+    {
+        try {
+            fs::path currentPath = fs::current_path();
+            location = currentPath.string() + "/";
+        } catch (const fs::filesystem_error& e) {
+            MPIsafe_print(std::cerr,std::string("Error getting current directory: " + std::string(e.what()) + '\n'));
+            exit(-1);
+        }
+    }
+    // std::string s_location(location);
+    std::string json_file = location + "input.json";
+    std::ifstream ifs(json_file);
+    return nlohmann::json::parse(ifs);
+}
 
 int extractNumberFromString(const std::string& s) 
 {

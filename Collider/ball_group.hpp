@@ -381,6 +381,8 @@ public:
     void colliderInit(const std::string path);
     std::string find_file_name(std::string path,int index);
     int get_num_threads();
+    std::string data_type_from_input(const std::string location);
+
 
 
     void sim_one_step();
@@ -748,25 +750,32 @@ void Ball_group::init_data(int counter = 0)
 }
 
 
+std::string Ball_group::data_type_from_input(const std::string location)
+{
+    json inputs = getJsonFromFolder(location);
+    return inputs["dataFormat"];
+}
+
 //Parses input.json file that is in the same folder the executable is in
 void Ball_group::parse_input_file(std::string location)
 {
 
-    if (location == "")
-    {
-        try {
-            fs::path currentPath = fs::current_path();
-            location = currentPath.string() + "/";
-        } catch (const fs::filesystem_error& e) {
-            MPIsafe_print(std::cerr,std::string("Error getting current directory: " + std::string(e.what()) + '\n'));
-            exit(-1);
-        }
-    }
-    // std::string s_location(location);
-    std::string json_file = location + "input.json";
-    MPIsafe_print(std::cerr,std::string("Parsing input file: "+json_file+'\n'));
-    std::ifstream ifs(json_file);
-    json inputs = json::parse(ifs);
+    // if (location == "")
+    // {
+    //     try {
+    //         fs::path currentPath = fs::current_path();
+    //         location = currentPath.string() + "/";
+    //     } catch (const fs::filesystem_error& e) {
+    //         MPIsafe_print(std::cerr,std::string("Error getting current directory: " + std::string(e.what()) + '\n'));
+    //         exit(-1);
+    //     }
+    // }
+    // // std::string s_location(location);
+    // std::string json_file = location + "input.json";
+    // std::ifstream ifs(json_file);
+    // json inputs = json::parse(ifs);
+    json inputs = getJsonFromFolder(location);
+    MPIsafe_print(std::cerr,std::string("Parsing input file: "+location+"input.json\n"));
     attrs.output_folder = inputs["output_folder"];
     if (attrs.output_folder == "")
     {
@@ -1628,7 +1637,7 @@ void Ball_group::verify_projectile(const std::string projectile_folder,const int
     std::ifstream f;
     int time_slept = 0;
     int interval = 10; //seconds
-    while (time_slept>=max_wait_time)
+    while (time_slept<=max_wait_time)
     {
         f.open(file_base+"_checkpoint.txt");
         if (f.good())
@@ -1723,7 +1732,9 @@ std::string Ball_group::get_rand_projectile(std::string folder)
         }
     }
 
-    std::string att = std::to_string(attempts[rand_int_between(0,attempts.size()-1)]);
+    int rand = rand_int_between(0,attempts.size()-1);
+    std::cerr<<"Got an index of "<<rand<<" between 0 and "<<attempts.size()-1<<std::endl;
+    std::string att = std::to_string(attempts[rand]);
     
     return everything_before_attempt + att + everything_after_attempt;
 }
@@ -2530,7 +2541,7 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename)
             file_index = stoi(file.substr(0,_pos));
             loadDatafromH5(path,file);
         #else
-            MPIsafe_print(std::cerr,"ERROR: HDF5 not enabled. Please recompile with -DHDF5_ENABLE and try again.\n");
+            MPIsafe_print(std::cerr,"ERROR: HDF5 not enabled, could not open file '"+path+file+"'. Please recompile with -DHDF5_ENABLE and try again.\n");
             MPIsafe_exit(EXIT_FAILURE);
         #endif
     }
@@ -3224,6 +3235,8 @@ std::string Ball_group::find_file_name(std::string path,int index)
 }
 
 
+//Returns the path + filename of the specified index
+//If index < 0 (default is -1) then it will return the largest (completed) index
 std::string Ball_group::find_whole_file_name(std::string path, const int index)
 {
     std::string file;
@@ -3232,10 +3245,26 @@ std::string Ball_group::find_whole_file_name(std::string path, const int index)
     std::string simDatacsv = "simData.csv";
     std::string datah5 = "data.h5";
 
+    // TODO::: write this function so we actually know if its csv or h5
+    std::string dataType = data_type_from_input(path);
+    bool csv;
+    if (dataType == "csv")
+    {
+        csv = true;
+    }
+    else if (dataType == "h5" || dataType == "hdf5")
+    {
+        csv = false;
+    }
+    else
+    {
+        MPIsafe_print(std::cerr,"ERROR in find_whole_file_name: dataType '"+dataType+"' not recognized.");
+        MPIsafe_exit(-1);
+    }
+
     int largest_file_index = -1;
     int second_largest_file_index = -1;
     int file_index=0;
-    bool csv = false;
     for (const auto & entry : fs::directory_iterator(path))
     {
         file = entry.path();
@@ -3244,6 +3273,7 @@ std::string Ball_group::find_whole_file_name(std::string path, const int index)
 
         //Is the data in csv format?
         //If so, find largest and second largest file index
+        // if (file.size() > simDatacsv.size() && csv)
         if (file.size() > simDatacsv.size() && file.substr(file.size()-simDatacsv.size(),file.size()) == simDatacsv)
         {
             // file_count++;
@@ -3261,18 +3291,17 @@ std::string Ball_group::find_whole_file_name(std::string path, const int index)
                 second_largest_file_name = largest_file_name;
                 largest_file_index = file_index;
                 largest_file_name = file;
-                csv = true;
             }
             else if (file_index > second_largest_file_index)
             {
                 second_largest_file_name = file;
                 second_largest_file_index = file_index;
-                csv = true;
             }
 
 
 
         }
+        // else if (file.size() > datah5.size() && not csv)
         else if (file.size() > datah5.size() && file.substr(file.size()-datah5.size(),file.size()) == datah5)
         {
             size_t _pos = file.find_first_of("_");
@@ -3299,37 +3328,46 @@ std::string Ball_group::find_whole_file_name(std::string path, const int index)
     }
 
 
-    if (csv && index < 0)
+    if (csv && index < 0 && second_largest_file_index > 0)
     {
         if (getRank() == 0)
         {
             std::string file1 = path + largest_file_name;
             std::string file2 = path + largest_file_name.substr(0,largest_file_name.size()-simDatacsv.size()) + "constants.csv";
             std::string file3 = path + largest_file_name.substr(0,largest_file_name.size()-simDatacsv.size()) + "energy.csv";
+            std::string file4 = path + largest_file_name.substr(0,largest_file_name.size()-simDatacsv.size()) + "checkpoint.txt";
 
             std::string message("Removing the following files: \n"
                                 +'\t'+file1+'\n'
                                 +'\t'+file2+'\n'
-                                +'\t'+file3+'\n');
+                                +'\t'+file3+'\n'
+                                +'\t'+file4+'\n');
             MPIsafe_print(std::cerr,message);
 
             int status1 = remove(file1.c_str());
             int status2 = remove(file2.c_str());
             int status3 = remove(file3.c_str());
+            int status4 = remove(file4.c_str());
+
 
             if (status1 != 0)
             {
-                MPIsafe_print(std::cerr,"File: '"+file1+"' could not be removed, now exiting with failure.\n");
+                MPIsafe_print(std::cerr,"File1: '"+file1+"' could not be removed, now exiting with failure.\n");
                 MPIsafe_exit(EXIT_FAILURE);
             }
             else if (status2 != 0)
             {
-                MPIsafe_print(std::cerr,"File: '"+file2+"' could not be removed, now exiting with failure.\n");
+                MPIsafe_print(std::cerr,"File2: '"+file2+"' could not be removed, now exiting with failure.\n");
                 MPIsafe_exit(EXIT_FAILURE);
             }
             else if (status3 != 0)
             {
-                MPIsafe_print(std::cerr,"File: '"+file3+"' could not be removed, now exiting with failure.\n");
+                MPIsafe_print(std::cerr,"File3: '"+file3+"' could not be removed, now exiting with failure.\n");
+                MPIsafe_exit(EXIT_FAILURE);
+            }
+            else if (status4 != 0)
+            {
+                MPIsafe_print(std::cerr,"File4: '"+file4+"' could not be removed, now exiting with failure.\n");
                 MPIsafe_exit(EXIT_FAILURE);
             }
         }
