@@ -1057,7 +1057,7 @@ public:
 			fixed = false;
 		}
 
-		int dot_index = filename.find('.');
+		int dot_index = filename.find_last_of('.');
 		storage_type = filename.substr(dot_index+1,filename.length()-dot_index);
 		//Transform storage_type to be not case sensitive
 		transform(storage_type.begin(), storage_type.end(), storage_type.begin(), ::tolower);
@@ -1370,11 +1370,21 @@ public:
 
 	bool write_checkpoint()
 	{
-		std::ofstream output(filename+"checkpoint.txt");
+		std::string checkpt_file;
+		if (csvdata)
+		{
+			checkpt_file = filename+"checkpoint.txt";
+		}
+		else
+		{
+			checkpt_file = filename.substr(0,filename.find_last_of('_')+1)+"checkpoint.txt";
+		}
+
+		std::ofstream output(checkpt_file);
 		if (not output.good()) 
 		{
 	        auto const errNo = errno;
-	        std::string errMessage = "Failed to create file "+filename+"checkpoint.txt: "+std::to_string(errNo)+": "+std::strerror(errNo);
+	        std::string errMessage = "Failed to create file "+checkpt_file+": "+std::to_string(errNo)+": "+std::strerror(errNo);
 	        throw std::runtime_error(errMessage);
 	        return false;
     	}

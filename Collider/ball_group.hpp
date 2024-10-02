@@ -1150,7 +1150,11 @@ void Ball_group::pushApart() const
 }
 
 
-
+//This function could use some work
+//I believe it is supposed to calculate an approximate v_collapse so that
+//dt can be set based on what velocity is the fastest (v_collapse, v_max, or v_custom if it is specified)
+//At the moment, it seems to get stuck in the while loops for certain circumstances.
+//I modified this function from Job's version to use vdw force instead of just gravity.
 void Ball_group::calc_v_collapse()
 {
     // Sim fall velocity onto cluster:
@@ -1164,6 +1168,8 @@ void Ball_group::calc_v_collapse()
     double m_min = getMmin();
     double position = 0;
     double temp_dt = 0.1;
+    int max_count = 10000;
+    int count = 0;
 
     //The do while loop takes care of the case when 0.1 is way too big for dt 
     //(particularly with vdw forces) and the inner loop overshoots too much 
@@ -1174,7 +1180,7 @@ void Ball_group::calc_v_collapse()
         // std::cerr<<"HERE: "<<attrs.initial_radius-attrs.h_min<<std::endl;
         // std::cerr<<"temp_dt: "<<temp_dt<<std::endl;
         // while (position < attrs.initial_radius) {
-        while (position < attrs.initial_radius-attrs.h_min) {
+        while (position < attrs.initial_radius-attrs.h_min && count < max_count) {
             // todo - include vdw!!!
 
             //This is like the smallest ball falling into the largest ball due only to vdw force
@@ -1196,11 +1202,21 @@ void Ball_group::calc_v_collapse()
             
             position += attrs.v_collapse * temp_dt;
             // std::cerr<<position<<std::endl;
+            count++;
         }
         temp_dt /= 2;
-    }while (position > (attrs.initial_radius-attrs.h_min)*2);
+    }while (position > (attrs.initial_radius-attrs.h_min)*2 && count < max_count);
 
-    attrs.v_collapse = fabs(attrs.v_collapse);
+    if (count >= max_count)
+    {
+        attrs.v_collapse = 1.0;
+        MPIsafe_print(std::cerr,"WARNING: maximum iterations of calculating v_collapse hit, setting v_collapse to 1.0 cm/s.\n");
+    }
+    else
+    {
+        attrs.v_collapse = fabs(attrs.v_collapse);
+    }
+
     // std::cerr<<"finish calc collapse: "<<attrs.v_collapse<<std::endl;
 }
 
@@ -1845,7 +1861,7 @@ Ball_group Ball_group::add_projectile(const simType simtype)
 
     // Negate total system momentum:
     projectile.kick(-v_com);
-    kick(-v_com);
+    kick(-v_com); 
 
     std::ostringstream oss;
     oss << "\nTarget Velocity: " << std::scientific << vel[0].norm()
@@ -2551,7 +2567,6 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename)
         MPIsafe_exit(EXIT_FAILURE);
     }
 
-
     calc_helpfuls();
 
     std::string message("Balls: " + std::to_string(attrs.num_particles) + '\n' + 
@@ -2704,7 +2719,7 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
     HDF5Handler::loadConsts(path,file,R,m,moi);
 
     int writes;
-    if (attrs.typeSim != attrs.relax && has_meta) //Relax jobs should not read in the metadata for dt, steps, etc. That is for restarting jobs.
+    if (attrs.typeSim != relax && has_meta) //Relax jobs should not read in the metadata for dt, steps, etc. That is for restarting jobs.
     {
         parse_meta_data(meta);
 
@@ -2745,7 +2760,7 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
     }
     else if(writes == -1) //Works
     {
-        if (attrs.typeSim != attrs.relax && has_meta)
+        if (attrs.typeSim != relax && has_meta)
         {
             data -> loadSimData(path,file,pos,w,vel);
         }
@@ -3025,7 +3040,7 @@ void Ball_group::sim_init_two_cluster(
     // const double vSmall = -sqrt(2 * KEfactor * fabs(PEsys) * (mBig / (mSmall * mTot))); // Negative
     // because small offsets right.
     const double vSmall = -attrs.v_custom;                // DART probe override.
-    const double vBig = -(mSmall / mBig) * vSmall;  // Negative to oppose projectile.
+    const double vBig = 0;//-(mSmall / mBig) * vSmall;  // Negative to oppose projectile.
     // const double vBig = 0; // Dymorphous override.
 
     if (std::isnan(vSmall) || std::isnan(vBig)) {

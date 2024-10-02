@@ -88,17 +88,17 @@ if __name__ == '__main__':
     data_directory = input_json["data_directory"] 
 
 
-    target_directory = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/erroredRelaxJobs/'
     target_directory = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/'
+    target_directory = '/media/kolanzl/easystore/SpaceLab_data/jobsNovus/'
     jobset_name = "const"
-    jobset_name = "constMinHmin"
+    jobset_name = "const_relax"
 
     file_patterns = ['fractdim_ppb-*.csv']
     file_patterns.append('pointcloud*.pcd')
     # file_patterns.append('Collider*.o')
     # file_patterns.append('Collider*.x')
 
-    DELETE = False
+    DELETE = True
     all_output = []
     
     for file_pattern in file_patterns:
