@@ -44,7 +44,7 @@
 	"Y": 2.0e12,
 	//Coefficient of restitution
 	"cor": 0.4,
-	//Total(??) sim time in seconds
+	//Total time to be simulated in seconds
 	"simTimeSeconds": 0.5e-3, 
 	//Duration between exported steps in seconds
 	"timeResolution": 1e-5,
@@ -56,6 +56,8 @@
 	// "KEfactor": 0, //If set to value other than zero, will overwrite v_custom (I think, need to check to be sure)
 	//Tempurature of simulation in K
 	"temp": -1, //If set to value greater than zero, overwrites v_custom with value picked from maxwell boltzmann dist at given tempurature
+	//The ratio to kinetic to potential energy
+	"eta": -1, //If set to value greater than zero, this overwrites v_custom based on eta=KE/PE
 	//velocity of projectile in cm/s
 	"v_custom": "default", //default is max probable velocity at T(K) = 3 (0.36301555459799423)
 	//???

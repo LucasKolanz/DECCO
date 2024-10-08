@@ -23,6 +23,7 @@
     "maxOverlap": 0.1,
     "KEfactor": 0,
     "temp": -1,
+    "eta": -1,
     "v_custom": "default",
     "kConsts": 3000.0,
     "impactParameter": 0,

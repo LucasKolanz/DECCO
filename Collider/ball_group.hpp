@@ -134,6 +134,7 @@ struct Ball_group_attributes
     double KEfactor = -1.0;                              // Determines collision velocity based on KE/PE
     double v_custom = -1.0;  // Velocity cm/s
     double temp = -1.0;          //tempurature of simulation in Kelvin
+    double eta = -1.0;  //eta = KE/PE (used for setting speed of projectile based on a desired energy ratio)
     double kConsts = -1.0;
     double impactParameter = -1.0;  // Impact angle radians
     double Ha = -1.0;         // Hamaker constant for vdw force
@@ -241,6 +242,7 @@ struct Ball_group_attributes
             KEfactor = other.KEfactor;
             v_custom = other.v_custom;
             temp = other.temp;
+            eta = other.eta;
             kConsts = other.kConsts;
             impactParameter = other.impactParameter;
             Ha = other.Ha;
@@ -347,13 +349,16 @@ public:
     void calc_helpfuls(const bool includeRadius=true);
     double get_soc();    
     void kick(const vec3& vec) const;
+    void move(const vec3& vec) const;
     vec3 calc_momentum(const std::string& of) const;
     void offset(const double& rad1, const double& rad2, const double& impactParam) const;
     [[nodiscard]] double getRadius(const vec3& center) const;
-    void updateGPE();
+    void updatePE();
     void sim_init_write(int counter);
     [[nodiscard]] vec3 getCOM() const;
     void zeroVel() const;
+    void overwrite_v_custom(Ball_group &projectile,Ball_group &target);
+    void overwrite_v_custom(Ball_group &projectile);
     void zeroAngVel() const;
     void to_origin() const;
     void comSpinner(const double& spinX, const double& spinY, const double& spinZ) const;
@@ -362,9 +367,11 @@ public:
     double calc_moi(const double& radius, const double& mass);
     Ball_group spawn_particles(const int count);
     vec3 random_offset(const double3x3 local_coords,vec3 projectile_pos,vec3 projectile_vel,const double projectile_rad);
+    double calc_max_bolt_velocity(double temp, double mass);
+    double calc_eta_velocity(const double eta, Ball_group &projectile, Ball_group &target);
     Ball_group BPCA_projectile_init();
-    void calc_max_bolt_velocity(double temp, double mass);
     Ball_group BCCA_projectile_init(const bool symmetric);
+    Ball_group BAPA_projectile_init();
     Ball_group add_projectile(const simType);
     void merge_ball_group(const Ball_group& src,const bool includeRadius=true);
     void freeMemory() const;
@@ -382,7 +389,8 @@ public:
     std::string find_file_name(std::string path,int index);
     int get_num_threads();
     std::string data_type_from_input(const std::string location);
-
+    double calc_group_noncontact_PE(Ball_group &projectile,Ball_group &target);
+    double calc_noncontact_PE();
 
 
     void sim_one_step();
@@ -404,7 +412,7 @@ private:
     void loadConsts(const std::string& path, const std::string& filename);
     [[nodiscard]] static std::string getLastLine(const std::string& path, const std::string& filename);
     // void simDataWrite(std::string& outFilename);
-    [[nodiscard]] double getMass();
+    double getMass();
     void threeSizeSphere(const int nBalls);
     void generate_ball_field(const int nBalls);
     void loadSim(const std::string& path, const std::string& filename);
@@ -627,7 +635,7 @@ void Ball_group::aggregationInit(const std::string path,const int index)
         attrs.m_total = getMass();
         calc_v_collapse();
 
-        //We can't trust v_collapse to set the correct k and dt. So just set it to 1 here
+        //We can't trust v_collapse to set the correct k and dt for now. So just set it to 1 here
         attrs.v_custom = 1;
         
         // std::cerr<<"INIT VCUSTOM "<<v_custom<<std::endl;
@@ -861,8 +869,6 @@ void Ball_group::parse_input_file(std::string location)
     {
         attrs.radiiDistribution = constant;
     }
-    
-
 
     attrs.N = inputs["N"];
     attrs.dynamicTime = inputs["dynamicTime"];
@@ -884,6 +890,16 @@ void Ball_group::parse_input_file(std::string location)
     attrs.MPInodes = attrs.MAXMPInodes;
     attrs.MAXOMPthreads = inputs["OMPthreads"];
     attrs.OMPthreads = attrs.MAXOMPthreads;
+ 
+    //Specifying one of these will modify the velocity of the collision
+    //If both are specified, then print out a warning and use eta.
+    //However, v_custom can't be set until you know the mass of the projectile
+    //if you are setting based on temp, so we do this in the init functions.
+    attrs.temp = inputs["temp"]; 
+    if (inputs.contains("eta"))
+    {
+        attrs.eta = inputs["eta"]; 
+    }
     
     if (inputs["v_custom"] == std::string("default"))
     {
@@ -894,7 +910,7 @@ void Ball_group::parse_input_file(std::string location)
         attrs.v_custom = inputs["v_custom"];
     }
 
-    attrs.temp = inputs["temp"]; // this will modify v_custom in oneSizeSphere
+
     double temp_kConst = inputs["kConsts"];
     attrs.kConsts = temp_kConst * (attrs.fourThirdsPiRho / (attrs.maxOverlap * attrs.maxOverlap));
     attrs.impactParameter = inputs["impactParameter"];
@@ -1287,6 +1303,12 @@ void Ball_group::kick(const vec3& vec) const
     for (int Ball = 0; Ball < attrs.num_particles; Ball++) { vel[Ball] += vec; }
 }
 
+// move ballGroup (move current position by vec)
+void Ball_group::move(const vec3& vec) const
+{
+    for (int Ball = 0; Ball < attrs.num_particles; Ball++) { pos[Ball] += vec; }
+}
+
 
 vec3 Ball_group::calc_momentum(const std::string& of = "") const
 {
@@ -1322,7 +1344,7 @@ void Ball_group::offset(const double& rad1, const double& rad2, const double& im
 }
 
 // Update Gravitational Potential Energy:
-void Ball_group::updateGPE()
+void Ball_group::updatePE()
 {
     PE = 0;
 
@@ -1333,14 +1355,43 @@ void Ball_group::updateGPE()
                 const double sumRaRb = R[A] + R[B];
                 const double dist = (pos[A] - pos[B]).norm();
                 const double overlap = sumRaRb - dist;
+                double h = std::fabs(overlap);
 
                 // Check for collision between Ball and otherBall.
                 if (overlap > 0) {
-                    PE +=
-                        -attrs.G * m[A] * m[B] / dist + attrs.kin * ((sumRaRb - dist) * .5) * ((sumRaRb - dist) * .5);
+                    h = attrs.h_min;
+                    
+                    
+                    //Elastic PE
+                    PE += attrs.kin * ((sumRaRb - dist) * .5) * ((sumRaRb - dist) * .5);
+
+ 
+                    // Van Der Waals PE:
+                    const double diffRaRb = R[A] - R[B];
+                    const double z = sumRaRb + h;
+                    const double two_RaRb = 2 * R[A] * R[B];
+                    const double denom_sum = z * z - (sumRaRb * sumRaRb);
+                    const double denom_diff = z * z - (diffRaRb * diffRaRb);
+                    const double U_vdw =
+                        -attrs.Ha / 6 *
+                        (two_RaRb / denom_sum + two_RaRb / denom_diff + 
+                        log(denom_sum / denom_diff));
+                    PE += U_vdw; 
+
                 } else {
-                    PE += -attrs.G * m[A] * m[B] / dist;
+
+                    const double diffRaRb = R[A] - R[B];
+                    const double z = sumRaRb + h;
+                    const double two_RaRb = 2 * R[A] * R[B];
+                    const double denom_sum = z * z - (sumRaRb * sumRaRb);
+                    const double denom_diff = z * z - (diffRaRb * diffRaRb);
+                    const double U_vdw =
+                        -attrs.Ha / 6 *
+                        (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
+                    PE += U_vdw;  // Van Der Waals TURN ON FOR REAL SIM
                 }
+                //Gravitational PE
+                // PE += -attrs.G * m[A] * m[B] / dist;
             }
         }
     } else  // For the case of just one ball:
@@ -1466,7 +1517,8 @@ void Ball_group::to_origin() const
 {
     const vec3 com = getCOM();
 
-    for (int Ball = 0; Ball < attrs.num_particles; Ball++) { pos[Ball] -= com; }
+    move(com);
+    // for (int Ball = 0; Ball < attrs.num_particles; Ball++) { pos[Ball] -= com; }
 }
 
 // Set velocity of all balls such that the cluster spins:
@@ -1581,13 +1633,96 @@ vec3 Ball_group::random_offset(
     return projectile_pos-new_position;
 }
 
-void Ball_group::calc_max_bolt_velocity(double temp, double mass)
+//This function should calculate the Potential energy of a group.
+//This Potential energy should not include elastic PE.
+double Ball_group::calc_noncontact_PE()
+{
+    double PotE = 0;
+
+    if (attrs.num_particles > 1)  // Code below only necessary for effects between balls.
+    {
+        for (int A = 1; A < attrs.num_particles; A++) {
+            for (int B = 0; B < A; B++) {
+                const double sumRaRb = R[A] + R[B];
+                const double dist = (pos[A] - pos[B]).norm();
+                const double overlap = sumRaRb - dist;
+                double h = std::fabs(overlap);
+
+                // Check for collision between Ball and otherBall.
+                if (overlap > 0) {
+                    h = attrs.h_min;
+                } 
+                // Van Der Waals PE:
+                const double diffRaRb = R[A] - R[B];
+                const double z = sumRaRb + h;
+                const double two_RaRb = 2 * R[A] * R[B];
+                const double denom_sum = z * z - (sumRaRb * sumRaRb);
+                const double denom_diff = z * z - (diffRaRb * diffRaRb);
+                const double U_vdw =
+                    -attrs.Ha / 6 *
+                    (two_RaRb / denom_sum + two_RaRb / denom_diff + 
+                    log(denom_sum / denom_diff));
+                PotE += U_vdw; 
+
+                //Gravity PE:
+                // PotE += -attrs.G * m[A] * m[B] / dist;
+            }
+        }
+    } 
+    return PotE;
+}
+
+//This function should calculate the Potential enery between two groups.
+//This Potentail energy shouldn't include elastic PE.
+double Ball_group::calc_group_noncontact_PE(Ball_group &projectile,Ball_group &target)
+{
+    double PotE = 0;
+    const double Ra = projectile.getRadius(projectile.getCOM()) + projectile.getRmax()*2;
+    const double Rb = target.getRadius(target.getCOM()) + target.getRmax()*2;
+    const double sumRaRb = Ra + Rb;
+    const double dist = (projectile.getCOM() - target.getCOM()).norm();
+    const double overlap = sumRaRb - dist;
+    const double h = projectile.getRadius(projectile.getCOM()) + projectile.getRmax()*2 + target.getRadius(target.getCOM()) + target.getRmax() * 2;
+
+    const double diffRaRb = Ra - Rb;
+    const double z = sumRaRb + h;
+    const double two_RaRb = 2 * Ra * Rb;
+    const double denom_sum = z * z - (sumRaRb * sumRaRb);
+    const double denom_diff = z * z - (diffRaRb * diffRaRb);
+    const double U_vdw =
+        -attrs.Ha / 6 *
+        (two_RaRb / denom_sum + two_RaRb / denom_diff + 
+        log(denom_sum / denom_diff));
+    PotE += U_vdw; 
+    // PotE += (-G * projectile.mTotal * target.mTotal / (projectile.getCOM() - target.getCOM()).norm());
+    return PotE;
+}
+
+//This function calculates v_custom to be the velocity 
+//of a collision where the kinetic energy  is eta times 
+//the potential energy.
+double Ball_group::calc_eta_velocity(const double eta, Ball_group& projectile, Ball_group& target)
+{
+
+    const double proj_PE = projectile.calc_noncontact_PE();
+    const double targ_PE = target.calc_noncontact_PE();
+    const double PEsys = proj_PE + targ_PE + calc_group_noncontact_PE(projectile,target);
+    const double mp = projectile.attrs.m_total;
+    const double mt = target.attrs.m_total;
+
+    const double vp = sqrt(2 * eta * fabs(PEsys) * (mp / (mt * (mp+mt)))); 
+
+    attrs.v_custom = vp + vp*(mp/mt);
+
+    return attrs.v_custom;
+
+}
+
+
+double Ball_group::calc_max_bolt_velocity(double temp, double mass)
 {
     double a = std::sqrt(Kb*temp/mass);
-    attrs.v_custom = max_bolt_dist(a); 
-
-    std::string message("v_custom set to "+std::to_string(attrs.v_custom)+ "cm/s based on a temp of "+
-            std::to_string(attrs.temp)+" degrees K.\n"); 
+    return max_bolt_dist(a); 
 }
 
 // @brief returns new ball group consisting of one particle
@@ -1619,10 +1754,8 @@ Ball_group Ball_group::BPCA_projectile_init()
     projectile.w[0] = {0, 0, 0};
     projectile.m[0] = attrs.density * 4. / 3. * pi * std::pow(projectile.R[0], 3);
     // Velocity toward origin:
-    if (attrs.temp > 0)
-    {
-        calc_max_bolt_velocity(attrs.temp,projectile.m[0]);
-    }
+    //Update v_custom if temp or eta are greater than zero
+    overwrite_v_custom(projectile);
     projectile.vel[0] = -attrs.v_custom * projectile_direction;
 
     
@@ -1787,14 +1920,79 @@ Ball_group Ball_group::BCCA_projectile_init(const bool symmetric=true)
     }
 
     //find velocity of projectile
-    if (attrs.temp > 0)
-    {
-        double a = std::sqrt(Kb*attrs.temp/projectile.getMass());
-        attrs.v_custom = max_bolt_dist(a); 
+    // Velocity toward origin:
+    //Update v_custom if temp or eta are greater than zero
+    overwrite_v_custom(projectile);
 
-        std::string message("v_custom set to "+std::to_string(attrs.v_custom)+ "cm/s based on a temp of "+
-                std::to_string(attrs.temp)+" degrees K.\n"); 
+    // projectile random position at twice radius of target + projectile:
+    // We want the farthest from origin since we are offsetting form origin. Not com.
+    const auto cluster_radius = getRadius(vec3(0, 0, 0)) + projectile.getRadius(vec3(0, 0, 0));
+
+
+    const vec3 projectile_direction = rand_unit_vec3();
+
+    for (int i = 0; i < projectile.attrs.num_particles; ++i)
+    {
+
+        projectile.pos[i] += projectile_direction * (cluster_radius + attrs.scaleBalls * 4);
+
+        // Velocity toward origin:
+        projectile.vel[i] = -attrs.v_custom * projectile_direction;
+        
+        // projectile.R[0] = 1e-5;  // rand_between(1,3)*1e-5;
+        // projectile.moi[0] = calc_moi(projectile.R[0], projectile.m[0]);
     }
+
+    
+
+  
+
+    const double3x3 local_coords = local_coordinates(to_double3(projectile_direction));
+    
+    const vec3 offset = random_offset(local_coords,projectile.getCOM(),projectile.vel[0],projectile.R[0]); 
+
+    for (int i = 0; i < projectile.attrs.num_particles; ++i)
+    {
+        projectile.pos[i] -= offset;
+    }
+
+    
+    return projectile;
+}
+
+// @brief returns new ball group consisting of one particle
+//        where particle is given initial conditions
+//        including an random offset linearly dependant on radius 
+Ball_group BAPA_projectile_init()
+{
+
+    Ball_group projectile;
+
+
+    if (symmetric)
+    {
+        // projectile = *this;
+        projectile = Ball_group(*this);
+    }
+    else
+    {
+        // strip off the "{index}_" at the end of the file name because this constructor
+        // doesnt need it
+        std::string rand_projectile_folder = data->getFileName().substr(0,data->getFileName().length()-1-std::to_string(attrs.num_particles).length());
+        rand_projectile_folder = get_rand_projectile(rand_projectile_folder);
+        std::cerr<<"Getting random projectile from: "<<rand_projectile_folder<<std::endl;
+        
+        verify_projectile(rand_projectile_folder,attrs.num_particles);
+
+        // exit(0);
+        // projectile = Ball_group(rand_projectile_file);
+        projectile = Ball_group(rand_projectile_folder,attrs.num_particles);
+    }
+
+    //find velocity of projectile
+    // Velocity toward origin:
+    //Update v_custom if temp or eta are greater than zero
+    overwrite_v_custom(projectile);
 
     // projectile random position at twice radius of target + projectile:
     // We want the farthest from origin since we are offsetting form origin. Not com.
@@ -1848,6 +2046,10 @@ Ball_group Ball_group::add_projectile(const simType simtype)
     else if (simtype == BCCA)
     {
         projectile = BCCA_projectile_init(attrs.symmetric);
+    }
+    else if (simType == BAPA)//Ballistic Aggregate as Particle Aggregation
+    {
+        projectile = BAPA_projectile_init();
     }
     
     // Collision velocity calculation:
@@ -2279,7 +2481,7 @@ void Ball_group::loadConsts(const std::string& path, const std::string& filename
         MPIsafe_print(std::cerr,"Could not open constants file: " + constantsFilename + " ... Exiting program.\n");
         MPIsafe_exit(EXIT_FAILURE);
     }
-    // getMass();
+    getMass();
 }
 
 
@@ -2362,7 +2564,7 @@ void Ball_group::loadConsts(const std::string& path, const std::string& filename
 // }
 
 
-[[nodiscard]] double Ball_group::getMass()
+double Ball_group::getMass()
 {
     attrs.m_total = 0;
     {
@@ -2794,6 +2996,36 @@ void Ball_group::distSizeSphere(const int nBalls)
     placeBalls(nBalls);
 }
 
+
+void Ball_group::overwrite_v_custom(Ball_group &projectile)
+{
+    overwrite_v_custom(projectile,*this);
+}
+
+void Ball_group::overwrite_v_custom(Ball_group &projectile,Ball_group &target)
+{
+
+    if (attrs.eta > 0)
+    {
+        attrs.v_custom = calc_eta_velocity(attrs.eta,projectile,target);
+        std::string message("v_custom set to "+std::to_string(attrs.v_custom)+ "cm/s based on an eta of "+
+            std::to_string(attrs.eta)+".\n"); 
+        MPIsafe_print(std::cerr,message);
+
+        if (attrs.temp > 0)
+        {
+            message = "WARNING: Both attrs.eta and attrs.temp are greater than 0. Defaulting to setting attrs.v_custom based on eta (ignoring temperature).";
+        }
+    }
+    else if (attrs.temp > 0)
+    {
+        attrs.v_custom = calc_max_bolt_velocity(attrs.temp,projectile.getMass());
+        std::string message("v_custom set to "+std::to_string(attrs.v_custom)+ "cm/s based on a temp of "+
+            std::to_string(attrs.temp)+" degrees K.\n"); 
+        MPIsafe_print(std::cerr,message);
+    }
+}
+
 void Ball_group::oneSizeSphere(const int nBalls)
 {
     for (int Ball = 0; Ball < nBalls; Ball++) {
@@ -2985,7 +3217,7 @@ void Ball_group::sim_init_two_cluster(
     const std::string& targetName)
 {
     // Load file data:
-    std::string message("TWO CLUSTER SIM\nFile 1: " + projectileName + "\tFile 2: " + targetName + '\n');
+    std::string message("TWO CLUSTER SIM\nFile 1: " + projectileName + "\nFile 2: " + targetName + '\n');
     MPIsafe_print(std::cerr,message);
     // DART PROBE
     // ballGroup projectile(1);
@@ -3005,42 +3237,50 @@ void Ball_group::sim_init_two_cluster(
     projectile.parse_input_file(projectilePath);
     projectile.loadSim(projectilePath, pName);
     projectile.calc_v_collapse();
+    projectile.to_origin();
 
     Ball_group target;
     target.parse_input_file(targetPath);
     target.loadSim(targetPath, tName);
     target.calc_v_collapse();
+    target.to_origin();
 
     attrs.num_particles = projectile.attrs.num_particles + target.attrs.num_particles;
     
     MPIsafe_print(std::cerr,"Total number of particles in sim: "+std::to_string(attrs.num_particles) + '\n');
 
     // DO YOU WANT TO STOP EVERYTHING?
-    // projectile.zeroAngVel();
-    // projectile.zeroVel();
-    // target.zeroAngVel();
-    // target.zeroVel();
+    projectile.zeroAngVel();
+    projectile.zeroVel();
+    target.zeroAngVel();
+    target.zeroVel();
 
-    // Calc info to determined cluster positioning and collisions velocity:
-    projectile.updateGPE();
-    target.updateGPE();
+    //move projectile so it is down the x-axis 
+    projectile.move(vec3(projectile.attrs.initial_radius + projectile.getRmax()*2 + target.attrs.initial_radius + target.getRmax() * 2, 0, 0));
 
+    //This takes care of offsetting the target and projectile, but still need to move them apart
     projectile.offset(
-        (projectile.attrs.initial_radius + target.attrs.initial_radius)*3, 0.0, attrs.impactParameter);
-        //Next line was the original. Testing above line
+        projectile.attrs.initial_radius + projectile.getRmax()*2, target.attrs.initial_radius + target.getRmax() * 2, attrs.impactParameter);
+        //Next line was the original
         // projectile.attrs.initial_radius, target.attrs.initial_radius + target.getRmax() * 2, attrs.impactParameter);
+        // (projectile.attrs.initial_radius + target.attrs.initial_radius)*3, 0.0, attrs.impactParameter);
 
-    //      const double PEsys = projectile.PE + target.PE + (-G * projectile.mTotal * target.mTotal /
-    //(projectile.getCOM() - target.getCOM()).norm());
+    //Now we can move the aggregates apart
+    projectile.move(vec3((projectile.attrs.initial_radius + projectile.getRmax()*2 + target.attrs.initial_radius + target.getRmax() * 2)*2, 0, 0));
+
+    //Update v_custom if temp or eta are greater than zero
+    overwrite_v_custom(projectile,target);
 
     // Collision velocity calculation:
+    // Make it so collision velocity is v_custom and 
+    // the velocity of the center of mass is zero
     const double mSmall = projectile.attrs.m_total;
     const double mBig = target.attrs.m_total;
-    //      const double mTot = mBig + mSmall;
+    const double mTot = mBig + mSmall;
     // const double vSmall = -sqrt(2 * KEfactor * fabs(PEsys) * (mBig / (mSmall * mTot))); // Negative
     // because small offsets right.
-    const double vSmall = -attrs.v_custom;                // DART probe override.
-    const double vBig = 0;//-(mSmall / mBig) * vSmall;  // Negative to oppose projectile.
+    const double vBig = attrs.v_custom*(mSmall)/(mTot);     //-(mSmall / mBig) * vSmall;  // Negative to oppose projectile.
+    const double vSmall = (vBig-attrs.v_custom);                
     // const double vBig = 0; // Dymorphous override.
 
     if (std::isnan(vSmall) || std::isnan(vBig)) {
@@ -3069,6 +3309,9 @@ void Ball_group::sim_init_two_cluster(
     merge_ball_group(projectile);  // projectile second so smallest ball at end and largest ball at front
                                    // for dt/k calcs.
     // attrs.v_collapse = new_v_collapse;
+
+    //move center of mass to origin
+    to_origin();
 
     attrs.output_prefix = projectileName + targetName + "T" + rounder(attrs.KEfactor, 4) + "_vBig" +
                     scientific(vBig) + "_vSmall" + scientific(vSmall) + "_IP" +

@@ -117,7 +117,7 @@ if __name__ == '__main__':
 	N_combos = [[30,100]]
 	# N = [300]
 	etas = [i/2.0+0.5 for i in range(0,24)]
-	etas = [etas[0]]
+	etas = [etas[0]/5]
 
 
 	# attempts_300 = attempts

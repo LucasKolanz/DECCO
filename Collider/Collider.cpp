@@ -221,18 +221,6 @@ void runAggregation(std::string path, int num_balls)
         O.sim_looper(O.attrs.start_step);
     }
 
-    //Make an inital aggregate if this is BCCA
-    //NOTE::: THIS SHOLD HAPPEN FOR EITHER BCCA OR BPCA
-    //        MORE TESTTNG NEEDS TO HAPPEN FOR BPCA AS IT STANDS
-    // if (O.attrs.typeSim == BCCA)
-    // {
-    // if (world_rank==0)
-    // {
-    //     std::cerr<<"Asking for "<<O.get_num_threads()<<" threads."<<std::endl;
-    // }
-    // O.sim_looper(1);
-    // }
-
     int increment = 1; // This should be 1 for BPCA, if not BPCA, set in for loop
 
     // Add projectile: For dust formation BPCA or BCCA
