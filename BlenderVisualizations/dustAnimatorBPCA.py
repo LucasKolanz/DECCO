@@ -6,8 +6,9 @@ from math import *
 import fnmatch
 import os
 
-
-#import h5py
+import sys
+sys.path.append('/home/kolanzl/.local/lib/python3.11/site-packages')
+import h5py
 
 def get_filename(path,fileindex,relax = False):
 	rel = ""
@@ -95,8 +96,7 @@ def get_simData_and_consts(path,fileindex,relax = False):
 				print("=========================================================")
 				print(f"ERROR: there were {steps} writes in sim {filename}")
 				print("=========================================================")
-		
-				
+					
 	return [simData,constants,numSpheres,steps]
 	
 
@@ -182,19 +182,28 @@ path = '/home/lucas/Desktop/SpaceLab_data/jobs/TESTBCCA0/N_5/T_3/'
 #path = '/home/kolanzl/Desktop/Visualize/V15/'
 
 path = '/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax15/N_300/T_3/'
-path = '/media/kolanzl/easystore/SpaceLab_data/temp/'
+path = '/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm9/N_300/T_3/'
+path = '/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax26/N_100/T_1000/'
+path = '/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax29/N_300/T_1000/'
+path = '/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax9/N_300/T_3/'
+path = '/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm9/N_300/T_3/'
 
-simStart = 297
-simEnd = 297
+
+path = '/media/kolanzl/easystore/SpaceLab_data/jobs/TESTBPCA0/N_5/T_3/'
+path = '/media/kolanzl/easystore/SpaceLab_data/jobs/const_collisions0/N_30-100/eta_0.5/'
+path = '/media/kolanzl/easystore/SpaceLab_data/jobs/TESTBAPA0/N_300/T_3/'
+
+simStart = 30
+simEnd = 30
 
 #csv = False
 #filename = ''  
 just_last_line = False
-rel = False
 job_group_suffix = path.split('/')[-4].split('_')[-1]
 job_group_suffix = [i for i in job_group_suffix if not i.isnumeric()]
 job_group_suffix = "".join(job_group_suffix)
 
+rel = False
 if job_group_suffix == "relax":
 	rel = True
 

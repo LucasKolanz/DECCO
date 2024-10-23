@@ -98,6 +98,13 @@ main(int argc, char* argv[])
     }
     dummy.parse_input_file(location);
 
+    //Must call this before running anything to properly set the seed
+    //Call it here with dummy to we make sure we set the seed asap.
+    //If anything happens with random before here, it will not have the
+    //proper seed. But you cannot call this anywhere in Ball_group because
+    //then it can be called multiple times throughout the run. 
+    dummy.set_seed_from_input(location);
+
     //verify OpenMP threads
     #ifdef MPI_ENABLE
         MPI_Barrier(MPI_COMM_WORLD);
@@ -135,7 +142,7 @@ main(int argc, char* argv[])
         #endif
         runCollider(argv[1]);
     }
-    else if (dummy.attrs.typeSim == BPCA || dummy.attrs.typeSim == BCCA)
+    else if (dummy.attrs.typeSim == BPCA || dummy.attrs.typeSim == BCCA || dummy.attrs.typeSim == BAPA)
     {
         if (dummy.attrs.N >=  0)
         {
@@ -210,18 +217,22 @@ void runAggregation(std::string path, int num_balls)
     message = "Asking for "+std::to_string(O.get_num_threads())+" threads.\n";
     MPIsafe_print(std::cerr,message);
 
-    if  (!O.attrs.mid_sim_restart)
+    if  (!O.attrs.mid_sim_restart && O.attrs.typeSim != BAPA)
     {
         O.sim_init_write(O.attrs.genBalls);
         O.attrs.start_index = O.attrs.genBalls;
         O.sim_looper(1);
     }
-    else
+    else if (O.attrs.typeSim == BCCA || O.attrs.typeSim == BPCA)
     {
         O.sim_looper(O.attrs.start_step);
     }
 
     int increment = 1; // This should be 1 for BPCA, if not BPCA, set in for loop
+    if (O.attrs.typeSim == BAPA)
+    {
+        increment = O.attrs.num_particles;
+    }
 
     // Add projectile: For dust formation BPCA or BCCA
     for (int i = O.attrs.start_index; i < num_balls; i+=increment) 
@@ -372,7 +383,7 @@ safetyChecks(Ball_group &O) //Should be ready to call sim_looper
         MPIsafe_exit(EXIT_FAILURE);
     } 
 
-    if (O.attrs.typeSim != BPCA && O.attrs.typeSim != BCCA && O.attrs.typeSim != collider && O.attrs.typeSim != relax) {
+    if (O.attrs.typeSim != BPCA && O.attrs.typeSim != BCCA && O.attrs.typeSim != collider && O.attrs.typeSim != relax && O.attrs.typeSim != BAPA) {
         fprintf(stderr, "\ntypeSim NOT SET for rank %1d\n",getRank());
         MPIsafe_exit(EXIT_FAILURE);
     } 
@@ -437,10 +448,10 @@ safetyChecks(Ball_group &O) //Should be ready to call sim_looper
         MPIsafe_exit(EXIT_FAILURE);
     }
 
-    if (O.attrs.impactParameter < 0) {
-        fprintf(stderr, "\nimpactParameter NOT SET for rank %1d\n",getRank());
-        MPIsafe_exit(EXIT_FAILURE);
-    }
+    // if (O.attrs.impactParameter < 0) {
+    //     fprintf(stderr, "\nimpactParameter NOT SET for rank %1d\n",getRank());
+    //     MPIsafe_exit(EXIT_FAILURE);
+    // }
 
     if (O.attrs.Ha < 0) {
         fprintf(stderr, "\nHa NOT SET for rank %1d\n",getRank());

@@ -10,6 +10,7 @@
 #include <sstream>
 #include "../external/json/single_include/nlohmann/json.hpp"
 #include "../utilities/MPI_utilities.hpp"
+// #include "../Collider/ball_group.hpp"
 
 
 #ifdef EXPERIMENTAL_FILESYSTEM
@@ -28,6 +29,8 @@ using linalg::aliases::double3x3;
 
 std::random_device rd;
 std::mt19937 random_generator(rd());
+
+inline int rand_int_between(const int min, const int max);
 
 // std::string rand_file = "/home/lpkolanz/Desktop/SpaceLab_branch_copy/SpaceLab/random/rand.txt";
 // std::string gaus_file = "/home/lpkolanz/Desktop/SpaceLab_branch_copy/SpaceLab/random/randomGaussian.txt";
@@ -68,6 +71,85 @@ std::mt19937 random_generator(rd());
 //     ss >> ret; 
 //     return ret;
 // }
+
+bool isAllDigits(const std::string& s) {
+    if (s.empty()) return false; // Optional: Handle empty string as false
+    for (char c : s) {
+        if (!std::isdigit(static_cast<unsigned char>(c))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+//Returns all the folders in a particular directory
+std::vector<std::string> get_folders_in_directory(const std::string directory) 
+{
+    std::vector<std::string> folders;
+    
+    if (fs::exists(directory) && fs::is_directory(directory)) {
+        for (const auto& entry : fs::directory_iterator(directory)) {
+            if (fs::is_directory(entry)) {
+                folders.push_back(entry.path().string());
+            }
+        }
+    }
+    else
+    {
+        MPIsafe_print(std::cerr,"ERROR: directory not found: "+directory+'\n');
+    }
+    
+    return folders;
+}
+
+//@brief: Given a folder base in the form:
+//          /*Global path to Spacelab_data folder*/SpaceLab_data/jobs/jobsetname{a}/N_{n}/eta_{e}/T_{t}/
+//      This function finds all possible values of {a}, {n}, {e}, and/or {t}
+//      and returns a random folder with this scheme. If there isn't a specified 
+//      value for one of these options, then it is ignored as a possible random value.
+//The order of folders after the job folder shouldn't matter to this function
+//This function does not check if the job in the random folder is complete or not
+std::string get_rand_projectile_folder(std::string folder)
+{
+    int i = 0;
+    std::string rand_folder;
+    while (i < folder.length())
+    {
+        if (folder[i] == '{')
+        {
+            std::string dir = folder.substr(0,folder.substr(0,i).find_last_of('/'));
+
+            std::vector<std::string> all_folders = get_folders_in_directory(dir);
+            std::vector<std::string> app_folders;
+
+            for (const auto& possible : all_folders)
+            {
+                //If the first i letters are the same, and the remaining characters are numbers
+                if (folder.substr(0,i) == possible.substr(0,i) && isAllDigits(possible.substr(i,std::string::npos)))
+                {
+                    app_folders.push_back(possible);
+                }
+            }
+
+            std::cerr<<"rand num between: 0 and " <<app_folders.size()-1<<std::endl;
+            rand_folder = app_folders[rand_int_between(0,app_folders.size()-1)];
+
+            while (folder[i] != '}' && i < folder.length())
+            {
+                i++;
+            }
+        }
+        else
+        {
+            rand_folder += folder[i];
+        }
+        i++;
+    }
+
+    return rand_folder;
+}
+
+
 
 nlohmann::json getJsonFromFolder(std::string location)
 {
@@ -114,6 +196,14 @@ int extractNumberFromString(const std::string& s)
 std::string dToSci(double value) {
     std::ostringstream oss;
     oss << std::scientific << value;
+    std::string result = oss.str();
+
+    return result;
+}
+
+std::string vToSci(vec3 value) {
+    std::ostringstream oss;
+    oss << std::scientific << value.x << ',' << value.y << ',' << value.z;
     std::string result = oss.str();
 
     return result;
@@ -267,7 +357,9 @@ inline int
 rand_int_between(const int min, const int max)
 {
     std::uniform_int_distribution<> dist(min, max);
-    return dist(random_generator);
+    int rand = dist(random_generator);
+    // std::cerr<<"Chose value of "<<rand<<" between "<<min<<" and "<<max<<std::endl;
+    return rand;
 }
 
 // Returns a random unit vector.
@@ -339,3 +431,5 @@ double lognorm_dist(double a_max,double sigma)
     
     return a0;
 }
+
+

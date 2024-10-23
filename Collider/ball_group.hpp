@@ -49,7 +49,8 @@
 using json = nlohmann::json;
 extern const int bufferlines;
 enum distributions {constant, logNorm};
-enum simType {BPCA, BCCA, collider, relax};
+enum simType {BPCA, BCCA, BAPA, collider, relax};
+
 
 
 //This struct is meant to encompass all values necessary to carry out a simulation, besides the physical
@@ -64,6 +65,7 @@ struct Ball_group_attributes
     std::string projectileName = "";
     std::string targetName = "";
     std::string output_prefix = "";
+    std::string random_folder_template = "";
 
     double radiiFraction = -1;
     bool debug = false;
@@ -185,6 +187,7 @@ struct Ball_group_attributes
             projectileName = other.projectileName;
             targetName = other.targetName;
             output_prefix = other.output_prefix;
+            random_folder_template = other.random_folder_template;
 
             radiiFraction = other.radiiFraction;
             debug = other.debug;
@@ -356,7 +359,10 @@ public:
     void updatePE();
     void sim_init_write(int counter);
     [[nodiscard]] vec3 getCOM() const;
+    [[nodiscard]] vec3 getVCOM() const;
     void zeroVel() const;
+    void pos_and_vel_for_collision(Ball_group &projectile,Ball_group &target);
+    void pos_and_vel_for_collision(Ball_group &projectile);
     void overwrite_v_custom(Ball_group &projectile,Ball_group &target);
     void overwrite_v_custom(Ball_group &projectile);
     void zeroAngVel() const;
@@ -366,7 +372,8 @@ public:
     double calc_mass(const double& radius, const double& density);
     double calc_moi(const double& radius, const double& mass);
     Ball_group spawn_particles(const int count);
-    vec3 random_offset(const double3x3 local_coords,vec3 projectile_pos,vec3 projectile_vel,const double projectile_rad);
+    // vec3 random_offset(const double3x3 local_coords,vec3 projectile_pos,vec3 projectile_vel,const double projectile_rad);
+    vec3 random_offset(Ball_group &projectile, Ball_group &target);
     double calc_max_bolt_velocity(double temp, double mass);
     double calc_eta_velocity(const double eta, Ball_group &projectile, Ball_group &target);
     Ball_group BPCA_projectile_init();
@@ -391,6 +398,7 @@ public:
     std::string data_type_from_input(const std::string location);
     double calc_group_noncontact_PE(Ball_group &projectile,Ball_group &target);
     double calc_noncontact_PE();
+    void set_seed_from_input(const std::string location);
 
 
     void sim_one_step();
@@ -408,7 +416,6 @@ private:
     [[nodiscard]] double getMmin() const;
     [[nodiscard]] double getMmax() const;
     void parseSimData(std::string line);
-    std::string get_rand_projectile(std::string folder);
     void loadConsts(const std::string& path, const std::string& filename);
     [[nodiscard]] static std::string getLastLine(const std::string& path, const std::string& filename);
     // void simDataWrite(std::string& outFilename);
@@ -426,6 +433,11 @@ private:
     void verify_projectile(const std::string projectile_folder, const int index, const double max_wait_time);
 
 };
+
+
+
+bool is_touching(Ball_group &projectile,Ball_group &target);
+void moveApart(const vec3 &projectile_direction,Ball_group &projectile,Ball_group &target);
 
 /// @brief For creating a new ballGroup of size nBalls
 /// @param nBalls Number of balls to allocate.
@@ -449,7 +461,7 @@ Ball_group::Ball_group(std::string& path, const int index)
 {
     parse_input_file(path);
 
-    if (attrs.typeSim == BPCA || attrs.typeSim == BCCA)
+    if (attrs.typeSim == BPCA || attrs.typeSim == BCCA || attrs.typeSim == BAPA)
     {
         aggregationInit(path,index);
     }
@@ -635,8 +647,11 @@ void Ball_group::aggregationInit(const std::string path,const int index)
         attrs.m_total = getMass();
         calc_v_collapse();
 
-        //We can't trust v_collapse to set the correct k and dt for now. So just set it to 1 here
-        attrs.v_custom = 1;
+        //We can't trust v_collapse to set the correct k and dt for now. So just set it to 1 here if it is less
+        if (attrs.v_custom < 1.0)
+        {
+            attrs.v_custom = 1.0;
+        }
         
         // std::cerr<<"INIT VCUSTOM "<<v_custom<<std::endl;
         calibrate_dt(0, attrs.v_custom);
@@ -764,6 +779,33 @@ std::string Ball_group::data_type_from_input(const std::string location)
     return inputs["dataFormat"];
 }
 
+void Ball_group::set_seed_from_input(const std::string location)
+{
+    json inputs = getJsonFromFolder(location);
+    if (inputs["seed"] == std::string("default"))
+    {
+        attrs.seed = static_cast<unsigned int>(time(nullptr));
+    }
+    else
+    {
+        attrs.seed = static_cast<unsigned int>(inputs["seed"]);
+    }
+
+    if (getRank() == 0)
+    {
+        std::ofstream seedFile;
+        seedFile.open(attrs.output_folder+"seedFile.txt",std::ios::app);
+        seedFile<<attrs.seed<<std::endl;
+        seedFile.close();
+    }
+    
+    
+    MPIsafe_print(std::cerr,std::string("Writing seed '"+std::to_string(attrs.seed)+"' to seedFile.txt\n"));
+    
+    random_generator.seed(attrs.seed);//This was in the else but it should be outside so random_generator is always seeded the same as srand (right?)
+    srand(attrs.seed);
+}
+
 //Parses input.json file that is in the same folder the executable is in
 void Ball_group::parse_input_file(std::string location)
 {
@@ -792,6 +834,11 @@ void Ball_group::parse_input_file(std::string location)
     }
     attrs.data_directory = inputs["data_directory"];
 
+    if (inputs.contains("random_folder_template"))
+    {
+        attrs.random_folder_template = inputs["random_folder_template"];
+    }
+
     if (inputs["simType"] == "BPCA")
     {
         attrs.typeSim = BPCA;
@@ -812,6 +859,10 @@ void Ball_group::parse_input_file(std::string location)
             MPIsafe_print(std::cerr,"Simulation input 'symmetric' must be either true or false. Setting to 'true' as default.");
             attrs.symmetric = true;
         }
+    }
+    else if (inputs["simType"] == "BAPA")
+    {
+        attrs.typeSim = BAPA;
     }
     else if (inputs["simType"] == "collider")
     {
@@ -836,28 +887,7 @@ void Ball_group::parse_input_file(std::string location)
     }
 
 
-    if (inputs["seed"] == std::string("default"))
-    {
-        attrs.seed = static_cast<unsigned int>(time(nullptr));
-    }
-    else
-    {
-        attrs.seed = static_cast<unsigned int>(inputs["seed"]);
-    }
-
-    if (getRank() == 0)
-    {
-        std::ofstream seedFile;
-        seedFile.open(attrs.output_folder+"seedFile.txt",std::ios::app);
-        seedFile<<attrs.seed<<std::endl;
-        seedFile.close();
-    }
     
-    
-    MPIsafe_print(std::cerr,std::string("Writing seed '"+std::to_string(attrs.seed)+"' to seedFile.txt\n"));
-    
-    random_generator.seed(attrs.seed);//This was in the else but it should be outside so random_generator is always seeded the same as srand (right?)
-    srand(attrs.seed);
 
     std::string temporary_distribution = inputs["radiiDistribution"];
     std::transform(temporary_distribution.begin(), temporary_distribution.end(), temporary_distribution.begin(), ::tolower);
@@ -1503,6 +1533,19 @@ void Ball_group::sim_init_write(int counter=0)
     }
 }
 
+[[nodiscard]] vec3 Ball_group::getVCOM() const
+{
+    if (attrs.m_total > 0) {
+        vec3 vcomNumerator;
+        for (int Ball = 0; Ball < attrs.num_particles; Ball++) { vcomNumerator += m[Ball] * vel[Ball]; }
+        vec3 vcom = vcomNumerator / attrs.m_total;
+        return vcom;
+    } else {
+        std::cerr << "Mass of cluster is zero.\n";
+        exit(EXIT_FAILURE);
+    }
+}
+
 void Ball_group::zeroVel() const
 {
     for (int Ball = 0; Ball < attrs.num_particles; Ball++) { vel[Ball] = {0, 0, 0}; }
@@ -1517,7 +1560,7 @@ void Ball_group::to_origin() const
 {
     const vec3 com = getCOM();
 
-    move(com);
+    move(-com);
     // for (int Ball = 0; Ball < attrs.num_particles; Ball++) { pos[Ball] -= com; }
 }
 
@@ -1604,33 +1647,80 @@ Ball_group Ball_group::spawn_particles(const int count)
 //@returns the vector from the original particle position to the new position
 
 //TODO:: Make this work with two aggregates instead of just a particle and aggregate
+// vec3 Ball_group::random_offset(
+//     const double3x3 local_coords,
+//     vec3 projectile_pos,
+//     vec3 projectile_vel,
+//     const double projectile_rad)
+// {
+//     const auto cluster_radius = getRadius(vec3(0, 0, 0));
+//     bool intersect = false;
+//     int count = 0;
+//     vec3 new_position = vec3(0,0,0);
+//     do {
+//         const auto rand_y = rand_between(-cluster_radius, cluster_radius);
+//         const auto rand_z = rand_between(-cluster_radius, cluster_radius);
+//         auto test_pos = projectile_pos + perpendicular_shift(local_coords, rand_y, rand_z);
+
+//         count++;
+//         for (size_t i = 0; i < attrs.num_particles; i++) {
+//             // Check that velocity intersects one of the spheres:
+//             if (line_sphere_intersect(test_pos, projectile_vel, pos[i], R[i] + projectile_rad)) {
+//                 new_position = test_pos;
+//                 intersect = true;
+//                 break;
+//             }
+//         }
+//     } while (!intersect);
+
+//     return projectile_pos-new_position;
+// }
+
+//@brief gives the projectile an offset (making sure projectile and target will still collide)
+//@param local_coords is plane perpendicular to direction of projectile
+//@param projectile is projectile's position before offset is applied
+//@param projectile_vel is projectile's velocity
+//@returns the vector from the original particle position to the new position
+
+//TODO:: Test if this works for BPCA before using it
 vec3 Ball_group::random_offset(
-    const double3x3 local_coords,
-    vec3 projectile_pos,
-    vec3 projectile_vel,
-    const double projectile_rad)
+    Ball_group &projectile,
+    Ball_group &target)
 {
-    const auto cluster_radius = getRadius(vec3(0, 0, 0));
+
+    const auto possible_radius = target.getRadius(target.getCOM()) + projectile.getRadius(projectile.getCOM());
+    const auto projectile_vcom = projectile.getVCOM();
+    // const auto projectile_radius = projectile.getRadius(projectile.getCOM());
     bool intersect = false;
     int count = 0;
+    vec3 shift;
     vec3 new_position = vec3(0,0,0);
+    const double3x3 local_coords = local_coordinates(to_double3(projectile_vcom));
     do {
-        const auto rand_y = rand_between(-cluster_radius, cluster_radius);
-        const auto rand_z = rand_between(-cluster_radius, cluster_radius);
-        auto test_pos = projectile_pos + perpendicular_shift(local_coords, rand_y, rand_z);
-
+        const auto rand_y = rand_between(-possible_radius, possible_radius);
+        const auto rand_z = rand_between(-possible_radius, possible_radius);
         count++;
-        for (size_t i = 0; i < attrs.num_particles; i++) {
-            // Check that velocity intersects one of the spheres:
-            if (line_sphere_intersect(test_pos, projectile_vel, pos[i], R[i] + projectile_rad)) {
-                new_position = test_pos;
-                intersect = true;
+
+        for (size_t i = 0; i < projectile.attrs.num_particles; ++i) {
+            shift = perpendicular_shift(local_coords, rand_y, rand_z);
+            auto test_pos = projectile.pos[i] + shift;
+            for (size_t j = 0; j < target.attrs.num_particles; j++) {
+                // Check that velocity intersects one of the spheres:
+                if (line_sphere_intersect(test_pos, projectile_vcom, target.pos[j], target.R[j] + projectile.R[i])) {
+                    // new_position = projectile.getCOM()+shift;
+                    intersect = true;
+                    break;
+                }
+            }
+            if (intersect)
+            {
                 break;
             }
         }
     } while (!intersect);
 
-    return projectile_pos-new_position;
+    projectile.move(-shift);
+    return shift;
 }
 
 //This function should calculate the Potential energy of a group.
@@ -1735,10 +1825,10 @@ Ball_group Ball_group::BPCA_projectile_init()
 
     // Particle random position at twice radius of target:
     // We want the farthest from origin since we are offsetting form origin. Not com.
-    const auto cluster_radius = getRadius(vec3(0, 0, 0));
+    // const auto cluster_radius = getRadius(vec3(0, 0, 0));
 
-    const vec3 projectile_direction = rand_unit_vec3();
-    projectile.pos[0] = projectile_direction * (cluster_radius + attrs.scaleBalls * 4);
+    // const vec3 projectile_direction = rand_unit_vec3();
+    // projectile.pos[0] = projectile_direction * (cluster_radius + attrs.scaleBalls * 4);
     if (attrs.radiiDistribution == constant)
     {
         // std::cout<<"radiiFraction: "<<radiiFraction<<std::endl;
@@ -1753,22 +1843,24 @@ Ball_group Ball_group::BPCA_projectile_init()
     }
     projectile.w[0] = {0, 0, 0};
     projectile.m[0] = attrs.density * 4. / 3. * pi * std::pow(projectile.R[0], 3);
+    projectile.moi[0] = calc_moi(projectile.R[0], projectile.m[0]);
+    projectile.calc_helpfuls(true);
+
+
     // Velocity toward origin:
     //Update v_custom if temp or eta are greater than zero
     overwrite_v_custom(projectile);
-    projectile.vel[0] = -attrs.v_custom * projectile_direction;
 
+    pos_and_vel_for_collision(projectile);
+
+
+    // projectile.vel[0] = -attrs.v_custom * projectile_direction;
+
+    // const double3x3 local_coords = local_coordinates(to_double3(projectile_direction));
     
-    // projectile.R[0] = 1e-5;  // rand_between(1,3)*1e-5;
-    projectile.moi[0] = calc_moi(projectile.R[0], projectile.m[0]);
+    // const vec3 offset = random_offset(local_coords,projectile.pos[0],projectile.vel[0],projectile.R[0]); 
 
-  
-
-    const double3x3 local_coords = local_coordinates(to_double3(projectile_direction));
-    
-    const vec3 offset = random_offset(local_coords,projectile.pos[0],projectile.vel[0],projectile.R[0]); 
-
-    projectile.pos[0] -= offset;
+    // projectile.pos[0] -= offset;
 
 
     
@@ -1809,84 +1901,82 @@ void Ball_group::verify_projectile(const std::string projectile_folder,const int
     MPIsafe_print(std::cerr,"Waited a total of "+std::to_string(time_slept)+" second(s) for the projectile to checkpoint.\n");
 }
 
-//given the folder this BCCA job is running in, this function returns 
-//a random other attempt from this group of jobs.
-std::string Ball_group::get_rand_projectile(std::string folder)
-{
+
+
     //Look for which folder "SpaceLab_data" is in.
     //The attempt number should be in two folders from that
-    std::vector<int> slashes;
-    for (int i = 0; i < folder.length(); ++i)
-    {
-        if (folder[i] == '/')
-        {
-            slashes.push_back(i);
-            // std::cerr<<i<<std::endl;
-        }
-    }
+    // std::vector<int> slashes;
+    // for (int i = 0; i < folder.length(); ++i) 
+    // {
+    //     if (folder[i] == '/')
+    //     {
+    //         slashes.push_back(i);
+    //         // std::cerr<<i<<std::endl;
+    //     }
+    // }
 
-    int start,len,found_i;
-    bool found = false;
-    for (int i = 0; i < slashes.size()-1; ++i)
-    {
-        start = slashes[i]+1;
-        len = slashes[i+1] - start;
-        if (folder.substr(start,len) == "SpaceLab_data")
-        {
-            found = true;
-            found_i = i;
-            break;
-        }
+    // int start,len,found_i;
+    // bool found = false;
+    // for (int i = 0; i < slashes.size()-1; ++i)
+    // {
+    //     start = slashes[i]+1;
+    //     len = slashes[i+1] - start;
+    //     if (folder.substr(start,len) == "SpaceLab_data")
+    //     {
+    //         found = true;
+    //         found_i = i;
+    //         break;
+    //     }
 
-    }
+    // }
 
-    std::string attempts_folder;
-    std::string attempts_folder_prefix;
-    std::string prefix_suffix; 
-    std::string everything_before_attempt;
-    std::string everything_after_attempt;
-    if (found)
-    {
-        start = 0;
-        len = slashes[found_i+1+1] - start;
-        attempts_folder = folder.substr(start,len+1);
+    // std::string attempts_folder;
+    // std::string attempts_folder_prefix;
+    // std::string prefix_suffix; 
+    // std::string everything_before_attempt;
+    // std::string everything_after_attempt;
+    // if (found)
+    // {
+    //     start = 0;
+    //     len = slashes[found_i+1+1] - start;
+    //     attempts_folder = folder.substr(start,len+1);
 
-        start = slashes[found_i+2]+1;
-        len = slashes[found_i+2+1] - start;
-        attempts_folder_prefix = folder.substr(start,len);
-        //Important the next line is above the line that changes attempt_folder_prefix
-        // std::cerr<<attempts_folder_prefix<<std::endl;
-        prefix_suffix = std::to_string(extractNumberFromString(attempts_folder_prefix));
-        attempts_folder_prefix = attempts_folder_prefix.substr(0,attempts_folder_prefix.length()-prefix_suffix.length());
-        everything_before_attempt = folder.substr(0,attempts_folder.length()+attempts_folder_prefix.length());
-        everything_after_attempt = folder.substr(attempts_folder.length()+attempts_folder_prefix.length()+prefix_suffix.length(),folder.length());
-    }
-    else
-    {
-        std::string message("ERROR: SpaceLab_data folder not found. Total attempts could not be determined.");
-        MPIsafe_print(std::cerr,message);
-        MPIsafe_exit(-1);
-    }
+    //     start = slashes[found_i+2]+1;
+    //     len = slashes[found_i+2+1] - start;
+    //     attempts_folder_prefix = folder.substr(start,len);
+    //     //Important the next line is above the line that changes attempt_folder_prefix
+    //     // std::cerr<<attempts_folder_prefix<<std::endl;
+    //     prefix_suffix = std::to_string(extractNumberFromString(attempts_folder_prefix));
+    //     attempts_folder_prefix = attempts_folder_prefix.substr(0,attempts_folder_prefix.length()-prefix_suffix.length());
+    //     everything_before_attempt = folder.substr(0,attempts_folder.length()+attempts_folder_prefix.length());
+    //     everything_after_attempt = folder.substr(attempts_folder.length()+attempts_folder_prefix.length()+prefix_suffix.length(),folder.length());
+    // }
+    // else
+    // {
+    //     std::string message("ERROR: SpaceLab_data folder not found. Total attempts could not be determined.");
+    //     MPIsafe_print(std::cerr,message);
+    //     MPIsafe_exit(-1);
+    // }
 
-    std::vector<int> attempts;
-    std::string fold;
-    for (const auto & entry : fs::directory_iterator(attempts_folder))
-    {
-        fold = entry.path();
+    // std::vector<int> attempts;
+    // std::string fold;
+    // for (const auto & entry : fs::directory_iterator(attempts_folder))
+    // {
+    //     fold = entry.path();
 
-        // std::cerr<<fold<<std::endl;
-        if (fold.substr(attempts_folder.length(),attempts_folder_prefix.length()) == attempts_folder_prefix)
-        {
-            attempts.push_back(extractNumberFromString(fold));
-        }
-    }
+    //     // std::cerr<<fold<<std::endl;
+    //     if (fold.substr(attempts_folder.length(),attempts_folder_prefix.length()) == attempts_folder_prefix)
+    //     {
+    //         attempts.push_back(extractNumberFromString(fold));
+    //     }
+    // }
 
-    int rand = rand_int_between(0,attempts.size()-1);
-    std::cerr<<"Got an index of "<<rand<<" between 0 and "<<attempts.size()-1<<std::endl;
-    std::string att = std::to_string(attempts[rand]);
+    // int rand = rand_int_between(0,attempts.size()-1);
+    // std::cerr<<"Got an index of "<<rand<<" between 0 and "<<attempts.size()-1<<std::endl;
+    // std::string att = std::to_string(attempts[rand]);
     
-    return everything_before_attempt + att + everything_after_attempt;
-}
+    // return everything_before_attempt + att + everything_after_attempt;
+// }
 
 // @brief returns new ball group consisting of one particle
 //        where particle is given initial conditions
@@ -1903,13 +1993,14 @@ Ball_group Ball_group::BCCA_projectile_init(const bool symmetric=true)
     {
         // projectile = *this;
         projectile = Ball_group(*this);
+
     }
     else
     {
         // strip off the "{index}_" at the end of the file name because this constructor
         // doesnt need it
-        std::string rand_projectile_folder = data->getFileName().substr(0,data->getFileName().length()-1-std::to_string(attrs.num_particles).length());
-        rand_projectile_folder = get_rand_projectile(rand_projectile_folder);
+        // rand_projectile_folder = data->getFileName().substr(0,data->getFileName().length()-1-std::to_string(attrs.num_particles).length());
+        std::string rand_projectile_folder = get_rand_projectile_folder(attrs.random_folder_template);
         std::cerr<<"Getting random projectile from: "<<rand_projectile_folder<<std::endl;
         
         verify_projectile(rand_projectile_folder,attrs.num_particles);
@@ -1919,42 +2010,47 @@ Ball_group Ball_group::BCCA_projectile_init(const bool symmetric=true)
         projectile = Ball_group(rand_projectile_folder,attrs.num_particles);
     }
 
+    projectile.to_origin();
+
     //find velocity of projectile
     // Velocity toward origin:
     //Update v_custom if temp or eta are greater than zero
     overwrite_v_custom(projectile);
 
-    // projectile random position at twice radius of target + projectile:
-    // We want the farthest from origin since we are offsetting form origin. Not com.
-    const auto cluster_radius = getRadius(vec3(0, 0, 0)) + projectile.getRadius(vec3(0, 0, 0));
+    pos_and_vel_for_collision(projectile);
+
+    // // projectile random position at twice radius of target + projectile:
+    // // We want the farthest from origin since we are offsetting form origin. Not com.
+    // const auto cluster_radius = getRadius(vec3(0, 0, 0)) + projectile.getRadius(vec3(0, 0, 0));
 
 
-    const vec3 projectile_direction = rand_unit_vec3();
+    // const vec3 projectile_direction = rand_unit_vec3();
 
-    for (int i = 0; i < projectile.attrs.num_particles; ++i)
-    {
+    // for (int i = 0; i < projectile.attrs.num_particles; ++i)
+    // {
 
-        projectile.pos[i] += projectile_direction * (cluster_radius + attrs.scaleBalls * 4);
+    //     projectile.pos[i] += projectile_direction * (cluster_radius + attrs.scaleBalls * 4);
 
-        // Velocity toward origin:
-        projectile.vel[i] = -attrs.v_custom * projectile_direction;
+    //     // Velocity toward origin:
+    //     projectile.vel[i] = -attrs.v_custom * projectile_direction;
         
-        // projectile.R[0] = 1e-5;  // rand_between(1,3)*1e-5;
-        // projectile.moi[0] = calc_moi(projectile.R[0], projectile.m[0]);
-    }
+    //     // projectile.R[0] = 1e-5;  // rand_between(1,3)*1e-5;
+    //     // projectile.moi[0] = calc_moi(projectile.R[0], projectile.m[0]);
+    // }
 
     
 
   
-
-    const double3x3 local_coords = local_coordinates(to_double3(projectile_direction));
+    // //TODO:: make random_offset work with two aggregates
+    // //TODO:: The collision seems to happen about a random spot, not at the center of the simulation
+    // // const double3x3 local_coords = local_coordinates(to_double3(projectile_direction));
     
-    const vec3 offset = random_offset(local_coords,projectile.getCOM(),projectile.vel[0],projectile.R[0]); 
+    // // const vec3 offset = random_offset(local_coords,projectile.getCOM(),projectile.vel[0],projectile.R[0]); 
 
-    for (int i = 0; i < projectile.attrs.num_particles; ++i)
-    {
-        projectile.pos[i] -= offset;
-    }
+    // // for (int i = 0; i < projectile.attrs.num_particles; ++i)
+    // // {
+    // //     projectile.pos[i] -= offset;
+    // // }
 
     
     return projectile;
@@ -1962,69 +2058,55 @@ Ball_group Ball_group::BCCA_projectile_init(const bool symmetric=true)
 
 // @brief returns new ball group consisting of one particle
 //        where particle is given initial conditions
-//        including an random offset linearly dependant on radius 
-Ball_group BAPA_projectile_init()
+//        including a random offset linearly dependant on radius 
+Ball_group Ball_group::BAPA_projectile_init()
 {
 
-    Ball_group projectile;
 
+    std::string rand_projectile_folder = get_rand_projectile_folder(attrs.random_folder_template);
 
-    if (symmetric)
-    {
-        // projectile = *this;
-        projectile = Ball_group(*this);
-    }
-    else
-    {
-        // strip off the "{index}_" at the end of the file name because this constructor
-        // doesnt need it
-        std::string rand_projectile_folder = data->getFileName().substr(0,data->getFileName().length()-1-std::to_string(attrs.num_particles).length());
-        rand_projectile_folder = get_rand_projectile(rand_projectile_folder);
-        std::cerr<<"Getting random projectile from: "<<rand_projectile_folder<<std::endl;
-        
-        verify_projectile(rand_projectile_folder,attrs.num_particles);
-
-        // exit(0);
-        // projectile = Ball_group(rand_projectile_file);
-        projectile = Ball_group(rand_projectile_folder,attrs.num_particles);
-    }
-
-    //find velocity of projectile
-    // Velocity toward origin:
-    //Update v_custom if temp or eta are greater than zero
+    MPIsafe_print(std::cerr,"Getting projectile from: "+rand_projectile_folder+'\n');
+    Ball_group projectile(rand_projectile_folder);
+    projectile.to_origin();
+    
+    // //find velocity of projectile
+    // // Velocity toward origin:
+    // //Update v_custom if temp or eta are greater than zero
     overwrite_v_custom(projectile);
 
-    // projectile random position at twice radius of target + projectile:
-    // We want the farthest from origin since we are offsetting form origin. Not com.
-    const auto cluster_radius = getRadius(vec3(0, 0, 0)) + projectile.getRadius(vec3(0, 0, 0));
+    pos_and_vel_for_collision(projectile);
+
+    // // projectile random position at twice radius of target + projectile:
+    // // We want the farthest from origin since we are offsetting form origin. Not com.
+    // const auto cluster_radius = getRadius(vec3(0, 0, 0)) + projectile.getRadius(vec3(0, 0, 0));
 
 
-    const vec3 projectile_direction = rand_unit_vec3();
+    // const vec3 projectile_direction = rand_unit_vec3();
 
-    for (int i = 0; i < projectile.attrs.num_particles; ++i)
-    {
+    // for (int i = 0; i < projectile.attrs.num_particles; ++i)
+    // {
 
-        projectile.pos[i] += projectile_direction * (cluster_radius + attrs.scaleBalls * 4);
+    //     projectile.pos[i] += projectile_direction * (cluster_radius + attrs.scaleBalls * 4);
 
-        // Velocity toward origin:
-        projectile.vel[i] = -attrs.v_custom * projectile_direction;
+    //     // Velocity toward origin:
+    //     projectile.vel[i] = -attrs.v_custom * projectile_direction;
         
-        // projectile.R[0] = 1e-5;  // rand_between(1,3)*1e-5;
-        // projectile.moi[0] = calc_moi(projectile.R[0], projectile.m[0]);
-    }
+    //     // projectile.R[0] = 1e-5;  // rand_between(1,3)*1e-5;
+    //     // projectile.moi[0] = calc_moi(projectile.R[0], projectile.m[0]);
+    // }
 
     
 
   
 
-    const double3x3 local_coords = local_coordinates(to_double3(projectile_direction));
+    // const double3x3 local_coords = local_coordinates(to_double3(projectile_direction));
     
-    const vec3 offset = random_offset(local_coords,projectile.getCOM(),projectile.vel[0],projectile.R[0]); 
+    // const vec3 offset = random_offset(local_coords,projectile.getCOM(),projectile.vel[0],projectile.R[0]); 
 
-    for (int i = 0; i < projectile.attrs.num_particles; ++i)
-    {
-        projectile.pos[i] -= offset;
-    }
+    // for (int i = 0; i < projectile.attrs.num_particles; ++i)
+    // {
+    //     projectile.pos[i] -= offset;
+    // }
 
     
     return projectile;
@@ -2036,6 +2118,7 @@ Ball_group Ball_group::add_projectile(const simType simtype)
     // Load file data:
     MPIsafe_print(std::cerr,"Add Projectile\n");
 
+    this->to_origin();
 
     Ball_group projectile;
     
@@ -2047,28 +2130,28 @@ Ball_group Ball_group::add_projectile(const simType simtype)
     {
         projectile = BCCA_projectile_init(attrs.symmetric);
     }
-    else if (simType == BAPA)//Ballistic Aggregate as Particle Aggregation
+    else if (simtype == BAPA)//Ballistic Aggregate as Particle Aggregation
     {
         projectile = BAPA_projectile_init();
     }
     
     // Collision velocity calculation:
-    const vec3 p_target{calc_momentum("p_target")};
-    const vec3 p_projectile{projectile.calc_momentum("p_particle")};
-    const vec3 p_total{p_target + p_projectile};
-    const double m_target{getMass()};
-    const double m_projectile{projectile.getMass()};
-    const double m_total{m_target + m_projectile};
-    const vec3 v_com = p_total / m_total;
+    // const vec3 p_target{calc_momentum("p_target")};
+    // const vec3 p_projectile{projectile.calc_momentum("p_particle")};
+    // const vec3 p_total{p_target + p_projectile};
+    // const double m_target{getMass()};
+    // const double m_projectile{projectile.getMass()};
+    // const double m_total{m_target + m_projectile};
+    // const vec3 v_com = p_total / m_total;
 
-    // Negate total system momentum:
-    projectile.kick(-v_com);
-    kick(-v_com); 
+    // // Negate total system momentum:
+    // projectile.kick(-v_com);
+    // kick(-v_com); 
 
-    std::ostringstream oss;
-    oss << "\nTarget Velocity: " << std::scientific << vel[0].norm()
-        << "\nProjectile Velocity: " << projectile.vel[0].norm() << "\n\n";
-    MPIsafe_print(std::cerr,oss.str());
+    // std::ostringstream oss;
+    // oss << "\nTarget Velocity: " << std::scientific << vel[0].norm()
+    //     << "\nProjectile Velocity: " << projectile.vel[0].norm() << "\n\n";
+    // MPIsafe_print(std::cerr,oss.str());
 
     projectile.calc_momentum("Projectile");
     calc_momentum("Target");
@@ -2527,41 +2610,8 @@ void Ball_group::loadConsts(const std::string& path, const std::string& filename
     }
 }
 
-// void Ball_group::simDataWrite(std::string& outFilename)
-// {
-//     // todo - for some reason I need checkForFile instead of just using ballWrite. Need to work out why.
-//     // Check if file name already exists. If not, initialize
-//     std::ifstream checkForFile;
-//     checkForFile.open(output_folder + outFilename + "simData.csv", std::ifstream::in);
-//     if (checkForFile.is_open() == false) {
-//         sim_init_write(outFilename);
-//     } else {
-//         ballBuffer << '\n';  // Prepares a new line for incoming data.
 
-//         for (int Ball = 0; Ball < num_particles; Ball++) {
-//             // Send positions and rotations to buffer:
-//             if (Ball == 0) {
-//                 ballBuffer << pos[Ball][0] << ',' << pos[Ball][1] << ',' << pos[Ball][2] << ','
-//                            << w[Ball][0] << ',' << w[Ball][1] << ',' << w[Ball][2] << ','
-//                            << w[Ball].norm() << ',' << vel[Ball].x << ',' << vel[Ball].y << ','
-//                            << vel[Ball].z << ',' << 0;
-//             } else {
-//                 ballBuffer << ',' << pos[Ball][0] << ',' << pos[Ball][1] << ',' << pos[Ball][2] << ','
-//                            << w[Ball][0] << ',' << w[Ball][1] << ',' << w[Ball][2] << ','
-//                            << w[Ball].norm() << ',' << vel[Ball].x << ',' << vel[Ball].y << ','
-//                            << vel[Ball].z << ',' << 0;
-//             }
-//         }
 
-//         // Write simData to file and clear buffer.
-//         std::ofstream ballWrite;
-//         ballWrite.open(output_folder + outFilename + "simData.csv", std::ofstream::app);
-//         ballWrite << ballBuffer.rdbuf();  // Barf buffer to file.
-//         ballBuffer.str("");               // Resets the stream for that balls to blank.
-//         ballWrite.close();
-//     }
-//     checkForFile.close();
-// }
 
 
 double Ball_group::getMass()
@@ -2996,12 +3046,91 @@ void Ball_group::distSizeSphere(const int nBalls)
     placeBalls(nBalls);
 }
 
+//Gives the projectile and target a velocity based on v_custom such that they collide
+//at a speed of v_custom but the velocity of the center of mass is zero. The direction
+//of the velocities is both down the x-axis at eachother. Also positions
+//the projectile such that any offsets are taken into account and the projectile is 
+//placed down the x-axis a bit. 
+void Ball_group::pos_and_vel_for_collision(Ball_group &projectile)
+{
+    pos_and_vel_for_collision(projectile,*this);
+}
+void Ball_group::pos_and_vel_for_collision(Ball_group &projectile,Ball_group &target)
+{
+
+
+    // Collision velocity calculation:
+    // Make it so collision velocity is v_custom and 
+    // the velocity of the center of mass is zero
+    const double mSmall = projectile.attrs.m_total;
+    const double mBig = target.attrs.m_total;
+    const double mTot = mBig + mSmall;
+    // const double vSmall = -sqrt(2 * KEfactor * fabs(PEsys) * (mBig / (mSmall * mTot))); // Negative
+    // because small offsets right.
+    const double vBig = attrs.v_custom*(mSmall)/(mTot);     //-(mSmall / mBig) * vSmall;  // Negative to oppose projectile.
+    const double vSmall = (vBig-attrs.v_custom);  
+    // const double vBig = 0; // Dymorphous override.
+
+    if (std::isnan(vSmall) || std::isnan(vBig)) {
+        MPIsafe_print(std::cerr,"A VELOCITY WAS NAN!!!!!!!!!!!!!!!!!!!!!!\n\n");
+        MPIsafe_exit(EXIT_FAILURE);
+    }
+
+    vec3 projectile_direction;
+    if (attrs.typeSim == BCCA || attrs.typeSim == BPCA || attrs.typeSim == BAPA)
+    {
+        projectile_direction = rand_unit_vec3();
+    }
+    else
+    {
+        projectile_direction = vec3(-1,0,0);
+    }
+
+    MPIsafe_print(std::cerr,"Projectile direction: ("+dToSci(projectile_direction.x)+','+dToSci(projectile_direction.y)+','+dToSci(projectile_direction.z)+")\n");
+
+    projectile.kick(vSmall*projectile_direction);
+    target.kick(vBig*projectile_direction);
+    
+
+
+    //move projectile so it is down the x-axis 
+    // projectile.move(vec3(projectile.attrs.initial_radius + projectile.getRmax()*2 + target.attrs.initial_radius + target.getRmax() * 2, 0, 0));
+
+    //This takes care of offsetting the target and projectile, but still need to move them apart
+    if (attrs.impactParameter < 0.0)
+    {
+        //move the projectile so it is barely not touching the target
+        // projectile.offset(
+        //     projectile.attrs.initial_radius + projectile.getRmax(), target.attrs.initial_radius + target.getRmax(), 0);
+        
+        projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*projectile_direction);
+
+        //give the projectile a random offset such that they still collide
+        const auto offset = random_offset(projectile, target); 
+        MPIsafe_print(std::cerr,"Applying random offset of "+vToSci(offset)+" cm.\n");
+
+    }
+    else
+    {
+        // TODO::MAke this work in any direction, not just xy plane  
+        projectile.offset(
+            projectile.attrs.initial_radius + projectile.getRmax(), target.attrs.initial_radius + target.getRmax(), attrs.impactParameter);
+        MPIsafe_print(std::cerr,"Applying impact parameter of "+std::to_string(attrs.impactParameter)+" cm.\n");
+            // //Next line was the original
+            // projectile.attrs.initial_radius, target.attrs.initial_radius + target.getRmax() * 2, attrs.impactParameter);
+            // (projectile.attrs.initial_radius + target.attrs.initial_radius)*3, 0.0, attrs.impactParameter);
+    }
+    //Now we can move the aggregates apart a little bit if they are touching
+    //If they are touching, move the projectile in projectile_direction
+    moveApart(projectile_direction,projectile,target);
+    // projectile.move(vec3((projectile.attrs.initial_radius + target.attrs.initial_radius)*0.05, 0, 0));
+    // projectile.move(vec3((projectile.attrs.initial_radius + projectile.getRmax()*2 + target.attrs.initial_radius + target.getRmax() * 2), 0, 0));
+}
 
 void Ball_group::overwrite_v_custom(Ball_group &projectile)
 {
     overwrite_v_custom(projectile,*this);
 }
-
 void Ball_group::overwrite_v_custom(Ball_group &projectile,Ball_group &target)
 {
 
@@ -3014,15 +3143,24 @@ void Ball_group::overwrite_v_custom(Ball_group &projectile,Ball_group &target)
 
         if (attrs.temp > 0)
         {
-            message = "WARNING: Both attrs.eta and attrs.temp are greater than 0. Defaulting to setting attrs.v_custom based on eta (ignoring temperature).";
+            message = "WARNING: Both attrs.eta and attrs.temp are greater than 0. Defaulting to setting attrs.v_custom based on eta (ignoring temperature).\n";
+            MPIsafe_print(std::cerr,message);
         }
     }
     else if (attrs.temp > 0)
     {
         attrs.v_custom = calc_max_bolt_velocity(attrs.temp,projectile.getMass());
-        std::string message("v_custom set to "+std::to_string(attrs.v_custom)+ "cm/s based on a temp of "+
-            std::to_string(attrs.temp)+" degrees K.\n"); 
+        std::string message("v_custom set to "+dToSci(attrs.v_custom)+ "cm/s based on a temp of "+
+            dToSci(attrs.temp)+" degrees K and a mass of "+dToSci(projectile.getMass())+" grams.\n"); 
         MPIsafe_print(std::cerr,message);
+    }
+    else if (attrs.v_custom < 0)
+    {
+        MPIsafe_print(std::cerr,"ERROR: eta, temp, and v_custom were not specified. One of these should be positive.\n");
+    }
+    else
+    {
+        MPIsafe_print(std::cerr,"v_custom has a value of "+std::to_string(attrs.v_custom)+"cm/s based on the value in the input file.\n");
     }
 }
 
@@ -3247,6 +3385,9 @@ void Ball_group::sim_init_two_cluster(
 
     attrs.num_particles = projectile.attrs.num_particles + target.attrs.num_particles;
     
+    //Update v_custom if temp or eta are greater than zero
+    overwrite_v_custom(projectile,target);
+    
     MPIsafe_print(std::cerr,"Total number of particles in sim: "+std::to_string(attrs.num_particles) + '\n');
 
     // DO YOU WANT TO STOP EVERYTHING?
@@ -3255,46 +3396,46 @@ void Ball_group::sim_init_two_cluster(
     target.zeroAngVel();
     target.zeroVel();
 
-    //move projectile so it is down the x-axis 
-    projectile.move(vec3(projectile.attrs.initial_radius + projectile.getRmax()*2 + target.attrs.initial_radius + target.getRmax() * 2, 0, 0));
+    pos_and_vel_for_collision(projectile,target);
 
-    //This takes care of offsetting the target and projectile, but still need to move them apart
-    projectile.offset(
-        projectile.attrs.initial_radius + projectile.getRmax()*2, target.attrs.initial_radius + target.getRmax() * 2, attrs.impactParameter);
-        //Next line was the original
-        // projectile.attrs.initial_radius, target.attrs.initial_radius + target.getRmax() * 2, attrs.impactParameter);
-        // (projectile.attrs.initial_radius + target.attrs.initial_radius)*3, 0.0, attrs.impactParameter);
+    // //move projectile so it is down the x-axis 
+    // projectile.move(vec3(projectile.attrs.initial_radius + projectile.getRmax()*2 + target.attrs.initial_radius + target.getRmax() * 2, 0, 0));
 
-    //Now we can move the aggregates apart
-    projectile.move(vec3((projectile.attrs.initial_radius + projectile.getRmax()*2 + target.attrs.initial_radius + target.getRmax() * 2)*2, 0, 0));
+    // //This takes care of offsetting the target and projectile, but still need to move them apart
+    // projectile.offset(
+    //     projectile.attrs.initial_radius + projectile.getRmax()*2, target.attrs.initial_radius + target.getRmax() * 2, attrs.impactParameter);
+    //     //Next line was the original
+    //     // projectile.attrs.initial_radius, target.attrs.initial_radius + target.getRmax() * 2, attrs.impactParameter);
+    //     // (projectile.attrs.initial_radius + target.attrs.initial_radius)*3, 0.0, attrs.impactParameter);
 
-    //Update v_custom if temp or eta are greater than zero
-    overwrite_v_custom(projectile,target);
+    // //Now we can move the aggregates apart
+    // projectile.move(vec3((projectile.attrs.initial_radius + projectile.getRmax()*2 + target.attrs.initial_radius + target.getRmax() * 2)*2, 0, 0));
 
-    // Collision velocity calculation:
-    // Make it so collision velocity is v_custom and 
-    // the velocity of the center of mass is zero
-    const double mSmall = projectile.attrs.m_total;
-    const double mBig = target.attrs.m_total;
-    const double mTot = mBig + mSmall;
-    // const double vSmall = -sqrt(2 * KEfactor * fabs(PEsys) * (mBig / (mSmall * mTot))); // Negative
-    // because small offsets right.
-    const double vBig = attrs.v_custom*(mSmall)/(mTot);     //-(mSmall / mBig) * vSmall;  // Negative to oppose projectile.
-    const double vSmall = (vBig-attrs.v_custom);                
-    // const double vBig = 0; // Dymorphous override.
 
-    if (std::isnan(vSmall) || std::isnan(vBig)) {
-        MPIsafe_print(std::cerr,"A VELOCITY WAS NAN!!!!!!!!!!!!!!!!!!!!!!\n\n");
-        MPIsafe_exit(EXIT_FAILURE);
-    }
+    // // Collision velocity calculation:
+    // // Make it so collision velocity is v_custom and 
+    // // the velocity of the center of mass is zero
+    // const double mSmall = projectile.attrs.m_total;
+    // const double mBig = target.attrs.m_total;
+    // const double mTot = mBig + mSmall;
+    // // const double vSmall = -sqrt(2 * KEfactor * fabs(PEsys) * (mBig / (mSmall * mTot))); // Negative
+    // // because small offsets right.
+    // const double vBig = attrs.v_custom*(mSmall)/(mTot);     //-(mSmall / mBig) * vSmall;  // Negative to oppose projectile.
+    // const double vSmall = (vBig-attrs.v_custom);                
+    // // const double vBig = 0; // Dymorphous override.
 
-    projectile.kick(vec3(vSmall, 0, 0));
-    target.kick(vec3(vBig, 0, 0));
+    // if (std::isnan(vSmall) || std::isnan(vBig)) {
+    //     MPIsafe_print(std::cerr,"A VELOCITY WAS NAN!!!!!!!!!!!!!!!!!!!!!!\n\n");
+    //     MPIsafe_exit(EXIT_FAILURE);
+    // }
 
-    std::ostringstream oss;
-    oss << "\nTarget Velocity: " << std::scientific << vBig
-        << "\nProjectile Velocity: " << vSmall << "\n\n";
-    MPIsafe_print(std::cerr,oss.str());
+    // projectile.kick(vec3(vSmall, 0, 0));
+    // target.kick(vec3(vBig, 0, 0));
+
+    // std::ostringstream oss;
+    // oss << "\nTarget Velocity: " << std::scientific << vBig
+    //     << "\nProjectile Velocity: " << vSmall << "\n\n";
+    // MPIsafe_print(std::cerr,oss.str());
     //This is jobs line. Keeping it in case this new printing fails
     // fprintf(message, "\nTarget Velocity: %.2e\nProjectile Velocity: %.2e\n", vBig, vSmall);
 
@@ -3313,9 +3454,9 @@ void Ball_group::sim_init_two_cluster(
     //move center of mass to origin
     to_origin();
 
-    attrs.output_prefix = projectileName + targetName + "T" + rounder(attrs.KEfactor, 4) + "_vBig" +
-                    scientific(vBig) + "_vSmall" + scientific(vSmall) + "_IP" +
-                    rounder(attrs.impactParameter * 180 / 3.14159, 2) + "_rho" + rounder(attrs.density, 4);
+    // attrs.output_prefix = projectileName + targetName + "T" + rounder(attrs.KEfactor, 4) + "_vBig" +
+    //                 scientific(vBig) + "_vSmall" + scientific(vSmall) + "_IP" +
+    //                 rounder(attrs.impactParameter * 180 / 3.14159, 2) + "_rho" + rounder(attrs.density, 4);
 }
 
 // @brief checks if this is new job or restart.
@@ -4579,12 +4720,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
         // #endif
 
         if (attrs.write_step) {
-            // t.start_event("writeStep");
-            // Write energy to stream:
-            ////////////////////////////////////
-            //TURN THIS ON FOR REAL RUNS!!!
-            // energyBuffer = std::vector<double> (data->getWidth("energy"));
-            // std::cerr<<"start,num_writes: "<<start<<','<<num_writes<<std::endl;
+
             if (attrs.world_rank == 0)
             {    
                 int start = data->getWidth("energy")*(attrs.num_writes-1);
@@ -4653,3 +4789,35 @@ Ball_group::sim_looper(unsigned long long start_step=1)
 
     data->write_checkpoint();
 }  // end simLooper
+
+
+//Checks if any of projectil's balls are overlapping any target balls
+bool is_touching(Ball_group &projectile,Ball_group &target)
+{
+    for (int i = 0; i < projectile.attrs.num_particles; ++i)
+    {
+        for (int j = 0; j < target.attrs.num_particles; ++j)
+        {
+            if((projectile.R[i]+target.R[j]) > (projectile.pos[i] - target.pos[j]).norm())
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+void moveApart(const vec3 &projectile_direction,Ball_group &projectile,Ball_group &target)
+{
+
+    double min_r = projectile.attrs.r_min > target.attrs.r_min ? target.attrs.r_min : projectile.attrs.r_min;
+
+    bool touching = is_touching(projectile,target);
+
+
+    while (touching)
+    {
+        projectile.move(-min_r*projectile_direction);
+        touching = is_touching(projectile,target);
+    }
+}

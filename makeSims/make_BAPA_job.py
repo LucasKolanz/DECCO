@@ -41,35 +41,39 @@ if __name__ == '__main__':
 		print('compilation failed')
 		exit(-1)
 		
-	job_set_name = "lognorm_radius_test"
-	job_set_name = "errorckcsvlognorm"
-	job_set_name = "errorckh5lognorm"
-	job_set_name = "overflowerror"
-	job_set_name = "TESTBCCATWO"
-	# job_set_name = "TEST"
+
+	# job_set_name = "TESTBAPA"
+	job_set_name = "BAPA"
 
 	# folder_name_scheme = "T_"
 
 	SPECIAL_FOLDER = ""#"/home/lucas/Desktop/SpaceLab_data/largejob/"
 
-	runs_at_once = 1
-	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
-	attempts = [0,] 
-	N = [256]
+	runs_at_once = 10
+	# attempts = [2] 
+	attempts = [0,1,2,3,4,5,6,7,8,9]#,11,12,13,14,15,16,17,18,19,20] 
+	N = [300]
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
-	Temps = [3]
+	Temps = [1000]
 	folders = []
+
+	#load default input file
+	with open(project_path+"default_files/default_input.json",'r') as fp:
+		input_json = json.load(fp)
+
+	job_template = input_json["data_directory"] + 'jobs/' + job_set_name + '{a}/N_{n}/T_{t}/'
+
 	for attempt in attempts:
 		for n in N:
 			for Temp in Temps:
 				#load default input file
-				with open(project_path+"default_files/default_input.json",'r') as fp:
-					input_json = json.load(fp)
+				# with open(project_path+"default_files/default_input.json",'r') as fp:
+				# 	input_json = json.load(fp)
 				
 				# job = curr_folder + 'jobs/' + job_set_name + str(attempt) + '/'
-				job = input_json["data_directory"] + 'jobs/' + job_set_name + str(attempt) + '/'\
-							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
+				job = job_template.replace('{a}',str(attempt)).replace('{n}',str(n)).replace('{t}',str(Temp))
+
 				
 				if not os.path.exists(job):
 					os.makedirs(job)
@@ -78,19 +82,28 @@ if __name__ == '__main__':
 
 				####################################
 				######Change input values here######
-				# input_json['temp'] = Temp
+				input_json['temp'] = Temp
 				input_json['N'] = n
 				input_json['output_folder'] = job
 				input_json['OMPthreads'] = 1
 				input_json['MPInodes'] = 1
+				input_json['impactParameter'] = -1.0
 
 				input_json['seed'] = rand_int()
-				# input_json['seed'] = 100
-				input_json['radiiDistribution'] = 'logNormal'
+				# input_json['seed'] = 101
+
+				# input_json['radiiDistribution'] = 'logNormal'
 				# input_json['h_min'] = 0.5
+				
+				# input_json['timeResolution'] = 1e-6
+
+				# input_json['simTimeSeconds'] = 1e-6
+				input_json['simTimeSeconds'] = 5e-4
+
 				input_json['dataFormat'] = "csv"
-				input_json['simType'] = "BCCA"
-				input_json['symmetric'] = "false"
+				input_json['simType'] = "BAPA"
+				input_json['random_folder_template'] = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{a}/N_30/T_1000/"
+
 				# input_json['u_s'] = 0.5
 				# input_json['u_r'] = 0.5
 				# input_json['note'] = "Does this work at all?"
@@ -105,7 +118,9 @@ if __name__ == '__main__':
 				os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
 				os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
 
-				# os.system(f"cp /home/lucas/Desktop/SpaceLab_data/test2/N_5/T_3/*data.h5 {job}.")
+				os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax0/N_30/T_3/27_RELAXconstants.csv {job}30_constants.csv")
+				os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax0/N_30/T_3/27_RELAXsimData.csv {job}30_simData.csv")
+				os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax0/N_30/T_3/27_RELAXenergy.csv {job}30_energy.csv")
 				
 				folders.append(job)
 	# print(folders)
