@@ -10,19 +10,12 @@
 // Authors: Job Guidos and Lucas Kolanz
 
 
+#include <omp.h>
 
 
 #include "ball_group.hpp"
-// #include "../timing/timing.hpp"
-
-#include <cmath>
-#include <iostream>
-#include <fstream>
-#include <ctime>
-#include <sstream>
-#include <string>
-#include <iomanip>
-#include <omp.h>
+#include "../timing/timing.hpp"
+#include "../utilities/Utils.hpp"
 
 #ifdef MPI_ENABLE
     #include <mpi.h>

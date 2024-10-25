@@ -51,26 +51,42 @@ ifeq ($(EXPERIMENTAL_FILESYSTEM),1)
 endif
 
 # Source files
-SOURCES = Collider.cpp 
-HPP += ../data/DECCOData.hpp ball_group.hpp ../utilities/Utils.hpp ../utilities/MPI_utilities.hpp
+SOURCES = Collider.cpp ball_group.cpp ../utilities/MPI_utilities.cpp ../utilities/vec3.cpp ../data/DECCOData.cpp ../utilities/Utils.cpp
+HPP += ../data/DECCOData.hpp ball_group.hpp ../utilities/Utils.hpp ../utilities/MPI_utilities.hpp ../utilities/Utils.hpp
 
-# Object files for both regular and MOC-generated sources
-OBJECTS = $(SOURCES:.cpp=.o) 
+# Object directory
+OBJDIR = objs
+
+# Extract the base names of the source files
+SOURCE_NAMES = $(notdir $(SOURCES))
+
+# Object files in OBJDIR
+OBJECTS = $(addprefix $(OBJDIR)/, $(SOURCE_NAMES:.cpp=.o))
+
+# Source directories
+SRC_DIRS = $(sort $(dir $(SOURCES)))
+
+# VPATH to find source files
+VPATH = $(SRC_DIRS)
 
 # Executable name
 EXEC = Collider.x
 
 # Default target
-all: $(HPP) $(EXEC)
+all: $(OBJDIR) $(HPP) $(EXEC)
+
+# Create OBJDIR if it doesn't exist
+$(OBJDIR):
+	mkdir -p $(OBJDIR)
 
 # Linking the executable
 $(EXEC): $(OBJECTS) $(HPP)
 	$(CXX) $(CXXFLAGS) -o $(EXEC) $(OBJECTS) $(LIBS)
 
-# Generic rule for compiling
-%.o: %.cpp $(HPP)
-	$(CXX) $(CXXFLAGS) -c $<
+# Compile rule
+$(OBJDIR)/%.o: %.cpp $(HPP)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Clean
 clean:
-	rm -f $(OBJECTS) $(EXEC) $(MOC_SOURCES)
+	rm -f $(OBJDIR)/*.o $(EXEC)

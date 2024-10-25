@@ -52,7 +52,7 @@ if __name__ == '__main__':
 	runs_at_once = 1
 	# attempts = [0,1,2,3,4,5,6,7,8,9]#,11,12,13,14,15,16,17,18,19,20] 
 	attempts = [0] 
-	N = [30]
+	N = [5]
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [3]
@@ -93,7 +93,7 @@ if __name__ == '__main__':
 				# input_json['seed'] = 101
 
 				input_json['radiiDistribution'] = 'logNormal'
-				# input_json['h_min'] = 0.5
+				input_json['h_min'] = 0.5
 				
 				# input_json['timeResolution'] = 1e-6
 
