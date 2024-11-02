@@ -7,8 +7,10 @@ import random
 from scipy.spatial.transform import Rotation as R
 import os,glob
 import sys
+from pathlib import Path
 import json
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import h5py	
 #from treelib import Node, Tree
 import time
@@ -46,6 +48,8 @@ data_columns = 11
 # def cube(V):
 	# return
 
+
+
 def find_max_index(folder):
 	files = os.listdir(folder)
 	max_index = -1
@@ -64,6 +68,112 @@ def index_from_file(file):
 		return int(file_split[0])
 	exit(0)
 
+def calc_rotational_kinetic_energy(positions, velocities, masses):
+    masses = masses[:positions.shape[1]]
+	 # Total mass of the aggregate
+    total_mass = np.sum(masses)
+
+    # Compute center of mass positions and velocities at each timestep
+
+    center_of_mass_positions = np.einsum('i,tij->tj', masses, positions) / total_mass  # Shape: (timesteps, 3)
+    center_of_mass_velocities = np.einsum('i,tij->tj', masses, velocities) / total_mass  # Shape: (timesteps, 3)
+
+    # Compute relative positions and velocities (r_i - r_cm and v_i - v_cm)
+    relative_positions = positions - center_of_mass_positions[:, np.newaxis, :]  # Shape: (timesteps, balls, 3)
+    relative_velocities = velocities - center_of_mass_velocities[:, np.newaxis, :]  # Shape: (timesteps, balls, 3)
+
+    # Compute rotational kinetic energy at each timestep
+    # T_rot = 0.5 * sum_i m_i * |v_i'|^2
+    kinetic_energies = 0.5 * masses[np.newaxis, :, np.newaxis] * relative_velocities**2  # Shape: (timesteps, balls, 3)
+    rotational_kinetic_energy = np.sum(kinetic_energies, axis=(1,2))  # Shape: (timesteps,)
+
+    return rotational_kinetic_energy
+
+def plot_rotational_kinetic_energy(rotational_kinetic_energy, horizontal_line_value):
+    """
+    Plots the rotational kinetic energy of an aggregate of spheres versus time,
+    calculated about the center of mass.
+
+    Parameters:
+    positions (numpy.ndarray): Array of shape (timesteps, balls, 3) containing position data.
+    velocities (numpy.ndarray): Array of shape (timesteps, balls, 3) containing velocity data.
+    horizontal_line_value (float): Value at which to plot a horizontal reference line.
+    masses (numpy.ndarray, optional): Array of shape (balls,) containing masses of the spheres.
+                                      If None, all masses are assumed to be equal and set to 1.
+
+    The units of time are arbitrary; each timestep is considered as one unit of time.
+    """
+    timesteps, = rotational_kinetic_energy.shape
+
+    # Generate time array
+    time = np.arange(timesteps)
+
+    # Plot rotational kinetic energy versus time
+    plt.figure(figsize=(10, 6))
+    plt.plot(time, rotational_kinetic_energy, label='Rotational Kinetic Energy')
+    plt.axhline(y=horizontal_line_value, color='red', linestyle='--', label='Reference Value')
+    plt.xlabel('Time (units)')
+    plt.ylabel('Rotational Kinetic Energy (units)')
+    plt.title('Rotational Kinetic Energy vs. Time (About Center of Mass)')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+def plot_3d_dots(dots):
+	"""
+	Plots 3D dots in space using matplotlib.
+	
+	Parameters:
+	dots (list of tuples or numpy array of shape (n, 3)): List of 3D coordinates.
+	"""
+	# Unpack x, y, z coordinates
+	x, y, z = zip(*dots)
+	
+	# Create a 3D plot
+	fig = plt.figure()
+	ax = fig.add_subplot(111, projection='3d')
+	
+	# Plot points
+	ax.scatter(x, y, z, c='b', marker='o')
+	
+	# Set labels
+	ax.set_xlabel('X')
+	ax.set_ylabel('Y')
+	ax.set_zlabel('Z')
+	
+	# Show plot
+	plt.show()
+
+def plot_3d_spheres(dots, radii):
+	"""
+	Plots 3D spheres in space using matplotlib.
+	
+	Parameters:
+	dots (list of tuples or numpy array of shape (n, 3)): List of 3D coordinates for sphere centers.
+	radii (list of floats or numpy array of shape (n,)): Radii for each sphere.
+	"""
+	# Create a 3D plot
+	fig = plt.figure()
+	ax = fig.add_subplot(111, projection='3d')
+	
+	# Plot each sphere
+	for (x, y, z), radius in zip(dots, radii):
+		# Create a sphere
+		u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
+		sphere_x = x + radius * np.cos(u) * np.sin(v)
+		sphere_y = y + radius * np.sin(u) * np.sin(v)
+		sphere_z = z + radius * np.cos(v)
+		
+		# Plot sphere surface
+		ax.plot_surface(sphere_x, sphere_y, sphere_z, color='b', alpha=0.5)
+	
+	# Set labels
+	ax.set_xlabel('X')
+	ax.set_ylabel('Y')
+	ax.set_zlabel('Z')
+	
+	# Show plot
+	plt.show()
 
 def plot(verts,center,radius):
 	fig = plt.figure()
@@ -107,7 +217,6 @@ def get_data_file(data_folder,data_index=-1,relax=False): #Works with csv or h5
 		files = [file for file in files if '_' in file]
 		file_indicies = np.array([int(file.split('_')[0]) for file in files],dtype=np.int64)
 
-
 	if data_index == -1:
 		index = np.max(file_indicies)
 	else:
@@ -121,7 +230,6 @@ def get_data_file(data_folder,data_index=-1,relax=False): #Works with csv or h5
 		data_file = [file for file in files \
 					if file.endswith(file_suffix) and file.startswith(str(index))]
 
-	
 
 
 	if len(data_file) == 1:
@@ -135,7 +243,6 @@ def get_data_file(data_folder,data_index=-1,relax=False): #Works with csv or h5
 
 		data_file = [file for file in files \
 				if file.endswith(f"{rel}simData.csv") and file.startswith(str(index)+'_2')]
-		print(rel)
 		if len(data_file) == 1:
 			return data_file[0]
 		elif len(data_file) == 2:
@@ -244,6 +351,22 @@ def get_line_h5_energy_data_from_file(file,linenum=-1):
 
 	return data
 
+def find_files(folder, pattern):
+	"""
+	Finds all files in the given folder that match the glob pattern.
+
+	Parameters:
+	folder (str): The path to the folder.
+	pattern (str): The glob pattern to match files.
+
+	Returns:
+	list: A list of file paths matching the pattern.
+	"""
+	p = Path(folder)
+	files = [str(f) for f in p.glob(pattern) if f.is_file()]
+	numbers = [int(file.split('/')[-1].split('_')[0]) for file in files]
+
+	return [file for _, file in sorted(zip(numbers, files))]
 
 
 def get_all_line_data(data_folder,data_index=-1,linenum=-1,relax=False): #Works with csv and h5
@@ -307,6 +430,15 @@ def get_last_line_energy(data_folder,data_index=-1,relax=False):
 	# print("DATA LEN: {} for file {}{}".format(data.size,data_folder,data_file))
 	# print("FOR {} Balls".format(data.size/11))
 	return energy
+
+def get_radii(data_folder,data_index=-1,relax=False):
+	return get_constants(data_folder,data_index,relax)[0]
+
+def get_masses(data_folder,data_index=-1,relax=False):
+	return get_constants(data_folder,data_index,relax)[1]
+
+def get_moi(data_folder,data_index=-1,relax=False):
+	return get_constants(data_folder,data_index,relax)[2]
 
 def get_constants(data_folder,data_index=-1,relax=False):#Works with csv and h5
 	data_file = get_data_file(data_folder,data_index,relax=relax)
@@ -388,6 +520,68 @@ def get_data(data_folder,data_index=-1,linenum=-1,relax=False): #Works with both
 		data = get_line_data(data_folder,data_index,linenum,relax=relax)
 
 	return data,radius,mass,moi
+
+def get_all_pos_data(data_file):
+	csv_data = False
+	h5_data = False
+	if data_file.endswith(".csv"):
+		csv_data = True
+	elif data_file.endswith(".h5"):
+		h5_data = True
+	if csv_data:
+		try:
+			data = np.loadtxt(data_file,skiprows=1,dtype=float,delimiter=',')
+			if data.ndim > 1:
+				return np.array([format_pos(d) for d in data])
+		except Exception as e:
+			# with open(data_folder + data_file) as f:
+			# 	for line in f:
+			# 		pass
+			# 	last_line = line
+			# data = np.array([last_line.split(',')],dtype=np.float64)
+			# print(data)
+			print("WARNING while getting data in folder: {}".format(data_folder))
+			print(e)
+			return None
+	elif h5_data:
+		# data = get_line_h5data_from_file(data_folder+data_file,linenum)
+		print("ERROR: h5 not implimented for get_all_pos_data function in utils.py")
+	
+	else:
+		print("ERROR: datatype not recognized by utils.py: {data_file}")
+
+	return None
+
+def get_all_vel_data(data_file):
+	csv_data = False
+	h5_data = False
+	if data_file.endswith(".csv"):
+		csv_data = True
+	elif data_file.endswith(".h5"):
+		h5_data = True
+	if csv_data:
+		try:
+			data = np.loadtxt(data_file,skiprows=1,dtype=float,delimiter=',')
+			if data.ndim > 1:
+				return np.array([format_vel(d) for d in data])
+		except Exception as e:
+			# with open(data_folder + data_file) as f:
+			# 	for line in f:
+			# 		pass
+			# 	last_line = line
+			# data = np.array([last_line.split(',')],dtype=np.float64)
+			# print(data)
+			print("WARNING while getting data in folder: {}".format(data_folder))
+			print(e)
+			return None
+	elif h5_data:
+		# data = get_line_h5data_from_file(data_folder+data_file,linenum)
+		print("ERROR: h5 not implimented for get_all_pos_data function in utils.py")
+	
+	else:
+		print("ERROR: datatype not recognized by utils.py: {data_file}")
+
+	return None
 
 def get_all_data(data_folder,data_index=-1,linenum=-1,relax=False): #Works with both csv and h5
 

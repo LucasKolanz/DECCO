@@ -225,6 +225,8 @@ if __name__ == '__main__':
 	data_prefolder = path + 'jobsNovus/const_relax'
 	data_prefolder = path + 'jobsCosine/lognorm_relax'
 
+	data_prefolder = path + 'jobs/BAPAloo'
+
 	dataset_name = data_prefolder.split("/")[-1]
 
 	sav = path+'data/{}_averageData.csv'.format(dataset_name)
@@ -232,13 +234,14 @@ if __name__ == '__main__':
 	figure_folder = path+'data/figures/'
 
 
-	temps = [3,10,30,100,300,1000]
-	# temps = [100]
-	Nums = [30,100,300]
-	# Nums = [300]
+	# temps = [3,10,30,100,300,1000]
+	temps = [1000]
+	# Nums = [30,100,300]
+	Nums = [300]
 	
 	
-	attempts = [i for i in range(30)]
+	# attempts = [i for i in range(30)]
+	attempts = [i for i in range(10)]
 	# attempts = [i for i in range(2)]
 	# attempts = [1]
 
@@ -288,7 +291,7 @@ if __name__ == '__main__':
 
 	#Is there new data to calculate? -> set to True
 	#Use the data that is already saved? -> set to False
-	new_data = False
+	new_data = True
 	#Do you want to save the newly calculated data? 
 	#Only applicable if new_data is True
 	save_data = True
@@ -339,14 +342,23 @@ if __name__ == '__main__':
 						#will also have a large enough file index from the start of the sim due to the copy over
 						#of initial conditions. 
 						if os.path.exists(data_folder+"timing.txt") or (not relax and u.find_max_index(data_folder) >= N-3):
-							porositiesabc[n,i,j] = porosity_measure1(data_folder,N-3,relax=relax)
-							porositiesKBM[n,i,j] = porosity_measure2(data_folder,N-3,relax=relax)
-							contacts[n,i,j] = max_number_of_contacts(data_folder,N-3,relax=relax)
-							angmom[n,i,j] = angular_momentum(data_folder,N-3,relax=relax)
-							BD_data[n,i,j] = bulk_density(data_folder,N-3,relax=relax)
+
+							# porositiesabc[n,i,j] = porosity_measure1(data_folder,N-3,relax=relax)
+							# porositiesKBM[n,i,j] = porosity_measure2(data_folder,N-3,relax=relax)
+							# contacts[n,i,j] = max_number_of_contacts(data_folder,N-3,relax=relax)
+							# angmom[n,i,j] = angular_momentum(data_folder,N-3,relax=relax)
+							# BD_data[n,i,j] = bulk_density(data_folder,N-3,relax=relax)
+
+							porositiesabc[n,i,j] = porosity_measure1(data_folder,N,relax=relax)
+							porositiesKBM[n,i,j] = porosity_measure2(data_folder,N,relax=relax)
+							contacts[n,i,j] = max_number_of_contacts(data_folder,N,relax=relax)
+							angmom[n,i,j] = angular_momentum(data_folder,N,relax=relax)
+							BD_data[n,i,j] = bulk_density(data_folder,N,relax=relax)
+
 
 							if not np.isnan(porositiesabc[n,i,j]) and make_FD:
-								o3dv = u.o3doctree(data_folder,overwrite_data=overwrite_octree_data,index=N-3,Temp=temp,relax=relax)
+								# o3dv = u.o3doctree(data_folder,overwrite_data=overwrite_octree_data,index=N-3,Temp=temp,relax=relax)
+								o3dv = u.o3doctree(data_folder,overwrite_data=overwrite_octree_data,index=N,Temp=temp,relax=relax)
 								o3dv.make_tree()
 								FD_data[n,i,j] = o3dv.calc_fractal_dimension(show_graph=show_FD_plots)
 
