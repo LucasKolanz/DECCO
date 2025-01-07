@@ -32,6 +32,7 @@ Ball_group::Ball_group(std::string& path, const int index)
 {
     parse_input_file(path);
 
+
     if (attrs.typeSim == BPCA || attrs.typeSim == BCCA || attrs.typeSim == BAPA)
     {
         aggregationInit(path,index);
@@ -53,6 +54,11 @@ Ball_group::Ball_group(std::string& path, const int index)
             std::string message("ERROR: simType is relax but relax_index is ("+std::to_string(attrs.relax_index)+") < 0\n");
             MPIsafe_print(std::cerr,message);
         }
+    }
+    else
+    {
+        std::string message("ERROR: simType is not set.\n");
+        MPIsafe_print(std::cerr,message);
     }
         
 }
@@ -159,7 +165,7 @@ void Ball_group::aggregationInit(const std::string path,const int index)
         MPIsafe_exit(0);
     }
 
-    std::string filename = find_whole_file_name(path,index); 
+    std::string filename = find_whole_file_name(path,index);
 
     bool just_restart = false;
 
@@ -177,11 +183,12 @@ void Ball_group::aggregationInit(const std::string path,const int index)
     }
 
     
-
     if (!just_restart && restart==1)
     {
-        MPIsafe_print(std::cerr,std::string("Loading sim "+path+filename+'\n'));
-        loadSim(path, filename);
+        MPIsafe_print(std::cerr,std::string("Loading sim "+filename+'\n'));
+        // MPIsafe_print(std::cerr,std::string("Loading sim "+path+filename+'\n'));
+        loadSim(path, filename.substr(filename.find_last_of('/')+1,filename.size()));
+        // loadSim(path, filename);
         calc_v_collapse(); 
         // getMass();
         if (attrs.dt < 0)
@@ -347,7 +354,15 @@ void Ball_group::init_data(int counter = 0)
 std::string Ball_group::data_type_from_input(const std::string location)
 {
     json inputs = getJsonFromFolder(location);
-    return inputs["dataFormat"];
+    if (inputs.contains("random_folder_template"))
+    {
+        return inputs["dataFormat"];
+    }
+    else
+    {
+        std::cerr<<"WARNING: dataFormat input does not exist."<<std::endl;
+        return "WARNING: dataFormat input does not exist.";
+    }
 }
 
 void Ball_group::set_seed_from_input(const std::string location)
@@ -379,6 +394,8 @@ void Ball_group::set_seed_from_input(const std::string location)
 //Parses input.json file that is in the same folder the executable is in
 void Ball_group::parse_input_file(std::string location)
 {
+    std::cerr<<"STARTING PARSE_INPUT FILE"<<std::endl;
+
 
     // if (location == "")
     // {
@@ -396,31 +413,40 @@ void Ball_group::parse_input_file(std::string location)
     // json inputs = json::parse(ifs);
     json inputs = getJsonFromFolder(location);
     MPIsafe_print(std::cerr,std::string("Parsing input file: "+location+"input.json\n"));
-    attrs.output_folder = inputs["output_folder"];
+
+    set_attribute(inputs,"output_folder",attrs.output_folder);
+    // attrs.output_folder = inputs["output_folder"];
     if (attrs.output_folder == "")
     {
         MPIsafe_print(std::cerr,"ERROR: output_folder not specified in input.json. This cannot be left blank.");
         MPIsafe_exit(-1);
     }
-    attrs.data_directory = inputs["data_directory"];
 
-    if (inputs.contains("random_folder_template"))
-    {
-        attrs.random_folder_template = inputs["random_folder_template"];
-    }
+    set_attribute(inputs,"data_directory",attrs.data_directory);
+    // attrs.data_directory = inputs["data_directory"];
 
-    if (inputs["simType"] == "BPCA")
+    set_attribute(inputs,"random_folder_template",attrs.random_folder_template);
+    // if (inputs.contains("random_folder_template"))
+    // {
+    //     attrs.random_folder_template = inputs["random_folder_template"];
+    // }
+
+    std::string temp_sim_type = "";
+    set_attribute(inputs,"simType",temp_sim_type);
+    std::string temp_symmetric = "";
+    set_attribute(inputs,"symmetric",temp_symmetric);
+    if (temp_sim_type == "BPCA")
     {
         attrs.typeSim = BPCA;
     }
-    else if (inputs["simType"] == "BCCA")
+    else if (temp_sim_type == "BCCA")
     {
         attrs.typeSim = BCCA;
-        if (inputs["symmetric"] == "True" || inputs["symmetric"] == "true" || inputs["symmetric"] == "1")
+        if (temp_symmetric == "True" || temp_symmetric == "true" || temp_symmetric == "1")
         {
             attrs.symmetric = true;
         }
-        else if (inputs["symmetric"] == "False" || inputs["symmetric"] == "false" || inputs["symmetric"] == "0")
+        else if (temp_symmetric == "False" || temp_symmetric == "false" || temp_symmetric == "0")
         {
             attrs.symmetric = false;
         }
@@ -430,27 +456,29 @@ void Ball_group::parse_input_file(std::string location)
             attrs.symmetric = true;
         }
     }
-    else if (inputs["simType"] == "BAPA")
+    else if (temp_sim_type == "BAPA")
     {
         attrs.typeSim = BAPA;
     }
-    else if (inputs["simType"] == "collider")
+    else if (temp_sim_type == "collider")
     {
         attrs.typeSim = collider;
     }
-    else if (inputs["simType"] == "relax")
+    else if (temp_sim_type == "relax")
     {
         attrs.typeSim = relax;
-        attrs.relax_index = inputs["relaxIndex"];
+        set_attribute(inputs,"relaxIndex",attrs.relax_index);
+        // attrs.relax_index = inputs["relaxIndex"];
     }
 
-
-    if (inputs["dataFormat"] == "h5" || inputs["dataFormat"] == "hdf5")
+    std::string temp_dataFormat = "";
+    set_attribute(inputs,"dataFormat",temp_dataFormat);
+    if (temp_dataFormat == "h5" || temp_dataFormat == "hdf5")
     {
         attrs.data_type = 0;
         attrs.filetype = "h5";
     }
-    else if (inputs["dataFormat"] == "csv")
+    else if (temp_dataFormat == "csv")
     {
         attrs.data_type = 1;
         attrs.filetype = "csv";
@@ -459,35 +487,63 @@ void Ball_group::parse_input_file(std::string location)
 
     
 
-    std::string temporary_distribution = inputs["radiiDistribution"];
+    std::string temporary_distribution = "";
+    set_attribute(inputs,"radiiDistribution",temporary_distribution);
+    // std::string temporary_distribution = inputs["radiiDistribution"];
     std::transform(temporary_distribution.begin(), temporary_distribution.end(), temporary_distribution.begin(), ::tolower);
     if (temporary_distribution == "lognormal" || temporary_distribution == "lognorm")
     {
         attrs.radiiDistribution = logNorm;
     }
-    else
+    else if (temporary_distribution == "const" || temporary_distribution == "constant")
     {
         attrs.radiiDistribution = constant;
     }
+    else
+    {
+        std::cerr<<"WARNING: radiiDistribution not specified. Defaulting to 'constant'"<<std::endl;
+        attrs.radiiDistribution = constant;
+    }
 
-    attrs.N = inputs["N"];
-    attrs.dynamicTime = inputs["dynamicTime"];
-    attrs.G = inputs["G"];
-    attrs.density = inputs["density"];
-    attrs.u_s = inputs["u_s"];
-    attrs.u_r = inputs["u_r"];
-    attrs.sigma = inputs["sigma"];
-    attrs.Y = inputs["Y"];
-    attrs.cor = inputs["cor"];
-    attrs.simTimeSeconds = inputs["simTimeSeconds"];
-    attrs.timeResolution = inputs["timeResolution"];
+    set_attribute(inputs,"N",attrs.N);
+    // attrs.N = inputs["N"];
+    set_attribute(inputs,"M",attrs.M);
+    // if (inputs.contains("M"))
+    // {
+    //     attrs.M = inputs["M"];
+    // }
+    set_attribute(inputs,"dynamicTime",attrs.dynamicTime);
+    // attrs.dynamicTime = inputs["dynamicTime"];
+    set_attribute(inputs,"G",attrs.G);
+    // attrs.G = inputs["G"];
+    set_attribute(inputs,"density",attrs.density);
+    // attrs.density = inputs["density"];
+    set_attribute(inputs,"u_s",attrs.u_s);
+    // attrs.u_s = inputs["u_s"];
+    set_attribute(inputs,"u_r",attrs.u_r);
+    // attrs.u_r = inputs["u_r"];
+    set_attribute(inputs,"sigma",attrs.sigma);
+    // attrs.sigma = inputs["sigma"];
+    set_attribute(inputs,"Y",attrs.Y);
+    // attrs.Y = inputs["Y"];
+    set_attribute(inputs,"cor",attrs.cor);
+    // attrs.cor = inputs["cor"];
+    set_attribute(inputs,"simTimeSeconds",attrs.simTimeSeconds);
+    // attrs.simTimeSeconds = inputs["simTimeSeconds"];
+    set_attribute(inputs,"timeResolution",attrs.timeResolution);
+    // attrs.timeResolution = inputs["timeResolution"];
     attrs.fourThirdsPiRho = 4. / 3. * pi * attrs.density;
-    attrs.scaleBalls = inputs["scaleBalls"];
-    attrs.maxOverlap = inputs["maxOverlap"];
-    attrs.KEfactor = inputs["KEfactor"];
+    set_attribute(inputs,"scaleBalls",attrs.scaleBalls);
+    // attrs.scaleBalls = inputs["scaleBalls"];
+    set_attribute(inputs,"maxOverlap",attrs.maxOverlap);
+    // attrs.maxOverlap = inputs["maxOverlap"];
+    set_attribute(inputs,"KEfactor",attrs.KEfactor);
+    // attrs.KEfactor = inputs["KEfactor"];
 
-    attrs.MAXMPInodes = inputs["MPInodes"];
+    set_attribute(inputs,"MPInodes",attrs.MAXMPInodes);
+    // attrs.MAXMPInodes = inputs["MPInodes"];
     attrs.MPInodes = attrs.MAXMPInodes;
+    set_attribute(inputs,"OMPthreads",attrs.MAXOMPthreads);
     attrs.MAXOMPthreads = inputs["OMPthreads"];
     attrs.OMPthreads = attrs.MAXOMPthreads;
  
@@ -495,45 +551,67 @@ void Ball_group::parse_input_file(std::string location)
     //If both are specified, then print out a warning and use eta.
     //However, v_custom can't be set until you know the mass of the projectile
     //if you are setting based on temp, so we do this in the init functions.
-    attrs.temp = inputs["temp"]; 
-    if (inputs.contains("eta"))
-    {
-        attrs.eta = inputs["eta"]; 
-    }
-    
-    if (inputs["v_custom"] == std::string("default"))
+    set_attribute(inputs,"temp",attrs.temp);
+    // attrs.temp = inputs["temp"]; 
+    set_attribute(inputs,"eta",attrs.eta);
+    // if (inputs.contains("eta"))
+    // {
+    //     attrs.eta = inputs["eta"]; 
+    // }
+
+    std::string temp_v_custom = "";    
+    set_attribute(inputs,"v_custom",temp_v_custom);
+    if (temp_v_custom == std::string("default") || temp_v_custom == "")
     {
         attrs.v_custom = -1;
     }
     else
     {
-        attrs.v_custom = inputs["v_custom"];
+        attrs.v_custom = std::stod(temp_v_custom);
     }
 
-
-    double temp_kConst = inputs["kConsts"];
+    double temp_kConst = -1.0;
+    set_attribute(inputs,"kConsts",temp_kConst);
     attrs.kConsts = temp_kConst * (attrs.fourThirdsPiRho / (attrs.maxOverlap * attrs.maxOverlap));
-    attrs.impactParameter = inputs["impactParameter"];
-    attrs.Ha = inputs["Ha"];
-    double temp_h_min = inputs["h_min"];
+    set_attribute(inputs,"impactParameter",attrs.impactParameter);
+    // attrs.impactParameter = inputs["impactParameter"];
+    set_attribute(inputs,"Ha",attrs.Ha);
+    // attrs.Ha = inputs["Ha"];
+    double temp_h_min = -1.0;
+    set_attribute(inputs,"h_min",temp_h_min);
     attrs.h_min = temp_h_min * attrs.scaleBalls;
-    if (inputs["cone"] == std::string("default"))
+
+    std::string temp_cone = "default";
+    set_attribute(inputs,"cone",temp_cone);
+    if (temp_cone == std::string("default"))
     {
         attrs.cone = pi/2;
     }
     else
     {
-        attrs.cone = inputs["cone"];
+        attrs.cone = std::stod(temp_cone);
     }
-    attrs.properties = inputs["properties"];
-    attrs.genBalls = inputs["genBalls"];
-    attrs.attempts = inputs["attempts"];
-    attrs.skip = inputs["skip"];
-    attrs.steps = inputs["steps"];
-    attrs.dt = inputs["dt"];
-    attrs.kin = inputs["kin"];
-    attrs.kout = inputs["kout"];
-    if (inputs["spaceRange"] == std::string("default"))
+
+    set_attribute(inputs,"properties",attrs.properties);
+    // attrs.properties = inputs["properties"];
+    set_attribute(inputs,"genBalls",attrs.genBalls);
+    // attrs.genBalls = inputs["genBalls"];
+    set_attribute(inputs,"attempts",attrs.attempts);
+    // attrs.attempts = inputs["attempts"];
+    set_attribute(inputs,"skip",attrs.skip);
+    // attrs.skip = inputs["skip"];
+    set_attribute(inputs,"steps",attrs.steps);
+    // attrs.steps = inputs["steps"];
+    set_attribute(inputs,"dt",attrs.dt);
+    // attrs.dt = inputs["dt"];
+    set_attribute(inputs,"kin",attrs.kin);
+    // attrs.kin = inputs["kin"];
+    set_attribute(inputs,"kout",attrs.kout);
+    // attrs.kout = inputs["kout"];
+
+    std::string temp_spaceRange = "default";
+    set_attribute(inputs,"spaceRange",temp_spaceRange);
+    if (temp_spaceRange == std::string("default"))
     {
         attrs.spaceRange = 4 * std::pow(
                         (1. / .74 * attrs.scaleBalls * attrs.scaleBalls * attrs.scaleBalls * attrs.genBalls),
@@ -541,32 +619,46 @@ void Ball_group::parse_input_file(std::string location)
     }
     else
     {
-        attrs.spaceRange = inputs["spaceRange"];
+        attrs.spaceRange = std::stod(temp_spaceRange);
     }
-    if (inputs["spaceRangeIncrement"] == std::string("default"))
+
+    std::string temp_spaceRangeIncrement = "default";
+    set_attribute(inputs,"spaceRangeIncrement",temp_spaceRangeIncrement);
+    if (temp_spaceRangeIncrement == std::string("default"))
     {
         attrs.spaceRangeIncrement = attrs.scaleBalls * 3;
     }
     else
     {
-        attrs.spaceRangeIncrement = inputs["spaceRangeIncrement"];
+        attrs.spaceRangeIncrement = std::stod(temp_spaceRangeIncrement);
     }
-    attrs.z0Rot = inputs["z0Rot"];
-    attrs.y0Rot = inputs["y0Rot"];
-    attrs.z1Rot = inputs["z1Rot"];
-    attrs.y1Rot = inputs["y1Rot"];
-    attrs.simTimeElapsed = inputs["simTimeElapsed"];
 
-    attrs.projectileName = inputs["projectileName"];
-    attrs.targetName = inputs["targetName"];
-    attrs.output_prefix = inputs["output_prefix"];
-    if (attrs.output_prefix == std::string("default"))
+    set_attribute(inputs,"z0Rot",attrs.z0Rot);
+    // attrs.z0Rot = inputs["z0Rot"];
+    set_attribute(inputs,"y0Rot",attrs.y0Rot);
+    // attrs.y0Rot = inputs["y0Rot"];
+    set_attribute(inputs,"z1Rot",attrs.z1Rot);
+    // attrs.z1Rot = inputs["z1Rot"];
+    set_attribute(inputs,"y1Rot",attrs.y1Rot);
+    // attrs.y1Rot = inputs["y1Rot"];
+
+    set_attribute(inputs,"simTimeElapsed",attrs.simTimeElapsed);
+    // attrs.simTimeElapsed = inputs["simTimeElapsed"];
+    set_attribute(inputs,"projectileName",attrs.projectileName);
+    // attrs.projectileName = inputs["projectileName"];
+    set_attribute(inputs,"targetName",attrs.targetName);
+    // attrs.targetName = inputs["targetName"];
+
+    std::string temp_output_prefix = "default";
+    set_attribute(inputs,"output_prefix",temp_output_prefix);
+    // attrs.output_prefix = inputs["output_prefix"];
+    if (temp_output_prefix == std::string("default"))
     {
         attrs.output_prefix = "";
     }
 
-    attrs.radiiFraction = inputs["radiiFraction"];
-
+    set_attribute(inputs,"radiiFraction",attrs.radiiFraction);
+    // attrs.radiiFraction = inputs["radiiFraction"];
     attrs.output_width = attrs.num_particles;
 }
 
@@ -1260,6 +1352,8 @@ vec3 Ball_group::random_offset(
 {
 
     const auto possible_radius = target.getRadius(target.getCOM()) + projectile.getRadius(projectile.getCOM());
+    // std::cerr<<target.getRadius(target.getCOM())<<std::endl;
+    // std::cerr<<projectile.getRadius(projectile.getCOM())<<std::endl;
     const auto projectile_vcom = projectile.getVCOM();
     // const auto projectile_radius = projectile.getRadius(projectile.getCOM());
     bool intersect = false;
@@ -1636,9 +1730,27 @@ Ball_group Ball_group::BAPA_projectile_init()
 
     std::string rand_projectile_folder = get_rand_projectile_folder(attrs.random_folder_template);
 
-    MPIsafe_print(std::cerr,"Getting projectile from: "+rand_projectile_folder+'\n');
-    Ball_group projectile(rand_projectile_folder);
-    projectile.to_origin();
+    MPIsafe_print(std::cerr,"Getting projectile of index "+std::to_string(attrs.M)+" from: "+rand_projectile_folder+'\n');
+    Ball_group projectile(rand_projectile_folder,attrs.M);
+    projectile.zeroVel();
+    projectile.zeroAngVel();
+    
+    // Ball_group projectile(attrs.M);
+    // std::string filename = find_whole_file_name(rand_projectile_folder,attrs.M);
+    // projectile.loadSim(rand_projectile_folder,filename.substr(filename.find_last_of('/')+1,filename.size()));
+    // std::cerr<<"loaded projectile sim"<<std::flush<<std::endl;
+    // projectile.calc_v_collapse(); 
+    // std::cerr<<"calculated v collapse projectile"<<std::endl;
+    // // getMass();
+    // if (attrs.dt < 0)
+    //     projectile.calibrate_dt(0, attrs.v_custom);
+    // std::cerr<<"calibrate dt projectile"<<std::endl;
+    // projectile.simInit_cond_and_center(false);
+    // std::cerr<<"simInit_cond_and_center projectile"<<std::endl;
+    // projectile.to_origin();
+    // std::cerr<<"to_origin projectile"<<std::endl;
+    // projectile.calc_helpfuls();
+    // std::cerr<<"calc_helpfuls projectile"<<std::endl;
     
     // //find velocity of projectile
     // // Velocity toward origin:
@@ -1726,6 +1838,8 @@ Ball_group Ball_group::add_projectile(const simType simtype)
 
     projectile.calc_momentum("Projectile");
     calc_momentum("Target");
+    std::cerr<<"Projectile number of particles: "<<projectile.attrs.num_particles<<std::endl;
+    std::cerr<<"Target number of particles:     "<<attrs.num_particles<<std::endl;
     Ball_group new_group{projectile.attrs.num_particles + attrs.num_particles};
 
     int new_num_particles = projectile.attrs.num_particles + attrs.num_particles;
@@ -2082,6 +2196,11 @@ void Ball_group::parseSimData(std::string line)
     if (attrs.num_particles > 0)
     {
         count = attrs.num_particles;
+    }
+    if (attrs.properties == -1)
+    {
+        std::cerr<<"WARNING: attrs.properties not set. Setting attrs.properties = 11 by default."<<std::endl;
+        attrs.properties = 11;
     }
     // int count = std::count(line.begin(), line.end(), ',') / properties + 1;
     allocate_group(count);
@@ -3215,19 +3334,35 @@ std::string Ball_group::find_whole_file_name(std::string path, const int index)
 
     // TODO::: write this function so we actually know if its csv or h5
     std::string dataType = data_type_from_input(path);
-    bool csv;
+    int csv = -1;
     if (dataType == "csv")
     {
-        csv = true;
+        csv = 1;
     }
     else if (dataType == "h5" || dataType == "hdf5")
     {
-        csv = false;
+        csv = 0;
     }
     else
     {
-        MPIsafe_print(std::cerr,"ERROR in find_whole_file_name: dataType '"+dataType+"' not recognized.");
-        MPIsafe_exit(-1);
+        std::string test_file = path+std::to_string(index);
+        if (fs::exists(test_file+"_simData.csv"))
+        {
+            return test_file + "_simData.csv";
+        }
+        else if (fs::exists(test_file+"_data.h5"))
+        {
+            return test_file + "_data.h5";
+        }
+        else if (fs::exists(test_file+"_data.hdf5"))
+        {
+            return test_file + "_data.hdf5";
+        }
+        else
+        {
+            MPIsafe_print(std::cerr,"ERROR in find_whole_file_name: dataType '"+dataType+"' not recognized.");
+            MPIsafe_exit(-1);
+        }
     }
 
     int largest_file_index = -1;
@@ -3282,10 +3417,12 @@ std::string Ball_group::find_whole_file_name(std::string path, const int index)
         }
     }
 
+
+
     //if index is greater than zero we know if its csv or h5 so just return here
     if (index >= 0)
     {
-        if (csv)
+        if (csv == 1)
         {
             return std::to_string(index) + "_" + simDatacsv;
         }
@@ -3296,7 +3433,7 @@ std::string Ball_group::find_whole_file_name(std::string path, const int index)
     }
 
 
-    if (csv && index < 0 && second_largest_file_index > 0)
+    if (csv == 1 && index < 0 && second_largest_file_index > 0)
     {
         if (getRank() == 0)
         {

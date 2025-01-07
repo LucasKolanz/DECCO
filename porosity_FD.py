@@ -119,6 +119,7 @@ def porosity_measure1(data_folder,data_index=-1,relax=False):
 	
 	# Rabc = np.power(a*b*c,1/3)
 	porosity = 1-(effective_radius**3/(a*b*c))
+	print(f'Porosity abc: {a},{b},{c}')
 
 	return porosity
 
@@ -139,6 +140,7 @@ def porosity_measure2(data_folder,data_index=-1,relax=False):
 
 	RKBM = np.sqrt(np.sum(alphai)/3) * effective_radius
 
+	print(f'Porosity KBM: {RKBM}')
 	porosity = 1-np.power((effective_radius/RKBM),3)
 	return porosity
 
@@ -225,7 +227,7 @@ if __name__ == '__main__':
 	data_prefolder = path + 'jobsNovus/const_relax'
 	data_prefolder = path + 'jobsCosine/lognorm_relax'
 
-	data_prefolder = path + 'jobs/BAPAloo'
+	# data_prefolder = path + 'jobs/BAPA'
 
 	dataset_name = data_prefolder.split("/")[-1]
 
@@ -234,16 +236,16 @@ if __name__ == '__main__':
 	figure_folder = path+'data/figures/'
 
 
-	# temps = [3,10,30,100,300,1000]
-	temps = [1000]
-	# Nums = [30,100,300]
-	Nums = [300]
+	temps = [3,10,30,100,300,1000]
+	# temps = [3,10]
+	Nums = [30,100,300]
+	Nums = [297]
 	
 	
-	# attempts = [i for i in range(30)]
-	attempts = [i for i in range(10)]
+	attempts = [i for i in range(30)]
+	# attempts = [i for i in range(10)]
 	# attempts = [i for i in range(2)]
-	# attempts = [1]
+	attempts = [7]
 
 
 
@@ -294,13 +296,13 @@ if __name__ == '__main__':
 	new_data = True
 	#Do you want to save the newly calculated data? 
 	#Only applicable if new_data is True
-	save_data = True
+	save_data = False
 	#Do you want to see plots of the data as they are made?
 	show_plots = True
 	#Do you want to save the plots once they are made?
-	save_plots = True
+	save_plots = False
 
-	#Do you want to skip the fractal dimension since it takes a long time
+	#Do you want to calculate the fractal dimension since it takes a long time
 	make_FD = True
 	#Do you want to see the FD plots?
 	show_FD_plots = False
@@ -332,8 +334,9 @@ if __name__ == '__main__':
 		for i,temp in enumerate(temps):
 			for n,N in enumerate(Nums):
 				for j,attempt in enumerate(attempts):
-					data_folder = data_prefolder + str(attempt) + '/' + 'N_' + str(N) + '/T_' + str(temp) + '/'
+					data_folder = data_prefolder + str(attempt) + '/' + 'N_' + str(N+3) + '/T_' + str(temp) + '/'
 					count = 0
+					print(data_folder)
 					if os.path.exists(data_folder):
 						#We want to go into the next if block only if the simulation is finished. This is true
 						#if timing.txt is in there. If the simulation is too old, it wont have timing.txt and you 
@@ -354,6 +357,8 @@ if __name__ == '__main__':
 							contacts[n,i,j] = max_number_of_contacts(data_folder,N,relax=relax)
 							angmom[n,i,j] = angular_momentum(data_folder,N,relax=relax)
 							BD_data[n,i,j] = bulk_density(data_folder,N,relax=relax)
+
+							exit(0)
 
 
 							if not np.isnan(porositiesabc[n,i,j]) and make_FD:
@@ -556,12 +561,18 @@ if __name__ == '__main__':
 	else:
 
 		# headers = np.loadtxt(sav,delimiter=',',dtype=str)[0]
+		print(f"Opening data {sav}")
 		data = np.loadtxt(sav,delimiter=' ',skiprows=0,dtype=np.float64)
-		print(data)
-		print(data.shape)
-		print(porositiesabcavg.shape)
+		# print(data)
+		# print(data.shape)
+		# print(porositiesabcavg.shape)
 
+		#TODO make this compatible with a single temp
 		for i,N in enumerate(Nums):
+			# if N == 300:
+			# 	print(data[i*properties+9,:])
+			# 	print(data[i*properties+10,:])
+			# 	exit(0)
 			porositiesabcavg[i] = data[i*properties,:]
 			yerr_abc[i] = data[i*properties+1,:]
 			ABC_numruns[i] = data[i*properties+2,:]

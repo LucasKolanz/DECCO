@@ -111,6 +111,11 @@ foo_objs = [obj for obj in bpy.context.scene.objects if fnmatch.fnmatchcase(obj.
 for obj in foo_objs:
 	bpy.data.objects.remove(obj, do_unlink = True)
 	
+foo_objs = [obj for obj in bpy.context.scene.objects if fnmatch.fnmatchcase(obj.name, "ProjectileArrow*")]
+
+for obj in foo_objs:
+    bpy.data.objects.remove(obj, do_unlink = True)
+	
 
 stepSkip = 1
 stepTime = 1e-5
@@ -190,11 +195,9 @@ path = '/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm9/N_300/T_3/'
 
 
 path = '/media/kolanzl/easystore/SpaceLab_data/jobs/TESTBPCA0/N_5/T_3/'
-path = '/media/kolanzl/easystore/SpaceLab_data/jobs/const_collisions0/N_30-100/eta_0.5/'
-path = '/media/kolanzl/easystore/SpaceLab_data/jobs/TESTBAPA0/N_300/T_3/'
 
-simStart = 30
-simEnd = 30
+simStart = 2
+simEnd = 5
 
 #csv = False
 #filename = ''  

@@ -23,6 +23,8 @@
 	//Number of balls to add to a BPCA simulation. If simType is not "BPCA" this 
 	//value will be ignored
 	"N": -1,
+	//Number of balls in an intermediate BAPA simType sim. Ignored for other simTypes 
+	"M": -1,
 	//for constant distribution, added balls will have ri/radiiFraction sized 
 	//radii where ri is the radius of the inital balls (scaleBalls)
 	"radiiFraction": 1,
@@ -64,7 +66,7 @@
 	"kConsts": 3e3, //will be set to kConsts*(fourThirdsPiRho/maxOverlap^2) in simulation
 	//Impact angle radians
 	"impactParameter": 0, //Careful using this as it isn't same as impact parameter in liturature
-	//Hamaker constant for vdw force
+	//Hamaker constant for vdw force (ergs)
 	"Ha": 4.7e-12,
 	//???
 	"h_min": 0.1, //will be set to h_min*scaleBalls

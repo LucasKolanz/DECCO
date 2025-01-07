@@ -143,7 +143,8 @@ struct Ball_group_attributes
     double y1Rot = -1.0;  // Cluster two y axis rotation
     double simTimeElapsed = -1.0;
 
-    int N=-1; //Number of balls to grow (if BPCA)
+    int N=-1; //Number of balls to grow (if BPCA or BAPA)
+    int M=-1; //BAPA size (fragment size of intermediate growth steps)
 
     const time_t start = time(nullptr);  // For end of program analysis
     time_t startProgress = 0;                // For progress reporting (gets reset)
@@ -213,6 +214,7 @@ struct Ball_group_attributes
             v_max_prev = other.v_max_prev;
             soc = other.soc;
             N = other.N;
+            M = other.M;
 
             dynamicTime = other.dynamicTime;
             G = other.G;

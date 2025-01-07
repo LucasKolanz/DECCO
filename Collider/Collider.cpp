@@ -224,7 +224,7 @@ void runAggregation(std::string path, int num_balls)
     int increment = 1; // This should be 1 for BPCA, if not BPCA, set in for loop
     if (O.attrs.typeSim == BAPA)
     {
-        increment = O.attrs.num_particles;
+        increment = O.attrs.M;
     }
 
     // Add projectile: For dust formation BPCA or BCCA

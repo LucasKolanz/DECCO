@@ -32,8 +32,8 @@ def main():
 	data_prefolder = path + 'jobsOld/tempVarianceRand_attempt'
 	data_prefolder = path + 'jobsNovus/const'
 	data_prefolder = path + 'jobsCosine/lognorm'
+	data_prefolder = path + 'jobsNovus/const_relax'	
 	data_prefolder = path + 'jobsCosine/lognorm_relax'
-	data_prefolder = path + 'jobsNovus/const_relax'
 
 	dataset_name = data_prefolder.split("/")[-1]
 
@@ -55,8 +55,9 @@ def main():
 	# attempts = [18]
 
 	data = np.loadtxt(sav,delimiter=' ',dtype=np.float64)
-	print(f"data.shape: {data.shape}")
-	print(data)
+	# print(sav)
+	# print(f"data.shape: {data.shape}")
+	# print(data)
 	properties = int(data.shape[0]/3) #18 #number of columns for every agg size
 	print(properties)
 
@@ -141,6 +142,8 @@ def main():
 	plt.axvline(x = 0.3, color = 'black')
 	plt.axvline(x = 0.5, color = 'black')
 
+	plt.hlines(0,xmin=-0.0685,xmax=0.6685,linestyle="--",color='black')
+
 
 
 
@@ -150,11 +153,13 @@ def main():
 	ax.set_ylabel('Sensitivity to Temperature')
 
 	ax.set_ylim(-0.0010770496039509136, 0.02782241381226227)
+	ax.set_xlim(-0.0685, 0.6685)
 
 	fig.legend(loc='lower left',bbox_to_anchor=(0.785,0.65))
 	# fig.legend(loc='lower left',bbox_to_anchor=(0.99,0.7))
 
 	print(f"ylim: {ax.get_ylim()}")
+	print(f"xlim: {ax.get_xlim()}")
 
 
 

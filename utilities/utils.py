@@ -194,6 +194,8 @@ def plot(verts,center,radius):
 	# ax.plot_wireframe(x, y, z, color="r")
 	plt.show()
 
+
+#
 def get_data_file(data_folder,data_index=-1,relax=False): #Works with csv or h5
 	old = False
 	file_suffix = ""
@@ -212,7 +214,8 @@ def get_data_file(data_folder,data_index=-1,relax=False): #Works with csv or h5
 		file_indicies = np.array([file.split('_')[0] for file in files\
 					if file.endswith(file_suffix)],dtype=np.int64)
  
-	except: 
+	except:
+		# print("ERROR: ") 
 		files = [file for file in files if file.endswith(file_suffix)]
 		files = [file for file in files if '_' in file]
 		file_indicies = np.array([int(file.split('_')[0]) for file in files],dtype=np.int64)
@@ -228,8 +231,7 @@ def get_data_file(data_folder,data_index=-1,relax=False): #Works with csv or h5
 		data_file = [file for file in data_file if file.split('_')[1][0] == "R"]
 	else:
 		data_file = [file for file in files \
-					if file.endswith(file_suffix) and file.startswith(str(index))]
-
+					if file.endswith(file_suffix) and file.startswith(str(index)+"_")]
 
 
 	if len(data_file) == 1:
@@ -250,7 +252,7 @@ def get_data_file(data_folder,data_index=-1,relax=False): #Works with csv or h5
 				return data_file[0]
 			else:
 				return data_file[1]
-		print("data file in folder '{}' not found.".format(data_folder))
+		print(f"data file of index {index} in folder '{data_folder}' not found.")
 		print("Now exiting.")
 		exit(-1)
 

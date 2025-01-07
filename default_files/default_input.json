@@ -7,6 +7,7 @@
     "simType": "BPCA",
     "symmetric": "true",
     "N": -1,
+    "M": -1,
     "radiiFraction": 1,
     "radiiDistribution": "constant",
     "dynamicTime": false,

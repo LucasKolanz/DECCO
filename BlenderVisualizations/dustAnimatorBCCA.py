@@ -57,8 +57,8 @@ def get_simData_and_consts(path,fileindex,relax = False):
             print("ERROR CAUGHT in folder: {}".format(path+filename))
             print(e)
         #    simData = np.array([last_line.split(',')],dtype=np.float64)
-#		print("fullpath")
-#		print(path+file)
+#       print("fullpath")
+#       print(path+file)
         print("DATA")
         print(simData)
         #simData = np.array([simData]) # Uncomment this line for single timestep data with no headers
@@ -66,18 +66,18 @@ def get_simData_and_consts(path,fileindex,relax = False):
         steps = len(simData)
         print("steps: ",steps)
         constants = np.loadtxt(path + filename.replace("simData.csv", "constants.csv"),dtype=float,delimiter=',')
-#		if fileindex == 0:
-#			if filename.find("_") == filename.rfind("_"):
-#			else:
-#				constants = np.genfromtxt(path + filename[1:] + "constants.csv",dtype=float,delimiter=',')
-#		else:
-#			if "SpaceLab_branch" in path.split("/"):
-#				constants = np.genfromtxt(path + str(fileindex) + filename[1:] + "constants.csv",dtype=float,delimiter=',')
-#			else:
-#				print("==================")
-#				print(path + str(fileindex) + filename + "constants.csv")
-#				print("==================")
-#				constants = np.genfromtxt(path + str(fileindex) + filename + "constants.csv",dtype=float,delimiter=',')
+#       if fileindex == 0:
+#           if filename.find("_") == filename.rfind("_"):
+#           else:
+#               constants = np.genfromtxt(path + filename[1:] + "constants.csv",dtype=float,delimiter=',')
+#       else:
+#           if "SpaceLab_branch" in path.split("/"):
+#               constants = np.genfromtxt(path + str(fileindex) + filename[1:] + "constants.csv",dtype=float,delimiter=',')
+#           else:
+#               print("==================")
+#               print(path + str(fileindex) + filename + "constants.csv")
+#               print("==================")
+#               constants = np.genfromtxt(path + str(fileindex) + filename + "constants.csv",dtype=float,delimiter=',')
         numSpheres = len(constants)
     elif filename.endswith(".h5"):
         filename = '_'+filename.split('_')[-1]
@@ -108,6 +108,11 @@ for obj in foo_objs:
     bpy.data.objects.remove(obj, do_unlink = True)
 
 foo_objs = [obj for obj in bpy.context.scene.objects if fnmatch.fnmatchcase(obj.name, "Mball*")]
+
+for obj in foo_objs:
+    bpy.data.objects.remove(obj, do_unlink = True)
+    
+foo_objs = [obj for obj in bpy.context.scene.objects if fnmatch.fnmatchcase(obj.name, "ProjectileArrow*")]
 
 for obj in foo_objs:
     bpy.data.objects.remove(obj, do_unlink = True)
@@ -191,7 +196,7 @@ path = '/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm9/N_300/T_3/'
 
 
 path = '/media/kolanzl/easystore/SpaceLab_data/jobs/TESTBCCATWO7/N_256/T_3/'
-path = '/media/kolanzl/easystore/SpaceLab_data/jobs/TESTINGSTUFF1/N_8/T_3/'
+path = '/media/kolanzl/easystore/SpaceLab_data/jobs/TESTBCCA0/N_8/T_3/'
 
 
 simStart = 2
@@ -254,8 +259,8 @@ for i,sim in enumerate(sims):
     if frameNum > 1:
         print(simData.shape)        
         simData,constants,numSpheres,steps = get_simData_and_consts(path,sim,rel)
-#		print(sim)
-#	    print(simData.shape)
+#       print(sim)
+#       print(simData.shape)
         print(f"total spheres in sim {i}: {numSpheres}")
         
         # Instanciaten the new particles and the end of file:
@@ -264,7 +269,7 @@ for i,sim in enumerate(sims):
             sphereSet.append(bpy.data.objects.new("Mball." + str(newball),sphereMesh))
 #            print(len(sphereSet))
 #            sphere += 1
-    #		print(f"HERERE: {numSpheres-1}")
+    #       print(f"HERERE: {numSpheres-1}")
             bpy.context.scene.collection.objects.link(sphereSet[newball]) # link the object to the scene collection
             sphereSet[newball].scale = (scaleUp*constants[newball,0],scaleUp*constants[newball,0],scaleUp*constants[newball,0])
             sphereSet[newball].location = (scaleUp*simData[0][0 + properties*(newball)],scaleUp*simData[0][1 + properties*(newball)],scaleUp*simData[0][2 + properties*(newball)]) 
@@ -316,7 +321,7 @@ for i,sim in enumerate(sims):
                 
                 sphereSet[sphere].keyframe_insert(data_path="rotation_euler",index=-1)
                 
-#				if frameNum == 404
+#               if frameNum == 404
             frameNum += 1
 
 bpy.data.scenes[0].frame_end = frameNum

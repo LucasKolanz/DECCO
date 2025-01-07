@@ -51,8 +51,9 @@ if __name__ == '__main__':
 
 	runs_at_once = 10
 	# attempts = [2] 
-	attempts = [0,1,2,3,4,5,6,7,8,9]#,11,12,13,14,15,16,17,18,19,20] 
-	N = [300]
+	attempts = [0]#[0,1,2,3,4,5,6,7,8,9]#,11,12,13,14,15,16,17,18,19,20] 
+	N = [300] #final size
+	M = [15]#[3,5,10,15] #starting sizes
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [1000]
@@ -62,67 +63,77 @@ if __name__ == '__main__':
 	with open(project_path+"default_files/default_input.json",'r') as fp:
 		input_json = json.load(fp)
 
-	job_template = input_json["data_directory"] + 'jobs/' + job_set_name + '{a}/N_{n}/T_{t}/'
+	job_template = input_json["data_directory"] + 'jobs/' + job_set_name + '{a}/M_{m}/N_{n}/T_{t}/'
 
 	for attempt in attempts:
-		for n in N:
-			for Temp in Temps:
-				#load default input file
-				# with open(project_path+"default_files/default_input.json",'r') as fp:
-				# 	input_json = json.load(fp)
-				
-				# job = curr_folder + 'jobs/' + job_set_name + str(attempt) + '/'
-				job = job_template.replace('{a}',str(attempt)).replace('{n}',str(n)).replace('{t}',str(Temp))
+		for m in M:
+			for n in N:
+				for Temp in Temps:
+					#load default input file
+					# with open(project_path+"default_files/default_input.json",'r') as fp:
+					# 	input_json = json.load(fp)
+					
+					# job = curr_folder + 'jobs/' + job_set_name + str(attempt) + '/'
+					job = job_template.replace('{a}',str(attempt)).replace('{m}',str(m)).replace('{n}',str(n)).replace('{t}',str(Temp))
 
-				
-				if not os.path.exists(job):
-					os.makedirs(job)
-				else:
-					print("Job '{}' already exists.".format(job))
+					
+					if not os.path.exists(job):
+						os.makedirs(job)
+					else:
+						print("Job '{}' already exists.".format(job))
 
-				####################################
-				######Change input values here######
-				input_json['temp'] = Temp
-				input_json['N'] = n
-				input_json['output_folder'] = job
-				input_json['OMPthreads'] = 1
-				input_json['MPInodes'] = 1
-				input_json['impactParameter'] = -1.0
+					####################################
+					######Change input values here######
+					input_json['temp'] = Temp
+					input_json['N'] = n
+					input_json['M'] = m
+					input_json['output_folder'] = job
+					input_json['OMPthreads'] = 1
+					input_json['MPInodes'] = 1
+					input_json['impactParameter'] = -1.0
 
-				input_json['seed'] = rand_int()
-				# input_json['seed'] = 101
+					input_json['seed'] = rand_int()
+					# input_json['seed'] = 101
 
-				# input_json['radiiDistribution'] = 'logNormal'
-				# input_json['h_min'] = 0.5
-				
-				# input_json['timeResolution'] = 1e-6
+					# input_json['radiiDistribution'] = 'logNormal'
+					# input_json['h_min'] = 0.5
+					
+					# input_json['timeResolution'] = 1e-6
 
-				# input_json['simTimeSeconds'] = 1e-6
-				input_json['simTimeSeconds'] = 5e-4
+					# input_json['simTimeSeconds'] = 1e-6
+					input_json['simTimeSeconds'] = 5e-4
 
-				input_json['dataFormat'] = "csv"
-				input_json['simType'] = "BAPA"
-				input_json['random_folder_template'] = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{a}/N_30/T_1000/"
+					input_json['dataFormat'] = "csv"
+					input_json['simType'] = "BAPA"
+					input_json['random_folder_template'] = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{a}/N_30/T_1000/"
 
-				# input_json['u_s'] = 0.5
-				# input_json['u_r'] = 0.5
-				# input_json['note'] = "Does this work at all?"
-				####################################
+					# input_json['u_s'] = 0.5
+					# input_json['u_r'] = 0.5
+					# input_json['note'] = "Does this work at all?"
+					####################################
 
-				with open(job + "input.json",'w') as fp:
-					json.dump(input_json,fp,indent=4)
+					with open(job + "input.json",'w') as fp:
+						json.dump(input_json,fp,indent=4)
 
-				#add run script and executable to folders
-				# os.system(f"cp {project_path}default_files/run_sim.py {job}run_sim.py")
-				os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
-				os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
-				os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
+					#add run script and executable to folders
+					# os.system(f"cp {project_path}default_files/run_sim.py {job}run_sim.py")
+					os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
+					os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
+					os.system(f"cp {project_path}Collider/ball_group.cpp {job}ball_group.cpp")
+					os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
 
-				os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax0/N_30/T_3/27_RELAXconstants.csv {job}30_constants.csv")
-				os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax0/N_30/T_3/27_RELAXsimData.csv {job}30_simData.csv")
-				os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax0/N_30/T_3/27_RELAXenergy.csv {job}30_energy.csv")
-				
-				folders.append(job)
+					randint = random.randint(0, 29)
+					# os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{randint}/N_30/T_3/27_RELAXconstants.csv {job}{m}_constants.csv")
+					# os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{randint}/N_30/T_3/27_RELAXsimData.csv {job}{m}_simData.csv")
+					# os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{randint}/N_30/T_3/27_RELAXenergy.csv {job}{m}_energy.csv")
+					source = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_3/{m}_*"
+					# if M == 3:
+						# source = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_3/2_R*"
+					os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_3/{m}_*constants.csv {job}{m}_constants.csv")
+					os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_3/{m}_*simData.csv {job}{m}_simData.csv")
+					os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_3/{m}_*energy.csv {job}{m}_energy.csv")
+					
+					folders.append(job)
 	# print(folders)
 
 

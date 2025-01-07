@@ -3,7 +3,6 @@
 #include <random>
 #include <fstream>
 
-#include "../external/json/single_include/nlohmann/json.hpp"
 #include "Utils.hpp"
 #include "MPI_utilities.hpp"
 #include "linalg.hpp"

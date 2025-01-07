@@ -3,10 +3,11 @@
 #ifndef UTILS_HPP
 #define UTILS_HPP
 
-
+#include "../external/json/single_include/nlohmann/json.hpp"
 #include "linalg.hpp"
 #include "vec3.hpp"
 
+using json = nlohmann::json;
 
 using namespace linalg;
 using linalg::cross;
@@ -14,8 +15,21 @@ using linalg::normalize;
 using linalg::aliases::double3;
 using linalg::aliases::double3x3;
 
-void seed_generators(size_t seed);
+//if the attribute_key exists in input, set variable based on input[attribute_key]
+template <typename T>
+void set_attribute(const json& input, const std::string &attribute_key, T &variable)
+{
+    if (input.contains(attribute_key))
+    {
+        variable = input[attribute_key];
+    }
+    else
+    {
+        std::cerr<<"WARNING: attribute '"<<attribute_key<<"' does not exist."<<std::endl;
+    }
+}
 
+void seed_generators(size_t seed);
 
 bool isAllDigits(const std::string& s);
 //Returns all the folders in a particular directory
