@@ -51,9 +51,10 @@ if __name__ == '__main__':
 
 	runs_at_once = 10
 	# attempts = [2] 
-	attempts = [0]#[0,1,2,3,4,5,6,7,8,9]#,11,12,13,14,15,16,17,18,19,20] 
+	attempts = [i for i in range(0,10)]#[0,1,2,3,4,5,6,7,8,9]#,11,12,13,14,15,16,17,18,19,20] 
+	# attempts = [0]
 	N = [300] #final size
-	M = [15]#[3,5,10,15] #starting sizes
+	M = [20,50,60] #starting sizes
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [1000]
@@ -63,7 +64,7 @@ if __name__ == '__main__':
 	with open(project_path+"default_files/default_input.json",'r') as fp:
 		input_json = json.load(fp)
 
-	job_template = input_json["data_directory"] + 'jobs/' + job_set_name + '{a}/M_{m}/N_{n}/T_{t}/'
+	job_template = input_json["data_directory"] + 'jobs/' + job_set_name + '_{a}/M_{m}/N_{n}/T_{t}/'
 
 	for attempt in attempts:
 		for m in M:
@@ -105,7 +106,7 @@ if __name__ == '__main__':
 
 					input_json['dataFormat'] = "csv"
 					input_json['simType'] = "BAPA"
-					input_json['random_folder_template'] = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{a}/N_30/T_1000/"
+					input_json['random_folder_template'] = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{a}/N_300/T_1000/"
 
 					# input_json['u_s'] = 0.5
 					# input_json['u_r'] = 0.5
@@ -126,12 +127,12 @@ if __name__ == '__main__':
 					# os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{randint}/N_30/T_3/27_RELAXconstants.csv {job}{m}_constants.csv")
 					# os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{randint}/N_30/T_3/27_RELAXsimData.csv {job}{m}_simData.csv")
 					# os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{randint}/N_30/T_3/27_RELAXenergy.csv {job}{m}_energy.csv")
-					source = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_3/{m}_*"
+					source = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_300/T_3/{m}_*"
 					# if M == 3:
 						# source = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_3/2_R*"
-					os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_3/{m}_*constants.csv {job}{m}_constants.csv")
-					os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_3/{m}_*simData.csv {job}{m}_simData.csv")
-					os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_3/{m}_*energy.csv {job}{m}_energy.csv")
+					os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_300/T_3/{m}_constants.csv {job}{m}_constants.csv")
+					os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_300/T_3/{m}_simData.csv {job}{m}_simData.csv")
+					os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_300/T_3/{m}_energy.csv {job}{m}_energy.csv")
 					
 					folders.append(job)
 	# print(folders)

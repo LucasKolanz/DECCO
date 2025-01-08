@@ -103,41 +103,49 @@ std::vector<std::string> get_folders_in_directory(const std::string directory)
 //This function does not check if the job in the random folder is complete or not
 std::string get_rand_projectile_folder(std::string folder)
 {
-    int i = 0;
     std::string rand_folder;
-    while (i < folder.length())
+    bool exists = false;
+    while (!exists) //Make sure the random folder exists
     {
-        if (folder[i] == '{')
+        int i = 0;
+        rand_folder = "";
+        while (i < folder.length())
         {
-            std::string dir = folder.substr(0,folder.substr(0,i).find_last_of('/'));
-
-            std::vector<std::string> all_folders = get_folders_in_directory(dir);
-            std::vector<std::string> app_folders;
-
-            for (const auto& possible : all_folders)
+            if (folder[i] == '{')
             {
-                //If the first i letters are the same, and the remaining characters are numbers
-                if (folder.substr(0,i) == possible.substr(0,i) && isAllDigits(possible.substr(i,std::string::npos)))
+                std::string dir = folder.substr(0,folder.substr(0,i).find_last_of('/'));
+
+                std::vector<std::string> all_folders = get_folders_in_directory(dir);
+                std::vector<std::string> app_folders;
+
+                for (const auto& possible : all_folders)
                 {
-                    app_folders.push_back(possible);
+                    //If the first i letters are the same, and the remaining characters are numbers
+                    if (folder.substr(0,i) == possible.substr(0,i) && isAllDigits(possible.substr(i,std::string::npos)))
+                    {
+                        app_folders.push_back(possible);
+                    }
+                }
+
+                std::cerr<<"rand num between: 0 and " <<app_folders.size()-1<<std::endl;
+                rand_folder = app_folders[rand_int_between(0,app_folders.size()-1)];
+
+                while (folder[i] != '}' && i < folder.length())
+                {
+                    i++;
                 }
             }
-
-            std::cerr<<"rand num between: 0 and " <<app_folders.size()-1<<std::endl;
-            rand_folder = app_folders[rand_int_between(0,app_folders.size()-1)];
-
-            while (folder[i] != '}' && i < folder.length())
+            else
             {
-                i++;
+                rand_folder += folder[i];
             }
+            i++;
         }
-        else
+        if (fs::exists(rand_folder))
         {
-            rand_folder += folder[i];
+            exists = true;
         }
-        i++;
     }
-
     return rand_folder;
 }
 

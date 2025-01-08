@@ -1732,8 +1732,8 @@ Ball_group Ball_group::BAPA_projectile_init()
 
     MPIsafe_print(std::cerr,"Getting projectile of index "+std::to_string(attrs.M)+" from: "+rand_projectile_folder+'\n');
     Ball_group projectile(rand_projectile_folder,attrs.M);
-    projectile.zeroVel();
-    projectile.zeroAngVel();
+    // projectile.zeroVel();
+    // projectile.zeroAngVel();
     
     // Ball_group projectile(attrs.M);
     // std::string filename = find_whole_file_name(rand_projectile_folder,attrs.M);
