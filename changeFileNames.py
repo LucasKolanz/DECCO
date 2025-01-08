@@ -46,16 +46,16 @@ def rename_files(directory_in_str):
 	if os.path.isdir(directory_in_str):    
 		directory = os.fsencode(directory_in_str)
 		for file in os.listdir(directory):
-		    filename = os.fsdecode(file)
-		    if filename.split("_")[0].isdigit():
-		    	index = int(filename.split("_")[0])
-		    	if index > maxIndex:
-		    		maxIndex = index
-		    if filename.endswith("constants.csv") or filename.endswith("energy.csv") or filename.endswith("simData.csv"): 
-		    	if filename.startswith("2_R") or filename.startswith("0_"):
-		    		needsUpdate = True
-		    	if filename.startswith("2_R"):
-		    		file_base = "_".join(filename.split("_")[:-1])
+			filename = os.fsdecode(file)
+			if filename.split("_")[0].isdigit():
+				index = int(filename.split("_")[0])
+				if index > maxIndex:
+					maxIndex = index
+			if filename.endswith("constants.csv") or filename.endswith("energy.csv") or filename.endswith("simData.csv"): 
+				if filename.startswith("2_R") or filename.startswith("0_"):
+					needsUpdate = True
+				if filename.startswith("2_R"):
+					file_base = "_".join(filename.split("_")[:-1])
 
 		
 		if needsUpdate:
@@ -98,8 +98,8 @@ def rename_files(directory_in_str):
 						print(f"WARNING already exists: {newfull_path}")
 
 
-	    		
-def rename_based_on_balls(directory_in_str):
+				
+def verify_name_based_on_balls(directory_in_str):
 
 	#loop through files that for sure were from either the original naming convention
 	#or start indexing at 0 rather than the number of balls in the sim
@@ -115,33 +115,35 @@ def rename_based_on_balls(directory_in_str):
 	if os.path.isdir(directory_in_str):    
 		directory = os.fsencode(directory_in_str)
 		for file in os.listdir(directory):
-		    filename = os.fsdecode(file)
-		    if filename.split("_")[0].isdigit():
-		    	index = int(filename.split("_")[0])
-		    	if index > maxIndex:
-		    		maxIndex = index
-		    	if index < minIndex:
-		    		minIndex = index
-		    # if filename.endswith("constants.csv") or filename.endswith("energy.csv") or filename.endswith("simData.csv"): 
-		    # 	if filename.startswith("2_R") or filename.startswith("0_"):
-		    # 		needsUpdate = True
-		    # 	if filename.startswith("2_R"):
-		    # 		file_base = "_".join(filename.split("_")[:-1])
+			filename = os.fsdecode(file)
+			# print(filename)
+			if filename.split("_")[0].isdigit():
+				index = int(filename.split("_")[0])
+				if index > maxIndex:
+					maxIndex = index
+				if index < minIndex:
+					minIndex = index
+			# if filename.endswith("constants.csv") or filename.endswith("energy.csv") or filename.endswith("simData.csv"): 
+			# 	if filename.startswith("2_R") or filename.startswith("0_"):
+			# 		needsUpdate = True
+			# 	if filename.startswith("2_R"):
+			# 		file_base = "_".join(filename.split("_")[:-1])
 
 		
 
 		print("checking directory: "+directory_in_str)
 		# for i in [126,125,124,123,122]:
-		for i in range(maxIndex,minIndex-1,-1): #This needs to go backwards so we don't overwrite anything. This is very important
-			constants_file = directory_in_str+str(i)+"_constants.csv"
-			if os.path.exists(constants_file):
-				if len(u.get_radii(directory_in_str,i,relax=False)) != i:
-					print(f"index doesn't match ball number for index {i}")
-			else:
-				print(f"WARNING:: FILE MISSING for index {i}")
+		if maxIndex != -1 and minIndex != float("inf"):
+			for i in range(maxIndex,minIndex-1,-1): #This needs to go backwards so we don't overwrite anything. This is very important
+				constants_file = directory_in_str+str(i)+"_constants.csv"
+				if os.path.exists(constants_file):
+					if len(u.get_radii(directory_in_str,i,relax=False)) != i:
+						print(f"index doesn't match ball number for index {i}")
+				else:
+					print(f"WARNING:: FILE MISSING for index {i}")
 
 
-        
+		
 
 
 
@@ -151,12 +153,12 @@ def main():
 	with open(project_path+"default_files/default_input.json",'r') as fp:
 		input_json = json.load(fp)
 
-	job_templates = [input_json["data_directory"] + 'jobsCosine/' + 'lognorm' + '{a}/N_{n}/T_{t}/']
+	job_templates = [input_json["data_directory"] + 'jobs/' + 'lognorm' + '{a}/N_{n}/T_{t}/']
 	# job_templates = [input_json["data_directory"] + 'jobsCosine/' + 'lognorm_relax' + '{a}/N_{n}/T_{t}/']
 	# job_templates.append(input_json["data_directory"] + 'jobsNovus/' + 'const_relax' + '{a}/N_{n}/T_{t}/')
 
 	attempts = [i for i in range(30)]
-	attempts = [i for i in range(30,40)]
+	# attempts = [i for i in range(30,40)]
 
 	# attempts = [0]
 
@@ -166,7 +168,6 @@ def main():
 	Temps = [3,10,30,100,300,1000]
 	# Temps = [1000]
 
-	radii = np.full(shape=(len(job_templates)*len(N)*len(Temps)*len(attempts)),fill_value=np.nan)
 	# i = 0
 
 	# rename_files('/media/kolanzl/easystore/SpaceLab_data/jobs/test/')
@@ -176,8 +177,8 @@ def main():
 				for t in Temps:
 					folder = job_template.replace("{a}",str(a)).replace("{n}",str(n)).replace("{t}",str(t))
 
-					rename_based_on_balls(folder)
 					# rename_files(folder)
+					verify_name_based_on_balls(folder)
 
 if __name__ == '__main__':
 	main()
