@@ -42,3 +42,28 @@ Data files in DECCO are in either csv or hdf5 format. There are three types of d
 	energy
 		rows represent timesteps
 		columns are time, PE, KE, Etot, p, L
+
+
+
+
+
+
+Generating/analyzing data:
+Data for each job is generated with gen_data.py. This data is stored in the individual folders. Then, if you want to plot some of the data, you can loop through the folders you want to include and pick up data as you go.
+	gen_data.py
+		Given a job set, this file loops through all directories in that job set. It calculates all the individual values for a run (i.e. porosity, fractal dimension, etc) and stores them in a file called job_data.csv.
+			job_data.csv is formatted as a line saying how much balls are in the data represented on the two lines below it, followed by a header line which says what each entry is and the following line is the actual values. Usually, there will only be a few N values in each individual job_data.csv file since we are usually only interested in the final state.
+
+			For example:
+
+				N=299
+				Porosity abc, Porosity KBM, Fractal Dimension, average number of contacts
+				0.72,0.81,1.56,4.36
+
+				N=300
+				Porosity abc, Porosity KBM, Fractal Dimension, average number of contacts
+				0.72,0.81,1.56,4.36
+
+
+
+

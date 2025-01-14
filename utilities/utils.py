@@ -48,7 +48,44 @@ data_columns = 11
 # def cube(V):
 	# return
 
+#this function taken from 
+#https://scipython.com/book/chapter-6-numpy/problems/p65/the-moment-of-inertia-tensor/
+def translate_to_cofm(mass, data):
+	# Position of centre of mass in original coordinates
+	cofm = sum(mass * data) / (mass*data.shape[0])
+	# Transform to CofM coordinates and return
+	data -= cofm
+	return data
 
+#this function taken from 
+#https://scipython.com/book/chapter-6-numpy/problems/p65/the-moment-of-inertia-tensor/
+def get_inertia_matrix(mass, data):
+	# Moment of intertia tensor
+	
+	#should in general translate to center of mass
+	#but data is already there
+	# data = translate_to_cofm(mass, data)
+
+	x, y, z = data.T
+
+	Ixx = np.sum(mass * (y**2 + z**2))
+	Iyy = np.sum(mass * (x**2 + z**2))
+	Izz = np.sum(mass * (x**2 + y**2))
+	Ixy = -np.sum(mass * x * y)
+	Iyz = -np.sum(mass * y * z)
+	Ixz = -np.sum(mass * x * z)
+	I = np.array([[Ixx, Ixy, Ixz], [Ixy, Iyy, Iyz], [Ixz, Iyz, Izz]])
+	# print(I)
+	return I
+
+#this function taken from 
+#https://scipython.com/book/chapter-6-numpy/problems/p65/the-moment-of-inertia-tensor/
+def get_principal_moi(mass,data):
+	I = get_inertia_matrix(mass,data)
+	Ip = np.linalg.eigvals(I)
+	# Sort and convert principal moments of inertia to SI (kg.m2)
+	Ip.sort()
+	return Ip
 
 def find_max_index(folder):
 	files = os.listdir(folder)
@@ -56,7 +93,8 @@ def find_max_index(folder):
 	for file in files:
 		if file.split("_")[0].isnumeric():
 			if file.endswith("simData.csv") or file.endswith("constants.csv") or file.endswith("energy.csv") or file.endswith("data.h5"):
-				max_index = max(index_from_file(file),max_index)
+				# max_index = max(index_from_file(file),max_index)
+				max_index = max(int(file.split("_")[0]),max_index)
 	return max_index
 
 
@@ -898,6 +936,14 @@ class o3doctree(object):
 		self.relax = relax
 		if Temp > 0:
 			self.Temp = Temp
+		else:
+			#extract temp from data_folder
+			for i in data_folder.split('/'):
+				if i[:2] == "T_":
+					self.Temp = float(i.split("_")[1])
+				else:
+					print("WARNING: Could not set temp based on data_folder in o3doctree constructor.")
+					self.Temp = -1
 
 
 	def make_tree(self):

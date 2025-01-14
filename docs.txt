@@ -1,0 +1,13 @@
+
+Files:
+	ball_group.cpp/.hpp
+		Contains Ball_group class. Should have everything related to a group of balls and colliding/growing them.
+	TODO??: ball_group_helpers.cpp
+		Should have all the Ball_group class functions which relate to saving, opening, and loading simulation data
+	Collider.cpp
+	DECCOData.cpp/.hpp
+		Reads and writes all data in csv and hdf5 format.
+	MPI_utilites.cpp/.hpp
+	Utils.cpp/.hpp
+	vec3.cpp/.hpp
+	linalg.hpp

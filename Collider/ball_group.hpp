@@ -320,52 +320,72 @@ public:
     std::vector<double> energyBuffer;
     std::vector<double> ballBuffer;
 
+    //Constructors
     Ball_group() = default;
-
     explicit Ball_group(const int nBalls);
     // explicit Ball_group(const std::string& path, const std::string& filename, int start_file_index);
     explicit Ball_group(std::string& path,const int index=-1);
     // explicit Ball_group(const std::string& path,const std::string& projectileName,const std::string& targetName,const double& customVel);
     Ball_group(const Ball_group& rhs);
     Ball_group& operator=(const Ball_group& rhs);
-    void parse_input_file(std::string location);
-    inline double calc_VDW_force_mag(const double Ra, const double Rb, const double h);
-    // void calc_mu_scale_factor();
-    // void zeroSaveVals();
-    void calibrate_dt(int const Step, const double& customSpeed);
-    void pushApart() const;
-    void calc_v_collapse();
-    [[nodiscard]] double getVelMax();
-    void calc_helpfuls(const bool includeRadius=true);
-    double get_soc();    
+
+    //Functions directly related to changing the state of a Ball_group
     void kick(const vec3& vec) const;
     void move(const vec3& vec) const;
-    vec3 calc_momentum(const std::string& of) const;
     void offset(const double& rad1, const double& rad2, const double& impactParam) const;
-    [[nodiscard]] double getRadius(const vec3& center) const;
+    void pushApart() const;
     void updatePE();
-    void sim_init_write(int counter=0);
-    [[nodiscard]] vec3 getCOM() const;
-    [[nodiscard]] vec3 getVCOM() const;
-    void zeroVel() const;
     void pos_and_vel_for_collision(Ball_group &projectile,Ball_group &target);
     void pos_and_vel_for_collision(Ball_group &projectile);
     void overwrite_v_custom(Ball_group &projectile,Ball_group &target);
     void overwrite_v_custom(Ball_group &projectile);
-    void zeroAngVel() const;
     void to_origin() const;
-    void comSpinner(const double& spinX, const double& spinY, const double& spinZ) const;
     void rotAll(const char axis, const double angle) const;
-    double calc_mass(const double& radius, const double& density);
-    double calc_moi(const double& radius, const double& mass);
-    Ball_group spawn_particles(const int count);
     // vec3 random_offset(const double3x3 local_coords,vec3 projectile_pos,vec3 projectile_vel,const double projectile_rad);
     vec3 random_offset(Ball_group &projectile, Ball_group &target);
+    void comSpinner(const double& spinX, const double& spinY, const double& spinZ) const;
+    void sim_one_step();
+    void sim_looper(unsigned long long start_step);
+    
+    //Functions which calculate/set values for Ball_group
+    inline double calc_VDW_force_mag(const double Ra, const double Rb, const double h);
+    // void calc_mu_scale_factor();
+    void calibrate_dt(int const Step, const double& customSpeed);
+    void calc_v_collapse();
+    [[nodiscard]] double getVelMax();
+    void calc_helpfuls(const bool includeRadius=true);
+    double get_soc();    
+    vec3 calc_momentum(const std::string& of) const;
+    [[nodiscard]] double getRadius(const vec3& center) const;
+    [[nodiscard]] vec3 getCOM() const;
+    [[nodiscard]] vec3 getVCOM() const;
+    void zeroVel() const;
+    // void zeroSaveVals();
+    void zeroAngVel() const;
+    double calc_mass(const double& radius, const double& density);
+    double calc_moi(const double& radius, const double& mass);
     double calc_max_bolt_velocity(double temp, double mass);
     double calc_eta_velocity(const double eta, Ball_group &projectile, Ball_group &target);
+    double calc_group_noncontact_PE(Ball_group &projectile,Ball_group &target);
+    double calc_noncontact_PE();
+    [[nodiscard]] double getRmin();
+    [[nodiscard]] double getRmax();
+    [[nodiscard]] double getMmin() const;
+    [[nodiscard]] double getMmax() const;
+    double getMass();
+    void set_seed_from_input(const std::string location);
+
+    //Initializers
     Ball_group BPCA_projectile_init();
     Ball_group BCCA_projectile_init(const bool symmetric);
     Ball_group BAPA_projectile_init();
+    void init_data(int counter);
+    void relaxInit(const std::string path);
+    void aggregationInit(const std::string path,const int index=-1);
+    void colliderInit(const std::string path);
+    void sim_init_write(int counter=0);
+    void parse_input_file(std::string location);
+    Ball_group spawn_particles(const int count);
     Ball_group add_projectile(const simType);
     void merge_ball_group(const Ball_group& src,const bool includeRadius=true);
     void freeMemory() const;
@@ -374,39 +394,24 @@ public:
     #ifdef HDF5_ENABLE
         void loadDatafromH5(std::string path, std::string file);
     #endif
-    void init_data(int counter);
     std::string get_data_info();
     void parse_meta_data(std::string metadata);
-    void relaxInit(const std::string path);
-    void aggregationInit(const std::string path,const int index=-1);
-    void colliderInit(const std::string path);
     std::string find_file_name(std::string path,int index);
     int get_num_threads();
     std::string data_type_from_input(const std::string location);
-    double calc_group_noncontact_PE(Ball_group &projectile,Ball_group &target);
-    double calc_noncontact_PE();
-    void set_seed_from_input(const std::string location);
 
 
-    void sim_one_step();
 
-    void sim_looper(unsigned long long start_step);
 
 
     
-private:
 
     void allocate_group(const int nBalls);
     void init_conditions();
-    [[nodiscard]] double getRmin();
-    [[nodiscard]] double getRmax();
-    [[nodiscard]] double getMmin() const;
-    [[nodiscard]] double getMmax() const;
     void parseSimData(std::string line);
     void loadConsts(const std::string& path, const std::string& filename);
     [[nodiscard]] static std::string getLastLine(const std::string& path, const std::string& filename);
     // void simDataWrite(std::string& outFilename);
-    double getMass();
     void threeSizeSphere(const int nBalls);
     void generate_ball_field(const int nBalls);
     void loadSim(const std::string& path, const std::string& filename);
@@ -418,6 +423,7 @@ private:
     void sim_continue(const std::string& path);
     void sim_init_two_cluster(const std::string& path,const std::string& projectileName,const std::string& targetName);
     void verify_projectile(const std::string projectile_folder, const int index, const double max_wait_time);
+private:
 
 };
 

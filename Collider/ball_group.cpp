@@ -316,7 +316,6 @@ Ball_group& Ball_group::operator=(const Ball_group& rhs)
 void Ball_group::init_data(int counter = 0)
 {
 
-
     if (data != nullptr)
     {
         delete data;
