@@ -12,7 +12,6 @@ for the folders which have completed jobs in them.
 
 
 
-import matplotlib.pyplot as plt
 import sys
 import glob
 import os
@@ -105,16 +104,7 @@ def calc_fractal_dimension(data_folder,size):
 
 
 
-def get_directores(root_dir):
-    directories_with_file = []
-    
-    for dirs in glob.glob(root_dir):
-	    for current_dir, subdirs, files in os.walk(dirs):
-	        # Check if it's a deepest directory (no subdirectories)
-	        if not subdirs and "timing.txt" in files:
-	            directories_with_file.append(current_dir+'/')
-    
-    return directories_with_file
+
 
 def calc_from_size(size,directory,existing_headers,existing_values,requested_headers,requested_functions):
 	headers = []
@@ -142,7 +132,7 @@ if __name__ == '__main__':
 	data_prefolder = path + 'jobsCosine/lognorm_relax'
 	data_prefolder = path + 'jobs/BAPA_*'
 
-	possible_dirs = get_directores(data_prefolder)
+	possible_dirs = u.get_directores_containing(data_prefolder,["timing.txt"])
 
 
 	#list of the functions that calculate the data you want
@@ -157,8 +147,9 @@ if __name__ == '__main__':
 
 
 	#list of intermediate sizes to calculate data for.
-	requested_sizes = [20,40,60,300]
+	requested_sizes = [240,260,280,300]
 
+	possible_dirs = ['/media/kolanzl/easystore/SpaceLab_data/jobs/BAPA_0/M_20/N_300/T_1000/']
 	for directory in possible_dirs:
 
 		if os.path.exists(directory+"timing.txt"):

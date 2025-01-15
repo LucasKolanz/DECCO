@@ -97,6 +97,48 @@ def find_max_index(folder):
 				max_index = max(int(file.split("_")[0]),max_index)
 	return max_index
 
+def get_directores(root_dir):
+	directories_with_file = []
+	
+	for dirs in glob.glob(root_dir):
+		for current_dir, subdirs, files in os.walk(dirs):
+			# Check if it's a deepest directory (no subdirectories)
+			if not subdirs:
+				directories_with_file.append(current_dir+'/')
+	
+	return directories_with_file
+
+def get_directores_containing(root_dir,necessary_files):
+	directories_with_file = []
+	
+	for dirs in glob.glob(root_dir):
+		for current_dir, subdirs, files in os.walk(dirs):
+			# Check if it's a deepest directory (no subdirectories)
+			if not subdirs:
+				has_necessary_files = True
+				for necessary_file in necessary_files:
+					if necessary_file not in files:
+						has_necessary_files = False
+				if has_necessary_files:
+					directories_with_file.append(current_dir+'/')
+	return directories_with_file
+  
+
+#returns all indices in a directory if {index}_checkpoint.txt exists, or 
+#if the data file exits and timing.txt exists.
+def get_all_indices(directory):
+	indices = []
+	is_finished = os.path.exists(directory+"timing.txt")
+	for file in os.listdir(directory):
+		if file.split("_")[0].isnumeric():
+			#if this index has checkpointed, or this is the data file and the simulation has finished
+			if file.endswith("checkpoint.txt") or ((file.endswith("simData.csv") or (file.endswith("data.h5"))) and is_finished):
+				index = int(file.split("_")[0])
+				#make sure this index isn't already in indices
+				if index not in indices:
+					indices.append(index)
+
+	return list(sorted(set(indices)))
 
 def index_from_file(file):
 	file_split = file.split("_")
@@ -107,55 +149,55 @@ def index_from_file(file):
 	exit(0)
 
 def calc_rotational_kinetic_energy(positions, velocities, masses):
-    masses = masses[:positions.shape[1]]
+	masses = masses[:positions.shape[1]]
 	 # Total mass of the aggregate
-    total_mass = np.sum(masses)
+	total_mass = np.sum(masses)
 
-    # Compute center of mass positions and velocities at each timestep
+	# Compute center of mass positions and velocities at each timestep
 
-    center_of_mass_positions = np.einsum('i,tij->tj', masses, positions) / total_mass  # Shape: (timesteps, 3)
-    center_of_mass_velocities = np.einsum('i,tij->tj', masses, velocities) / total_mass  # Shape: (timesteps, 3)
+	center_of_mass_positions = np.einsum('i,tij->tj', masses, positions) / total_mass  # Shape: (timesteps, 3)
+	center_of_mass_velocities = np.einsum('i,tij->tj', masses, velocities) / total_mass  # Shape: (timesteps, 3)
 
-    # Compute relative positions and velocities (r_i - r_cm and v_i - v_cm)
-    relative_positions = positions - center_of_mass_positions[:, np.newaxis, :]  # Shape: (timesteps, balls, 3)
-    relative_velocities = velocities - center_of_mass_velocities[:, np.newaxis, :]  # Shape: (timesteps, balls, 3)
+	# Compute relative positions and velocities (r_i - r_cm and v_i - v_cm)
+	relative_positions = positions - center_of_mass_positions[:, np.newaxis, :]  # Shape: (timesteps, balls, 3)
+	relative_velocities = velocities - center_of_mass_velocities[:, np.newaxis, :]  # Shape: (timesteps, balls, 3)
 
-    # Compute rotational kinetic energy at each timestep
-    # T_rot = 0.5 * sum_i m_i * |v_i'|^2
-    kinetic_energies = 0.5 * masses[np.newaxis, :, np.newaxis] * relative_velocities**2  # Shape: (timesteps, balls, 3)
-    rotational_kinetic_energy = np.sum(kinetic_energies, axis=(1,2))  # Shape: (timesteps,)
+	# Compute rotational kinetic energy at each timestep
+	# T_rot = 0.5 * sum_i m_i * |v_i'|^2
+	kinetic_energies = 0.5 * masses[np.newaxis, :, np.newaxis] * relative_velocities**2  # Shape: (timesteps, balls, 3)
+	rotational_kinetic_energy = np.sum(kinetic_energies, axis=(1,2))  # Shape: (timesteps,)
 
-    return rotational_kinetic_energy
+	return rotational_kinetic_energy
 
 def plot_rotational_kinetic_energy(rotational_kinetic_energy, horizontal_line_value):
-    """
-    Plots the rotational kinetic energy of an aggregate of spheres versus time,
-    calculated about the center of mass.
+	"""
+	Plots the rotational kinetic energy of an aggregate of spheres versus time,
+	calculated about the center of mass.
 
-    Parameters:
-    positions (numpy.ndarray): Array of shape (timesteps, balls, 3) containing position data.
-    velocities (numpy.ndarray): Array of shape (timesteps, balls, 3) containing velocity data.
-    horizontal_line_value (float): Value at which to plot a horizontal reference line.
-    masses (numpy.ndarray, optional): Array of shape (balls,) containing masses of the spheres.
-                                      If None, all masses are assumed to be equal and set to 1.
+	Parameters:
+	positions (numpy.ndarray): Array of shape (timesteps, balls, 3) containing position data.
+	velocities (numpy.ndarray): Array of shape (timesteps, balls, 3) containing velocity data.
+	horizontal_line_value (float): Value at which to plot a horizontal reference line.
+	masses (numpy.ndarray, optional): Array of shape (balls,) containing masses of the spheres.
+									  If None, all masses are assumed to be equal and set to 1.
 
-    The units of time are arbitrary; each timestep is considered as one unit of time.
-    """
-    timesteps, = rotational_kinetic_energy.shape
+	The units of time are arbitrary; each timestep is considered as one unit of time.
+	"""
+	timesteps, = rotational_kinetic_energy.shape
 
-    # Generate time array
-    time = np.arange(timesteps)
+	# Generate time array
+	time = np.arange(timesteps)
 
-    # Plot rotational kinetic energy versus time
-    plt.figure(figsize=(10, 6))
-    plt.plot(time, rotational_kinetic_energy, label='Rotational Kinetic Energy')
-    plt.axhline(y=horizontal_line_value, color='red', linestyle='--', label='Reference Value')
-    plt.xlabel('Time (units)')
-    plt.ylabel('Rotational Kinetic Energy (units)')
-    plt.title('Rotational Kinetic Energy vs. Time (About Center of Mass)')
-    plt.legend()
-    plt.grid(True)
-    plt.show()
+	# Plot rotational kinetic energy versus time
+	plt.figure(figsize=(10, 6))
+	plt.plot(time, rotational_kinetic_energy, label='Rotational Kinetic Energy')
+	plt.axhline(y=horizontal_line_value, color='red', linestyle='--', label='Reference Value')
+	plt.xlabel('Time (units)')
+	plt.ylabel('Rotational Kinetic Energy (units)')
+	plt.title('Rotational Kinetic Energy vs. Time (About Center of Mass)')
+	plt.legend()
+	plt.grid(True)
+	plt.show()
 
 def plot_3d_dots(dots):
 	"""

@@ -100,9 +100,9 @@ if __name__ == '__main__':
     data_directory = input_json["data_directory"] 
 
 
-    # target_directory = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsCosine/'
     # target_directory = '/media/kolanzl/easystore/SpaceLab_data/jobsNovus/'
-    target_directory = '/media/kolanzl/easystore/SpaceLab_data/'
+    # target_directory = '/media/kolanzl/easystore/SpaceLab_data/'
+    target_directory = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/'
     # jobset_name = "const"
     # jobset_name = "const_relax"
 
