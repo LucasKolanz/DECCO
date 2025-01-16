@@ -84,7 +84,6 @@ if __name__ == '__main__':
 	failed_folders = []
 	failed_files = []
 
-	actually_delete = False
 
 	for directory in possible_dirs:
 		has_failed = False
@@ -100,14 +99,15 @@ if __name__ == '__main__':
 	
 
 	print("The following files contain failed aggregation:")
-	for f_i,failed_folders in enumerate(failed_folders):
-		print(f"folder: {folder}")
-		for file in failed_folders[f_i]:
-			print(f"\t{file}")
+	# for f_i,failed_folder in enumerate(failed_folders):
+	# 	print(f"folder: {failed_folder}")
+	# 	for file in failed_folder[f_i]:
+	# 		print(f"\t{file}")
 
 
 
 
+	actually_delete = True
 	for f_i,failed_folder in enumerate(failed_folders):
 		print(f"failed folder: {failed_folder}")
 		delete_if_exists(failed_folder+"timing.txt",actually_delete)
