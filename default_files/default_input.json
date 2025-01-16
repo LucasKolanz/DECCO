@@ -51,6 +51,6 @@
     "targetName": "",
     "output_prefix": "default",
     "output_folder": "default",
-    "data_directory": "/media/kolanzl/easystore/SpaceLab_data/",
-    "project_directory": "/media/kolanzl/easystore/SpaceLab/"
+    "data_directory": "/home/kolanzl/novus/kolanzl/SpaceLab_data/",
+    "project_directory": "/home/kolanzl/novus/kolanzl/SpaceLab/"
 }

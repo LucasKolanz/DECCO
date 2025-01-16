@@ -3,6 +3,7 @@ import json
 import multiprocessing as mp
 import subprocess
 import random
+import re
 
 relative_path = "../"
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
@@ -36,6 +37,7 @@ def same_job(fullpath, job_name):
 	qattrs = re.split(r'\D+',job_name)
 	qattrs = [int(i) for i in qattrs if len(i) > 0]
 
+
 	if len(fpattrs) != len(qattrs):
 		print("ERROR IN same_job")
 		exit(0)
@@ -50,7 +52,7 @@ def on_queue(fullpath):
 	for line in queue_out.split('\n')[1:]:
 		line = line.strip('"').split()
 		if len(line) > 0:
-			if line[0] == "kolanzl":
+			if line[0] == "kolanzl" and line[1] != "interactive":
 				if same_job(fullpath,line[1]):
 					return True
 	return False
@@ -93,11 +95,11 @@ if __name__ == '__main__':
 	# runs_at_once = 10
 	# attempts = [2] 
 	attempts = [i for i in range(0,10)]
-	attempts = [0]#[0,1,2,3,4,5,6,7,8,9]#,11,12,13,14,15,16,17,18,19,20] 
+	# attempts = [0]#[0,1,2,3,4,5,6,7,8,9]#,11,12,13,14,15,16,17,18,19,20] 
 
 	N = [300] #final size
 	M = [3,5,10,15] #starting sizes
-	M = [15] 
+	# M = [15] 
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [1000]
@@ -161,7 +163,7 @@ if __name__ == '__main__':
 
 						input_json['dataFormat'] = "csv"
 						input_json['simType'] = "BAPA"
-						input_json['random_folder_template'] = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{a}/N_30/T_1000/"
+						input_json['random_folder_template'] = input_json['data_directory']+"/localLognormData/lognorm{a}/N_30/T_1000/"
 
 						# input_json['u_s'] = 0.5
 						# input_json['u_r'] = 0.5
@@ -221,13 +223,14 @@ if __name__ == '__main__':
 						# os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{randint}/N_30/T_3/27_RELAXconstants.csv {job}{m}_constants.csv")
 						# os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{randint}/N_30/T_3/27_RELAXsimData.csv {job}{m}_simData.csv")
 						# os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{randint}/N_30/T_3/27_RELAXenergy.csv {job}{m}_energy.csv")
-						source = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_3/{m}_*"
+						# source = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_3/{m}_*"
 						# if M == 3:
 							# source = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_3/2_R*"
-						os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_3/{m}_*constants.csv {job}{m}_constants.csv")
-						os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_3/{m}_*simData.csv {job}{m}_simData.csv")
-						os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_3/{m}_*energy.csv {job}{m}_energy.csv")
-						
+						if not os.path.exists(f"{job}{m}_simData.csv"):
+							os.system(f"cp {input_json['data_directory']}/localLognormData/lognorm{randint}/N_30/T_3/{m}_constants.csv {job}{m}_constants.csv")
+							os.system(f"cp {input_json['data_directory']}/localLognormData/lognorm{randint}/N_30/T_3/{m}_simData.csv {job}{m}_simData.csv")
+							os.system(f"cp {input_json['data_directory']}/localLognormData/lognorm{randint}/N_30/T_3/{m}_energy.csv {job}{m}_energy.csv")
+							
 						folders.append(job)
 	# print(folders)
 
