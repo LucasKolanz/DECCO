@@ -106,8 +106,10 @@ if __name__ == '__main__':
 
 
 
-
-	actually_delete = True
+	if sys.argv[1] == "-d":
+		actually_delete = True
+	else:
+		actually_delete = False
 	for f_i,failed_folder in enumerate(failed_folders):
 		print(f"failed folder: {failed_folder}")
 		delete_if_exists(failed_folder+"timing.txt",actually_delete)
