@@ -471,7 +471,7 @@ def get_all_line_data(data_folder,data_index=-1,linenum=-1,relax=False): #Works 
 				last_line = line
 			data = np.array([last_line.split(',')],dtype=np.float64)
 			# print(data)
-			print("WARNING while getting data in folder: {}".format(data_folder))
+			print(f"WARNING while getting data index {data_index} in folder: {data_folder}")
 			print(e)
 			return None
 	elif h5_data:
