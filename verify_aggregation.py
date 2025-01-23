@@ -17,6 +17,7 @@ import glob
 import os
 import json
 import numpy as np
+import argparse
 
 relative_path = ""
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
@@ -69,6 +70,8 @@ def delete_if_exists(file,actually_delete=False):
 		else:
 			print(f"file to delete: {file}")
 
+# def stop_job(directory):
+
 
 
 if __name__ == '__main__':
@@ -83,14 +86,20 @@ if __name__ == '__main__':
 
 	failed_folders = []
 	failed_files = []
+	attErrs = []
 
 
 	for directory in possible_dirs:
 		has_failed = False
 		failed_indices = []
 		for index in u.get_all_indices(directory):
-			pos,_,_,radius,_,_ = u.get_all_data(directory,data_index=index,linenum=-1,relax=False)
-			if not are_spheres_connected(pos,radius):
+			try:
+				pos,_,_,radius,_,_ = u.get_all_data(directory,data_index=index,linenum=-1,relax=False)
+			except:
+				pos = []
+				radius = []
+				attErrs.append(directory)
+			if len(pos) > 0 and not are_spheres_connected(pos,radius):
 				has_failed = True
 				failed_indices.append(index)
 		if has_failed:
@@ -98,20 +107,29 @@ if __name__ == '__main__':
 			failed_folders.append(directory)
 	
 
-	print("The following files contain failed aggregation:")
+	print("The following folders had AttributeError when attempting to get data:")
+	print(attErrs)
 	# for f_i,failed_folder in enumerate(failed_folders):
 	# 	print(f"folder: {failed_folder}")
 	# 	for file in failed_folder[f_i]:
 	# 		print(f"\t{file}")
 
 
+	parser = argparse.ArgumentParser()
+	parser.add_argument('-d', '--delete', default=False, help="True to delete failed runs, False to list them")
+	parser.add_argument('-n', '--novus', default=False, help="True to check if job is running and to stop it if it is. False to skip running check")
 
-	if sys.argv[1] == "-d":
-		actually_delete = True
-	else:
-		actually_delete = False
+	args = parser.parse_args()
+
+	actually_delete = args.delete
+
+	print("The following files contain failed aggregation:")
 	for f_i,failed_folder in enumerate(failed_folders):
 		print(f"failed folder: {failed_folder}")
+
+		# if args.novus:
+		# 	stop_job(failed_folder)
+
 		delete_if_exists(failed_folder+"timing.txt",actually_delete)
 		delete_if_exists(failed_folder+"job_data.csv",actually_delete)
 

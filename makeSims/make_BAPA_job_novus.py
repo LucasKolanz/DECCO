@@ -9,11 +9,11 @@ relative_path = "../"
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
 
+sys.path.append(project_path+"utilities/")
+# sys.path.append("/home/kolanzl/Desktop/SpaceLab/")
+import utils as u
 
-	# out = os.system("./ColliderSingleCore.o {}".format(curr_folder))
-	# out = os.system("./ColliderSingleCore.o {} 1>> {} 2>> {}".format(curr_folder,output_file,error_file))
-	
-	# cmd = ["srun","-n","1","-c","2","{}ColliderSingleCore.x".format(location), location, str(num_balls)]
+##These functions should be in utils but putting them here because utils wont commit ??
 def get_squeue_output():
     try:
         # Run the squeue command and capture its output
@@ -30,6 +30,8 @@ def get_squeue_output():
 def same_job(fullpath, job_name):
 
 	fpsplit = fullpath.split('/')
+	print(fpsplit)
+	exit(0)
 
 	fpattrs = re.split(r'\D+',"".join(fpsplit[-4:-1]))
 	fpattrs = [int(i) for i in fpattrs if len(i) > 0]
@@ -56,6 +58,7 @@ def on_queue(fullpath):
 				if same_job(fullpath,line[1]):
 					return True
 	return False
+
 
 def rand_int():
 	# Generating a random integer from 0 to the maximum unsigned integer in C++
@@ -137,7 +140,7 @@ if __name__ == '__main__':
 					if os.path.exists(job+"timing.txt"):
 						print("Sim already complete")
 
-					elif on_queue(job):
+					elif u.on_queue(job):
 						print("Sim already on queue")
 					else:
 						####################################
