@@ -983,9 +983,10 @@ class o3doctree(object):
 			for i in data_folder.split('/'):
 				if i[:2] == "T_":
 					self.Temp = float(i.split("_")[1])
-				else:
-					print("WARNING: Could not set temp based on data_folder in o3doctree constructor.")
-					self.Temp = -1
+					print(f"automatically setting Temp in o3doctree to {self.Temp}K")
+		if self.Temp < 0:
+			print("WARNING: Could not set temp based on data_folder in o3doctree constructor.")
+			self.Temp = -1
 
 
 	def make_tree(self):

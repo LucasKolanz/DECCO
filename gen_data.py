@@ -142,14 +142,14 @@ if __name__ == '__main__':
 	#only take in the directory the data is in and the size of which 
 	#to calculate as an input.
 	#It should return a single data value.
-	requested_data_functions = [calc_porosity_abc,calc_porosity_KBM,calc_number_of_contacts]
+	requested_data_functions = [calc_porosity_abc,calc_porosity_KBM,calc_number_of_contacts,calc_fractal_dimension]
 	requested_data_headers = [i.__name__[5:] for i in requested_data_functions]
 
 
 	#list of intermediate sizes to calculate data for.
-	requested_sizes = [240,260,280,300]
+	requested_sizes = [300]
 
-	possible_dirs = ['/media/kolanzl/easystore/SpaceLab_data/jobs/BAPA_0/M_20/N_300/T_1000/']
+	possible_dirs = ['/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_0/M_20/N_300/T_1000/']
 	for directory in possible_dirs:
 
 		if os.path.exists(directory+"timing.txt"):

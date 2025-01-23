@@ -3433,6 +3433,7 @@ std::string Ball_group::find_whole_file_name(std::string path, const int index)
     }
 
 
+    //TODO: check if {index}_checkpoint.txt exists don't delete, that sim is complete
     if (csv == 1 && index < 0 && second_largest_file_index > 0)
     {
         if (getRank() == 0)
