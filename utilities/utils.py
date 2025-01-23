@@ -1334,15 +1334,13 @@ def get_squeue_output():
 def same_job(fullpath, job_name):
 
 	fpsplit = fullpath.split('/')
-	print(fpsplit)
-	exit(0)
+	start_ind = fpsplit.index("SpaceLab_data") + 1
 
-	fpattrs = re.split(r'\D+',"".join(fpsplit[-4:-1]))
+	fpattrs = re.split(r'\D+',"".join(fpsplit[start_ind:-1]))
 	fpattrs = [int(i) for i in fpattrs if len(i) > 0]
 	
 	qattrs = re.split(r'\D+',job_name)
 	qattrs = [int(i) for i in qattrs if len(i) > 0]
-
 
 	if len(fpattrs) != len(qattrs):
 		print("ERROR IN same_job")

@@ -4,6 +4,7 @@ import multiprocessing as mp
 import subprocess
 import random
 import re
+import sys
 
 relative_path = "../"
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
@@ -30,15 +31,13 @@ def get_squeue_output():
 def same_job(fullpath, job_name):
 
 	fpsplit = fullpath.split('/')
-	print(fpsplit)
-	exit(0)
+	start_ind = fpsplit.index("SpaceLab_data") + 1
 
-	fpattrs = re.split(r'\D+',"".join(fpsplit[-4:-1]))
+	fpattrs = re.split(r'\D+',"".join(fpsplit[start_ind:-1]))
 	fpattrs = [int(i) for i in fpattrs if len(i) > 0]
 	
 	qattrs = re.split(r'\D+',job_name)
 	qattrs = [int(i) for i in qattrs if len(i) > 0]
-
 
 	if len(fpattrs) != len(qattrs):
 		print("ERROR IN same_job")
@@ -140,7 +139,7 @@ if __name__ == '__main__':
 					if os.path.exists(job+"timing.txt"):
 						print("Sim already complete")
 
-					elif u.on_queue(job):
+					elif on_queue(job):
 						print("Sim already on queue")
 					else:
 						####################################
@@ -184,7 +183,9 @@ if __name__ == '__main__':
 						# sbatchfile += "#SBATCH -q regular\n"
 						# sbatchfile += "#SBATCH -t 0:10:00\n"
 						# sbatchfile += f'#SBATCH --partition=dri.q\n'
-						sbatchfile += f"#SBATCH -J a={attempt},n={n},m={m},t={Temp}\n"
+
+						#NAME ORDER needs to be same as the file path order
+						sbatchfile += f"#SBATCH -J a={attempt},m={m},n={n},t={Temp}\n"
 						sbatchfile += f"#SBATCH --nodes {totalNodes}\n"
 						sbatchfile += f"#SBATCH --ntasks-per-node {totalMPITasks}\n"
 						sbatchfile += f"#SBATCH --cpus-per-task {threadsPerTask}\n\n"
