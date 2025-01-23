@@ -7,6 +7,7 @@
 #include "ball_group.hpp"
 #include "../utilities/vec3.hpp"
 #include "../utilities/Utils.hpp"
+#include "../utilities/simple_graph.hpp"
 
 
 
@@ -4481,6 +4482,14 @@ Ball_group::sim_looper(unsigned long long start_step=1)
         // #pragma acc exit data delete(this)
     #endif
 
+    //if this is an aggregation job, make sure the final state is all connected (we didnt miss the target)
+    if (isAggregation() && !isConnected(pos,R,attrs.num_particles))
+    {
+        //For now just stop the sim so I can verify this isConnected works
+        MPIsafe_print(std::cerr,"ERROR: aggregate failed isConnected. Now exiting. . .\n");
+        MPIsafe_exit(-1);
+    }
+
     if (attrs.world_rank == 0)
     {
         const time_t end = time(nullptr);
@@ -4494,6 +4503,16 @@ Ball_group::sim_looper(unsigned long long start_step=1)
 
     data->write_checkpoint();
 }  // end simLooper
+
+
+bool Ball_group::isAggregation()
+{
+    if (attrs.typeSim == BAPA || attrs.typeSim == BPCA || attrs.typeSim == BCCA)
+    {
+        return true;
+    }
+    return false;
+}
 
 
 //Checks if any of projectil's balls are overlapping any target balls

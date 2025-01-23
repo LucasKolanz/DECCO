@@ -405,7 +405,7 @@ public:
 
 
     
-
+    bool isAggregation();
     void allocate_group(const int nBalls);
     void init_conditions();
     void parseSimData(std::string line);

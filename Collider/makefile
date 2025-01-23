@@ -51,8 +51,8 @@ ifeq ($(EXPERIMENTAL_FILESYSTEM),1)
 endif
 
 # Source files
-SOURCES = Collider.cpp ball_group.cpp ../utilities/MPI_utilities.cpp ../utilities/vec3.cpp ../data/DECCOData.cpp ../utilities/Utils.cpp
-HPP += ../data/DECCOData.hpp ball_group.hpp ../utilities/Utils.hpp ../utilities/MPI_utilities.hpp ../utilities/Utils.hpp
+SOURCES = Collider.cpp ball_group.cpp ../utilities/MPI_utilities.cpp ../utilities/vec3.cpp ../data/DECCOData.cpp ../utilities/Utils.cpp ../utilities/simple_graph.cpp
+HPP += ../data/DECCOData.hpp ball_group.hpp ../utilities/Utils.hpp ../utilities/MPI_utilities.hpp ../utilities/Utils.hpp ../utilities/simple_graph.hpp
 
 # Object directory
 OBJDIR = objs

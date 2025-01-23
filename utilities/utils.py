@@ -1317,3 +1317,48 @@ class o3doctree(object):
 		return early_stop
 
 
+#############################Novus Functions#############################
+def get_squeue_output():
+    try:
+        # Run the squeue command and capture its output
+
+        result = subprocess.run(['squeue', '-o', '"%.20u %.25j"'], capture_output=True, text=True)
+        output = result.stdout
+        return output
+    except subprocess.CalledProcessError as e:
+        # Handle any errors that occur during the command execution
+        print(f"Error executing squeue: {e}")
+        return None
+
+
+def same_job(fullpath, job_name):
+
+	fpsplit = fullpath.split('/')
+	print(fpsplit)
+	exit(0)
+
+	fpattrs = re.split(r'\D+',"".join(fpsplit[-4:-1]))
+	fpattrs = [int(i) for i in fpattrs if len(i) > 0]
+	
+	qattrs = re.split(r'\D+',job_name)
+	qattrs = [int(i) for i in qattrs if len(i) > 0]
+
+
+	if len(fpattrs) != len(qattrs):
+		print("ERROR IN same_job")
+		exit(0)
+
+	for i in range(len(qattrs)):
+		if fpattrs[i] != qattrs[i]:
+			return False
+	return True
+
+def on_queue(fullpath):
+	queue_out = get_squeue_output()
+	for line in queue_out.split('\n')[1:]:
+		line = line.strip('"').split()
+		if len(line) > 0:
+			if line[0] == "kolanzl" and line[1] != "interactive":
+				if same_job(fullpath,line[1]):
+					return True
+	return False
