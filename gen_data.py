@@ -149,7 +149,7 @@ if __name__ == '__main__':
 	#list of intermediate sizes to calculate data for.
 	requested_sizes = [300]
 
-	possible_dirs = ['/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_0/M_20/N_300/T_1000/']
+	# possible_dirs = ['/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_0/M_20/N_300/T_1000/']
 	for directory in possible_dirs:
 
 		if os.path.exists(directory+"timing.txt"):
