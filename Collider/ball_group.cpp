@@ -3442,19 +3442,19 @@ std::string Ball_group::find_whole_file_name(std::string path, const int index)
             std::string file1 = path + largest_file_name;
             std::string file2 = path + largest_file_name.substr(0,largest_file_name.size()-simDatacsv.size()) + "constants.csv";
             std::string file3 = path + largest_file_name.substr(0,largest_file_name.size()-simDatacsv.size()) + "energy.csv";
-            std::string file4 = path + largest_file_name.substr(0,largest_file_name.size()-simDatacsv.size()) + "checkpoint.txt";
+            // std::string file4 = path + largest_file_name.substr(0,largest_file_name.size()-simDatacsv.size()) + "checkpoint.txt";
 
             std::string message("Removing the following files: \n"
                                 +'\t'+file1+'\n'
                                 +'\t'+file2+'\n'
-                                +'\t'+file3+'\n'
-                                +'\t'+file4+'\n');
+                                +'\t'+file3+'\n');
+                                // +'\t'+file4+'\n');
             MPIsafe_print(std::cerr,message);
 
             int status1 = remove(file1.c_str());
             int status2 = remove(file2.c_str());
             int status3 = remove(file3.c_str());
-            int status4 = remove(file4.c_str());
+            // int status4 = remove(file4.c_str());
 
 
             if (status1 != 0)
@@ -3472,11 +3472,11 @@ std::string Ball_group::find_whole_file_name(std::string path, const int index)
                 MPIsafe_print(std::cerr,"File3: '"+file3+"' could not be removed, now exiting with failure.\n");
                 MPIsafe_exit(EXIT_FAILURE);
             }
-            else if (status4 != 0)
-            {
-                MPIsafe_print(std::cerr,"File4: '"+file4+"' could not be removed, now exiting with failure.\n");
-                MPIsafe_exit(EXIT_FAILURE);
-            }
+            // else if (status4 != 0)
+            // {
+            //     MPIsafe_print(std::cerr,"File4: '"+file4+"' could not be removed, now exiting with failure.\n");
+            //     MPIsafe_exit(EXIT_FAILURE);
+            // }
         }
         MPIsafe_barrier();
         largest_file_name = second_largest_file_name;
