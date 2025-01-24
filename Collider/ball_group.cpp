@@ -3434,7 +3434,7 @@ std::string Ball_group::find_whole_file_name(std::string path, const int index)
 
 
     //TODO: check if {index}_checkpoint.txt exists don't delete, that sim is complete
-    bool checkpoint_exists = fs::exists(path+std::to_string(largest_file_index)+"_checkpoint.txt")
+    bool checkpoint_exists = fs::exists(path+std::to_string(largest_file_index)+"_checkpoint.txt");
     if (csv == 1 && index < 0 && second_largest_file_index > 0 && !checkpoint_exists)
     {
         if (getRank() == 0)
