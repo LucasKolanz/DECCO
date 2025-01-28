@@ -27,6 +27,8 @@ sys.path.append(project_path+"utilities/")
 import utils as u
 
 
+
+
 def calc_porosity_abc(data_folder,size):
 	data,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=False)
 	if data is None:
@@ -121,6 +123,8 @@ def calc_from_size(size,directory,existing_headers,existing_values,requested_hea
 
 	return headers,values
 
+data_functions = [calc_porosity_abc,calc_porosity_KBM,calc_number_of_contacts,calc_fractal_dimension]
+data_headers = [i.__name__[5:] for i in data_functions]
 
 if __name__ == '__main__':
 	with open(project_path+"default_files/default_input.json",'r') as fp:
@@ -142,8 +146,8 @@ if __name__ == '__main__':
 	#only take in the directory the data is in and the size of which 
 	#to calculate as an input.
 	#It should return a single data value.
-	requested_data_functions = [calc_porosity_abc,calc_porosity_KBM,calc_number_of_contacts,calc_fractal_dimension]
-	requested_data_headers = [i.__name__[5:] for i in requested_data_functions]
+	requested_data_functions = data_functions
+	requested_data_headers = data_headers
 
 
 	#list of intermediate sizes to calculate data for.
