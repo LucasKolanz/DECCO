@@ -4485,11 +4485,18 @@ Ball_group::sim_looper(unsigned long long start_step=1)
     #endif
 
     //if this is an aggregation job, make sure the final state is all connected (we didnt miss the target)
-    if (isAggregation() && !isConnected(pos,R,attrs.num_particles))
+    if (isAggregation())
     {
-        //For now just stop the sim so I can verify this isConnected works
-        MPIsafe_print(std::cerr,"ERROR: aggregate failed isConnected. Now exiting. . .\n");
-        MPIsafe_exit(-1);
+        if (!isConnected(pos,R,attrs.num_particles))
+        {
+            //For now just stop the sim so I can verify this isConnected works
+            MPIsafe_print(std::cerr,"ERROR: aggregate failed isConnected. Now exiting. . .\n");
+            MPIsafe_exit(-1);
+        }
+        else
+        {
+            MPIsafe_print(std::cerr,"Aggregate is connected.\n");
+        }
     }
 
     if (attrs.world_rank == 0)

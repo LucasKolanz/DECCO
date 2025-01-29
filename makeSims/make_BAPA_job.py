@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
 	runs_at_once = 10
 	# attempts = [2] 
-	attempts = [i for i in range(0,10)]#[0,1,2,3,4,5,6,7,8,9]#,11,12,13,14,15,16,17,18,19,20] 
+	attempts = [i for i in range(0,20)]#[0,1,2,3,4,5,6,7,8,9]#,11,12,13,14,15,16,17,18,19,20] 
 	# attempts = [0]
 	N = [300] #final size
 	M = [20,50,60] #starting sizes
