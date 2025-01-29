@@ -92,7 +92,7 @@ if __name__ == '__main__':
 	for directory in possible_dirs:
 		has_failed = False
 		failed_indices = []
-		for index in u.get_all_indices(directory):
+		for index in u.get_all_indices(directory,checkpoint=True):
 			try:
 				pos,_,_,radius,_,_ = u.get_all_data(directory,data_index=index,linenum=-1,relax=False)
 			except:
@@ -117,7 +117,7 @@ if __name__ == '__main__':
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument('-d', '--delete', default=False, help="True to delete failed runs, False to list them")
-	parser.add_argument('-n', '--novus', default=False, help="True to check if job is running and to stop it if it is. False to skip running check")
+	# parser.add_argument('-n', '--novus', default=False, help="True to check if job is running and to stop it if it is. False to skip running check")
 
 	args = parser.parse_args()
 

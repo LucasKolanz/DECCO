@@ -125,14 +125,15 @@ def get_directores_containing(root_dir,necessary_files):
   
 
 #returns all indices in a directory if {index}_checkpoint.txt exists, or 
-#if the data file exits and timing.txt exists.
-def get_all_indices(directory):
+#if the data file exits and timing.txt exists, or we just want to incldue unfinished ones too.
+def get_all_indices(directory,checkpoint=False):
 	indices = []
-	is_finished = os.path.exists(directory+"timing.txt")
+	is_finished = os.path.exists(directory+"timing.txt") 
+
 	for file in os.listdir(directory):
 		if file.split("_")[0].isnumeric():
 			#if this index has checkpointed, or this is the data file and the simulation has finished
-			if file.endswith("checkpoint.txt") or ((file.endswith("simData.csv") or (file.endswith("data.h5"))) and is_finished):
+			if file.endswith("checkpoint.txt") or (not checkpoint and ((file.endswith("simData.csv") or (file.endswith("data.h5"))) and is_finished)):
 				index = int(file.split("_")[0])
 				#make sure this index isn't already in indices
 				if index not in indices:
