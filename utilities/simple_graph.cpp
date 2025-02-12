@@ -26,7 +26,7 @@ void makeGraph(Graph& g, vec3* pos, double* R, int n)
 			//check if balls are touching (give some leeway if they arent exactly touching)
 			const double dist = (pos[j]-pos[i]).norm();
 			const double sum_radii = R[i] + R[j];
-			if (1.5*sum_radii-dist > 0)//touching condition
+			if (1.1*sum_radii-dist > 0)//touching condition
 			{
 				addEdge(g,i,j);
 			}

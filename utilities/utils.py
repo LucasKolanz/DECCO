@@ -4,13 +4,13 @@
 
 import numpy as np
 import random
-from scipy.spatial.transform import Rotation as R
+# from scipy.spatial.transform import Rotation as R
 import os,glob
 import sys
 from pathlib import Path
 import json
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+# import matplotlib.pyplot as plt
+# from mpl_toolkits.mplot3d import Axes3D
 import h5py	
 #from treelib import Node, Tree
 import time
@@ -18,7 +18,7 @@ from itertools import combinations
 # cwd = os.getcwd()
 # os.system("cd /home/kolanzl/Open3D/build")
 # sys.path.append("/home/kolanzl/Open3D/build/lib/python_package/open3d")
-import open3d as o3d
+# import open3d as o3d
 ##include <pybind11/stl.h>`? Or <pybind11/complex.h>,
 # <pybind11/functional.h>, <pybind11/chrono.h>
 
@@ -120,7 +120,9 @@ def get_directores_containing(root_dir,necessary_files):
 					if necessary_file not in files:
 						has_necessary_files = False
 				if has_necessary_files:
-					directories_with_file.append(current_dir+'/')
+					if current_dir[-1] != '/':
+						current_dir += '/'
+					directories_with_file.append(current_dir)
 	return directories_with_file
   
 
@@ -171,6 +173,7 @@ def calc_rotational_kinetic_energy(positions, velocities, masses):
 	return rotational_kinetic_energy
 
 def plot_rotational_kinetic_energy(rotational_kinetic_energy, horizontal_line_value):
+	import matplotlib.pyplot as plt
 	"""
 	Plots the rotational kinetic energy of an aggregate of spheres versus time,
 	calculated about the center of mass.
@@ -201,6 +204,7 @@ def plot_rotational_kinetic_energy(rotational_kinetic_energy, horizontal_line_va
 	plt.show()
 
 def plot_3d_dots(dots):
+	import matplotlib.pyplot as plt
 	"""
 	Plots 3D dots in space using matplotlib.
 	
@@ -226,6 +230,7 @@ def plot_3d_dots(dots):
 	plt.show()
 
 def plot_3d_spheres(dots, radii):
+	import matplotlib.pyplot as plt
 	"""
 	Plots 3D spheres in space using matplotlib.
 	
@@ -257,6 +262,7 @@ def plot_3d_spheres(dots, radii):
 	plt.show()
 
 def plot(verts,center,radius):
+	import matplotlib.pyplot as plt
 	fig = plt.figure()
 	ax = fig.add_subplot(projection='3d')
 
@@ -523,6 +529,56 @@ def get_masses(data_folder,data_index=-1,relax=False):
 def get_moi(data_folder,data_index=-1,relax=False):
 	return get_constants(data_folder,data_index,relax)[2]
 
+
+#Writes a single line to the given simData file
+#pos, vel, and w should be in the form [[0x,0y,0z],[1x,1y,1z], . . .] where the number is the particle index
+def write_simData(data_file,pos,w,vel):
+	num_particles = len(pos)
+	if data_file.endswith(".csv"):
+		if not os.path.exists(data_file):
+			with open(data_file, "w") as fp:
+				for i in range(num_particles):
+					header_sentence = f"x{i},y{i},z{i},wx{i},wy{i},wz{i},wmag{i},vx{i},vy{i},vz{i},bound{i}"
+					if i < num_particles-1:
+						fp.write(f"{header_sentence},")
+					else:
+						fp.write(header_sentence)
+
+		with open(data_file, "a") as fp:
+			for i in range(len(pos)):
+				sentence = f"{pos[i][0]},{pos[i][1]},{pos[i][2]},{w[i][0]},{w[i][1]},{w[i][2]},{np.linalg.norm(w[i])},{vel[i][0]},{vel[i][1]},{vel[i][2]},0"
+				if i == 0:
+					fp.write(f"\n{sentence},")
+				elif i < num_particles-1:
+					fp.write(f"{sentence},")
+				else:
+					fp.write(f"{sentence}\n")
+
+	elif data_file.endswith(".h5"):
+		print("Write simData with h5 not implimented yet.")
+
+#Writes a single line to the given simData file
+def write_energy(data_file,time, PE, KE, E, p, L):
+	if data_file.endswith(".csv"):
+		if not os.path.exists(data_file):
+			with open(data_file, "w") as fp:
+				fp.write("Time,PE,KE,E,p,L\n")
+
+		with open(data_file, "a") as fp:
+			fp.write(f"{time},{PE},{KE},{E},{p},{L}\n")
+
+	elif data_file.endswith(".h5"):
+		print("Write simData with h5 not implimented yet.")
+
+def write_constants(data_file, radii, mass, moi):
+	if data_file.endswith(".csv"):
+		with open(data_file, "w") as fp:
+			for i in range(len(radii)):
+				fp.write(f"{radii[i]},{mass[i]},{moi[i]}\n")
+
+	elif data_file.endswith(".h5"):
+		print("Write constants with h5 not implimented yet.")
+
 def get_constants(data_folder,data_index=-1,relax=False):#Works with csv and h5
 	data_file = get_data_file(data_folder,data_index,relax=relax)
 	data_file = data_file.replace('simData','constants')	
@@ -731,6 +787,7 @@ def get_extrinsic(xyz):
 
 
 def preprocess(model):
+	import open3d as o3d
 	min_bound = model.get_min_bound()
 	max_bound = model.get_max_bound()
 	center = min_bound + (max_bound - min_bound) / 2.0
@@ -742,6 +799,7 @@ def preprocess(model):
 	return model
 
 def preprocess_pt(model):
+	import open3d as o3d
 	min_bound = model.get_min_bound()
 	max_bound = model.get_max_bound()
 	print("max: {}\tmin: {}".format(max_bound,min_bound))
@@ -762,6 +820,7 @@ def vox_carve(mesh,
 				  use_depth=True,
 				  surface_method='pointcloud'):
 	# mesh.compute_vertex_normals()
+	import open3d as o3d
 	mesh.estimate_normals()
 	camera_sphere = o3d.geometry.TriangleMesh.create_sphere()
 
@@ -968,6 +1027,7 @@ class o3doctree(object):
 				visualize_pcd=False, visualize_octree=False, index=-1,Temp=-1,relax=False):
 	# def __init__(self, data_folder, max_depth=8,ppb=600000,verbose=False):
 		super(o3doctree, self).__init__()
+		import open3d as o3d
 		self.data_folder = data_folder
 		self.ppb = ppb
 		self.verbose = verbose
@@ -1255,6 +1315,7 @@ class o3doctree(object):
 
 
 	def calc_fractal_dimension(self,show_graph=False):
+		import matplotlib.pyplot as plt
 		OIsize = self.octree_size
 		S0 = 1
 		

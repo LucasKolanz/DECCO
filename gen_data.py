@@ -132,11 +132,15 @@ if __name__ == '__main__':
 	
 	path = input_json["data_directory"]
 
-	data_prefolder = path + 'jobsNovus/const_relax'
-	data_prefolder = path + 'jobsCosine/lognorm_relax'
-	data_prefolder = path + 'jobs/BAPA_*'
+	# data_prefolder = path + 'jobsNovus/const_relax'
+	# data_prefolder = path + 'jobsCosine/lognormrelax_*'
+	# data_prefolder = path + 'jobs/BAPA_*'
+	
 
-	possible_dirs = u.get_directores_containing(data_prefolder,["timing.txt"])
+	data_folders = path + 'jobsCosine/lognorm_*/N_300/T_3/'
+
+	possible_dirs = u.get_directores_containing(data_folders,["timing.txt"])
+
 
 
 	#list of the functions that calculate the data you want
@@ -146,16 +150,17 @@ if __name__ == '__main__':
 	#only take in the directory the data is in and the size of which 
 	#to calculate as an input.
 	#It should return a single data value.
-	requested_data_functions = data_functions
-	requested_data_headers = data_headers
+	requested_data_functions = data_functions[:2]
+	requested_data_headers = data_headers[:2]
 
 
 	#list of intermediate sizes to calculate data for.
-	requested_sizes = [300]
+	requested_sizes = list(range(30,301))
+
 
 	# possible_dirs = ['/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_0/M_20/N_300/T_1000/']
 	for directory in possible_dirs:
-
+		print(f"Generating data for: {directory}")
 		if os.path.exists(directory+"timing.txt"):
 			existing_data = []
 			if os.path.exists(directory+"job_data.csv"):
@@ -198,4 +203,5 @@ if __name__ == '__main__':
 
 		else:
 			print(f"Job is not finished in {directory}")
+
 

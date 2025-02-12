@@ -31,7 +31,7 @@ import utils as u
 
 
 
-def rename_files(directory_in_str):
+def rename_files(directory_in_str,just_print=True):
 
 	#loop through files that for sure were from either the original naming convention
 	#or start indexing at 0 rather than the number of balls in the sim
@@ -91,9 +91,13 @@ def rename_files(directory_in_str):
 					# print('=======================')
 					if not os.path.exists(newfull_path):
 						# pass
-						os.rename(full_path,newfull_path)
-						# print(full_path)
-						# print(newfull_path)
+						if just_print:
+							print("====================================================")
+							print(f"original path: {full_path}")
+							print(f"new path:      {newfull_path}")
+						else:
+							os.rename(full_path,newfull_path)
+
 					else:
 						print(f"WARNING already exists: {newfull_path}")
 
@@ -170,6 +174,8 @@ def main():
 
 	# i = 0
 
+	just_print = True
+
 	# rename_files('/media/kolanzl/easystore/SpaceLab_data/jobs/test/')
 	for job_template in job_templates:
 		for a in attempts:
@@ -177,8 +183,15 @@ def main():
 				for t in Temps:
 					folder = job_template.replace("{a}",str(a)).replace("{n}",str(n)).replace("{t}",str(t))
 
-					# rename_files(folder)
-					verify_name_based_on_balls(folder)
+					rename_files(folder,just_print)
+					
+	if not just_print:
+		for job_template in job_templates:
+			for a in attempts:
+				for n in N:
+					for t in Temps:
+						folder = job_template.replace("{a}",str(a)).replace("{n}",str(n)).replace("{t}",str(t))
+						verify_name_based_on_balls(folder)
 
 if __name__ == '__main__':
 	main()

@@ -84,7 +84,7 @@ def main():
 	# axe.imshow(im, cmap=None)
 	ax.set_xlabel('Temp (K)')
 	ax.set_ylabel('Aggregate Size')
-	plt.savefig(path + f'data/figures/AggComp_{job_group}.png')
+	# plt.savefig(path + f'data/figures/AggComp_{job_group}.png')
 	plt.show()
 
 if __name__ == '__main__':
