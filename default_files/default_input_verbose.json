@@ -46,6 +46,8 @@
 	"Y": 2.0e12,
 	//Coefficient of restitution
 	"cor": 0.4,
+	//The random seed for pseudorandom number generator. Default is to set based on current time
+	"seed": "default",
 	//Total time to be simulated in seconds
 	"simTimeSeconds": 0.5e-3, 
 	//Duration between exported steps in seconds

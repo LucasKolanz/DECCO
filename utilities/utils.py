@@ -18,7 +18,7 @@ from itertools import combinations
 # cwd = os.getcwd()
 # os.system("cd /home/kolanzl/Open3D/build")
 # sys.path.append("/home/kolanzl/Open3D/build/lib/python_package/open3d")
-# import open3d as o3d
+import open3d as o3d
 ##include <pybind11/stl.h>`? Or <pybind11/complex.h>,
 # <pybind11/functional.h>, <pybind11/chrono.h>
 

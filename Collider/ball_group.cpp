@@ -125,9 +125,15 @@ void Ball_group::relaxInit(const std::string path)
     calc_v_collapse(); 
     if (attrs.dt < 0)
     {
-        // if (attrs.v_custom < 0.36){calibrate_dt(0, 0.36);} //This value of 0.36 seems to work well, but a better approximation would be beneficial
-        // else {calibrate_dt(0, attrs.v_custom);}
-        calibrate_dt(0, attrs.v_custom);
+        if (attrs.v_custom < 1.0)
+        {
+            calibrate_dt(0, 1.0);
+        } //This value of 0.36 seems to work well, but a better approximation would be beneficial
+        else
+        {
+            calibrate_dt(0, attrs.v_custom);
+        }
+        // calibrate_dt(0, attrs.v_custom);
     }
     simInit_cond_and_center(false);
 
@@ -368,13 +374,21 @@ std::string Ball_group::data_type_from_input(const std::string location)
 void Ball_group::set_seed_from_input(const std::string location)
 {
     json inputs = getJsonFromFolder(location);
-    if (inputs["seed"] == std::string("default"))
+    if (inputs.contains("seed"))
     {
-        attrs.seed = static_cast<unsigned int>(time(nullptr));
+        if (inputs["seed"] == std::string("default"))
+        {
+            attrs.seed = static_cast<unsigned int>(time(nullptr));
+        }
+        else
+        {
+            attrs.seed = static_cast<unsigned int>(inputs["seed"]);
+        }
     }
     else
     {
-        attrs.seed = static_cast<unsigned int>(inputs["seed"]);
+        MPIsafe_print(std::cerr,std::string("ERROR: no 'seed' in input file. Now exiting . . .\n"));
+        MPIsafe_exit(-1);
     }
 
     if (getRank() == 0)
@@ -424,7 +438,6 @@ void Ball_group::parse_input_file(std::string location)
 
     set_attribute(inputs,"data_directory",attrs.data_directory);
     // attrs.data_directory = inputs["data_directory"];
-
     set_attribute(inputs,"random_folder_template",attrs.random_folder_template);
     // if (inputs.contains("random_folder_template"))
     // {
@@ -660,6 +673,7 @@ void Ball_group::parse_input_file(std::string location)
     set_attribute(inputs,"radiiFraction",attrs.radiiFraction);
     // attrs.radiiFraction = inputs["radiiFraction"];
     attrs.output_width = attrs.num_particles;
+
 }
 
 // @brief calculates the vdw force

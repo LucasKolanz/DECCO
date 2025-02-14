@@ -40,31 +40,35 @@ if __name__ == '__main__':
 		print('compilation failed')
 		exit(-1)
 		
-	job_set_name = "lognorm_radius_test"
-	job_set_name = "errorckcsvlognorm"
-	job_set_name = "overflowerror"
-	job_set_name = "errorckh5lognorm"
+	# job_set_name = "lognorm_radius_test"
+	# job_set_name = "errorckcsvlognorm"
+	# job_set_name = "overflowerror"
+	# job_set_name = "errorckh5lognorm"
 
-	job_set_name = "const_relax"
-	job_group = "jobsNovus"
+	# job_set_name = "const_relax"
+	# job_group = "jobsNovus"
 
-	job_set_name = "lognorm_relax"
-	job_group = "jobsCosine"
+	# job_set_name = "lognorm_relax"
+	# job_group = "jobsCosine"
+
+	copy_job_set_name = "SeqStickLognorm_"
+	relax_job_set_name = "SeqStickLognormrelax_"
+	job_group = "jobs"
 
 	
-	rsize = job_set_name.split("_")[0]
+	# rsize = job_set_name.split("_")[0]
 
 	# folder_name_scheme = "T_"
 
 
-	runs_at_once = 12
+	runs_at_once = 5
 	# runs_at_once = 1
-	attempts = [i for i in range(30)] 
-	# attempts = [26] 
-	N = [30,100,300]
+	attempts = [i for i in range(10)] 
+	# attempts = [0] 
+	N = [300]
 	# N = [100]
-	Temps = [3,10,30,100,300,1000]
-	# Temps = [1000]
+	# Temps = [3,10,30,100,300,1000]
+	Temps = [1000]
 	folders = []
 	# threads = []
 	for attempt in attempts:
@@ -75,10 +79,15 @@ if __name__ == '__main__':
 					default_input_json = json.load(fp)
 				
 				# job = curr_folder + 'jobs/' + job_set_name + str(attempt) + '/'
-				job = default_input_json["data_directory"] + f'{job_group}/' + job_set_name + str(attempt) + '/'\
-							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
-				copyjob = default_input_json["data_directory"] + f'{job_group}/' + rsize + str(attempt) + '/'\
-							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
+				# job = default_input_json["data_directory"] + f'{job_group}/' + job_set_name + str(attempt) + '/'\
+				# 			+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
+				# copyjob = default_input_json["data_directory"] + f'{job_group}/' + rsize + str(attempt) + '/'\
+				# 			+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
+
+				job = default_input_json["data_directory"] + f'{job_group}/' + relax_job_set_name + str(attempt) + '/'\
+							+ 'N_' + str(n) + '/'
+				copyjob = default_input_json["data_directory"] + f'{job_group}/' + copy_job_set_name + str(attempt) + '/'\
+							+ 'N_' + str(n) + '/' 
 				
 
 				if os.path.exists(copyjob+"timing.txt"):
@@ -88,7 +97,7 @@ if __name__ == '__main__':
 						print("Job '{}' already exists.".format(job))
 
 					if not os.path.exists(job+"timing.txt"):
-						with open(copyjob+"input.json",'r') as fp:
+						with open(project_path+"default_files/default_input.json",'r') as fp:
 							input_json = json.load(fp)
 						####################################
 						######Change input values here######
@@ -102,8 +111,8 @@ if __name__ == '__main__':
 						# input_json['radiiDistribution'] = 'logNormal'
 						# input_json['h_min'] = 0.5
 						# input_json['dataFormat'] = "csv"
-						input_json['relaxIndex'] = n-3
-						input_json['simTimeSeconds'] = 1e-2
+						input_json['relaxIndex'] = n
+						input_json['simTimeSeconds'] = 1e-3
 						# input_json['timeResolution'] = 
 
 						input_json['output_folder'] = job
@@ -120,7 +129,7 @@ if __name__ == '__main__':
 							json.dump(input_json,fp,indent=4)
 
 						
-						os.system(f"cp {copyjob}{n-3}* {job}.")
+						os.system(f"cp {copyjob}{n}* {job}.")
 						# os.system(f"cp {copyjob}input.json {job}.")
 
 

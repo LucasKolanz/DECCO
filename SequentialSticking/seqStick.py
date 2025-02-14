@@ -3,9 +3,11 @@ import argparse
 import os
 import time
 import sys
-relative_path = "../"
-relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
-project_path = os.path.abspath(relative_path) + '/'
+file_path = os.path.abspath(__file__)  # Get absolute path of the file
+folder = os.path.dirname(file_path)  # Get the directory.
+
+project_path = '/'.join(folder.split('/')[0:folder.split('/').index("SpaceLab_data")])+'/SpaceLab/'
+
 
 sys.path.append(project_path+"utilities/")
 # sys.path.append("/home/kolanzl/Desktop/SpaceLab/")
@@ -13,7 +15,10 @@ import utils as u
 
 density = 2.25 #g/cm^3
 
-def dataOut(x,y,z,r,folder="./"):
+def dataOut(x,y,z,r,folder=""):
+	if folder == "":
+		file_path = os.path.abspath(__file__)  # Get absolute path of the file
+		folder = os.path.dirname(file_path)+'/'  # Get the directory
 	numParticles = len(x)
 	mass = density*(4/3)*np.pi*r**3
 	moi = (2/5)*mass*r*r
@@ -93,7 +98,8 @@ def constant(numParticles, radius):
 	# first we check if the velocity should be reversed.
 		if np.dot(posSim,velSim)>0: velSim=-velSim
 	# we now create a trajectory to see where the particle will land.
-		dt=0.001
+		# dt=0.001
+		dt=radius*0.1
 		dists=np.sqrt((posSim[0]-x)**2+(posSim[1]-y)**2+(posSim[2]-z)**2)
 		jj=np.where(dists<(r+rSim[ig]))
 		while jj[0].size==0:
@@ -113,13 +119,16 @@ def constant(numParticles, radius):
 
 	dataOut(x,y,z,r)
 
-def lognormal(numParticles, sigma, mean):
+def lognormal(numParticles, radius, sigma):
 
 	np.random.seed(int(time.time()))
 
 	nTot=numParticles-1 # the total number of particles in the final product
+
+	#We want the average radius to still be 1e-5 cm (or whatever -r is set to)
+	a_max = radius*np.exp(-5*sigma**2/2)
 	#properties of the Gaussian used for the distribution
-	meanG=mean # 0 is a good starting point
+	meanG=np.log(a_max)-sigma**2 #
 	sigG=sigma  # 0.2 is a reasonable value
 
 	# the first particle is set at the origin and has radius 1
@@ -179,7 +188,8 @@ def lognormal(numParticles, sigma, mean):
 		if np.dot(posSim,velSim)>0: 
 			velSim=-velSim
 		# we now create a trajectory to see where the particle will land.
-		dt=0.001
+		# dt=0.001
+		dt=0.1*np.min(np.array([np.min(r),rSim[ig]]))
 		dists=np.sqrt((posSim[0]-x)**2+(posSim[1]-y)**2+(posSim[2]-z)**2)
 		jj=np.where(dists<(r+rSim[ig]))
 		while jj[0].size==0:
@@ -205,7 +215,7 @@ if __name__ == '__main__':
 	parser.add_argument('-n', '--numParticles', default=300, help="The number of particles in the final aggregate.")
 	parser.add_argument('-r', '--radius', default=1e-5, help="The radius (in cm) of particles (only for constant distribution).")
 	parser.add_argument('-s', '--sigma', default=0.2, help="The sigma for the lognormal distribution (only for lognormal distribution).")
-	parser.add_argument('-m', '--mean', default=0.0, help="The mean of the lognormal distribution (this is actually the mean of the gaussian in the lognormal distribution) (only for lognormal distribution).")
+	# parser.add_argument('-m', '--mean', default=0.0, help="The mean of the lognormal distribution (this is actually the mean of the gaussian in the lognormal distribution) (only for lognormal distribution).")
 	parser.add_argument('-d', '--distribution', default="lognormal", help="The mean of the lognormal distribution (this is actually the mean of the gaussian in the lognormal distribution) (only for lognormal distribution).")
 
 
@@ -214,4 +224,11 @@ if __name__ == '__main__':
 	if args.distribution == "constant":
 		constant(int(args.numParticles), float(args.radius))
 	elif args.distribution == "lognormal":
-		lognormal(int(args.numParticles), float(args.sigma), float(args.mean))
+		lognormal(int(args.numParticles), float(args.radius), float(args.sigma))
+	else:
+		print("ERROR: distribution not recognized")
+
+	file_path = os.path.abspath(__file__)  # Get absolute path of the file
+	folder = os.path.dirname(file_path)  # Get the directory
+	os.system(f"touch {folder}/{args.numParticles}_checkpoint.txt")
+	os.system(f"touch {folder}/timing.txt")

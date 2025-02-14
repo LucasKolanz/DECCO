@@ -134,10 +134,12 @@ if __name__ == '__main__':
 
 	# data_prefolder = path + 'jobsNovus/const_relax'
 	# data_prefolder = path + 'jobsCosine/lognormrelax_*'
-	# data_prefolder = path + 'jobs/BAPA_*'
 	
 
-	data_folders = path + 'jobsCosine/lognorm_*/N_300/T_3/'
+	# data_folders = path + 'jobs/BAPA_*'
+	# data_folders = path + 'jobsCosine/lognorm_*/N_300/T_3/'
+	# data_folders = path + 'jobs/SeqStickConst_*/'
+	data_folders = path + 'jobs/SeqStickLognorm_*/'
 
 	possible_dirs = u.get_directores_containing(data_folders,["timing.txt"])
 
@@ -153,9 +155,13 @@ if __name__ == '__main__':
 	requested_data_functions = data_functions[:2]
 	requested_data_headers = data_headers[:2]
 
+	# requested_data_functions = data_functions[:]
+	# requested_data_headers = data_headers[:]
+
 
 	#list of intermediate sizes to calculate data for.
-	requested_sizes = list(range(30,301))
+	# requested_sizes = list(range(30,301))
+	requested_sizes = [300]
 
 
 	# possible_dirs = ['/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_0/M_20/N_300/T_1000/']

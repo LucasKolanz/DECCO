@@ -227,6 +227,112 @@ def gen_BPCA_vs_time_plots(show_plots=True,save_plots=False,include_totals=False
 				plt.show() 
 
 
+def gen_seqstick_plots(distribution):
+	with open(project_path+"default_files/default_input.json",'r') as fp:
+		input_json = json.load(fp)
+	
+	path = input_json["data_directory"]
+
+	if distribution == "lognormal":
+		data_prefolder = path + 'jobs/SeqStickLognorm_'
+	elif distribution == "constant":
+		data_prefolder = path + 'jobs/SeqStickConst_'
+	else:
+		print("Distribution not recognized")
+		exit(-1)
+
+	dataset_name = data_prefolder.split("/")[-1]
+	figure_folder = path+'data/figures/'
+
+
+
+	n = 300
+
+	attempts = [i for i in range(30)]
+	
+	size=300
+
+
+	requested_data_headers = gd.data_headers[:2]
+	
+
+
+	raw_data = np.full(shape=(len(requested_data_headers),len(attempts)),fill_value=np.nan,dtype=np.float64)
+	for a_i,attempt in enumerate(attempts):
+		folder = f"{data_prefolder}{attempt}/N_{n}/"
+		if os.path.exists(folder+"job_data.csv"):
+			with open(folder+"job_data.csv",'r') as fp:
+				existing_data = fp.readlines()
+
+			existing_sizes = [int(i.split('=')[1].strip("\n\t ")) for i in existing_data if i[:2] == "N="]
+			#even though the data can have other sizes in it, 
+			#we only want the data of size n
+			if size not in existing_sizes:
+				print(f"ERROR: Data of size {n} does not exist for {folder}.")
+				continue
+			index = existing_sizes.index(size)*4
+			existing_headers_for_size = existing_data[index+1].strip("\n\t ").split(",")
+			existing_values_for_size = existing_data[index+2].strip("\n\t ").split(",")
+			
+			for h_i,header in enumerate(gd.data_headers):
+				if header in existing_headers_for_size:
+					raw_data[h_i,a_i] = existing_values_for_size[existing_headers_for_size.index(header)]
+
+
+
+	avg_data = np.nanmean(raw_data,axis=1)
+	std_data = np.nanstd(raw_data,axis=1)
+	num_data = np.count_nonzero(~np.isnan(raw_data),axis=1)
+	err_data = std_data/np.sqrt(num_data)
+
+
+	for h_i,header in enumerate(requested_data_headers):
+		print(f"{distribution} {header}: {avg_data[h_i]} +- {err_data[h_i]}")
+
+	# print("======================Starting figures======================")
+	# # print(data.shape)
+	# print("Data has {} nan values".format(np.count_nonzero(np.isnan(raw_data))))
+	
+
+	# styles = ['-','--','-.',':']
+	# # styles = ['-','--','-.','--.']
+	# colors = ['g','b','r','orange','black','red']
+
+
+	# #	plt.close("all")
+	# plt.rcParams.update({
+	#     'font.size': 18,
+	#     'text.usetex': True,
+	#     'text.latex.preamble': r'\usepackage{amsmath} \usepackage{bm}'
+	# })
+
+	# #Plot metric vs M for all metrics and all N and temps
+	# for h_i,header in enumerate(requested_data_headers):
+
+	# 	fig,ax = plt.subplots()
+
+	# 	ax.errorbar([size],[avg_data[h_i]],yerr=[err_data[h_i]],\
+	# 			label=f"{header} N={n}",color=colors[h_i],\
+	# 			linestyle=styles[h_i],marker='.',markersize=10,zorder=5)
+
+	# 	# if include_totals:
+	# 	# 	for txt_i, txt in enumerate(num_data[h_i,:,n_i,t_i]):
+	# 	# 		ax.annotate("{:0.0f}".format(txt), (M[txt_i], avg_data[h_i,txt_i,n_i,t_i]))
+
+	# 	bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+	# 	ax.set_xlabel('aggregate size')
+	# 	ax.set_ylabel(header)
+	# 	# ax.set_title('{} {} vs Temp'.format(dataset_name,method))
+	# 	# ax.set_xscale('log')
+	# 	# if i == 1:
+	# 	fig.legend(loc='upper right',bbox_to_anchor=(0.97, 0.96))
+	# 	plt.tight_layout()
+	# 	if save_plots:
+	# 		plt.savefig("{}{}_{}_seqStickConst.png".format(figure_folder,dataset_name,header))
+	# 	if show_plots:
+	# 		plt.show() 
+
+
 if __name__ == '__main__':
 	#Do you want to see plots of the data as they are made?
 	show_plots = True
@@ -240,5 +346,6 @@ if __name__ == '__main__':
 
 
 	# gen_BAPA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
-
-	gen_BPCA_vs_time_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
+	# gen_BPCA_vs_time_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
+	gen_seqstick_plots(distribution="lognormal")
+	gen_seqstick_plots(distribution="constant")

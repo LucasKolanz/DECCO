@@ -18,6 +18,7 @@
     "sigma": 0.29,
     "Y": 2000000000000.0,
     "cor": 0.4,
+    "seed": "default",
     "simTimeSeconds": 0.0005,
     "timeResolution": 1e-05,
     "scaleBalls": 1e-05,
