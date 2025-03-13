@@ -35,7 +35,7 @@ def are_spheres_connected(pos, radii):
 		return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2) ** 0.5
 
 	def is_connected(index1, index2):
-		return distance(pos[index1], pos[index2]) <= 1.01*radii[index1] + 1.01*radii[index2]
+		return distance(pos[index1], pos[index2]) <= 1.1*radii[index1] + 1.1*radii[index2]
 
 	n = len(pos)
 	if n == 0:
@@ -60,6 +60,7 @@ def are_spheres_connected(pos, radii):
 				visited[neighbor] = True
 				queue.append(neighbor)
 
+	print(visited)
 	return all(visited)
 
 
@@ -81,6 +82,7 @@ if __name__ == '__main__':
 	path = input_json["data_directory"]
 
 	data_prefolder = path + 'jobs/BAPA_*'
+	data_prefolder = '/home/kolanzl/Desktop/Visualize/V19/'
 
 	possible_dirs = u.get_directores(data_prefolder)
 
@@ -90,9 +92,11 @@ if __name__ == '__main__':
 
 
 	for directory in possible_dirs:
+		
 		has_failed = False
 		failed_indices = []
-		for index in u.get_all_indices(directory,checkpoint=True):
+		for index in u.get_all_indices(directory,checkpoint=False):
+			print(index)
 			try:
 				pos,_,_,radius,_,_ = u.get_all_data(directory,data_index=index,linenum=-1,relax=False)
 			except:

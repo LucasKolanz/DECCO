@@ -121,7 +121,7 @@ def constant(numParticles, radius):
 
 def lognormal(numParticles, radius, sigma):
 
-	np.random.seed(int(time.time()))
+	
 
 	nTot=numParticles-1 # the total number of particles in the final product
 
@@ -217,9 +217,16 @@ if __name__ == '__main__':
 	parser.add_argument('-s', '--sigma', default=0.2, help="The sigma for the lognormal distribution (only for lognormal distribution).")
 	# parser.add_argument('-m', '--mean', default=0.0, help="The mean of the lognormal distribution (this is actually the mean of the gaussian in the lognormal distribution) (only for lognormal distribution).")
 	parser.add_argument('-d', '--distribution', default="lognormal", help="The mean of the lognormal distribution (this is actually the mean of the gaussian in the lognormal distribution) (only for lognormal distribution).")
+	parser.add_argument('-S', '--seed', default="", help="Seed for numpy.random. Defaults to the current time.")
 
 
 	args = parser.parse_args()
+
+	if args.seed == "":
+		np.random.seed(int(time.time()))
+	else:
+		np.random.seed(int(args.seed))
+
 
 	if args.distribution == "constant":
 		constant(int(args.numParticles), float(args.radius))

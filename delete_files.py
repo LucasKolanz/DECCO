@@ -102,12 +102,13 @@ if __name__ == '__main__':
 
     # target_directory = '/media/kolanzl/easystore/SpaceLab_data/jobsNovus/'
     # target_directory = '/media/kolanzl/easystore/SpaceLab_data/'
-    target_directory = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/'
+    target_directory = '/mnt/be2a0173-321f-4b9d-b05a-addba547276f/kolanzl/SpaceLab_data/jobsNovus/'
     # jobset_name = "const"
     # jobset_name = "const_relax"
 
-    file_patterns = ['fractdim_ppb-*.csv']
-    file_patterns.append('pointcloud*.pcd')
+    file_patterns = ['job_data.csv']
+    # file_patterns = ['fractdim_ppb-*.csv']
+    # file_patterns.append('pointcloud*.pcd')
     # file_patterns.append('Collider*.o')
     # file_patterns.append('Collider*.x')
 

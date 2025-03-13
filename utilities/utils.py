@@ -52,7 +52,11 @@ data_columns = 11
 #https://scipython.com/book/chapter-6-numpy/problems/p65/the-moment-of-inertia-tensor/
 def translate_to_cofm(mass, data):
 	# Position of centre of mass in original coordinates
-	cofm = sum(mass * data) / (mass*data.shape[0])
+	# cofm = sum(mass * data) / (mass*data.shape[0])
+	if mass is not list:
+		mass = np.full(len(data),fill_value=mass)
+	total_mass = np.sum(mass)
+	cofm = np.einsum('i,ij->j', mass, data) / total_mass  # Shape: (particles, 3)
 	# Transform to CofM coordinates and return
 	data -= cofm
 	return data
@@ -64,7 +68,7 @@ def get_inertia_matrix(mass, data):
 	
 	#should in general translate to center of mass
 	#but data is already there
-	# data = translate_to_cofm(mass, data)
+	data = translate_to_cofm(mass, data)
 
 	x, y, z = data.T
 
@@ -907,7 +911,11 @@ class datamgr(object):
 		self.data_folder = data_folder
 		self.index = index
 		if data_folder != '/home/kolanzl/Desktop/bin/merger.csv' and Temp < 0:
-			self.Temp = int(self.data_folder.split('/')[-2].strip('T_'))
+			for i in data_folder.split('/'):
+				if i[:2] == "T_":
+					self.Temp = float(i.split("_")[1])
+					print(f"automatically setting Temp in datamgr to {self.Temp}K")
+
 		else:
 			self.Temp = Temp
 		#how many points in single ball pointcloud shell
@@ -1037,6 +1045,7 @@ class o3doctree(object):
 		self.bestfitlen = 4
 		self.index = index
 		self.relax = relax
+		self.Temp = -1
 		if Temp > 0:
 			self.Temp = Temp
 		else:

@@ -41,15 +41,18 @@ def main():
 	# new_pattern = input_json["data_directory"]+"jobsCosine/lognormrelax_{a}"
 
 
-	folder_pattern_to_change = input_json["data_directory"]+"jobsCosine/lognorm*"
-	new_pattern = input_json["data_directory"]+"jobsCosine/lognorm_{a}"
+	# folder_pattern_to_change = input_json["data_directory"]+"jobsCosine/lognorm*"
+	# new_pattern = input_json["data_directory"]+"jobsCosine/lognorm_{a}"
+
+	folder_pattern_to_change = input_json["data_directory"]+"jobsNovus/const*"
+	new_pattern = input_json["data_directory"]+"jobsNovus/const_{a}"
 
 	
 
 
 	source_folders = glob.glob(folder_pattern_to_change)
 
-	source_folders = [i for i in source_folders if ("lognormrelax" not in i.split("/")[-1])]
+	source_folders = [i for i in source_folders if ("constrelax" not in i.split("/")[-1])]
 
 
 

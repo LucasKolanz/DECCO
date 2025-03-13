@@ -24,7 +24,7 @@ def rand_int():
 def run_job(location,mode,n):
 	output_file = location + "sim_output.txt"
 	error_file = location + "sim_errors.txt"
-	cmd = ["python3", f"{location}seqStick.py", "-d", f"{mode}", "-n", f"{n}"]
+	cmd = ["python3", f"{location}seqStick.py", "-d", f"{mode}", "-n", f"{n}", "-S", f"{rand_int()}"]
 
 
 	with open(output_file,"a") as out, open(error_file,"a") as err:
@@ -32,10 +32,15 @@ def run_job(location,mode,n):
 
 if __name__ == '__main__':
 
-		
+	lognormal = True
 
 	# job_set_name = "TESTBAPA"
-	job_set_name = "SeqStickLognorm_"
+	if lognormal:
+		job_set_name = "SeqStickLognorm_"
+		mode = "lognormal"
+	else:
+		job_set_name = "SeqStickConst_"
+		mode = "constant"
 
 	# folder_name_scheme = "T_"
 
@@ -47,7 +52,6 @@ if __name__ == '__main__':
 	N = [300] #final size
 	folders = []
 
-	mode = "lognormal"
 
 	#load default input file
 	with open(project_path+"default_files/default_input.json",'r') as fp:
@@ -78,8 +82,6 @@ if __name__ == '__main__':
 				folders.append(job)
 			else:
 				print(f"Job '{job}' already complete.")
-
-
 
 	print(folders)
 

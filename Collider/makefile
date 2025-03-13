@@ -52,6 +52,7 @@ endif
 
 # Source files
 SOURCES = Collider.cpp ball_group.cpp ../utilities/MPI_utilities.cpp ../utilities/vec3.cpp ../data/DECCOData.cpp ../utilities/Utils.cpp ../utilities/simple_graph.cpp
+TEST_SOURCES = testing.cpp ball_group.cpp ../utilities/MPI_utilities.cpp ../utilities/vec3.cpp ../data/DECCOData.cpp ../utilities/Utils.cpp ../utilities/simple_graph.cpp
 HPP += ../data/DECCOData.hpp ball_group.hpp ../utilities/Utils.hpp ../utilities/MPI_utilities.hpp ../utilities/Utils.hpp ../utilities/simple_graph.hpp
 
 # Object directory
@@ -59,9 +60,13 @@ OBJDIR = objs
 
 # Extract the base names of the source files
 SOURCE_NAMES = $(notdir $(SOURCES))
+TEST_SOURCE_NAMES = $(notdir $(TEST_SOURCES))
 
 # Object files in OBJDIR
 OBJECTS = $(addprefix $(OBJDIR)/, $(SOURCE_NAMES:.cpp=.o))
+
+# Object files in OBJDIR
+TEST_OBJECTS = $(addprefix $(OBJDIR)/,  $(TEST_SOURCE_NAMES:.cpp=.o))
 
 # Source directories
 SRC_DIRS = $(sort $(dir $(SOURCES)))
@@ -71,9 +76,14 @@ VPATH = $(SRC_DIRS)
 
 # Executable name
 EXEC = Collider.x
+TEST_EXEC = testing.x
 
 # Default target
 all: $(OBJDIR) $(HPP) $(EXEC)
+
+# test target
+# test: $(OBJDIR) $(HPP) $(TEST_EXEC)
+test: $(TEST_EXEC)
 
 # Create OBJDIR if it doesn't exist
 $(OBJDIR):
@@ -83,10 +93,16 @@ $(OBJDIR):
 $(EXEC): $(OBJECTS) $(HPP)
 	$(CXX) $(CXXFLAGS) -o $(EXEC) $(OBJECTS) $(LIBS)
 
+# Linking test.x
+$(TEST_EXEC): $(TEST_OBJECTS)
+	$(CXX) $(CXXFLAGS) -o $(TEST_EXEC) $(TEST_OBJECTS) $(LIBS)
+
 # Compile rule
-$(OBJDIR)/%.o: %.cpp $(HPP)
+# $(OBJDIR)/%.o: %.cpp $(HPP)
+$(OBJDIR)/%.o: %.cpp 
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+
 
 # Clean
 clean:
-	rm -f $(OBJDIR)/*.o $(EXEC)
+	rm -f $(OBJDIR)/*.o $(EXEC) $(TEST_EXEC)

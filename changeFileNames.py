@@ -13,7 +13,7 @@ TODO: use the seeds from input.json, not seedFile.txt. Save all seeds in a list 
 
 
 
-
+import h5py	
 import os
 import json
 import glob
@@ -43,53 +43,58 @@ def rename_files(directory_in_str,just_print=True):
 	maxIndex = -1
 	# path = '/'.join(directory_in_str.split('/')[0:-1]) + '/'
 
-	if os.path.isdir(directory_in_str):    
-		directory = os.fsencode(directory_in_str)
-		for file in os.listdir(directory):
-			filename = os.fsdecode(file)
-			if filename.split("_")[0].isdigit():
-				index = int(filename.split("_")[0])
-				if index > maxIndex:
-					maxIndex = index
-			if filename.endswith("constants.csv") or filename.endswith("energy.csv") or filename.endswith("simData.csv"): 
-				if filename.startswith("2_R") or filename.startswith("0_"):
-					needsUpdate = True
-				if filename.startswith("2_R"):
-					file_base = "_".join(filename.split("_")[:-1])
+	if not os.path.isdir(directory_in_str):   
+		print(f"Directory doesnt exist: {directory_in_str}")
+		return
 
-		
-		if needsUpdate:
-			print("Updating directory: "+directory_in_str)
-			# for i in [126,125,124,123,122]:
-			for i in range(maxIndex,-1,-1): #This needs to go backwards so we don't overwrite anything. This is very important
+	directory = os.fsencode(directory_in_str)
+	for file in os.listdir(directory):
+		filename = os.fsdecode(file)
+		if filename.split("_")[0].isdigit():
+			index = int(filename.split("_")[0])
+			if index > maxIndex:
+				maxIndex = index
+		if filename.endswith("constants.csv") or filename.endswith("energy.csv") or filename.endswith("simData.csv"): 
+			# if filename.startswith("2_R") or filename.startswith("0_") or not verify_index_based_on_balls(directory_in_str,index):
+			if not verify_index_based_on_balls(directory_in_str,index):
+				needsUpdate = True
+			if filename.startswith("2_R"):
+				file_base = "_".join(filename.split("_")[:-1])
 
-				if i == 0:
-					#newname is present for 0
-					if os.path.exists(directory_in_str+"0_simData.csv"):
-						glob_files = glob.glob(directory_in_str+"0_*")
-					else:
-						glob_files = glob.glob(directory_in_str+"2_R*")
-				elif i == 2:
-					#newname is present for 2
-					if os.path.exists(directory_in_str+"2_simData.csv"):
-						glob_files = glob.glob(directory_in_str+'2_*')
-					else:
-						glob_files = glob.glob(directory_in_str+'2_2_R*')
 
+	if needsUpdate:
+		print("Updating directory: "+directory_in_str)
+		# for i in [126,125,124,123,122]:
+		for i in range(maxIndex,-1,-1): #This needs to go backwards so we don't overwrite anything. This is very important
+
+			if i == 0:
+				#newname is present for 0
+				if os.path.exists(directory_in_str+"0_simData.csv"):
+					glob_files = glob.glob(directory_in_str+"0_*")
 				else:
-					glob_files = glob.glob(directory_in_str+str(i)+'_*')
+					glob_files = glob.glob(directory_in_str+"2_R*")
+			elif i == 2:
+				#newname is present for 2
+				if os.path.exists(directory_in_str+"2_simData.csv"):
+					glob_files = glob.glob(directory_in_str+'2_*')
+				else:
+					glob_files = glob.glob(directory_in_str+'2_2_R*')
 
-				for full_path in glob_files:
-					file = full_path.split("/")[-1]
-					# prefix = "_".join(file.split("_")[:-1])
-					suffix = file.split("_")[-1]
-					newfile = str(i+3)+'_'+suffix
+			else:
+				glob_files = glob.glob(directory_in_str+str(i)+'_*')
 
-					newfull_path = directory_in_str + newfile
+			for full_path in glob_files:
+				file = full_path.split("/")[-1]
+				# prefix = "_".join(file.split("_")[:-1])
+				suffix = file.split("_")[-1]
+				newfile = str(i+3)+'_'+suffix
 
-					#check we won't be overwriting any files with this name change
-					# print('=======================')
-					if not os.path.exists(newfull_path):
+				newfull_path = directory_in_str + newfile
+
+				#check we won't be overwriting any files with this name change
+				# print('=======================')
+				if not os.path.exists(newfull_path):
+					if not verify_index_based_on_balls(directory_in_str,i):
 						# pass
 						if just_print:
 							print("====================================================")
@@ -98,12 +103,90 @@ def rename_files(directory_in_str,just_print=True):
 						else:
 							os.rename(full_path,newfull_path)
 
-					else:
-						print(f"WARNING already exists: {newfull_path}")
+				else:
+					print(f"WARNING already exists: {newfull_path}")
+
+
+
+
+def rename_h5_files(directory_in_str,just_print=True):
+
+	#loop through files that for sure were from either the original naming convention
+	#or start indexing at 0 rather than the number of balls in the sim
+
+	#check if the zeroth index of either convention exists. If so, we need to rename files in this directory
+
+
+	needsUpdate = False
+	maxIndex = -1
+	# path = '/'.join(directory_in_str.split('/')[0:-1]) + '/'
+
+	if not os.path.isdir(directory_in_str):   
+		print(f"Directory doesnt exist: {directory_in_str}")
+		return
+
+	directory = os.fsencode(directory_in_str)
+	for file in os.listdir(directory):
+		filename = os.fsdecode(file)
+		if filename.split("_")[0].isdigit():
+			index = int(filename.split("_")[0])
+			if index > maxIndex:
+				maxIndex = index
+		# if filename.endswith(".h5"): 
+		# 	# if filename.startswith("2_R") or filename.startswith("0_") or not verify_index_based_on_balls(directory_in_str,index):
+		# 	if not verify_index_based_on_balls(directory_in_str,index):
+		# 		needsUpdate = True
+		# 	# if filename.startswith("2_R"):
+			# 	file_base = "_".join(filename.split("_")[:-1])
+
+
+	# if needsUpdate:
+	# for i in [126,125,124,123,122]:
+	for i in range(maxIndex,-1,-1): #This needs to go backwards so we don't overwrite anything. This is very important
+
+		# if i == 0:
+		# 	#newname is present for 0
+		# 	if os.path.exists(directory_in_str+"0_simData.csv"):
+		# 		glob_files = glob.glob(directory_in_str+"0_*")
+		# 	else:
+		# 		glob_files = glob.glob(directory_in_str+"2_R*")
+		# elif i == 2:
+		# 	#newname is present for 2
+		# 	if os.path.exists(directory_in_str+"2_simData.csv"):
+		# 		glob_files = glob.glob(directory_in_str+'2_*')
+		# 	else:
+		# 		glob_files = glob.glob(directory_in_str+'2_2_R*')
+
+		# else:
+		glob_files = glob.glob(directory_in_str+str(i)+'_*')
+
+		for full_path in glob_files:
+			file = full_path.split("/")[-1]
+			# prefix = "_".join(file.split("_")[:-1])
+			suffix = file.split("_")[-1]
+			newfile = str(i+3)+'_'+suffix
+
+			newfull_path = directory_in_str + newfile
+
+			#check we won't be overwriting any files with this name change
+			# print('=======================')
+			if not verify_index_based_on_balls(directory_in_str,i):
+				if not os.path.exists(newfull_path):
+						# pass
+						if just_print:
+							print("====================================================")
+							print(f"original path: {full_path}")
+							print(f"new path:      {newfull_path}")
+						else:
+							os.rename(full_path,newfull_path)
+
+				else:
+					print(f"WARNING already exists: {newfull_path}")
+	# exit(0)
 
 
 				
-def verify_name_based_on_balls(directory_in_str):
+def verify_directory_based_on_balls(directory_in_str):
 
 	#loop through files that for sure were from either the original naming convention
 	#or start indexing at 0 rather than the number of balls in the sim
@@ -147,7 +230,24 @@ def verify_name_based_on_balls(directory_in_str):
 					print(f"WARNING:: FILE MISSING for index {i}")
 
 
+def get_num_balls(directory_in_str,index):
+	relax = False
+	if "relax" in directory_in_str:
+		relax = True
+	return len(u.get_radii(directory_in_str,index,relax=relax))
+
+def verify_index_based_on_balls(directory_in_str,index):
+	relax = False
+	if "relax" in directory_in_str:
+		relax = True
+
+	if get_num_balls(directory_in_str,index) != index:
+		return False
+	else:
+		return True
+
 		
+
 
 
 
@@ -157,9 +257,10 @@ def main():
 	with open(project_path+"default_files/default_input.json",'r') as fp:
 		input_json = json.load(fp)
 
-	job_templates = [input_json["data_directory"] + 'jobs/' + 'lognorm' + '{a}/N_{n}/T_{t}/']
-	# job_templates = [input_json["data_directory"] + 'jobsCosine/' + 'lognorm_relax' + '{a}/N_{n}/T_{t}/']
-	# job_templates.append(input_json["data_directory"] + 'jobsNovus/' + 'const_relax' + '{a}/N_{n}/T_{t}/')
+	job_templates = [input_json["data_directory"] + 'jobsCosine/' + 'lognormrelax_{a}/N_{n}/T_{t}/']
+	job_templates = [input_json["data_directory"] + 'jobsNovus/' + 'const_{a}/N_{n}/T_{t}/']
+	# job_templates = [input_json["data_directory"] + 'jobsNovus/' + 'const_{a}/N_{n}/T_{t}/']
+
 
 	attempts = [i for i in range(30)]
 	# attempts = [i for i in range(30,40)]
@@ -170,28 +271,28 @@ def main():
 	# N=[300]
 
 	Temps = [3,10,30,100,300,1000]
-	# Temps = [1000]
+	# Temps = [10]
 
 	# i = 0
 
 	just_print = True
 
-	# rename_files('/media/kolanzl/easystore/SpaceLab_data/jobs/test/')
 	for job_template in job_templates:
 		for a in attempts:
 			for n in N:
 				for t in Temps:
 					folder = job_template.replace("{a}",str(a)).replace("{n}",str(n)).replace("{t}",str(t))
-
-					rename_files(folder,just_print)
+					print(folder)
+					rename_h5_files(folder,just_print)
+					# rename_files(folder,just_print)
 					
-	if not just_print:
-		for job_template in job_templates:
-			for a in attempts:
-				for n in N:
-					for t in Temps:
-						folder = job_template.replace("{a}",str(a)).replace("{n}",str(n)).replace("{t}",str(t))
-						verify_name_based_on_balls(folder)
+	# if not just_print:
+	# 	for job_template in job_templates:
+	# 		for a in attempts:
+	# 			for n in N:
+	# 				for t in Temps:
+	# 					folder = job_template.replace("{a}",str(a)).replace("{n}",str(n)).replace("{t}",str(t))
+	# 					verify_name_based_on_balls(folder)
 
 if __name__ == '__main__':
 	main()

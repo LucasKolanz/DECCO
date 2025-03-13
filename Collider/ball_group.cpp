@@ -10,6 +10,16 @@
 #include "../utilities/simple_graph.hpp"
 
 
+//For testing
+Ball_group::Ball_group(std::string& path,bool test)
+{
+    parse_input_file(path);
+    attrs.relax_index = 93;
+    std::string filename = find_file_name(path,attrs.relax_index);
+    std::cerr<<"Filename: "<<filename<<std::endl; 
+    loadSim(path, filename.substr(filename.find_last_of('/')+1,filename.size()));
+    std::cerr<<isConnected(pos,R,attrs.num_particles)<<std::endl;
+}
 
 /// @brief For creating a new ballGroup of size nBalls
 /// @param nBalls Number of balls to allocate.

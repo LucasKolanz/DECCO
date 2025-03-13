@@ -322,6 +322,7 @@ public:
 
     //Constructors
     Ball_group() = default;
+    Ball_group(std::string& path,bool test); //Testing constructor
     explicit Ball_group(const int nBalls);
     // explicit Ball_group(const std::string& path, const std::string& filename, int start_file_index);
     explicit Ball_group(std::string& path,const int index=-1);

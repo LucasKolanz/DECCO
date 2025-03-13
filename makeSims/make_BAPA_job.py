@@ -54,7 +54,7 @@ if __name__ == '__main__':
 	attempts = [i for i in range(0,30)]#[0,1,2,3,4,5,6,7,8,9]#,11,12,13,14,15,16,17,18,19,20] 
 	# attempts = [0]
 	N = [300] #final size
-	M = [20,50,60] #starting sizes
+	M = [20,30,50,60,100] #starting sizes
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [1000]
@@ -83,59 +83,64 @@ if __name__ == '__main__':
 					else:
 						print("Job '{}' already exists.".format(job))
 
-					####################################
-					######Change input values here######
-					input_json['temp'] = Temp
-					input_json['N'] = n
-					input_json['M'] = m
-					input_json['output_folder'] = job
-					input_json['OMPthreads'] = 1
-					input_json['MPInodes'] = 1
-					input_json['impactParameter'] = -1.0
+					if os.path.exists(job+'timing.txt'):
+						print("Job already finished.")
+					else:
+						
 
-					input_json['seed'] = rand_int()
-					# input_json['seed'] = 101
+						####################################
+						######Change input values here######
+						input_json['temp'] = Temp
+						input_json['N'] = n
+						input_json['M'] = m
+						input_json['output_folder'] = job
+						input_json['OMPthreads'] = 1
+						input_json['MPInodes'] = 1
+						input_json['impactParameter'] = -1.0
 
-					# input_json['radiiDistribution'] = 'logNormal'
-					# input_json['h_min'] = 0.5
-					
-					# input_json['timeResolution'] = 1e-6
+						input_json['seed'] = rand_int()
+						# input_json['seed'] = 101
 
-					# input_json['simTimeSeconds'] = 1e-6
-					input_json['simTimeSeconds'] = 5e-4
+						# input_json['radiiDistribution'] = 'logNormal'
+						# input_json['h_min'] = 0.5
+						
+						# input_json['timeResolution'] = 1e-6
 
-					input_json['dataFormat'] = "csv"
-					input_json['simType'] = "BAPA"
-					input_json['random_folder_template'] = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{a}/N_300/T_1000/"
+						# input_json['simTimeSeconds'] = 1e-6
+						input_json['simTimeSeconds'] = 5e-4
 
-					# input_json['u_s'] = 0.5
-					# input_json['u_r'] = 0.5
-					# input_json['note'] = "Does this work at all?"
-					####################################
+						input_json['dataFormat'] = "csv"
+						input_json['simType'] = "BAPA"
+						input_json['random_folder_template'] = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{a}/N_300/T_1000/"
 
-					with open(job + "input.json",'w') as fp:
-						json.dump(input_json,fp,indent=4)
+						# input_json['u_s'] = 0.5
+						# input_json['u_r'] = 0.5
+						# input_json['note'] = "Does this work at all?"
+						####################################
 
-					#add run script and executable to folders
-					# os.system(f"cp {project_path}default_files/run_sim.py {job}run_sim.py")
-					os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
-					os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
-					os.system(f"cp {project_path}Collider/ball_group.cpp {job}ball_group.cpp")
-					os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
+						with open(job + "input.json",'w') as fp:
+							json.dump(input_json,fp,indent=4)
 
-					randint = random.randint(0, 29)
-					# os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{randint}/N_30/T_3/27_RELAXconstants.csv {job}{m}_constants.csv")
-					# os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{randint}/N_30/T_3/27_RELAXsimData.csv {job}{m}_simData.csv")
-					# os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{randint}/N_30/T_3/27_RELAXenergy.csv {job}{m}_energy.csv")
-					source = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_300/T_3/{m}_*"
-					# if M == 3:
-						# source = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_3/2_R*"
-					if not os.path.exists(f"{job}{m}_simData.csv"):
-						os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_300/T_3/{m}_constants.csv {job}{m}_constants.csv")
-						os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_300/T_3/{m}_simData.csv {job}{m}_simData.csv")
-						os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_300/T_3/{m}_energy.csv {job}{m}_energy.csv")
-					
-					folders.append(job)
+						#add run script and executable to folders
+						# os.system(f"cp {project_path}default_files/run_sim.py {job}run_sim.py")
+						os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
+						os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
+						os.system(f"cp {project_path}Collider/ball_group.cpp {job}ball_group.cpp")
+						os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
+
+						randint = random.randint(0, 29)
+						# os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{randint}/N_30/T_3/27_RELAXconstants.csv {job}{m}_constants.csv")
+						# os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{randint}/N_30/T_3/27_RELAXsimData.csv {job}{m}_simData.csv")
+						# os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{randint}/N_30/T_3/27_RELAXenergy.csv {job}{m}_energy.csv")
+						source = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_300/T_3/{m}_*"
+						# if M == 3:
+							# source = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_3/2_R*"
+						if not os.path.exists(f"{job}{m}_simData.csv"):
+							os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_300/T_3/{m}_constants.csv {job}{m}_constants.csv")
+							os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_300/T_3/{m}_simData.csv {job}{m}_simData.csv")
+							os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_300/T_3/{m}_energy.csv {job}{m}_energy.csv")
+						
+						folders.append(job)
 	# print(folders)
 
 

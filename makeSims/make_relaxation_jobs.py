@@ -51,8 +51,10 @@ if __name__ == '__main__':
 	# job_set_name = "lognorm_relax"
 	# job_group = "jobsCosine"
 
-	copy_job_set_name = "SeqStickLognorm_"
-	relax_job_set_name = "SeqStickLognormrelax_"
+	# copy_job_set_name = "SeqStickLognorm_"
+	# relax_job_set_name = "SeqStickLognormrelax_"
+	copy_job_set_name = "SeqStickConst_"
+	relax_job_set_name = "SeqStickConstrelax_"
 	job_group = "jobs"
 
 	
@@ -63,7 +65,7 @@ if __name__ == '__main__':
 
 	runs_at_once = 5
 	# runs_at_once = 1
-	attempts = [i for i in range(10)] 
+	attempts = [i for i in range(30)] 
 	# attempts = [0] 
 	N = [300]
 	# N = [100]
