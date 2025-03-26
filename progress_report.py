@@ -116,15 +116,15 @@ def main():
 	attempts = [i for i in range(10)]
 	# attempts = [0]
 
-	N = [30,100,300]
+	# N = [30,100,300]
 	N = [300]
-	M = [20,50,60]
+	M = [3,5,10,15]
 	# N=[5]
 
 	Temps = [1000]
 	# Temps = [3]
 
-	job_status,unfinished_jobs = get_status(job,N,Temps,attempts)
+	job_status,unfinished_jobs = get_status(job,N,M,Temps,attempts)
 	progress_bar_percents = np.full((len(M),len(N),len(Temps),3),fill_value=-1,dtype=np.float64)
 	lines = []
 

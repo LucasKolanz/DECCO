@@ -133,15 +133,16 @@ if __name__ == '__main__':
 					if not os.path.exists(job):
 						os.makedirs(job)
 					else:
-						print("Job '{}' already exists.".format(job))
+						print(f"Job already exists: {job}")
 
 
 					if os.path.exists(job+"timing.txt"):
-						print("Sim already complete")
+						print(f"Sim already complete: {job}")
 
 					elif on_queue(job):
-						print("Sim already on queue")
+						print(f"Sim already on queue: {job}")
 					else:
+						print(f"(Re)Starting job: {job}")
 						####################################
 						######Change input values here######
 						input_json['temp'] = Temp

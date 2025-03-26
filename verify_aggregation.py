@@ -60,7 +60,7 @@ def are_spheres_connected(pos, radii):
 				visited[neighbor] = True
 				queue.append(neighbor)
 
-	print(visited)
+	# print(visited)
 	return all(visited)
 
 
@@ -82,7 +82,7 @@ if __name__ == '__main__':
 	path = input_json["data_directory"]
 
 	data_prefolder = path + 'jobs/BAPA_*'
-	data_prefolder = '/home/kolanzl/Desktop/Visualize/V19/'
+	# data_prefolder = '/home/kolanzl/Desktop/Visualize/V19/'
 
 	possible_dirs = u.get_directores(data_prefolder)
 
