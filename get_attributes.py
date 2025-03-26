@@ -33,46 +33,6 @@ def get_last_velocity(data_folder,size,relax=False):
 
 
 
-def calc_porosity_KBM(data_folder,size,relax=False):
-	data,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
-	if data is None:
-		return np.nan
-	# num_balls = data.shape[0]
-
-	effective_radius = np.power(np.sum(np.power(radius,3)),1/3)  
-	# effective_radius = radius*np.power(num_balls,1/3) 
-		
-	principal_moi = u.get_principal_moi(np.mean(mass),data)
-	# principal_moi = get_principal_moi(mass,data)
-
-	alphai = principal_moi/(0.4*np.sum(mass)*effective_radius**2)
-	# alphai = principal_moi/(0.4*num_balls*mass*effective_radius**2)
-
-	RKBM = np.sqrt(np.sum(alphai)/3) * effective_radius
-
-
-	porosity = 1-np.power((effective_radius/RKBM),3)
-	return porosity
-
-def calc_number_of_contacts(data_folder,size,relax=False):
-	data,radius,mass,moi = u.get_data(data_folder,data_index=size,linenum=-1,relax=relax)
-
-	if data is None:
-		return np.nan
-	data = np.array(data)
-	num_balls = data.shape[0]
-
-	contacts = np.zeros((num_balls,num_balls),dtype=int)
-	dist = lambda i,j: np.sqrt((data[i][0]-data[j][0])**2 + (data[i][1]-data[j][1])**2 + \
-			(data[i][2]-data[j][2])**2)
-
-	for i in range(num_balls):
-		for j in range(num_balls):
-			if i != j:
-				contacts[i,j] = (dist(i,j) <= (radius[i]+radius[j]))
-
-	return np.mean(np.sum(contacts,axis=1))
-
 
 
 

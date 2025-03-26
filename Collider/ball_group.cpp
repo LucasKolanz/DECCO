@@ -370,7 +370,7 @@ void Ball_group::init_data(int counter = 0)
 std::string Ball_group::data_type_from_input(const std::string location)
 {
     json inputs = getJsonFromFolder(location);
-    if (inputs.contains("random_folder_template"))
+    if (inputs.contains("dataFormat"))
     {
         return inputs["dataFormat"];
     }
@@ -2827,6 +2827,9 @@ void Ball_group::pos_and_vel_for_collision(Ball_group &projectile,Ball_group &ta
     else
     {
         // TODO::MAke this work in any direction, not just xy plane  
+        MPIsafe_print(std::cerr,"ERROR::if you made it here, you need to finish this code before this can run.");
+        MPIsafe_exit(-1);
+        // projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*projectile_direction);
         projectile.offset(
             projectile.attrs.initial_radius + projectile.getRmax(), target.attrs.initial_radius + target.getRmax(), attrs.impactParameter);
         MPIsafe_print(std::cerr,"Applying impact parameter of "+std::to_string(attrs.impactParameter)+" cm.\n");

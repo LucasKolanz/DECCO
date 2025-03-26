@@ -2,20 +2,26 @@ import os
 import json
 import multiprocessing as mp
 import subprocess
+import random
 
 relative_path = "../"
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
 
-# def run_job(location,num_balls):
-# 	cmd = ["python3", "{}run_sim.py".format(location), location, str(num_balls)]
-# 	# print(cmd)
-# 	subprocess.run(cmd)
+def rand_int():
+	# Generating a random integer from 0 to the maximum unsigned integer in C++
+	# In C++, the maximum value for an unsigned int is typically 2^32 - 1
+	max_unsigned_int_cpp = 2**32 - 1
+	random_unsigned_int = random.randint(0, max_unsigned_int_cpp)
+	return random_unsigned_int
 
 def run_job(location):
 	output_file = location + "sim_output.txt"
 	error_file = location + "sim_errors.txt"
-	cmd = [f"{location}ColliderSingleCore.x",location]
+	cmd = [f"{location}Collider.x",location]
+
+	with open(output_file,"a") as out, open(error_file,"a") as err:
+		subprocess.run(cmd,stdout=out,stderr=err)
 
 if __name__ == '__main__':
 	#make new output folders
@@ -23,82 +29,93 @@ if __name__ == '__main__':
 
 	try:
 		# os.chdir("{}ColliderSingleCore".format(curr_folder))
-		subprocess.run(["make","-C",project_path+"ColliderSingleCore"], check=True)
+		subprocess.run(["make","-C",project_path+"Collider"], check=True)
 	except:
 		print('compilation failed')
 		exit(-1)
 
 
-	job_set_name = "lognorm"
 	job_set_name = "overflow_tester"
+	job_set_name = "lognorm_"
+	job_set_name = "test_"
 	# folder_name_scheme = "T_"
 
-	runs_at_once = 5
+	runs_at_once = 1
 	# attempts = [21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40]
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
-	attempts = [i for i in range(10)]
-	# attempts = [1] 
-	attempts_300 = [i for i in range(5)]
+	# attempts = [i for i in range(10)]
+	attempts = [99]#[7,19,20] 
+	# attempts_300 = [i for i in range(5)]
 
 	#test it out first
 	# attempts = [0]
 	# attempts_300 = [0]
 
-	N = [30,100,300]
+	# N = [30,100,300]
 	N = [300]
 	# N = [5]
-	Temps = [3,10,30,100,300,1000]
-	# Temps = [3]
+	# Temps = [3,10,30,100,300,1000]
+	Temps = [1000]
 
 	folders = []
-	folders_N = []
+
+	#load default input file
+	with open(project_path+"default_files/default_input.json",'r') as fp:
+		input_json = json.load(fp)
+
+	job_template = input_json["data_directory"] + 'jobsCosine/' + job_set_name + '{a}/N_{n}/T_{t}/'
+
+
 	for n in N:
 		for Temp in Temps:
-			temp_attempt = attempts
-			if n == 300:
-				temp_attempt = attempts_300
-			for attempt in temp_attempt:
-				job = project_path + 'jobs/' + job_set_name + str(attempt) + '/'\
-							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
+			# temp_attempt = attempts
+			# if n == 300:
+			# 	temp_attempt = attempts_300
+			# for attempt in temp_attempt:
+			for attempt in attempts:
+				job = job_template.replace('{a}',str(attempt)).replace('{n}',str(n)).replace('{t}',str(Temp))
 				if not os.path.exists(job):
 					os.makedirs(job)
 				else:
 					print("Job '{}' already exists.".format(job))
 
+				if os.path.exists(job+'timing.txt'):
+					print("Job already finished.")
+				else:
+					#load default input file
+					with open(project_path+"default_files/default_input.json",'r') as fp:
+						input_json = json.load(fp)
 
-				#load default input file
-				with open(project_path+"default_files/default_input.json",'r') as fp:
-					input_json = json.load(fp)
+					####################################
+					######Change input values here######
+					input_json['temp'] = Temp
+					input_json['N'] = n
+					input_json['seed'] = rand_int()
+					input_json['radiiDistribution'] = 'logNormal'
+					# input_json['impactParameter'] = -1.0
+					input_json['h_min'] = 0.5
+					input_json['dataFormat'] = "csv"
+					# input_json['dataFormat'] = "h5"
+					input_json['output_folder'] = job
+					input_json['note'] = "Finally running these"
+					####################################
 
-				####################################
-				######Change input values here######
-				input_json['temp'] = Temp
-				input_json['seed'] = 'default'
-				input_json['radiiDistribution'] = 'logNormal'
-				input_json['h_min'] = 0.5
-				input_json['N'] = n
-				# input_json['u_s'] = 0.5
-				# input_json['u_r'] = 0.5
-				input_json['note'] = "Runs testing h_min = 0.5 (5e-6) with lognormal distribution"
-				####################################
-
-				with open(job + "input.json",'w') as fp:
-					json.dump(input_json,fp,indent=4)
-
-
-				
-				#####################3#add run script and executable to folders
-				os.system(f"cp {project_path}default_files/run_sim.py {job}run_sim.py")
-				os.system(f"cp {project_path}ColliderSingleCore/ColliderSingleCore.x {job}ColliderSingleCore.x")
-				folders_N.append(n)
-				folders.append(job)
-				######################################################
-	# print(folders)
-	# if len(N) != len(folders):
-	# 	for i in range(len(folders))
-	# 	N = [str(N[0]) for i in range(len(folders))]
+					with open(job + "input.json",'w') as fp:
+						json.dump(input_json,fp,indent=4)
 
 
+					
+					#####################3#add run script and executable to folders
+					os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
+					os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
+					os.system(f"cp {project_path}Collider/ball_group.cpp {job}ball_group.cpp")
+					os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
+
+					folders.append(job)
+					######################################################
+
+
+	print(folders)
 
 	with mp.Pool(processes=runs_at_once) as pool:
 		for folder in folders:
@@ -107,9 +124,7 @@ if __name__ == '__main__':
 		pool.close()
 		pool.join()
 
-	# for i in range(0,len(folders),runs_at_once):
-	# 	with mp.Pool(processes=runs_at_once) as pool:
-	# 		pool.starmap(run_job,inputs[i:i+runs_at_once]) 
+
 
 
 	
