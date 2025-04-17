@@ -2811,11 +2811,19 @@ void Ball_group::pos_and_vel_for_collision(Ball_group &projectile,Ball_group &ta
     // projectile.move(vec3(projectile.attrs.initial_radius + projectile.getRmax()*2 + target.attrs.initial_radius + target.getRmax() * 2, 0, 0));
 
     //This takes care of offsetting the target and projectile, but still need to move them apart
+    // std::cerr<<"impact parameter: "<<attrs.impactParameter<<std::endl;
+    
     if (attrs.impactParameter < 0.0)
     {
         //move the projectile so it is barely not touching the target
         // projectile.offset(
         //     projectile.attrs.initial_radius + projectile.getRmax(), target.attrs.initial_radius + target.getRmax(), 0);
+
+        // std::cerr<<"projectile.attrs.initial_radius: "<<projectile.attrs.initial_radius<<std::endl;
+        // std::cerr<<"projectile.R[0]: "<<projectile.R[0]<<std::endl;
+        // std::cerr<<"ptarget.attrs.initial_radius: "<<target.attrs.initial_radius<<std::endl;
+
+        // MPIsafe_exit(-1);
         
         projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*projectile_direction);
 

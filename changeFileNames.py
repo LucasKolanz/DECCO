@@ -283,8 +283,8 @@ def main():
 				for t in Temps:
 					folder = job_template.replace("{a}",str(a)).replace("{n}",str(n)).replace("{t}",str(t))
 					print(folder)
-					rename_h5_files(folder,just_print)
-					# rename_files(folder,just_print)
+					rename_files(folder,just_print)
+					# rename_h5_files(folder,just_print)
 					
 	# if not just_print:
 	# 	for job_template in job_templates:

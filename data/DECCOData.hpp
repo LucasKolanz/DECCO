@@ -191,10 +191,10 @@ public:
 	bool write_checkpoint();
 	
 	
+	std::string filename;
 private:
 	
 	std::string storage_type;
-	std::string filename;
 	int num_particles;
 	int writes;
 	int steps;
