@@ -172,7 +172,6 @@ void Ball_group::aggregationInit(const std::string path,const int index)
     {
         restart = 1;
     }
-    // std::cerr<<"RESTART:::   "<<restart<<std::endl;
 
     // If the simulation is complete exit now. Otherwise, the call to 
     //find_whole_file_name will possibly delete one of the data files 
@@ -2812,23 +2811,34 @@ void Ball_group::pos_and_vel_for_collision(Ball_group &projectile,Ball_group &ta
 
     //This takes care of offsetting the target and projectile, but still need to move them apart
     // std::cerr<<"impact parameter: "<<attrs.impactParameter<<std::endl;
-    
+
     if (attrs.impactParameter < 0.0)
     {
         //move the projectile so it is barely not touching the target
         // projectile.offset(
         //     projectile.attrs.initial_radius + projectile.getRmax(), target.attrs.initial_radius + target.getRmax(), 0);
 
-        // std::cerr<<"projectile.attrs.initial_radius: "<<projectile.attrs.initial_radius<<std::endl;
-        // std::cerr<<"projectile.R[0]: "<<projectile.R[0]<<std::endl;
-        // std::cerr<<"ptarget.attrs.initial_radius: "<<target.attrs.initial_radius<<std::endl;
+        std::cerr<<"projectile.init pos: "<<projectile.pos[0]<<std::endl;
+        std::cerr<<"target.init pos: "<<target.getCOM()<<std::endl;
+        std::cerr<<"projectile.attrs.initial_radius: "<<projectile.attrs.initial_radius<<std::endl;
+        std::cerr<<"projectile.R[0]: "<<projectile.R[0]<<std::endl;
+        std::cerr<<"ptarget.attrs.initial_radius: "<<target.attrs.initial_radius<<std::endl;
+        std::cerr<<"updated ptarget.attrs.initial_radius: "<<target.getRadius(target.getCOM())<<std::endl;
 
-        // MPIsafe_exit(-1);
+        std::cerr<<"direction norm: "<<projectile_direction.norm()<<std::endl;
+
+        std::cerr<<"projectile target dist pre move: "<<(projectile.getCOM()-target.getCOM()).norm()<<std::endl;
         
         projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*projectile_direction);
 
+
+        std::cerr<<"projectile target dist post move: "<<(projectile.getCOM()-target.getCOM()).norm()<<std::endl;
+
+
+
         //give the projectile a random offset such that they still collide
         const auto offset = random_offset(projectile, target); 
+        std::cerr<<"projectile target dist post offset: "<<(projectile.getCOM()-target.getCOM()).norm()<<std::endl;
         MPIsafe_print(std::cerr,"Applying random offset of "+vToSci(offset)+" cm.\n");
 
     }
@@ -2848,6 +2858,8 @@ void Ball_group::pos_and_vel_for_collision(Ball_group &projectile,Ball_group &ta
     //Now we can move the aggregates apart a little bit if they are touching
     //If they are touching, move the projectile in projectile_direction
     moveApart(projectile_direction,projectile,target);
+    std::cerr<<"projectile target dist post moveApart: "<<(projectile.getCOM()-target.getCOM()).norm()<<std::endl;
+    // MPIsafe_exit(-1);
 }
 
 void Ball_group::overwrite_v_custom(Ball_group &projectile)
@@ -3204,8 +3216,8 @@ int Ball_group::check_restart(std::string folder)
             return 2;
         }
 
-        //Is the data in csv format?
-        if (file.substr(file.size()-4,file.size()) == ".csv")
+        //Is the data in csv format? (and isnt job_data.csv)
+        if (file.substr(file.size()-4,file.size()) == ".csv" && file != "job_data.csv")
         {
             // file_count++;
             size_t _pos = file.find_first_of("_");
@@ -3225,6 +3237,7 @@ int Ball_group::check_restart(std::string folder)
         else if (file.substr(file.size()-3,file.size()) == ".h5")
         {
             size_t _pos = file.find_first_of("_");
+            std::cerr<<file.substr(0,file.find_first_of("_"))<<std::endl;
             file_index = stoi(file.substr(0,file.find_first_of("_")));
             if (file_index > largest_file_index)
             {
