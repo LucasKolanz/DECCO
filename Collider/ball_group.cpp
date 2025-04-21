@@ -1541,7 +1541,7 @@ Ball_group Ball_group::BPCA_projectile_init()
 
     pos_and_vel_for_collision(projectile);
 
-
+    std::cerr<<"projectile at end of BPCA proj init: "<<projectile.pos[0]<<std::endl;
     // projectile.vel[0] = -attrs.v_custom * projectile_direction;
 
     // const double3x3 local_coords = local_coordinates(to_double3(projectile_direction));
@@ -1861,8 +1861,8 @@ Ball_group Ball_group::add_projectile(const simType simtype)
 
     projectile.calc_momentum("Projectile");
     calc_momentum("Target");
-    std::cerr<<"Projectile number of particles: "<<projectile.attrs.num_particles<<std::endl;
-    std::cerr<<"Target number of particles:     "<<attrs.num_particles<<std::endl;
+    // std::cerr<<"Projectile number of particles: "<<projectile.attrs.num_particles<<std::endl;
+    // std::cerr<<"Target number of particles:     "<<attrs.num_particles<<std::endl;
     Ball_group new_group{projectile.attrs.num_particles + attrs.num_particles};
 
     int new_num_particles = projectile.attrs.num_particles + attrs.num_particles;
@@ -1883,10 +1883,13 @@ Ball_group Ball_group::add_projectile(const simType simtype)
     {
         new_group.calibrate_dt(0, attrs.v_custom);
     }
+    
 
     new_group.init_conditions();
     new_group.to_origin();
-   
+
+    std::cerr<<"projectile pos end of add projectile: "<<new_group.pos[new_group.attrs.num_particles-1]<<std::endl;
+
     return new_group;
 }
 
@@ -2770,7 +2773,7 @@ void Ball_group::pos_and_vel_for_collision(Ball_group &projectile)
 }
 void Ball_group::pos_and_vel_for_collision(Ball_group &projectile,Ball_group &target)
 {
-
+    target.attrs.initial_radius = target.getRadius(target.getCOM());
 
     // Collision velocity calculation:
     // Make it so collision velocity is v_custom and 
@@ -2805,7 +2808,6 @@ void Ball_group::pos_and_vel_for_collision(Ball_group &projectile,Ball_group &ta
     target.kick(vBig*projectile_direction);
     
 
-
     //move projectile so it is down the x-axis 
     // projectile.move(vec3(projectile.attrs.initial_radius + projectile.getRmax()*2 + target.attrs.initial_radius + target.getRmax() * 2, 0, 0));
 
@@ -2818,27 +2820,27 @@ void Ball_group::pos_and_vel_for_collision(Ball_group &projectile,Ball_group &ta
         // projectile.offset(
         //     projectile.attrs.initial_radius + projectile.getRmax(), target.attrs.initial_radius + target.getRmax(), 0);
 
-        std::cerr<<"projectile.init pos: "<<projectile.pos[0]<<std::endl;
-        std::cerr<<"target.init pos: "<<target.getCOM()<<std::endl;
-        std::cerr<<"projectile.attrs.initial_radius: "<<projectile.attrs.initial_radius<<std::endl;
-        std::cerr<<"projectile.R[0]: "<<projectile.R[0]<<std::endl;
-        std::cerr<<"ptarget.attrs.initial_radius: "<<target.attrs.initial_radius<<std::endl;
-        std::cerr<<"updated ptarget.attrs.initial_radius: "<<target.getRadius(target.getCOM())<<std::endl;
+        // std::cerr<<"projectile.init pos: "<<projectile.pos[0]<<std::endl;
+        // std::cerr<<"target.init pos: "<<target.getCOM()<<std::endl;
+        // std::cerr<<"projectile.attrs.initial_radius: "<<projectile.attrs.initial_radius<<std::endl;
+        // std::cerr<<"projectile.R[0]: "<<projectile.R[0]<<std::endl;
+        // std::cerr<<"ptarget.attrs.initial_radius: "<<target.attrs.initial_radius<<std::endl;
+        // std::cerr<<"updated ptarget.attrs.initial_radius: "<<target.getRadius(target.getCOM())<<std::endl;
 
-        std::cerr<<"direction norm: "<<projectile_direction.norm()<<std::endl;
+        // std::cerr<<"direction norm: "<<projectile_direction.norm()<<std::endl;
 
-        std::cerr<<"projectile target dist pre move: "<<(projectile.getCOM()-target.getCOM()).norm()<<std::endl;
+        // std::cerr<<"projectile target dist pre move: "<<(projectile.getCOM()-target.getCOM()).norm()<<std::endl;
         
         projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*projectile_direction);
 
 
-        std::cerr<<"projectile target dist post move: "<<(projectile.getCOM()-target.getCOM()).norm()<<std::endl;
+        // std::cerr<<"projectile target dist post move: "<<(projectile.getCOM()-target.getCOM()).norm()<<std::endl;
 
 
 
         //give the projectile a random offset such that they still collide
         const auto offset = random_offset(projectile, target); 
-        std::cerr<<"projectile target dist post offset: "<<(projectile.getCOM()-target.getCOM()).norm()<<std::endl;
+        // std::cerr<<"projectile target dist post offset: "<<(projectile.getCOM()-target.getCOM()).norm()<<std::endl;
         MPIsafe_print(std::cerr,"Applying random offset of "+vToSci(offset)+" cm.\n");
 
     }
@@ -2858,7 +2860,10 @@ void Ball_group::pos_and_vel_for_collision(Ball_group &projectile,Ball_group &ta
     //Now we can move the aggregates apart a little bit if they are touching
     //If they are touching, move the projectile in projectile_direction
     moveApart(projectile_direction,projectile,target);
-    std::cerr<<"projectile target dist post moveApart: "<<(projectile.getCOM()-target.getCOM()).norm()<<std::endl;
+    std::cerr<<"ptarget.attrs.initial_radius: "<<target.attrs.initial_radius<<std::endl;
+    std::cerr<<"projectile target dist at end of pos and vel for collision: "<<(projectile.getCOM()-target.getCOM()).norm()<<std::endl;
+    std::cerr<<"projectile at end of pos and vel for collision: "<<projectile.pos[0]<<std::endl;
+
     // MPIsafe_exit(-1);
 }
 
@@ -3237,7 +3242,6 @@ int Ball_group::check_restart(std::string folder)
         else if (file.substr(file.size()-3,file.size()) == ".h5")
         {
             size_t _pos = file.find_first_of("_");
-            std::cerr<<file.substr(0,file.find_first_of("_"))<<std::endl;
             file_index = stoi(file.substr(0,file.find_first_of("_")));
             if (file_index > largest_file_index)
             {
