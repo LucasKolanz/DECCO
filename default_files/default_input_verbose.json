@@ -36,6 +36,13 @@
 	"G": 6.67e-8,
 	//density of constituent balls in g/cm^3
 	"density": 2.25,
+	//weld fragments together during BAPA
+	"weld": "false",
+	//Use JKR contact model
+	"JKR": "false",
+	//material for the balls to be (only used if JKR is true)
+	//Options: amorphousCarbon, quartz, 
+	"material": "",
 	//Coefficient of sliding friction
 	"u_s": 0.1,
 	//Coefficient of rolling friction

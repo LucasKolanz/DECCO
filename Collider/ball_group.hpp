@@ -33,9 +33,23 @@ using json = nlohmann::json;
 extern const int bufferlines;
 enum distributions {constant, logNorm};
 enum simType {BPCA, BCCA, BAPA, collider, relax};
+enum materials = {amorphousCarbon,quartz}
 
 constexpr double Kb = 1.380649e-16; //in erg/K
 constexpr double pi = 3.14159265358979311599796346854;
+
+//struct to keep track of material properties
+struct material_properties
+{
+    double surfaceEnergyperUnitArea; //(ergs/cm^2 and mJ/m^2) gamma
+    double youngsModulus; //(Barye = g/(cm*s^2)) E
+    double shearModulus; //(Barye) G
+    double poissonRatio; //(unitless) nu
+    double density; //(g/cm^3) 
+};
+
+const material_properties quartz_mat = {25.0,54e10,44e10,0.17,2.6}; //all from Wada 2007 exept shear Modulus which is from http://www-odp.tamu.edu/publications/204_SR/103/103_t1.htm
+const material_properties aCarbon_mat = {1,1,1,1,2.25};
 
 
 //This struct is meant to encompass all values necessary to carry out a simulation, besides the physical
@@ -59,6 +73,7 @@ struct Ball_group_attributes
 
     // std::string out_folder;
     int num_particles = 0;
+    int num_pairs = -1;
     int num_particles_added = 0;
     int MAXOMPthreads = 1;
     int OMPthreads = 1;
@@ -78,7 +93,6 @@ struct Ball_group_attributes
     //Don't copy these during add_particle. These are set at the beginning (or during) of sim_looper
     int world_rank = -1;
     int world_size = -1;
-    int num_pairs = -1;
     bool write_step = false;
 
     const std::string sim_meta_data_name = "sim_info";
@@ -93,6 +107,7 @@ struct Ball_group_attributes
     //if true, projectile is copy of target, if false, projectile is taken from a 
     //different, random simulation that has already made it to this point.
     bool symmetric = true; 
+    bool weld = false;
 
     // Useful values:
     double r_min = -1;
@@ -161,6 +176,11 @@ struct Ball_group_attributes
     std::string filetype = "h5";
     int num_writes = 0;
 
+    //JKR stuff
+    bool JKR = false;
+    double critRollingDisp = -1.0;
+    materials material;
+
 
     // Overload the assignment operator
     Ball_group_attributes& operator=(const Ball_group_attributes& other) 
@@ -219,6 +239,7 @@ struct Ball_group_attributes
             dynamicTime = other.dynamicTime;
             G = other.G;
             density = other.density;
+            weld = other.weld;
             u_s = other.u_s;
             u_r = other.u_r;
             sigma = other.sigma;
@@ -263,6 +284,11 @@ struct Ball_group_attributes
             data_type = other.data_type;
             filetype = other.filetype;
             num_writes = other.num_writes;
+
+            //JKR stuff
+            JKR = other.JKR;
+            critRollingDisp = other.critRollingDisp;
+            material = other.material;
         }
         return *this;
     }
@@ -295,7 +321,22 @@ public:
 
     double PE = 0, KE = 0;
 
-    double* distances = nullptr;
+    // JKR stuff (for now I'm going to calculate stuff once so it can be easily looked up since there is pleanty of ram)
+    //           (if everything is the same material, most of this simplifies to a single value rather than pairwise or particlewise)
+    vec3* n_hats = nullptr; //2*pairwise (unit vector pointing from center of ball to contact point)
+    double* nu = nullptr; //poisson ratio(unitless)
+    double* G = nullptr; //sheer modulus(dynes/cm^2)
+    double* E = nullptr; //youngs modulus(dynes/cm^2)
+    double* gamma = nullptr; //surface Energy per unit area (For a single surface!!) (dynes/cm^2)
+    double* a0 = nullptr; //equilibrium contact area radius pairwise (cm)
+    double* reducedE = nullptr; //pairwise (dynes/cm^2)
+    double* reducedG = nullptr; //pairwise (dynes/cm^2)
+    double* reducedR = nullptr; //pairwise (cm)
+    double* reducedGamma = nullptr; //surface Energy per unit area (reducedGamma=gamma1+gamma2-2*gamma12)(D and T) pairwise (dynes/cm^2)
+
+
+
+    double* distances = nullptr; //pairwise
 
     vec3* pos = nullptr;
     vec3* vel = nullptr;
@@ -311,6 +352,8 @@ public:
     double* R = nullptr;    ///< Radius
     double* m = nullptr;    ///< Mass
     double* moi = nullptr;  ///< Moment of inertia
+    int* group = nullptr;   ///< group a ball belongs to
+    int num_groups = 0;
     //////////////////////////////////
 
     //The DECCOData class takes care of reading and writing data in whatever format is specified in the input file 
@@ -402,8 +445,9 @@ public:
     std::string data_type_from_input(const std::string location);
 
 
-
-
+    //JKR stuff
+    void JKRpropertiesInit(); //initalize elastic properties for all balls ONLY FOR SINGLE MATERIAL AT THE MOMENT
+    void JKRreducedInit();    //initalize elastic properties for all pairs
 
     
     bool isAggregation();
@@ -424,12 +468,16 @@ public:
     void sim_continue(const std::string& path);
     void sim_init_two_cluster(const std::string& path,const std::string& projectileName,const std::string& targetName);
     void verify_projectile(const std::string projectile_folder, const int index, const double max_wait_time);
+
+
+
 private:
 
 };
 
 
     
+
 bool is_touching(Ball_group &projectile,Ball_group &target);
 void moveApart(const vec3 &projectile_direction,Ball_group &projectile,Ball_group &target);
 

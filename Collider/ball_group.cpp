@@ -31,6 +31,11 @@ Ball_group::Ball_group(const int nBalls)
         m[i] = 1;
         moi[i] = calc_moi(R[i], m[i]);
     }
+    if (attrs.JKR)
+    {
+        JKRpropertiesInit(); //initalize elastic properties for all balls
+        JKRreducedInit();
+    }
 }
 
 /// @brief For generating a new ballGroup of any simTypes
@@ -43,6 +48,11 @@ Ball_group::Ball_group(std::string& path, const int index)
 {
     parse_input_file(path);
 
+    if (attrs.JKR)
+    {
+        JKRpropertiesInit(); //initalize elastic properties for all balls
+        // JKRreducedInit(); //this is called in init_conditions which is called in all the Init functions below
+    }
 
     if (attrs.typeSim == BPCA || attrs.typeSim == BCCA || attrs.typeSim == BAPA)
     {
@@ -71,7 +81,8 @@ Ball_group::Ball_group(std::string& path, const int index)
         std::string message("ERROR: simType is not set.\n");
         MPIsafe_print(std::cerr,message);
     }
-        
+
+   
 }
 
 Ball_group::Ball_group(const Ball_group& rhs)
@@ -92,11 +103,26 @@ Ball_group::Ball_group(const Ball_group& rhs)
         PE = rhs.PE;
         KE = rhs.KE;
 
-
+        if (attrs.JKR)
+        {
+            for (int i = 0; i < 2*rhs.attrs.num_pairs; ++i) //2*number of pairs of n_hat vectors
+            {
+                n_hats[i] = rhs.n_hats[i];
+            }
+        }
 
         for (int i = 0; i < rhs.attrs.num_pairs; ++i)
         {
             distances[i] = rhs.distances[i];
+
+            if (attrs.JKR)
+            {
+                a0[i] = rhs.a0[i];
+                reducedE[i] = rhs.reducedE[i];
+                reducedG[i] = rhs.reducedG[i];
+                reducedR[i] = rhs.reducedR[i];
+                reducedGamma[i] = rhs.reducedGamma[i];
+            }
         }
 
         for (int i = 0; i < rhs.attrs.num_particles; ++i)
@@ -110,7 +136,15 @@ Ball_group::Ball_group(const Ball_group& rhs)
             aacc[i] = rhs.aacc[i];
             R[i] = rhs.R[i];      ///< Radius
             m[i] = rhs.m[i];      ///< Mass
-            moi[i] = rhs.moi[i];  ///< Moment of inertia            
+            moi[i] = rhs.moi[i];  ///< Moment of inertia       
+
+            if (attrs.JKR)
+            {
+                nu[i] = rhs.nu[i];
+                G[i] = rhs.G[i];
+                E[i] = rhs.E[i];
+                gamma[i] = rhs.gamma[i];
+            }
         }
 
 
@@ -120,7 +154,21 @@ Ball_group::Ball_group(const Ball_group& rhs)
 
     // return *this;
 
+}
 
+//initalizes material properties for JKR contact model
+void Ball_group::JKRreducedInit()
+{
+    //Calculate the reduced elastic properties for all particle pairs 
+    for (int A = 1; A < attrs.num_particles; A++)  
+    {
+        // DONT DO ANYTHING HERE. A STARTS AT 1.
+        for (int B = 0; B < A; B++) 
+        {
+
+        }
+
+    }
 }
 
 // Initializes relax job (only new, not for restart)
@@ -320,6 +368,17 @@ Ball_group& Ball_group::operator=(const Ball_group& rhs)
     m = rhs.m;      ///< Mass
     moi = rhs.moi;  ///< Moment of inertia
 
+    n_hats = rhs.n_hats;
+    nu = rhs.nu;
+    G = rhs.G;
+    E = rhs.E;
+    gamma = rhs.gamma;
+    a0 = rhs.a0;
+    reducedE = rhs.reducedE;
+    reducedG = rhs.reducedG;
+    reducedR = rhs.reducedR;
+    reducedGamma = rhs.reducedGamma;
+
 
     data = rhs.data;
 
@@ -327,7 +386,48 @@ Ball_group& Ball_group::operator=(const Ball_group& rhs)
     
 }
 
+//initalize elastic properties for all balls ONLY FOR SINGLE MATERIAL AT THE MOMENT
+void Ball_group::JKRpropertiesInit()
+{
+    material_properties mat;
+    if (attrs.material == amorphousCarbon)
+    {
+        mat = acarbon_mat;
+    }
+    else if (attrs.material == quartz)
+    {
+        mat = quartz_mat;
+    }
+    else
+    {
+        MPIsafe_print(std::cerr,"ERROR in JKRpropertiesInit, material '"+attrs.material+"' not accounted for.\n");
+        MPIsafe_exit(-1);
+    }
 
+    for (int i = 0; i < attrs.num_particles; ++i)
+    {
+        nu[i] = mat.poissonRatio;
+        E[i] = mat.youngsModulus;
+        gamma[i] = mat.surfaceEnergyperUnitArea;
+        G[i] = mat.shearModulus;
+        density[i] = mat.density;
+    }
+}
+
+//initalize elastic properties for all pairs
+void Ball_group::JKRreducedInit()
+{
+    for (int A = 1; A < attrs.num_particles; A++)  // cuda
+    {
+        // DONT DO ANYTHING HERE. A STARTS AT 1.
+        for (int B = 0; B < A; B++) 
+        {
+            int e = static_cast<int>(A * (A - 1) * .5) + B;  // a^2-a is always even, so this works.
+
+            reducedE[e] = 1/((1-nu[A]*nu[A])/E[A] + (1-nu[B]*nu[B])/E[B]);
+        }
+    }
+}
 
 void Ball_group::init_data(int counter = 0)
 {
@@ -491,6 +591,33 @@ void Ball_group::parse_input_file(std::string location)
         attrs.typeSim = relax;
         set_attribute(inputs,"relaxIndex",attrs.relax_index);
         // attrs.relax_index = inputs["relaxIndex"];
+    }
+
+    std::string temp_material = "";
+    set_attribute(inputs,"material",temp_material);
+    if (temp_material == "amorphousCarbon")
+    {
+        attrs.material = amorphousCarbon;
+    }
+    else if (temp_material == "quartz")
+    {
+        attrs.material = quartz;
+    }
+    else
+    {
+        MPIsafe_print(std::cerr,"attribute 'material' with value '"+temp_material+"' is not valid.");
+        MPIsafe_exit(-1);
+    }
+
+    std::string temp_weld = "";
+    set_attribute(inputs,"weld", temp_weld);
+    if (temp_weld == "True" || temp_weld == "true" || temp_weld == "1")
+    {
+        attrs.weld = true;
+    }
+    else if (temp_weld == "False" || temp_weld == "false" || temp_weld == "0")
+    {
+        attrs.weld = false;
     }
 
     std::string temp_dataFormat = "";
@@ -1755,6 +1882,10 @@ Ball_group Ball_group::BAPA_projectile_init()
 
     MPIsafe_print(std::cerr,"Getting projectile of index "+std::to_string(attrs.M)+" from: "+rand_projectile_folder+'\n');
     Ball_group projectile(rand_projectile_folder,attrs.M);
+    if (attrs.typeSim == BAPA && attrs.weld)
+    {
+        attrs.group = 
+    }
     // projectile.zeroVel();
     // projectile.zeroAngVel();
     
@@ -1910,6 +2041,16 @@ void Ball_group::merge_ball_group(const Ball_group& src,const bool includeRadius
     std::memcpy(&R[attrs.num_particles_added], src.R, sizeof(src.R[0]) * src.attrs.num_particles);
     std::memcpy(&m[attrs.num_particles_added], src.m, sizeof(src.m[0]) * src.attrs.num_particles);
     std::memcpy(&moi[attrs.num_particles_added], src.moi, sizeof(src.moi[0]) * src.attrs.num_particles);
+    std::memcpy(&group[attrs.num_particles_added], src.group, sizeof(src.group[0]) * src.attrs.num_particles);
+
+    //JKR stuff
+    if (attrs.JKR)
+    {
+        std::memcpy(&nu[attrs.num_particles_added], src.nu, sizeof(src.nu[0]) * src.attrs.num_particles);
+        std::memcpy(&G[attrs.num_particles_added], src.G, sizeof(src.G[0]) * src.attrs.num_particles);
+        std::memcpy(&E[attrs.num_particles_added], src.E, sizeof(src.E[0]) * src.attrs.num_particles);
+        std::memcpy(&gamma[attrs.num_particles_added], src.gamma, sizeof(src.gamma[0]) * src.attrs.num_particles);
+    }
     
 
     // Keep track of now loaded ball set to start next set after it:
@@ -1942,11 +2083,12 @@ void Ball_group::merge_ball_group(const Ball_group& src,const bool includeRadius
 void Ball_group::allocate_group(const int nBalls)
 {
     attrs.num_particles = nBalls;
+    attrs.num_pairs = (attrs.num_particles * attrs.num_particles / 2) - (attrs.num_particles / 2);
 
     std::cerr<<"allocating group of size: "<<nBalls<<std::endl;
 
     try {
-        distances = new double[(attrs.num_particles * attrs.num_particles / 2) - (attrs.num_particles / 2)];
+        distances = new double[attrs.num_pairs];
 
         // #ifdef MPI_ENABLE
         #ifdef GPU_ENABLE
@@ -1964,6 +2106,21 @@ void Ball_group::allocate_group(const int nBalls)
         R = new double[attrs.num_particles];
         m = new double[attrs.num_particles];
         moi = new double[attrs.num_particles];
+        group = new int[attrs.num_particles];
+
+        if (attrs.JKR)
+        {
+            n_hats = new vec3[2*attrs.num_pairs];
+            nu = new double[attrs.num_particles];
+            G = new double[attrs.num_particles];
+            E = new double[attrs.num_particles];
+            gamma = new double[attrs.num_particles];
+            a0 = new double[attrs.num_pairs];
+            reducedE = new double[attrs.num_pairs];
+            reducedG = new double[attrs.num_pairs];
+            reducedR = new double[attrs.num_pairs];
+            reducedGamma = new double[attrs.num_pairs];
+        }
 
         
     } catch (const std::exception& e) {
@@ -1990,14 +2147,33 @@ void Ball_group::freeMemory() const
         delete[] aaccsq;
         delete[] accsq;
     #endif
+
+    if (attrs.JKR)
+    {
+        delete[] n_hats;
+        delete[] nu;
+        delete[] G;
+        delete[] E;
+        delete[] gamma;
+        delete[] a0;
+        delete[] reducedE;
+        delete[] reducedG;
+        delete[] reducedR;
+        delete[] reducedGamma;
+    }
     // delete data;
     
 }
 
-
 // Initialize accelerations and energy calculations:
 void Ball_group::init_conditions()
 {
+
+    if (attrs.JKR)
+    {
+        // JKRpropertiesInit(); //initalize elastic properties for all balls
+        JKRreducedInit();    //initalize elastic properties for all pairs
+    }
 
     // SECOND PASS - Check for collisions, apply forces and torques:
     for (int A = 1; A < attrs.num_particles; A++)  // cuda
@@ -3924,9 +4100,16 @@ void Ball_group::sim_one_step()
 }  // one Step end
 #endif 
 
+
+//WELD IS NOT IN GPU VERSION YET
 #ifdef GPU_ENABLE
 void Ball_group::sim_one_step()
 {
+    if (attrs.weld)
+    {
+        MPIsafe_print(std::cerr,"ERROR: weld not implimented for GPU version yet.\n");
+        MPIsafe_exit(-1);
+    }
     
     /// FIRST PASS - Update Kinematic Parameters:
     // t.start_event("UpdateKinPar");
@@ -4606,3 +4789,4 @@ void moveApart(const vec3 &projectile_direction,Ball_group &projectile,Ball_grou
         touching = is_touching(projectile,target);
     }
 }
+

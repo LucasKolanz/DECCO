@@ -13,6 +13,7 @@
     "dynamicTime": false,
     "G": 6.67e-08,
     "density": 2.25,
+    "weld": "false",
     "u_s": 0.1,
     "u_r": 1e-05,
     "sigma": 0.29,
@@ -25,6 +26,8 @@
     "maxOverlap": 0.1,
     "KEfactor": 0,
     "temp": -1,
+    "JKR": "false",
+    "material": "",
     "eta": -1,
     "v_custom": "default",
     "kConsts": 3000.0,
@@ -52,6 +55,6 @@
     "targetName": "",
     "output_prefix": "default",
     "output_folder": "default",
-    "data_directory": "/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/",
-    "project_directory": "/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab/"
+    "data_directory": "/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/",
+    "project_directory": "/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab/"
 }

@@ -240,7 +240,7 @@ void runAggregation(std::string path, int num_balls)
     {
         // t.start_event("add_projectile");
         O = O.add_projectile(O.attrs.typeSim);
-        std::cerr<<"projectile pos after add proj: "<<O.pos[O.attrs.num_particles-1]<<std::endl;
+
         if (O.attrs.typeSim == BCCA)
         {
             increment = O.attrs.num_particles/2;
