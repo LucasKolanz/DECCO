@@ -48,11 +48,7 @@ Ball_group::Ball_group(std::string& path, const int index)
 {
     parse_input_file(path);
 
-    if (attrs.JKR)
-    {
-        JKRpropertiesInit(); //initalize elastic properties for all balls
-        // JKRreducedInit(); //this is called in init_conditions which is called in all the Init functions below
-    }
+    
 
     if (attrs.typeSim == BPCA || attrs.typeSim == BCCA || attrs.typeSim == BAPA)
     {
@@ -82,7 +78,7 @@ Ball_group::Ball_group(std::string& path, const int index)
         MPIsafe_print(std::cerr,message);
     }
 
-   
+
 }
 
 Ball_group::Ball_group(const Ball_group& rhs)
@@ -120,6 +116,7 @@ Ball_group::Ball_group(const Ball_group& rhs)
                 a0[i] = rhs.a0[i];
                 reducedE[i] = rhs.reducedE[i];
                 reducedG[i] = rhs.reducedG[i];
+                reducedGstar[i] = rhs.reducedGstar[i];
                 reducedR[i] = rhs.reducedR[i];
                 reducedGamma[i] = rhs.reducedGamma[i];
             }
@@ -144,6 +141,7 @@ Ball_group::Ball_group(const Ball_group& rhs)
                 G[i] = rhs.G[i];
                 E[i] = rhs.E[i];
                 gamma[i] = rhs.gamma[i];
+                density[i] = rhs.density[i];
             }
         }
 
@@ -156,20 +154,6 @@ Ball_group::Ball_group(const Ball_group& rhs)
 
 }
 
-//initalizes material properties for JKR contact model
-void Ball_group::JKRreducedInit()
-{
-    //Calculate the reduced elastic properties for all particle pairs 
-    for (int A = 1; A < attrs.num_particles; A++)  
-    {
-        // DONT DO ANYTHING HERE. A STARTS AT 1.
-        for (int B = 0; B < A; B++) 
-        {
-
-        }
-
-    }
-}
 
 // Initializes relax job (only new, not for restart)
 void Ball_group::relaxInit(const std::string path)
@@ -252,6 +236,7 @@ void Ball_group::aggregationInit(const std::string path,const int index)
         MPIsafe_print(std::cerr,std::string("Loading sim "+filename+'\n'));
         // MPIsafe_print(std::cerr,std::string("Loading sim "+path+filename+'\n'));
         loadSim(path, filename.substr(filename.find_last_of('/')+1,filename.size()));
+
         // loadSim(path, filename);
         calc_v_collapse(); 
         // getMass();
@@ -373,9 +358,11 @@ Ball_group& Ball_group::operator=(const Ball_group& rhs)
     G = rhs.G;
     E = rhs.E;
     gamma = rhs.gamma;
+    density = rhs.density;
     a0 = rhs.a0;
     reducedE = rhs.reducedE;
     reducedG = rhs.reducedG;
+    reducedGstar = rhs.reducedGstar;
     reducedR = rhs.reducedR;
     reducedGamma = rhs.reducedGamma;
 
@@ -392,7 +379,7 @@ void Ball_group::JKRpropertiesInit()
     material_properties mat;
     if (attrs.material == amorphousCarbon)
     {
-        mat = acarbon_mat;
+        mat = aCarbon_mat;
     }
     else if (attrs.material == quartz)
     {
@@ -400,7 +387,7 @@ void Ball_group::JKRpropertiesInit()
     }
     else
     {
-        MPIsafe_print(std::cerr,"ERROR in JKRpropertiesInit, material '"+attrs.material+"' not accounted for.\n");
+        MPIsafe_print(std::cerr,"ERROR in JKRpropertiesInit, material not implimented.\n");
         MPIsafe_exit(-1);
     }
 
@@ -409,6 +396,7 @@ void Ball_group::JKRpropertiesInit()
         nu[i] = mat.poissonRatio;
         E[i] = mat.youngsModulus;
         gamma[i] = mat.surfaceEnergyperUnitArea;
+        density[i] = mat.density;
         G[i] = mat.shearModulus;
         density[i] = mat.density;
     }
@@ -424,7 +412,13 @@ void Ball_group::JKRreducedInit()
         {
             int e = static_cast<int>(A * (A - 1) * .5) + B;  // a^2-a is always even, so this works.
 
+
             reducedE[e] = 1/((1-nu[A]*nu[A])/E[A] + (1-nu[B]*nu[B])/E[B]);
+            reducedG[e] = 1/((1-nu[A]*nu[A])/G[A] + (1-nu[B]*nu[B])/G[B]);
+            reducedGstar[e] = 1/((2-nu[A]*nu[A])/G[A] + (2-nu[B]*nu[B])/G[B]);
+            reducedR[e] = 1/(1/R[A] + 1/R[B]);
+            reducedGamma[e] = gamma[A] + gamma[B];// - 2*gamma_ab; add this term in for different surface energies. need to find gamma_ab (interface energy) for the different materials
+            a0[e] = std::pow(9.0*pi*reducedGamma[e]*reducedR[e]/reducedE[e],1./3.0);
         }
     }
 }
@@ -1445,10 +1439,6 @@ Ball_group Ball_group::spawn_particles(const int count)
     new_group.merge_ball_group(*this);
     new_group.merge_ball_group(projectile);
 
-    // new_group.calibrate_dt(0, 1);
-    // new_group.init_conditions();
-
-    // new_group.to_origin();
     return new_group;
 }
 
@@ -1668,7 +1658,7 @@ Ball_group Ball_group::BPCA_projectile_init()
 
     pos_and_vel_for_collision(projectile);
 
-    std::cerr<<"projectile at end of BPCA proj init: "<<projectile.pos[0]<<std::endl;
+    // std::cerr<<"projectile at end of BPCA proj init: "<<projectile.pos[0]<<std::endl;
     // projectile.vel[0] = -attrs.v_custom * projectile_direction;
 
     // const double3x3 local_coords = local_coordinates(to_double3(projectile_direction));
@@ -1882,10 +1872,10 @@ Ball_group Ball_group::BAPA_projectile_init()
 
     MPIsafe_print(std::cerr,"Getting projectile of index "+std::to_string(attrs.M)+" from: "+rand_projectile_folder+'\n');
     Ball_group projectile(rand_projectile_folder,attrs.M);
-    if (attrs.typeSim == BAPA && attrs.weld)
-    {
-        attrs.group = 
-    }
+    // if (attrs.typeSim == BAPA && attrs.weld)
+    // {
+    //     attrs.group = 
+    // }
     // projectile.zeroVel();
     // projectile.zeroAngVel();
     
@@ -2015,11 +2005,17 @@ Ball_group Ball_group::add_projectile(const simType simtype)
         new_group.calibrate_dt(0, attrs.v_custom);
     }
     
-
-    new_group.init_conditions();
+    if (new_group.attrs.JKRpropertiesInit)
+    {
+        new_group.init_conditions_JKR();
+    }
+    else
+    {
+        new_group.init_conditions();
+    }
     new_group.to_origin();
 
-    std::cerr<<"projectile pos end of add projectile: "<<new_group.pos[new_group.attrs.num_particles-1]<<std::endl;
+    // std::cerr<<"projectile pos end of add projectile: "<<new_group.pos[new_group.attrs.num_particles-1]<<std::endl;
 
     return new_group;
 }
@@ -2041,7 +2037,7 @@ void Ball_group::merge_ball_group(const Ball_group& src,const bool includeRadius
     std::memcpy(&R[attrs.num_particles_added], src.R, sizeof(src.R[0]) * src.attrs.num_particles);
     std::memcpy(&m[attrs.num_particles_added], src.m, sizeof(src.m[0]) * src.attrs.num_particles);
     std::memcpy(&moi[attrs.num_particles_added], src.moi, sizeof(src.moi[0]) * src.attrs.num_particles);
-    std::memcpy(&group[attrs.num_particles_added], src.group, sizeof(src.group[0]) * src.attrs.num_particles);
+    // std::memcpy(&group[attrs.num_particles_added], src.group, sizeof(src.group[0]) * src.attrs.num_particles);
 
     //JKR stuff
     if (attrs.JKR)
@@ -2050,6 +2046,7 @@ void Ball_group::merge_ball_group(const Ball_group& src,const bool includeRadius
         std::memcpy(&G[attrs.num_particles_added], src.G, sizeof(src.G[0]) * src.attrs.num_particles);
         std::memcpy(&E[attrs.num_particles_added], src.E, sizeof(src.E[0]) * src.attrs.num_particles);
         std::memcpy(&gamma[attrs.num_particles_added], src.gamma, sizeof(src.gamma[0]) * src.attrs.num_particles);
+        std::memcpy(&density[attrs.num_particles_added], src.density, sizeof(src.density[0]) * src.attrs.num_particles);
     }
     
 
@@ -2115,9 +2112,11 @@ void Ball_group::allocate_group(const int nBalls)
             G = new double[attrs.num_particles];
             E = new double[attrs.num_particles];
             gamma = new double[attrs.num_particles];
+            density = new double[attrs.num_particles];
             a0 = new double[attrs.num_pairs];
             reducedE = new double[attrs.num_pairs];
             reducedG = new double[attrs.num_pairs];
+            reducedGstar = new double[attrs.num_pairs];
             reducedR = new double[attrs.num_pairs];
             reducedGamma = new double[attrs.num_pairs];
         }
@@ -2155,9 +2154,11 @@ void Ball_group::freeMemory() const
         delete[] G;
         delete[] E;
         delete[] gamma;
+        delete[] density;
         delete[] a0;
         delete[] reducedE;
         delete[] reducedG;
+        delete[] reducedGstar;
         delete[] reducedR;
         delete[] reducedGamma;
     }
@@ -2165,15 +2166,98 @@ void Ball_group::freeMemory() const
     
 }
 
+void Ball_group::init_conditions_JKR()
+{
+    JKRpropertiesInit();
+    JKRreducedInit();    //initalize elastic properties for all pairs
+    // SECOND PASS - Check for collisions, apply forces and torques:
+    for (int A = 1; A < attrs.num_particles; A++)  // cuda
+    {
+        // DONT DO ANYTHING HERE. A STARTS AT 1.
+        for (int B = 0; B < A; B++) 
+        {
+            const double sumRaRb = R[A] + R[B];
+            const vec3 rVecab = pos[B] - pos[A];  // Vector from a to b.
+            const vec3 rVecba = -rVecab;
+            const double dist = (rVecab).norm();
+
+            // Check for collision between Ball and otherBall:
+            double overlap = sumRaRb - dist;
+
+            vec3 totalForceA{0, 0, 0};
+            vec3 totalForceB{0, 0, 0};
+            
+            int e = static_cast<int>(A * (A - 1) * .5) + B;  // a^2-a is always even, so this works.
+            if (overlap > 0) //overlapping
+            {
+                const double dist_reciprocal = 1.0/dist;
+                const vec3 n_c = rVecba*dist_reciprocal;
+                //set contact pointers. This should only be done unconditionally like this in init_conditions_JKR
+                n_hats[2*e] = rVecab*dist_reciprocal;
+                n_hats[2*e+1] = n_c;
+
+                //normal 
+                
+
+                vec3 totalTorqueA{0, 0, 0};
+                vec3 totalTorqueB{0, 0, 0};
+
+                //sliding
+                const vec3 slidingDisp0 = R[A]*n_hats[2*e] - R[B]*n_hats[2*e+1] + (sumRaRb)*n_c;
+                const vec3 slidingDisp = slidingDisp0 - (slidingDisp0.dot(n_c))*n_c
+                const double ks = 8.0*a0[e]*reducedGstar[e];
+                // const double slidingPot = 0.5*ks*(slidingDisp0.dot(slidingDisp0));
+                const vec3 slidingForceA = -ks*slidingDisp*(R[A] + R[B] - slidingDisp0.dot(n_c))*dist_reciprocal;
+
+                //////////////////////////////////////////////////////////////////////////////////////////
+                //Verify this conserves conserved quantities
+                const vec3 slidingForceB = -1.0*slidingForceA;
+                const vec3 slidingTorqueA = -R[A]*ks*n_hats[2*e].cross(slidingDisp);
+                const vec3 slidingTorqueB = -R[B]*ks*n_hats[2*e+1].cross(-1.0*slidingDisp);
+                if ((slidingTorqueA+slidingTorqueB+(slidingForceA.cross((rVecba)/2.0))+(slidingForceB.cross((rVecab)/2.0))).norm() > 1e-10)
+                {
+                    MPIsafe_print(std::cerr,"ERROR: Sliding forces and torques are not conserved in init_conditions_JKR.");
+                    MPIsafe_exit(-1);
+                }
+                //////////////////////////////////////////////////////////////////////////////////////////
+
+                totalForceA += slidingForceA;
+                totalForceB -= slidingForceA;
+                totalTorqueA += -R[A]*ks*n_hats[2*e].cross(slidingDisp);
+                totalTorqueB += -R[B]*ks*n_hats[2*e+1].cross(-1.0*slidingDisp);
+
+                //rolling
+                const vec3 rollingDisp = reducedR[e]*(n_hats[2*e] + n_hats[2*e+1]);
+                const double kr = 12.0*pi*reducedGamma[e];
+                totalTorqueA += -reducedR[e]*kr*n_hats[2*e].cross(rollingDisp);
+                totalTorqueB += -reducedR[e]*kr*n_hats[2*e+1].cross(rollingDisp); //(SHOULD ROLLINGDISP BE NEGATIVE??)
+
+                //////////////////////////////////////////////////////////////////////////////////////////
+                //Verify this conserves conserved quantities
+                const vec3 rollingTorqueA = -reducedR[e]*kr*n_hats[2*e].cross(rollingDisp);
+                const vec3 rollingTorqueB = -reducedR[e]*kr*n_hats[2*e+1].cross(rollingDisp);
+                if ((rollingTorqueA+rollingTorqueB).norm() > 1e-10)
+                {
+                    MPIsafe_print(std::cerr,"ERROR: Rolling forces and torques are not conserved in init_conditions_JKR.");
+                    MPIsafe_exit(-1);
+                }
+                //////////////////////////////////////////////////////////////////////////////////////////
+
+            }
+            else
+            {
+                //set contact pointers to nan if no contact
+                n_hats[2*e] = {std::numeric_limits<double>::quiet_NaN(),std::numeric_limits<double>::quiet_NaN(),std::numeric_limits<double>::quiet_NaN()};
+                n_hats[2*e+1] = {std::numeric_limits<double>::quiet_NaN(),std::numeric_limits<double>::quiet_NaN(),std::numeric_limits<double>::quiet_NaN()};
+            }
+        }
+
+    }
+}
+
 // Initialize accelerations and energy calculations:
 void Ball_group::init_conditions()
 {
-
-    if (attrs.JKR)
-    {
-        // JKRpropertiesInit(); //initalize elastic properties for all balls
-        JKRreducedInit();    //initalize elastic properties for all pairs
-    }
 
     // SECOND PASS - Check for collisions, apply forces and torques:
     for (int A = 1; A < attrs.num_particles; A++)  // cuda
@@ -3036,9 +3120,9 @@ void Ball_group::pos_and_vel_for_collision(Ball_group &projectile,Ball_group &ta
     //Now we can move the aggregates apart a little bit if they are touching
     //If they are touching, move the projectile in projectile_direction
     moveApart(projectile_direction,projectile,target);
-    std::cerr<<"ptarget.attrs.initial_radius: "<<target.attrs.initial_radius<<std::endl;
-    std::cerr<<"projectile target dist at end of pos and vel for collision: "<<(projectile.getCOM()-target.getCOM()).norm()<<std::endl;
-    std::cerr<<"projectile at end of pos and vel for collision: "<<projectile.pos[0]<<std::endl;
+    // std::cerr<<"ptarget.attrs.initial_radius: "<<target.attrs.initial_radius<<std::endl;
+    // std::cerr<<"projectile target dist at end of pos and vel for collision: "<<(projectile.getCOM()-target.getCOM()).norm()<<std::endl;
+    // std::cerr<<"projectile at end of pos and vel for collision: "<<projectile.pos[0]<<std::endl;
 
     // MPIsafe_exit(-1);
 }
@@ -3249,10 +3333,21 @@ void Ball_group::simInit_cond_and_center(bool add_prefix)
     }
 
     calc_momentum("After Zeroing");  // Is total mom zero like it should be?
+    
 
     // Compute physics between all balls. Distances, collision forces, energy totals, total mass:
-    init_conditions();
+    if (attrs.JKR)
+    {
+        // JKRpropertiesInit(); //initalize elastic properties for all balls
+        // JKRreducedInit(); //this is called in init_conditions which is called in all the Init functions below
+        init_conditions_JKR();
+    }
+    else
+    {
+        init_conditions();
+    }
 
+    
     // Name the file based on info above:
     if (add_prefix)
     {   
@@ -4100,6 +4195,303 @@ void Ball_group::sim_one_step()
 }  // one Step end
 #endif 
 
+#ifndef GPU_ENABLE
+void Ball_group::sim_one_step_JKR()
+{
+    int world_rank = getRank();
+    int world_size = getSize();
+    /// FIRST PASS - Update Kinematic Parameters:
+    // t.start_event("UpdateKinPar");
+    for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
+        // Update velocity half step:
+        velh[Ball] = vel[Ball] + .5 * acc[Ball] * attrs.dt;
+
+        // Update angular velocity half step:
+        wh[Ball] = w[Ball] + .5 * aacc[Ball] * attrs.dt;
+
+        // Update position:
+        pos[Ball] += velh[Ball] * attrs.dt;
+
+        // Reinitialize acceleration to be recalculated:
+        acc[Ball] = {0, 0, 0};
+
+        // Reinitialize angular acceleration to be recalculated:
+        aacc[Ball] = {0, 0, 0};
+    }
+    // t.end_event("UpdateKinPar");
+
+    double Ha = attrs.Ha;
+    double u_r = attrs.u_r;
+    double u_s = attrs.u_s;
+    double kin = attrs.kin;
+    double kout = attrs.kout;
+    double h_min = attrs.h_min;
+    double dt = attrs.dt;
+    int num_parts = attrs.num_particles;
+    int threads = attrs.OMPthreads;
+    bool write_step = attrs.write_step;
+
+    
+    long long A;
+    long long B;
+    long long pc;
+    long long lllen = attrs.num_particles;
+    double t0 = omp_get_wtime();
+    #pragma omp declare reduction(vec3_sum : vec3 : omp_out += omp_in)
+    #pragma omp parallel for num_threads(threads)\
+            reduction(vec3_sum:acc[:num_parts],aacc[:num_parts]) reduction(+:PE) \
+            shared(world_rank,world_size,Ha,write_step,lllen,R,pos,vel,m,w,\
+                u_r,u_s,moi,kin,kout,distances,h_min,dt)\
+            default(none) private(A,B,pc) 
+    for (pc = world_rank + 1; pc <= (((lllen*lllen)-lllen)/2); pc += world_size)
+    {
+        long double pd = (long double)pc;
+        pd = (sqrt(pd*8.0L+1.0L)+1.0L)*0.5L;
+        pd -= 0.00001L;
+        A = (long long)pd;
+        B = (long long)((long double)pc-(long double)A*((long double)A-1.0L)*.5L-1.0L);
+
+ 
+        const double sumRaRb = R[A] + R[B];
+        const vec3 rVecab = pos[B] - pos[A];  // Vector from a to b.
+        const vec3 rVecba = -rVecab;
+        const double dist = (rVecab).norm();
+
+        //////////////////////
+        // const double grav_scale = 3.0e21;
+        //////////////////////
+
+        // Check for collision between Ball and otherBall:
+        double overlap = sumRaRb - dist;
+
+        
+
+        vec3 totalForceOnA{0, 0, 0};
+
+        // Distance array element: 1,0    2,0    2,1    3,0    3,1    3,2 ...
+        int e = static_cast<unsigned>(A * (A - 1) * .5) + B;  // a^2-a is always even, so this works.
+        double oldDist = distances[e];
+
+        // Check for collision between Ball and otherBall.
+        if (overlap > 0) {
+
+            double k;
+            if (dist >= oldDist) {
+                k = kout;
+            } else {
+                k = kin;
+            }
+
+            // Cohesion (in contact) h must always be h_min:
+            // constexpr double h = h_min;
+            const double h = h_min;
+            const double Ra = R[A];
+            const double Rb = R[B];
+            const double h2 = h * h;
+            // constexpr double h2 = h * h;
+            const double twoRah = 2 * Ra * h;
+            const double twoRbh = 2 * Rb * h;
+
+            // ==========================================
+            // Test new vdw force equation with less division
+            const double d1 = h2 + twoRah + twoRbh;
+            const double d2 = d1 + 4 * Ra * Rb;
+            const double numer = 64*Ha*Ra*Ra*Ra*Rb*Rb*Rb*(h+Ra+Rb);
+            const double denomrecip = 1/(6*d1*d1*d2*d2);
+            const vec3 vdwForceOnA = (numer*denomrecip)*rVecab.normalized();
+            // ==========================================
+
+
+            const vec3 elasticForceOnA = -k * overlap * .5 * (rVecab / dist);
+
+            ///////////////////////////////
+            ///////material parameters for silicate composite from Reissl 2023
+            // const double Estar = 1e5*169; //in Pa
+            // const double nu2 = 0.27*0.27; // nu squared (unitless)
+            // const double prevoverlap = sumRaRb - oldDist;
+            // const double rij = sqrt(std::pow(Ra,2)-std::pow((Ra-overlap/2),2));
+            // const double Tvis = 15e-12; //Viscoelastic timescale (15ps)
+            // // const double Tvis = 5e-12; //Viscoelastic timescale (5ps)
+            // const vec3 viscoelaticforceOnA = -(2*Estar/nu2) * 
+            //                                  ((overlap - prevoverlap)/dt) * 
+            //                                  rij * Tvis * (rVecab / dist);
+            const vec3 viscoelaticforceOnA = {0,0,0};
+            ///////////////////////////////
+
+            // Gravity force:
+            // const vec3 gravForceOnA = (G * m[A] * m[B] * grav_scale / (dist * dist)) * (rVecab / dist); //SCALE MASS
+            const vec3 gravForceOnA = {0,0,0};
+            // const vec3 gravForceOnA = (G * m[A] * m[B] / (dist * dist)) * (rVecab / dist);
+
+            // Sliding and Rolling Friction:
+            vec3 slideForceOnA{0, 0, 0};
+            vec3 rollForceA{0, 0, 0};
+            vec3 torqueA{0, 0, 0};
+            vec3 torqueB{0, 0, 0};
+
+            // Shared terms:
+            const double elastic_force_A_mag = elasticForceOnA.norm();
+            const vec3 r_a = rVecab * R[A] / sumRaRb;  // Center to contact point
+            const vec3 r_b = rVecba * R[B] / sumRaRb;
+            const vec3 w_diff = w[A] - w[B];
+
+            // Sliding friction terms:
+            const vec3 d_vel = vel[B] - vel[A];
+            const vec3 frame_A_vel_B = d_vel - d_vel.dot(rVecab) * (rVecab / (dist * dist)) -
+                                       w[A].cross(r_a) - w[B].cross(r_a);
+
+            // Compute sliding friction force:
+            const double rel_vel_mag = frame_A_vel_B.norm();
+
+            if (rel_vel_mag > 1e-13)  // NORMAL ONE Divide by zero protection.
+            {
+                slideForceOnA = u_s * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
+            }
+
+            // Compute rolling friction force:
+            const double w_diff_mag = w_diff.norm();
+            if (w_diff_mag > 1e-13)  // NORMAL ONE Divide by zero protection.
+            {
+                rollForceA = 
+                    -u_r * elastic_force_A_mag * (w_diff).cross(r_a) / 
+                    (w_diff).cross(r_a).norm();
+            }
+
+            totalForceOnA = viscoelaticforceOnA + gravForceOnA + elasticForceOnA + slideForceOnA + vdwForceOnA;
+            
+            // Total torque a and b:
+            torqueA = r_a.cross(slideForceOnA + rollForceA);
+            torqueB = r_b.cross(-slideForceOnA + rollForceA); // original code
+
+
+            aacc[A] += torqueA / moi[A];
+            aacc[B] += torqueB / moi[B];
+
+            if (write_step) {
+                // No factor of 1/2. Includes both spheres:
+                // PE += -G * m[A] * m[B] * grav_scale / dist + 0.5 * k * overlap * overlap;
+                // PE += -G * m[A] * m[B] / dist + 0.5 * k * overlap * overlap;
+
+                // Van Der Waals + elastic:
+                const double diffRaRb = R[A] - R[B];
+                const double z = sumRaRb + h;
+                const double two_RaRb = 2 * R[A] * R[B];
+                const double denom_sum = z * z - (sumRaRb * sumRaRb);
+                const double denom_diff = z * z - (diffRaRb * diffRaRb);
+                const double U_vdw =
+                    -Ha / 6 *
+                    (two_RaRb / denom_sum + two_RaRb / denom_diff + 
+                    log(denom_sum / denom_diff));
+                PE += U_vdw + 0.5 * k * overlap * overlap; ///TURN ON FOR REAL SIM
+            }
+        } else  // Non-contact forces:
+        {
+
+            // No collision: Include gravity and vdw:
+            // const vec3 gravForceOnA = (G * m[A] * m[B] * grav_scale / (dist * dist)) * (rVecab / dist);
+            const vec3 gravForceOnA = {0.0,0.0,0.0};
+            // Cohesion (non-contact) h must be positive or h + Ra + Rb becomes catastrophic cancellation:
+            double h = std::fabs(overlap);
+            if (h < h_min)  // If h is closer to 0 (almost touching), use hmin.
+            {
+                h = h_min;
+            }
+            const double Ra = R[A];
+            const double Rb = R[B];
+            const double h2 = h * h;
+            const double twoRah = 2 * Ra * h;
+            const double twoRbh = 2 * Rb * h;
+
+            // Test new vdw force equation with less division
+            const double d1 = h2 + twoRah + twoRbh;
+            const double d2 = d1 + 4 * Ra * Rb;
+            const double numer = 64*Ha*Ra*Ra*Ra*Rb*Rb*Rb*(h+Ra+Rb);
+            const double denomrecip = 1/(6*d1*d1*d2*d2);
+            const vec3 vdwForceOnA = (numer*denomrecip)*rVecab.normalized();
+           
+            totalForceOnA = vdwForceOnA + gravForceOnA;
+
+            if (write_step) {
+                // PE += -G * m[A] * m[B] * grav_scale / dist; // Gravitational
+
+                const double diffRaRb = R[A] - R[B];
+                const double z = sumRaRb + h;
+                const double two_RaRb = 2 * R[A] * R[B];
+                const double denom_sum = z * z - (sumRaRb * sumRaRb);
+                const double denom_diff = z * z - (diffRaRb * diffRaRb);
+                const double U_vdw =
+                    -Ha / 6 *
+                    (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
+                PE += U_vdw;  // Van Der Waals TURN ON FOR REAL SIM
+            }
+
+
+        }
+
+        // Newton's equal and opposite forces applied to acceleration of each ball:
+        acc[A] += totalForceOnA / m[A];
+        acc[B] -= totalForceOnA / m[B];
+
+        
+
+
+        // So last distance can be known for COR:
+        distances[e] = dist;
+
+    }
+
+    #ifdef MPI_ENABLE
+        MPI_Allreduce(MPI_IN_PLACE,acc,attrs.num_particles*3,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE,aacc,attrs.num_particles*3,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+        double local_PE = PE;
+        PE = 0.0;
+        MPI_Reduce(&local_PE,&PE,1,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
+    #endif
+
+    // t.end_event("CalcForces/loopApplicablepairs");
+
+
+    // THIRD PASS - Calculate velocity for next step:
+    // t.start_event("CalcVelocityforNextStep");
+    for (int Ball = 0; Ball < attrs.num_particles; Ball++) 
+    {
+        // Velocity for next step:
+        vel[Ball] = velh[Ball] + .5 * acc[Ball] * attrs.dt;
+        w[Ball] = wh[Ball] + .5 * aacc[Ball] * attrs.dt;
+
+        /////////////////////////////////
+        // if (true) {
+        /////////////////////////////////
+        if (write_step && world_rank == 0) 
+        {
+            // Send positions and rotations to buffer:
+            int start = data->getWidth("simData")*attrs.num_writes+Ball*data->getSingleWidth("simData");
+            ballBuffer[start] = pos[Ball][0];
+            ballBuffer[start+1] = pos[Ball][1];
+            ballBuffer[start+2] = pos[Ball][2];
+            ballBuffer[start+3] = w[Ball][0];
+            ballBuffer[start+4] = w[Ball][1];
+            ballBuffer[start+5] = w[Ball][2];
+            ballBuffer[start+6] = w[Ball].norm();
+            ballBuffer[start+7] = vel[Ball][0];
+            ballBuffer[start+8] = vel[Ball][1];
+            ballBuffer[start+9] = vel[Ball][2];
+            ballBuffer[start+10] = 0;
+
+            KE += .5 * m[Ball] * vel[Ball].normsquared() +
+                    .5 * moi[Ball] * w[Ball].normsquared();  // Now includes rotational kinetic energy.
+            mom += m[Ball] * vel[Ball];
+            ang_mom += m[Ball] * pos[Ball].cross(vel[Ball]) + moi[Ball] * w[Ball];
+        }
+    }  // THIRD PASS END
+    if (write_step && world_rank == 0)
+    {
+        attrs.num_writes ++;
+    }
+    // t.end_event("CalcVelocityforNextStep");
+}  // one Step end
+#endif 
+
 
 //WELD IS NOT IN GPU VERSION YET
 #ifdef GPU_ENABLE
@@ -4108,6 +4500,11 @@ void Ball_group::sim_one_step()
     if (attrs.weld)
     {
         MPIsafe_print(std::cerr,"ERROR: weld not implimented for GPU version yet.\n");
+        MPIsafe_exit(-1);
+    }
+    if (attrs.JKR)
+    {
+        MPIsafe_print(std::cerr,"ERROR: JKR contact model not implimented for GPU version yet.\n");
         MPIsafe_exit(-1);
     }
     
@@ -4656,7 +5053,14 @@ Ball_group::sim_looper(unsigned long long start_step=1)
         // std::cerr<<"step: "<<Step<<"\tskip: "<<attrs.skip<<std::endl;
 
         // Physics integration step:
-        sim_one_step();
+        if (attrs.JKR)
+        {
+            sim_one_step_JKR();
+        }
+        else
+        {
+            sim_one_step();
+        }
         // #ifndef GPU_ENABLE
         // #else
         //     sim_one_step_GPU();

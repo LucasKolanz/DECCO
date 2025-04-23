@@ -33,7 +33,7 @@ using json = nlohmann::json;
 extern const int bufferlines;
 enum distributions {constant, logNorm};
 enum simType {BPCA, BCCA, BAPA, collider, relax};
-enum materials = {amorphousCarbon,quartz}
+enum materials {amorphousCarbon,quartz};
 
 constexpr double Kb = 1.380649e-16; //in erg/K
 constexpr double pi = 3.14159265358979311599796346854;
@@ -43,13 +43,13 @@ struct material_properties
 {
     double surfaceEnergyperUnitArea; //(ergs/cm^2 and mJ/m^2) gamma
     double youngsModulus; //(Barye = g/(cm*s^2)) E
-    double shearModulus; //(Barye) G
+    double shearModulus; //(Barye) G = E/(2*(1+nu))
     double poissonRatio; //(unitless) nu
     double density; //(g/cm^3) 
 };
 
-const material_properties quartz_mat = {25.0,54e10,44e10,0.17,2.6}; //all from Wada 2007 exept shear Modulus which is from http://www-odp.tamu.edu/publications/204_SR/103/103_t1.htm
-const material_properties aCarbon_mat = {1,1,1,1,2.25};
+const material_properties quartz_mat = {25.0,54e10,23.1e10,0.17,2.6}; //all from Wada 2007 
+const material_properties aCarbon_mat = {25.0,250e10,110e10,0.2,2.7}; //Properties from page 141 in Properties of Amorphous Carbon by Silva. TAC values used (in the middle of the range used) surface energy from page 149
 
 
 //This struct is meant to encompass all values necessary to carry out a simulation, besides the physical
@@ -328,9 +328,11 @@ public:
     double* G = nullptr; //sheer modulus(dynes/cm^2)
     double* E = nullptr; //youngs modulus(dynes/cm^2)
     double* gamma = nullptr; //surface Energy per unit area (For a single surface!!) (dynes/cm^2)
+    double* density = nullptr; //surface Energy per unit area (For a single surface!!) (dynes/cm^2)
     double* a0 = nullptr; //equilibrium contact area radius pairwise (cm)
     double* reducedE = nullptr; //pairwise (dynes/cm^2)
     double* reducedG = nullptr; //pairwise (dynes/cm^2)
+    double* reducedGstar = nullptr; //pairwise (dynes/cm^2)
     double* reducedR = nullptr; //pairwise (cm)
     double* reducedGamma = nullptr; //surface Energy per unit area (reducedGamma=gamma1+gamma2-2*gamma12)(D and T) pairwise (dynes/cm^2)
 
@@ -453,6 +455,7 @@ public:
     bool isAggregation();
     void allocate_group(const int nBalls);
     void init_conditions();
+    void init_conditions_JKR();
     void parseSimData(std::string line);
     void loadConsts(const std::string& path, const std::string& filename);
     [[nodiscard]] static std::string getLastLine(const std::string& path, const std::string& filename);
