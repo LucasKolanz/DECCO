@@ -61,9 +61,10 @@ std::string vec_string(const double3 vec);
 // Rounding
 std::string rounder(double value, int digits);
 // Scientific Notation
-std::string scientific(double value);
+std::string scientific(const double value);
+std::string scientific(const vec3 value);
 // Output a nice title bar in terminal:
-void titleBar(std::string title);
+void titleBar(const std::string title);
 // Ask a yes or no question:
 bool input(const std::string& question);
 double rand_between(const double min, const double max);

@@ -32,7 +32,7 @@
 using json = nlohmann::json;
 extern const int bufferlines;
 enum distributions {constant, logNorm};
-enum simType {BPCA, BCCA, BAPA, collider, relax};
+enum simType {BPCA, BCCA, BAPA, collider, relax, custom};
 enum materials {amorphousCarbon,quartz};
 
 constexpr double Kb = 1.380649e-16; //in erg/K
@@ -179,6 +179,7 @@ struct Ball_group_attributes
     //JKR stuff
     bool JKR = false;
     double critRollingDisp = -1.0;
+    double critSlidingDisp = -1.0;
     materials material;
 
 
@@ -288,6 +289,7 @@ struct Ball_group_attributes
             //JKR stuff
             JKR = other.JKR;
             critRollingDisp = other.critRollingDisp;
+            critSlidingDisp = other.critSlidingDisp;
             material = other.material;
         }
         return *this;
@@ -323,7 +325,7 @@ public:
 
     // JKR stuff (for now I'm going to calculate stuff once so it can be easily looked up since there is pleanty of ram)
     //           (if everything is the same material, most of this simplifies to a single value rather than pairwise or particlewise)
-    vec3* n_hats = nullptr; //2*pairwise (unit vector pointing from center of ball to contact point)
+    vec3* n_hats = nullptr; //2*pairwise (unit vector pointing from center of ball to contact point) // This will be so sparse, there has to be a better way to hold this information
     double* nu = nullptr; //poisson ratio(unitless)
     double* G = nullptr; //sheer modulus(dynes/cm^2)
     double* E = nullptr; //youngs modulus(dynes/cm^2)
@@ -335,6 +337,11 @@ public:
     double* reducedGstar = nullptr; //pairwise (dynes/cm^2)
     double* reducedR = nullptr; //pairwise (cm)
     double* reducedGamma = nullptr; //surface Energy per unit area (reducedGamma=gamma1+gamma2-2*gamma12)(D and T) pairwise (dynes/cm^2)
+    double* Eu0 = nullptr;//0th eulerian parameter for each particle
+    double* Eu0h = nullptr;//0th eulerian half step parameter for each particle for integration
+    vec3* Eu = nullptr;//The rest of the eulerian parameters for each particle
+    vec3* Euh = nullptr;//The rest of the eulerian half step parameters for each particle for integration
+
 
 
 
@@ -367,8 +374,8 @@ public:
 
     //Constructors
     Ball_group() = default;
-    Ball_group(std::string& path,bool test); //Testing constructor
-    explicit Ball_group(const int nBalls);
+    // Ball_group(std::string& path,int test); //Testing constructor
+    explicit Ball_group(const int nBalls,const bool JKR);
     // explicit Ball_group(const std::string& path, const std::string& filename, int start_file_index);
     explicit Ball_group(std::string& path,const int index=-1);
     // explicit Ball_group(const std::string& path,const std::string& projectileName,const std::string& targetName,const double& customVel);
@@ -448,14 +455,16 @@ public:
 
 
     //JKR stuff
-    void JKRpropertiesInit(); //initalize elastic properties for all balls ONLY FOR SINGLE MATERIAL AT THE MOMENT
+    void JKRpropertiesInit(const materials mat_enum); //initalize elastic properties for all balls ONLY FOR SINGLE MATERIAL AT THE MOMENT
     void JKRreducedInit();    //initalize elastic properties for all pairs
+    void sim_one_step_JKR();
+    void init_conditions_JKR();
+    void allocate_group_JKR(const int nBalls);
 
     
     bool isAggregation();
     void allocate_group(const int nBalls);
     void init_conditions();
-    void init_conditions_JKR();
     void parseSimData(std::string line);
     void loadConsts(const std::string& path, const std::string& filename);
     [[nodiscard]] static std::string getLastLine(const std::string& path, const std::string& filename);
@@ -483,5 +492,8 @@ private:
 
 bool is_touching(Ball_group &projectile,Ball_group &target);
 void moveApart(const vec3 &projectile_direction,Ball_group &projectile,Ball_group &target);
+bool get_JKR(const std::string folder);
+vec3 updateNhat(const double E0,const vec3 E,const vec3 n_hat);
+
 
 #endif

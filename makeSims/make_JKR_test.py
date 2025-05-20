@@ -41,7 +41,7 @@ if __name__ == '__main__':
 	runs_at_once = 1
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	attempts = [0] 
-	N = [10]
+	N = [3]
 	Temps = [1]
 	folders = []
 	for attempt in attempts:
@@ -66,7 +66,7 @@ if __name__ == '__main__':
 				input_json['temp'] = Temp
 				input_json['seed'] = 101
 				input_json['radiiDistribution'] = 'constant'#'lognormal'
-				input_json['simType'] = 'Collider'
+				input_json['simType'] = 'custom'
 				input_json['N'] = n
 				input_json['output_folder'] = job
 				input_json['dataFormat'] = "csv"

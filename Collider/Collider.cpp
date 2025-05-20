@@ -80,7 +80,7 @@ main(int argc, char* argv[])
 
     //make dummy ball group to read input file
     std::string location;
-    Ball_group dummy(1);
+    Ball_group dummy(1,false);
     if (argc == 2)
     {
         location = std::string(argv[1]);
@@ -160,6 +160,13 @@ main(int argc, char* argv[])
     {
         MPIsafe_print(std::cerr,"ERROR: input file needs to specify a simulation type (simType).\n");
     }
+    else if (dummy.attrs.typeSim == custom)
+    {
+        #ifdef MPI_ENABLE
+            MPI_Barrier(MPI_COMM_WORLD);
+        #endif
+        runCustom(dummy.attrs.output_folder);
+    }
 
     if (world_rank == 0)
     {
@@ -179,6 +186,14 @@ main(int argc, char* argv[])
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
+
+//Initializes and carries out custom run
+void runCustom(std::string path)
+{
+    Ball_group O = Ball_group(path,-1);
+    O.sim_looper(0);
+    O.freeMemory();
+}
 
 //Initailizes and carries out Ball_group to collide two preexisting aggregates
 void runCollider(std::string path)
@@ -514,7 +529,6 @@ safetyChecks(Ball_group &O) //Should be ready to call sim_looper
         fprintf(stderr, "\nCluster initialRadius not set\n");
         MPIsafe_exit(EXIT_FAILURE);
     }
-
 
     for (int Ball = 0; Ball < O.attrs.num_particles; Ball++) {
         if (O.pos[Ball].norm() < vec3(1e-10, 1e-10, 1e-10).norm()) {

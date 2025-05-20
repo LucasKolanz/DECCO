@@ -303,16 +303,25 @@ rounder(double value, int digits)
 
 // Scientific Notation
 std::string
-scientific(double value)
+scientific(const double value)
 {
     std::stringstream ss;
     ss << std::setprecision(0) << std::scientific << value;
     return ss.str();
 }
 
+std::string
+scientific(const vec3 value)
+{
+    std::stringstream ss;
+    ss << std::setprecision(0) << '(' << std::scientific << value[0] << ',' << value[1] << ',' << value[2] << ')';
+    return ss.str();
+}
+
+
 // Output a nice title bar in terminal:
 void
-titleBar(std::string title)
+titleBar(const std::string title)
 {
     std::cerr << '\n';
     for (size_t i = 0; i < ((62 - title.size()) / 2); i++) { std::cerr << '='; }
