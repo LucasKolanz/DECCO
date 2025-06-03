@@ -93,6 +93,7 @@ if __name__ == '__main__':
 					input_json['seed'] = rand_int()
 					input_json['radiiDistribution'] = 'logNormal'
 					input_json['impactParameter'] = -1.0
+					input_json['OMPthreads'] = 2
 					input_json['h_min'] = 0.5
 					input_json['dataFormat'] = "csv"
 					# input_json['dataFormat'] = "h5"
