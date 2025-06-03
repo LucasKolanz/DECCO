@@ -338,11 +338,9 @@ public:
     double* reducedR = nullptr; //pairwise (cm)
     double* reducedGamma = nullptr; //surface Energy per unit area (reducedGamma=gamma1+gamma2-2*gamma12)(D and T) pairwise (dynes/cm^2)
     double* Eu0 = nullptr;//0th eulerian parameter for each particle
-    double* Eu0h = nullptr;//0th eulerian half step parameter for each particle for integration
+    double* Eu0p = nullptr;//0th eulerian half step parameter for each particle for integration
     vec3* Eu = nullptr;//The rest of the eulerian parameters for each particle
-    vec3* Euh = nullptr;//The rest of the eulerian half step parameters for each particle for integration
-
-
+    vec3* Eup = nullptr;//The rest of the eulerian half step parameters for each particle for integration
 
 
     double* distances = nullptr; //pairwise
@@ -397,7 +395,7 @@ public:
     // vec3 random_offset(const double3x3 local_coords,vec3 projectile_pos,vec3 projectile_vel,const double projectile_rad);
     vec3 random_offset(Ball_group &projectile, Ball_group &target);
     void comSpinner(const double& spinX, const double& spinY, const double& spinZ) const;
-    void sim_one_step();
+    void sim_one_step(int step);
     void sim_looper(unsigned long long start_step);
     
     //Functions which calculate/set values for Ball_group
@@ -436,6 +434,7 @@ public:
     void relaxInit(const std::string path);
     void aggregationInit(const std::string path,const int index=-1);
     void colliderInit(const std::string path);
+    void customInit();
     void sim_init_write(int counter=0);
     void parse_input_file(std::string location);
     Ball_group spawn_particles(const int count);
@@ -457,7 +456,7 @@ public:
     //JKR stuff
     void JKRpropertiesInit(const materials mat_enum); //initalize elastic properties for all balls ONLY FOR SINGLE MATERIAL AT THE MOMENT
     void JKRreducedInit();    //initalize elastic properties for all pairs
-    void sim_one_step_JKR();
+    void sim_one_step_JKR(int step);
     void init_conditions_JKR();
     void allocate_group_JKR(const int nBalls);
 
@@ -493,7 +492,7 @@ private:
 bool is_touching(Ball_group &projectile,Ball_group &target);
 void moveApart(const vec3 &projectile_direction,Ball_group &projectile,Ball_group &target);
 bool get_JKR(const std::string folder);
-vec3 updateNhat(const double E0,const vec3 E,const vec3 n_hat);
+vec3 rotateVec(const double E0,const vec3 E,const vec3 vec);
 
 
 #endif

@@ -35,6 +35,8 @@ void
 runRelax(std::string path);
 void 
 runCollider(std::string path);
+void
+runCustom(std::string path);
 timey t;
 
 //////////////////////////////////////////////////////////////
@@ -156,10 +158,6 @@ main(int argc, char* argv[])
         #endif
         runRelax(dummy.attrs.output_folder);
     }
-    else
-    {
-        MPIsafe_print(std::cerr,"ERROR: input file needs to specify a simulation type (simType).\n");
-    }
     else if (dummy.attrs.typeSim == custom)
     {
         #ifdef MPI_ENABLE
@@ -167,6 +165,11 @@ main(int argc, char* argv[])
         #endif
         runCustom(dummy.attrs.output_folder);
     }
+    else
+    {
+        MPIsafe_print(std::cerr,"ERROR: input file needs to specify a simulation type (simType).\n");
+    }
+    
 
     if (world_rank == 0)
     {
@@ -191,7 +194,8 @@ main(int argc, char* argv[])
 void runCustom(std::string path)
 {
     Ball_group O = Ball_group(path,-1);
-    O.sim_looper(0);
+    O.sim_init_write(O.attrs.num_particles);
+    O.sim_looper(1);
     O.freeMemory();
 }
 
@@ -200,6 +204,7 @@ void runCollider(std::string path)
 {
     // t.start_event("collider");
     Ball_group O = Ball_group(path);
+    
     // std::cerr<<"Ball_group initiated"<<std::endl;
     safetyChecks(O);
     // std::cerr<<"safety checked"<<std::endl;

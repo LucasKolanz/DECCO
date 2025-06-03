@@ -75,6 +75,10 @@ Ball_group::Ball_group(std::string& path, const int index)
             MPIsafe_print(std::cerr,message);
         }
     }
+    else if (attrs.typeSim == custom)
+    {
+        customInit();
+    }
     else
     {
         std::string message("ERROR: simType is not set.\n");
@@ -154,9 +158,9 @@ Ball_group::Ball_group(const Ball_group& rhs)
                 gamma[i] = rhs.gamma[i];
                 density[i] = rhs.density[i];
                 Eu0[i] = rhs.Eu0[i];
-                Eu0h[i] = rhs.Eu0h[i];
+                Eu0p[i] = rhs.Eu0p[i];
                 Eu[i] = rhs.Eu[i];
-                Euh[i] = rhs.Euh[i];
+                Eup[i] = rhs.Eup[i];
             }
         }
 
@@ -310,38 +314,55 @@ void Ball_group::aggregationInit(const std::string path,const int index)
     }
 }
 
+//Initalize custom parameters in here
+void Ball_group::customInit()
+{
+    int nBalls = 2;
+    attrs.num_particles = nBalls;
+    allocate_group(nBalls);
+    if (attrs.JKR)
+    {
+        allocate_group_JKR(nBalls);
+    }
 
 
-// /// @brief For continuing a sim.
-// /// @param fullpath is the filename and path excluding the suffix _simData.csv, _constants.csv, etc.
-// /// @param customVel To condition for specific vMax.
-// Ball_group::Ball_group(const std::string& path, const std::string& filename, int start_file_index=0)
-// {
-//     parse_input_file(std::string(path));
-//     sim_continue(path, filename,start_file_index);
-//     calc_v_collapse();
-//     calibrate_dt(0, v_custom);
-//     simInit_cond_and_center(false);
-// }
+    R[0] = 1e-5;
+    R[1] = 1e-5;
 
-/// @brief For two cluster sim.
-/// @param projectileName
-/// @param targetName
-/// @param customVel To condition for specific vMax.
-// Ball_group::Ball_group(
-//     const std::string& path,
-//     const std::string& projectileName,
-//     const std::string& targetName,
-//     const double& customVel=-1.)
-// {
-//     parse_input_file(std::string(path));
-//     // std::cerr<<path<<std::endl;
-//     sim_init_two_cluster(path, projectileName, targetName);
-//     calc_v_collapse();
-//     if (customVel > 0){calibrate_dt(0, customVel);}
-//     else {calibrate_dt(0, attrs.v_custom);}
-//     simInit_cond_and_center(true);
-// }
+    m[0] = attrs.density*(4/3)*pi*R[0]*R[0]*R[0];
+    m[1] = attrs.density*(4/3)*pi*R[1]*R[1]*R[1];
+
+    moi[0] = .4 * m[0] * R[0] * R[0];
+    moi[1] = .4 * m[1] * R[1] * R[1];
+    
+    w[0] = {0, 0, 0};   
+    w[1] = {0, 0, 0};   
+
+    // pos[0] = {0, R[0]+1.01e-3, 0};
+    pos[0] = {0, R[0]+1.01e-6, 0};
+    pos[1] = {0, -(R[1]+1.01e-6), 0};
+
+    double bel = 1.0;
+    vel[0] = {0,-bel,0};
+    vel[1] = {0,bel,0};
+
+    calc_helpfuls(true);
+    attrs.m_total = getMass();
+    calc_v_collapse(); 
+    if (attrs.dt < 0)
+    {
+        if (attrs.v_custom < 1.0)
+        {
+            calibrate_dt(0, 1.0);
+        } //This value of 0.36 seems to work well, but a better approximation would be beneficial
+        else
+        {
+            calibrate_dt(0, attrs.v_custom);
+        }
+        // calibrate_dt(0, attrs.v_custom);
+    }
+    simInit_cond_and_center(false);
+}
 
 Ball_group& Ball_group::operator=(const Ball_group& rhs)
 {
@@ -382,9 +403,9 @@ Ball_group& Ball_group::operator=(const Ball_group& rhs)
     reducedGamma = rhs.reducedGamma;
 
     Eu0 = rhs.Eu0;
-    Eu0h = rhs.Eu0h;
+    Eu0p = rhs.Eu0p;
     Eu = rhs.Eu;
-    Euh = rhs.Euh;
+    Eup = rhs.Eup;
 
 
     data = rhs.data;
@@ -422,6 +443,9 @@ void Ball_group::JKRpropertiesInit(const materials mat_enum)
 
         Eu0[i] = 1;
         Eu[i] = {0,0,0};
+
+        Eu0p[i] = 0;
+        Eup[i] = {0,0,0};
     }
 }
 
@@ -436,12 +460,12 @@ void Ball_group::JKRreducedInit()
             int e = static_cast<int>(A * (A - 1) * .5) + B;  // a^2-a is always even, so this works.
 
 
-            reducedE[e] = 1/((1-nu[A]*nu[A])/E[A] + (1-nu[B]*nu[B])/E[B]);
+            reducedE[e] = 1/( ((1-nu[A]*nu[A])/E[A]) + ((1-nu[B]*nu[B])/E[B]) );
             reducedG[e] = 1/((1-nu[A]*nu[A])/G[A] + (1-nu[B]*nu[B])/G[B]);
             reducedGstar[e] = 1/((2-nu[A]*nu[A])/G[A] + (2-nu[B]*nu[B])/G[B]);
             reducedR[e] = 1/(1/R[A] + 1/R[B]);
             reducedGamma[e] = gamma[A] + gamma[B];// - 2*gamma_ab; add this term in for different surface energies. need to find gamma_ab (interface energy) for the different materials
-            a0[e] = std::pow(9.0*pi*reducedGamma[e]*reducedR[e]/reducedE[e],1./3.0);
+            a0[e] = std::pow(9.0*pi*reducedGamma[e]*reducedR[e]*reducedR[e]/reducedE[e],1./3.0);
         }
     }
 }
@@ -2152,7 +2176,10 @@ void Ball_group::allocate_group_JKR(const int nBalls)
         reducedGstar = new double[attrs.num_pairs];
         reducedR = new double[attrs.num_pairs];
         reducedGamma = new double[attrs.num_pairs];
-    
+        Eu0 = new double[attrs.num_particles];
+        Eu = new vec3[attrs.num_particles];
+        Eu0p = new double[attrs.num_particles];
+        Eup = new vec3[attrs.num_particles];
 
         
     } catch (const std::exception& e) {
@@ -2190,8 +2217,7 @@ void Ball_group::allocate_group(const int nBalls)
         moi = new double[attrs.num_particles];
         group = new int[attrs.num_particles];
 
-        Eu0 = new double[attrs.num_particles];
-        Eu = new vec3[attrs.num_particles];
+        
 
         
     } catch (const std::exception& e) {
@@ -2233,6 +2259,10 @@ void Ball_group::freeMemory() const
         delete[] reducedGstar;
         delete[] reducedR;
         delete[] reducedGamma;
+        delete[] Eu0;
+        delete[] Eu;
+        delete[] Eu0p;
+        delete[] Eup;
     }
     // delete data;
     
@@ -2264,13 +2294,13 @@ void Ball_group::init_conditions_JKR()
             if (overlap > 0) //overlapping
             {
                 const double dist_reciprocal = 1.0/dist;
-                std::cerr<<dist<<std::endl;
+                // std::cerr<<dist<<std::endl;
                 const vec3 n_c = rVecba*dist_reciprocal;
                 //set contact pointers. This should only be done unconditionally like this in init_conditions_JKR
                 n_hats[2*e] = rVecab*dist_reciprocal;
-                std::cerr<<n_hats[2*e]<<std::endl;
+                // std::cerr<<n_hats[2*e]<<std::endl;
                 n_hats[2*e+1] = n_c;
-                std::cerr<<n_hats[2*e+1]<<std::endl;
+                // std::cerr<<n_hats[2*e+1]<<std::endl;
 
                 //normal 
                 
@@ -2291,7 +2321,7 @@ void Ball_group::init_conditions_JKR()
                 const vec3 slidingForceB = -1.0*slidingForceA;
                 const vec3 slidingTorqueA = -R[A]*ks*n_hats[2*e].cross(slidingDisp);
                 const vec3 slidingTorqueB = -R[B]*ks*n_hats[2*e+1].cross(-1.0*slidingDisp);
-                if ((slidingTorqueA+slidingTorqueB+(slidingForceA.cross((rVecba)/2.0))+(slidingForceB.cross((rVecab)/2.0))).norm() > 1e-10)
+                if ((slidingTorqueA+slidingTorqueB+(slidingForceA.cross((rVecab)/2.0))+(slidingForceB.cross((rVecba)/2.0))).norm() > 1e-10)
                 {
                     // MPIsafe_print(std::cerr,"(slidingTorqueA+slidingTorqueB+(slidingForceA.cross((rVecba)/2.0))+(slidingForceB.cross((rVecab)/2.0))).norm() = "+std::to_string((slidingTorqueA+slidingTorqueB+(slidingForceA.cross((rVecba)/2.0))+(slidingForceB.cross((rVecab)/2.0))).norm())+'\n');
                     // MPIsafe_print(std::cerr,"slidingTorqueA: = "+std::to_string(slidingTorqueA.norm())+'\n');
@@ -3433,8 +3463,9 @@ void Ball_group::updateDTK(const double& velocity)
     const double regime_adjust = regime / (attrs.maxOverlap * attrs.r_min);
 
     // dt = .02 * sqrt((fourThirdsPiRho / regime_adjust) * r_min * r_min * r_min);
-    attrs.dt = .01 * sqrt((attrs.fourThirdsPiRho / regime_adjust) * attrs.r_min * attrs.r_min * attrs.r_min); //NORMAL ONE
-    // dt = .005 * sqrt((fourThirdsPiRho / regime_adjust) * r_min * r_min * r_min);
+    // attrs.dt = .01 * sqrt((attrs.fourThirdsPiRho / regime_adjust) * attrs.r_min * attrs.r_min * attrs.r_min); //NORMAL ONE
+    attrs.dt = .005 * sqrt((attrs.fourThirdsPiRho / regime_adjust) * attrs.r_min * attrs.r_min * attrs.r_min); //NORMAL ONE
+    // attrs.dt = .000005 * sqrt((attrs.fourThirdsPiRho / regime_adjust) * attrs.r_min * attrs.r_min * attrs.r_min);
     std::stringstream message;
     message << "==================" << '\n';
     message << "dt set to: " << attrs.dt << '\n';
@@ -3953,7 +3984,7 @@ std::string Ball_group::find_whole_file_name(std::string path, const int index)
 }
 
 #ifndef GPU_ENABLE
-void Ball_group::sim_one_step()
+void Ball_group::sim_one_step(int step)
 {
     int world_rank = getRank();
     int world_size = getSize();
@@ -3994,12 +4025,12 @@ void Ball_group::sim_one_step()
     long long pc;
     long long lllen = attrs.num_particles;
     double t0 = omp_get_wtime();
-    #pragma omp declare reduction(vec3_sum : vec3 : omp_out += omp_in)
-    #pragma omp parallel for num_threads(threads)\
-            reduction(vec3_sum:acc[:num_parts],aacc[:num_parts]) reduction(+:PE) \
-            shared(world_rank,world_size,Ha,write_step,lllen,R,pos,vel,m,w,\
-                u_r,u_s,moi,kin,kout,distances,h_min,dt)\
-            default(none) private(A,B,pc) 
+    // #pragma omp declare reduction(vec3_sum : vec3 : omp_out += omp_in)
+    // #pragma omp parallel for num_threads(threads)\
+    //         reduction(vec3_sum:acc[:num_parts],aacc[:num_parts]) reduction(+:PE) \
+    //         shared(world_rank,world_size,Ha,write_step,lllen,R,pos,vel,m,w,\
+    //             u_r,u_s,moi,kin,kout,distances,h_min,dt)\
+    //         default(none) private(A,B,pc) 
     for (pc = world_rank + 1; pc <= (((lllen*lllen)-lllen)/2); pc += world_size)
     {
         long double pd = (long double)pc;
@@ -4191,16 +4222,29 @@ void Ball_group::sim_one_step()
             totalForceOnA = viscoelaticforceOnA + gravForceOnA + elasticForceOnA + slideForceOnA + vdwForceOnA;
             ////////////////////////////////
 
-            
-
             // Total torque a and b:
             torqueA = r_a.cross(slideForceOnA + rollForceA);
             torqueB = r_b.cross(-slideForceOnA + rollForceA); // original code
 
+            std::cerr<<"Elastic force on a: "<<elasticForceOnA<<std::endl;
+            std::cerr<<"vdw force on a: "<<vdwForceOnA<<std::endl;
+            // totalForceA += slidingForceA;
+            std::cerr<<"Sliding force on a: "<<slideForceOnA<<std::endl;
+            // totalForceB -= slidingForceA;
+            // totalTorqueA += -R[A]*ks*n_hats[2*e].cross(slidingDisp);
+            std::cerr<<"total torque on a: "<<torqueA<<std::endl;
+            std::cerr<<"moi of a: "<<moi[A]<<std::endl;
+            // totalTorqueB += -R[B]*ks*n_hats[2*e+1].cross(-1.0*slidingDisp);
+            if (step == 2601)
+            {
+
+                MPIsafe_exit(-1);
+            }
 
 
             aacc[A] += torqueA / moi[A];
             aacc[B] += torqueB / moi[B];
+            std::cerr<<"aacc a: "<<aacc[A]<<std::endl;
 
             if (write_step) {
                 // No factor of 1/2. Includes both spheres:
@@ -4341,7 +4385,7 @@ void Ball_group::sim_one_step()
 #endif 
 
 #ifndef GPU_ENABLE
-void Ball_group::sim_one_step_JKR()
+void Ball_group::sim_one_step_JKR(int step)
 {
     int world_rank = getRank();
     int world_size = getSize();
@@ -4358,18 +4402,79 @@ void Ball_group::sim_one_step_JKR()
         pos[Ball] += velh[Ball] * attrs.dt;
 
 
-        // /////////////////////////////////////////////////
-        // //This is just euler integration. This should be verified whether or not this is a good enough way to do this
+        ///////////////////2nd order verlet///////////////////
+        const vec3 wp = w[Ball];
+        
+        const double prevEu0 = Eu0[Ball];
+        const vec3 prevEu = Eu[Ball];
+        const double prevEu0p = Eu0p[Ball];
+        const vec3 prevEup = Eup[Ball];
+        Eu0p[Ball] = 0.5*prevEu.dot(wp);
+        Eup[Ball] = 0.5*(prevEu0*wp - prevEu.cross(wp));
+
+        Eu0[Ball] = prevEu0 + 0.5*(Eu0p[Ball]+prevEu0p)*attrs.dt;
+        Eu[Ball] = prevEu + 0.5*(Eup[Ball]+prevEup)*attrs.dt;
+
+        //////////////////////////////////////////////////////
+        /////////////////////////////////////////////////
+        //This is just euler integration. This should be verified whether or not this is a good enough way to do this
+        // const vec3 prevEu = Eu[Ball];
+        // const double prevEu0 = Eu0[Ball];
+        // Update other eulerian paramters 
+        // Eu[Ball] = prevEu + 0.5*(prevEu0*wp - prevEu.cross(wp))*attrs.dt;
         // // Update 0th eulerian parameter 
-        // Eu0[Ball] = Eu0[Ball] + 0.5*Eu[Ball].dot(w[Ball])*attrs.dt;
-        // // Update other eulerian paramters 
-        // Eu[Ball] = Eu[Ball] + 0.5*(Eu0[Ball]*w[Ball] - Eu[Ball].cross(w[Ball]))*attrs.dt;
-        // //verify the square of the parameters still add to unity
-        // if (Eu0[Ball]*Eu0[Ball] + Eu[Ball].normsquared() - 1.0 > 1e-10)
+        // // Eu0[Ball] = Eu0[Ball] + 0.5*Eu[Ball].dot(w[Ball])*attrs.dt;
+        // Eu0[Ball] = prevEu0 + 0.5*prevEu.dot(wp)*attrs.dt;
+        // std::cerr<<Eu[Ball].dot(wp)<<std::endl;
+        // if (touch)
         // {
-        //     MPIsafe_print(std::cerr,"ERROR: square of euler parameters is not 1.0\n");
-        //     MPIsafe_exit(-1);
+        //     std::cerr<<"++++++++++++++++++++++++++++++++++++++"<<std::endl;
+        //     std::cerr<<"wp: "<<scientific(wp)<<std::endl;
+        //     std::cerr<<"prevEu0: "<<scientific(prevEu0)<<std::endl;
+        //     std::cerr<<"prevEu0 times wp: "<<scientific(prevEu0*wp)<<std::endl;
+        //     std::cerr<<"prevEu: "<<scientific(prevEu.cross(wp))<<std::endl;
+        //     std::cerr<<"prevEu cross wp: "<<scientific(prevEu.cross(wp))<<std::endl;
+
+        //     // std::cerr<<"Eu0[Ball]: "<<scientific(Eu0[Ball])<<std::flush<<std::endl;
+        //     // std::cerr<<"Eu[Ball]: "<<scientific(Eu[Ball])<<std::flush<<std::endl;
+        //     // std::cerr<<"Eu[Ball].normsquared: "<<scientific(Eu[Ball].normsquared())<<std::flush<<std::endl;
         // }
+        // Eu[Ball] = Eu[Ball] + 0.5*(Eu0[Ball]*w[Ball] - Eu[Ball].cross(w[Ball]))*attrs.dt;
+        //verify the square of the parameters still add to unity
+        double test = Eu0[Ball]*Eu0[Ball] + Eu[Ball].normsquared();
+
+
+        // // if (step > 2600 && Ball == 0)
+        // if (step > 5200 && Ball == 0)
+        // {
+        //     std::cerr<<"++++++++++++++++++++++++++++++++++++++"<<std::endl;
+        //     std::cerr<<"wp: "<<scientific(wp)<<std::endl;
+        //     std::cerr<<"wpnonrot: "<<scientific(wpnonrot)<<std::endl;
+        //     std::cerr<<"prevEu0: "<<scientific(prevEu0)<<std::endl;
+        //     std::cerr<<"prevEu0p: "<<scientific(prevEu0p)<<std::endl;
+        //     std::cerr<<"Eup[Ball]: "<<scientific(Eup[Ball])<<std::endl;
+        //     // std::cerr<<"prevEu0 times wp: "<<scientific(prevEu0*wp)<<std::endl;
+        //     // std::cerr<<"prevEu: "<<scientific(prevEu.cross(wp))<<std::endl;
+        //     // std::cerr<<"prevEu cross wp: "<<scientific(prevEu.cross(wp))<<std::endl;
+
+        //     std::cerr<<"Eu0[Ball]: "<<scientific(Eu0[Ball])<<std::flush<<std::endl;
+        //     std::cerr<<"Eu[Ball]: "<<scientific(Eu[Ball])<<std::flush<<std::endl;
+        //     std::cerr<<"Eu[Ball].normsquared: "<<scientific(Eu[Ball].normsquared())<<std::flush<<std::endl;
+        //     std::cerr<<scientific(Eu0[Ball]*Eu0[Ball])<<std::flush<<std::endl;
+        //     std::cerr<<scientific(Eu[Ball].normsquared())<<std::endl;
+        // }
+
+
+
+        if (test - 1.0 > 1e-10)
+        {
+            std::cerr<<"STEP: "<<step<<std::endl; 
+            
+            MPIsafe_print(std::cerr,"ERROR: square of euler parameters is not 1.0 for ball "+std::to_string(Ball)+", it is "+scientific(test)+"\n");
+            MPIsafe_exit(-1);
+        }
+        Eu0[Ball] /= sqrt(test);
+        Eu[Ball] /= sqrt(test);
         // /////////////////////////////////////////////////
 
         //Update contact pointers
@@ -4389,6 +4494,11 @@ void Ball_group::sim_one_step_JKR()
     double u_s = attrs.u_s;
     double kin = attrs.kin;
     double kout = attrs.kout;
+
+    // double deltac = pow(9.0/16.0, 1.0/3.0)*(a0[0]*a0[0]/(3*reducedR[0]));
+    // double h_min = deltac;
+    // std::cerr<<"deltac "<<deltac<<std::endl;
+    // std::cerr<<"attrs.h_min "<<attrs.h_min<<std::endl;
     double h_min = attrs.h_min;
     double dt = attrs.dt;
     int num_parts = attrs.num_particles;
@@ -4407,6 +4517,7 @@ void Ball_group::sim_one_step_JKR()
     //         shared(world_rank,world_size,Ha,write_step,lllen,R,pos,vel,m,w,\
     //             u_r,u_s,moi,kin,kout,distances,h_min,dt)\
     //         default(none) private(A,B,pc) 
+    int touch_step = -1;
     for (pc = world_rank + 1; pc <= (((lllen*lllen)-lllen)/2); pc += world_size)
     {
         long double pd = (long double)pc;
@@ -4415,63 +4526,129 @@ void Ball_group::sim_one_step_JKR()
         A = (long long)pd;
         B = (long long)((long double)pc-(long double)A*((long double)A-1.0L)*.5L-1.0L);
 
- 
+        // Distance array element: 1,0    2,0    2,1    3,0    3,1    3,2 ...
+        int e = static_cast<unsigned>(A * (A - 1) * .5) + B;  // a^2-a is always even, so this works.
+        double oldDist = distances[e];
+
+
+
         const double sumRaRb = R[A] + R[B];
         const vec3 rVecab = pos[B] - pos[A];  // Vector from a to b.
         const vec3 rVecba = -rVecab;
         const double dist = (rVecab).norm();
         const double dist_reciprocal = 1/dist;
+        double overlap = sumRaRb - dist;
 
+        double delta0 = a0[e]*a0[e]/(3*reducedR[e]);
+        double deltac = pow(9/16,1/3)*delta0;
+
+        const bool in_crit_dist = (overlap < 0.0 && abs(overlap) < deltac);
+        const bool out_crit_dist = (overlap < 0.0 && abs(overlap) > deltac);
+        //Balls split from eachother
+        if (out_crit_dist && (!std::isnan(n_hats[2*e][0]) && !std::isnan(n_hats[2*e+1][0])))
+        {
+            std::cerr<<"apart on STEP: "<<step<<std::endl;
+            n_hats[2*e] = {std::numeric_limits<double>::quiet_NaN(),std::numeric_limits<double>::quiet_NaN(),std::numeric_limits<double>::quiet_NaN()};
+            n_hats[2*e+1] = {std::numeric_limits<double>::quiet_NaN(),std::numeric_limits<double>::quiet_NaN(),std::numeric_limits<double>::quiet_NaN()};
+
+        }
         //////////////////////
         // const double grav_scale = 3.0e21;
         //////////////////////
 
         // Check for collision between Ball and otherBall:
-        double overlap = sumRaRb - dist;
-
-        
 
         vec3 totalForceA{0, 0, 0};
         vec3 totalForceB{0, 0, 0};
 
-        // Distance array element: 1,0    2,0    2,1    3,0    3,1    3,2 ...
-        int e = static_cast<unsigned>(A * (A - 1) * .5) + B;  // a^2-a is always even, so this works.
-        double oldDist = distances[e];
+
 
         // Check for collision between Ball and otherBall.
-        if (overlap > 0) {
+        if (overlap > 0 || (in_crit_dist && (!std::isnan(n_hats[2*e][0]) && !std::isnan(n_hats[2*e+1][0])))) 
+        {
 
+
+            //////////////////////////Old normal direction stuff//////////////////////////
             double k;
             if (dist >= oldDist) {
                 k = kout;
             } else {
                 k = kin;
             }
-
-
-
-            // Cohesion (in contact) h must always be h_min:
-            // constexpr double h = h_min;
+            // // Cohesion (in contact) h must always be h_min:
+            // // constexpr double h = h_min;
             const double h = h_min;
-            const double Ra = R[A];
-            const double Rb = R[B];
-            const double h2 = h * h;
-            // constexpr double h2 = h * h;
-            const double twoRah = 2 * Ra * h;
-            const double twoRbh = 2 * Rb * h;
+            // const double Ra = R[A];
+            // const double Rb = R[B];
+            // const double h2 = h * h;
+            // // constexpr double h2 = h * h;
+            // const double twoRah = 2 * Ra * h;
+            // const double twoRbh = 2 * Rb * h;
 
-            // ==========================================
-            // Test new vdw force equation with less division
-            const double d1 = h2 + twoRah + twoRbh;
-            const double d2 = d1 + 4 * Ra * Rb;
-            const double numer = 64*Ha*Ra*Ra*Ra*Rb*Rb*Rb*(h+Ra+Rb);
-            const double denomrecip = 1/(6*d1*d1*d2*d2);
-            const vec3 vdwForceOnA = (numer*denomrecip)*rVecab.normalized();
-            // ==========================================
+            // // ==========================================
+            // // Test new vdw force equation with less division
+            // const double d1 = h2 + twoRah + twoRbh;
+            // const double d2 = d1 + 4 * Ra * Rb;
+            // const double numer = 64*Ha*Ra*Ra*Ra*Rb*Rb*Rb*(h+Ra+Rb);
+            // const double denomrecip = 1/(6*d1*d1*d2*d2);
+            // const vec3 vdwForceOnA = (numer*denomrecip)*rVecab.normalized();
+            // // ==========================================
+            // const vec3 elasticForceOnA = -k * overlap * .5 * (rVecab / dist);
+            // totalForceA = elasticForceOnA+vdwForceOnA;
+            // totalForceB = -elasticForceOnA-vdwForceOnA;
+            //////////////////////////////////////////////////////////////////////////////
+
+            if (std::isnan(n_hats[2*e][0]) && std::isnan(n_hats[2*e+1][0]))
+            {
+                std::cerr<<"touch on step: "<<step<<std::endl;
+
+
+            }
+
 
 
             const vec3 n_c = rVecba*dist_reciprocal;
             const double dist_reciprocal = 1.0/dist;
+            const double kn = (4.0/3.0) * reducedE[e] * sqrt(reducedR[e]);
+            const vec3 vrel = vel[A] - vel[B];
+            const double overlapprime = vrel.dot(n_c);
+            const double damping = 0.0;//2*sqrt(kn*mass[A]);
+            // const double damping = 0.00001;//2*sqrt(kn*mass[A]);
+            const double damping_term = overlapprime > 0.0 ? damping * overlapprime : 0.0;// -damping * overlapprime;
+            const double norm_sign = overlap < 0.0 ? -1.0 : 1.0;
+            const double spring_term = norm_sign*kn*pow(abs(overlap),1.5);
+
+            // if (overlap < 0)
+            // {
+            //     std::cerr<<"SPRINGTERM==========================: "<<spring_term<<std::endl;
+            // }
+
+            const vec3 normalForceA = (spring_term-damping_term)*n_c;
+
+
+            // if (step >= 5199)
+            // {
+            //     std::cerr<<"*********************************************************"<<std::endl;
+            //     std::cerr<<"kn: "<<kn<<std::endl;
+            //     std::cerr<<"reducedE: "<<reducedE[e]<<std::endl;
+            //     std::cerr<<"reducedR: "<<reducedR[e]<<std::endl;
+            //     std::cerr<<"sqrt(reducedR): "<<sqrt(reducedR[e])<<std::endl;
+
+            //     std::cerr<<"vrel: "<<vrel<<std::endl;
+            //     std::cerr<<"vrel: "<<vrel<<std::endl;
+            //     std::cerr<<"overlapprime: "<<overlapprime<<std::endl;
+            //     std::cerr<<"spring_term: "<<spring_term<<std::endl;
+            //     std::cerr<<"overlap: "<<overlap<<std::endl;
+            //     std::cerr<<"damping_term: "<<damping_term<<std::endl;
+            //     std::cerr<<"normalForceA: "<<normalForceA<<std::endl;
+            // }
+
+            totalForceA += normalForceA;
+            totalForceB -= normalForceA;
+            
+            vec3 nA; //rotated contact pointer based on euler parameters for both particles
+            vec3 nB;
+
             //add contact pointer if this is a new contact.
             //if the x values are nan, the y and z should be too. 
             //if these are nan, there was previously not a contact between this pair
@@ -4480,48 +4657,83 @@ void Ball_group::sim_one_step_JKR()
             {
                 n_hats[2*e] = rVecab*dist_reciprocal;
                 n_hats[2*e+1] = n_c;
-                std::cerr<<n_hats[2*e]<<std::endl;
-                std::cerr<<n_hats[2*e+1]<<std::endl;
+                // std::cerr<<scientific(n_hats[2*e])<<std::endl;
+                // std::cerr<<scientific(n_hats[2*e+1])<<std::endl;
+                // touch = true;
+                nA = n_hats[2*e];
+                nB = n_hats[2*e+1];
+                // std::cerr<<"touch on step: "<<step<<std::endl;
+                touch_step = step;
             }
             else
             {
-                n_hats[2*e] = updateNhat(Eu0[A],Eu[A],n_hats[2*e]);
-                n_hats[2*e+1] = updateNhat(Eu0[B],Eu[B],n_hats[2*e+1]);
+                // vec3 old_nhat = n_hats[2*e];
+                nA = rotateVec(Eu0[A],Eu[A],n_hats[2*e]);
+                nB = rotateVec(Eu0[B],Eu[B],n_hats[2*e+1]);
+                // if (step == 2601)
+                // if (A == 1)
+                // {
+                //     std::cerr<<"ROTATED: "<<old_nhat-n_hats[2*e]<<std::endl;
+                //     std::cerr<<"ROTATED norm: "<<(old_nhat-n_hats[2*e]).norm()<<std::endl;
+                // }
             }
-
-            const vec3 elasticForceOnA = -k * overlap * .5 * (rVecab / dist);
-            totalForceA = elasticForceOnA+vdwForceOnA;
-            totalForceB = -elasticForceOnA-vdwForceOnA;
 
             vec3 totalTorqueA{0, 0, 0};
             vec3 totalTorqueB{0, 0, 0};
 
             //sliding
-            const vec3 slidingDisp0 = R[A]*n_hats[2*e] - R[B]*n_hats[2*e+1] + (sumRaRb)*n_c;
+            const vec3 slidingDisp0 = R[A]*nA - R[B]*nB + (sumRaRb)*n_c;
             const vec3 slidingDisp = slidingDisp0 - (slidingDisp0.dot(n_c))*n_c;
+
+            const double nuReduced = 1/(1/nu[A] + 1/nu[B]);
+            const double critSlideDisp = a0[e]*(2-nuReduced)/(pi*16);
+
+            if (critSlideDisp < slidingDisp.norm())
+            {
+                std::cerr<<"SLIDING DISP GREATER THAN CRIT DISP"<<std::endl;
+                std::cerr<<"crit disp: "<<critSlideDisp<<std::endl;
+                std::cerr<<"step: "<<step<<std::endl;
+                MPIsafe_exit(-1);
+
+            }
+
             // std::cerr<<slidingDisp<<std::endl;
             const double ks = 8.0*a0[e]*reducedGstar[e];
             // const double slidingPot = 0.5*ks*(slidingDisp0.dot(slidingDisp0));
             const vec3 slidingForceA = -ks*slidingDisp*(R[A] + R[B] - slidingDisp0.dot(n_c))*dist_reciprocal;
+            // std::cerr<<"ks: "<<ks<<std::endl;
+            // std::cerr<<"sliding disp: "<<slidingDisp.norm()<<std::endl;
+            // std::cerr<<"R[A] + R[B]: "<<R[A] + R[B]<<std::endl;
+            // std::cerr<<"slidingDisp0.dot(n_c): "<<slidingDisp0.dot(n_c)<<std::endl;
+            // std::cerr<<"slidingDisp*(R[A] + R[B] - slidingDisp0.dot(n_c))*dist_reciprocal: "<<slidingDisp*(R[A] + R[B] - slidingDisp0.dot(n_c))*dist_reciprocal<<std::endl;
+            // std::cerr<<"slidingForceA: "<<slidingForceA<<std::endl;
 
             //////////////////////////////////////////////////////////////////////////////////////////
             //Verify this conserves conserved quantities
             const vec3 slidingForceB = -1.0*slidingForceA;
-            const vec3 slidingTorqueA = -R[A]*ks*n_hats[2*e].cross(slidingDisp);
-            const vec3 slidingTorqueB = -R[B]*ks*n_hats[2*e+1].cross(-1.0*slidingDisp);
-            // if ((slidingTorqueA+slidingTorqueB+(slidingForceA.cross((rVecba)/2.0))+(slidingForceB.cross((rVecab)/2.0))).norm() > 1e-10)
+            // std::cerr<<"slidingForceB: "<<slidingForceB<<std::endl;
+            const vec3 slidingTorqueA = -R[A]*ks*nA.cross(slidingDisp);
+            const vec3 slidingTorqueB = -R[B]*ks*nB.cross(-1.0*slidingDisp);
+
+            // if (1)
+            if ((slidingTorqueA+slidingTorqueB+(slidingForceA.cross((rVecab)/2.0))+(slidingForceB.cross((rVecba)/2.0))).norm() > 1e-10)
+            {
+                MPIsafe_print(std::cerr,"Step: "+std::to_string(step)+'\n');
+                // MPIsafe_print(std::cerr,"n_hats[2*e] = "+scientific(n_hats[2*e])+'\n');
+                // MPIsafe_print(std::cerr,"n_hats[2*e+1] = "+scientific(n_hats[2*e+1])+'\n');
+                MPIsafe_print(std::cerr,"(slidingTorqueA+slidingTorqueB) = "+scientific(slidingTorqueA+slidingTorqueB)+"\n");
+                MPIsafe_print(std::cerr,"(slidingForceA.cross((rVecab)/2.0))+(slidingForceB.cross((rVecba)/2.0))) = "+scientific(((slidingForceA.cross((rVecab)/2.0))+(slidingForceB.cross((rVecba)/2.0))))+"\n");
+                // MPIsafe_print(std::cerr,"(slidingTorqueA+slidingTorqueB+(slidingForceA.cross((rVecba)/2.0))+(slidingForceB.cross((rVecab)/2.0))) = "+scientific((slidingTorqueA+slidingTorqueB+(slidingForceA.cross((rVecba)/2.0))+(slidingForceB.cross((rVecab)/2.0))))+"\n");
+                // MPIsafe_print(std::cerr,"slidingTorqueA: = "+scientific(slidingTorqueA)+'\n');
+                // MPIsafe_print(std::cerr,"slidingTorqueB: = "+scientific(slidingTorqueB)+'\n');
+                // MPIsafe_print(std::cerr,"slidingForceA: = "+scientific(slidingForceA)+'\n');
+                // MPIsafe_print(std::cerr,"slidingForceB: = "+scientific(slidingForceB)+'\n');
+                // MPIsafe_print(std::cerr,"ERROR: Sliding forces and torques are not conserved in sim_one_step_JKR.\n");
+                MPIsafe_exit(-1);
+            }
+            // if (step == 2604)
             // {
-            //     // MPIsafe_print(std::cerr,"n_hats[2*e] = "+scientific(n_hats[2*e])+'\n');
-            //     // MPIsafe_print(std::cerr,"n_hats[2*e+1] = "+scientific(n_hats[2*e+1])+'\n');
-            //     MPIsafe_print(std::cerr,"(slidingTorqueA+slidingTorqueB) = "+scientific(slidingTorqueA+slidingTorqueB)+"\n");
-            //     MPIsafe_print(std::cerr,"(slidingForceA.cross((rVecba)/2.0))+(slidingForceB.cross((rVecab)/2.0))) = "+scientific(((slidingForceA.cross((rVecba)/2.0))+(slidingForceB.cross((rVecab)/2.0))))+"\n");
-            //     // MPIsafe_print(std::cerr,"(slidingTorqueA+slidingTorqueB+(slidingForceA.cross((rVecba)/2.0))+(slidingForceB.cross((rVecab)/2.0))) = "+scientific((slidingTorqueA+slidingTorqueB+(slidingForceA.cross((rVecba)/2.0))+(slidingForceB.cross((rVecab)/2.0))))+"\n");
-            //     // MPIsafe_print(std::cerr,"slidingTorqueA: = "+scientific(slidingTorqueA)+'\n');
-            //     // MPIsafe_print(std::cerr,"slidingTorqueB: = "+scientific(slidingTorqueB)+'\n');
-            //     // MPIsafe_print(std::cerr,"slidingForceA: = "+scientific(slidingForceA)+'\n');
-            //     // MPIsafe_print(std::cerr,"slidingForceB: = "+scientific(slidingForceB)+'\n');
-            //     MPIsafe_print(std::cerr,"ERROR: Sliding forces and torques are not conserved in sim_one_step_JKR.\n");
-            //     MPIsafe_exit(-1);
+            //     MPIsafe_exit(0);
             // }
             // else
             // {
@@ -4531,37 +4743,49 @@ void Ball_group::sim_one_step_JKR()
             //     MPIsafe_print(std::cerr,"slidingForceA: = "+std::to_string(slidingForceA.norm())+'\n');
             //     MPIsafe_print(std::cerr,"slidingForceB: = "+std::to_string(slidingForceB.norm())+'\n');
             // }
+
+           //-----------------This is the sliding force/torque adding stuff--------------------------
+            // // std::cerr<<"Elastic force on a: "<<elasticForceOnA<<std::endl;
+            // // std::cerr<<"vdw force on a: "<<vdwForceOnA<<std::endl;
+            // totalForceA += slidingForceA;
+            // // totalForceB -= slidingForceA;
+            // totalForceB += slidingForceB;
+            
+            // totalTorqueA += -R[A]*ks*nA.cross(slidingDisp);
+            // // // std::cerr<<"Sliding torque on a: "<<totalTorqueA<<std::endl;
+            // // // std::cerr<<"moi of a: "<<moi[A]<<std::endl;
+            // totalTorqueB += -R[B]*ks*nB.cross(-1.0*slidingDisp);
+           //-----------------This is the sliding force/torque adding stuff--------------------------
+
             //////////////////////////////////////////////////////////////////////////////////////////
-
-            totalForceA += slidingForceA;
-            totalForceB -= slidingForceA;
-            totalTorqueA += -R[A]*ks*n_hats[2*e].cross(slidingDisp);
-            totalTorqueB += -R[B]*ks*n_hats[2*e+1].cross(-1.0*slidingDisp);
-
             //rolling
-            const vec3 rollingDisp = reducedR[e]*(n_hats[2*e] + n_hats[2*e+1]);
+            const vec3 rollingDisp = reducedR[e]*(nA + nB);
             const double kr = 12.0*pi*reducedGamma[e];
-            totalTorqueA += -reducedR[e]*kr*n_hats[2*e].cross(rollingDisp);
-            totalTorqueB += -reducedR[e]*kr*n_hats[2*e+1].cross(rollingDisp); //(SHOULD ROLLINGDISP BE NEGATIVE??)
+            // totalTorqueA += -reducedR[e]*kr*nA.cross(rollingDisp);
+            // totalTorqueB += -reducedR[e]*kr*nB.cross(rollingDisp); //(SHOULD ROLLINGDISP BE NEGATIVE??)
 
             //////////////////////////////////////////////////////////////////////////////////////////
             //Verify this conserves conserved quantities
-            const vec3 rollingTorqueA = -reducedR[e]*kr*n_hats[2*e].cross(rollingDisp);
-            const vec3 rollingTorqueB = -reducedR[e]*kr*n_hats[2*e+1].cross(rollingDisp);
+            const vec3 rollingTorqueA = -reducedR[e]*kr*nA.cross(rollingDisp);
+            const vec3 rollingTorqueB = -reducedR[e]*kr*nB.cross(rollingDisp);
             if ((rollingTorqueA+rollingTorqueB).norm() > 1e-10)
             {
                 MPIsafe_print(std::cerr,"ERROR: Rolling forces and torques are not conserved in init_conditions_JKR.\n");
                 MPIsafe_print(std::cerr,"(rollingTorqueA+rollingTorqueB).norm() = "+std::to_string((rollingTorqueA+rollingTorqueB).norm())+'\n');
+                MPIsafe_print(std::cerr,"rollingTorqueA = "+scientific(rollingTorqueA)+'\n');
+                MPIsafe_print(std::cerr,"rollingTorqueB = "+scientific(rollingTorqueB)+'\n');
                 MPIsafe_exit(-1);
             }
-            // else
+            // else if (step > 2600 && step < 2650)
             // {
             //     MPIsafe_print(std::cerr,"(rollingTorqueA+rollingTorqueB).norm() = "+std::to_string((rollingTorqueA+rollingTorqueB).norm())+'\n');
             //     MPIsafe_print(std::cerr,"rollingTorqueA: = "+std::to_string(rollingTorqueA.norm())+'\n');
             //     MPIsafe_print(std::cerr,"rollingTorqueB: = "+std::to_string(rollingTorqueB.norm())+'\n');
             // }
-            //////////////////////////////////////////////////////////////////////////////////////////
+
+            ////////////////////////////////////////////////////////////////////////////////////////
             aacc[A] += totalTorqueA / moi[A];
+            // std::cerr<<"aacc of a: "<<aacc[A]<<std::endl;
             aacc[B] += totalTorqueB / moi[B];
 
             if (write_step) {
@@ -4582,10 +4806,10 @@ void Ball_group::sim_one_step_JKR()
                 PE += U_vdw + 0.5 * k * overlap * overlap; ///TURN ON FOR REAL SIM
 
                 //Sliding PE
-                PE += 0.5*ks*slidingDisp.normsquared();
+                // PE += 0.5*ks*slidingDisp.normsquared();
 
-                //Rolling PE
-                PE += 0.5*kr*rollingDisp.normsquared();
+                // //Rolling PE
+                // PE += 0.5*kr*rollingDisp.normsquared();
 
             }
         } else  // Non-contact forces:
@@ -4638,7 +4862,6 @@ void Ball_group::sim_one_step_JKR()
 
         
 
-
         // So last distance can be known for COR:
         distances[e] = dist;
 
@@ -4663,16 +4886,77 @@ void Ball_group::sim_one_step_JKR()
         vel[Ball] = velh[Ball] + .5 * acc[Ball] * attrs.dt;
         w[Ball] = wh[Ball] + .5 * aacc[Ball] * attrs.dt;
 
-        /////////////////////////////////////////////////
-        //This is just euler integration. This should be verified whether or not this is a good enough way to do this
-        // Update 0th eulerian parameter 
-        Eu0[Ball] = Eu0[Ball] + 0.5*Eu[Ball].dot(w[Ball])*attrs.dt;
-        // Update other eulerian paramters 
-        Eu[Ball] = Eu[Ball] + 0.5*(Eu0[Ball]*w[Ball] - Eu[Ball].cross(w[Ball]))*attrs.dt;
-        //verify the square of the parameters still add to unity
-        // if (Eu0[Ball]*Eu0[Ball] + Eu[Ball].normsquared() - 1.0 > 1e-10)
+
+
+        // ///////////////////2nd order verlet///////////////////
+        // const vec3 wpnonrot = w[Ball];
+        // const vec3 wp = rotateVec(Eu0[Ball],Eu[Ball],w[Ball]);
+        
+        // const double prevEu0 = Eu0[Ball];
+        // const vec3 prevEu = Eu[Ball];
+        // const double prevEu0p = Eu0p[Ball];
+        // const vec3 prevEup = Eup[Ball];
+        // Eu0p[Ball] = 0.5*prevEu.dot(wp);
+        // Eup[Ball] = 0.5*(prevEu0*wp - prevEu.cross(wp));
+
+        // Eu0[Ball] = prevEu0 + 0.5*(Eu0p[Ball]+prevEu0p)*attrs.dt;
+        // Eu[Ball] = prevEu + 0.5*(Eup[Ball]+prevEup)*attrs.dt;
+
+        // //////////////////////////////////////////////////////
+        // /////////////////////////////////////////////////
+        // //This is just euler integration. This should be verified whether or not this is a good enough way to do this
+        // // const vec3 prevEu = Eu[Ball];
+        // // const double prevEu0 = Eu0[Ball];
+        // // Update other eulerian paramters 
+        // // Eu[Ball] = prevEu + 0.5*(prevEu0*wp - prevEu.cross(wp))*attrs.dt;
+        // // // Update 0th eulerian parameter 
+        // // // Eu0[Ball] = Eu0[Ball] + 0.5*Eu[Ball].dot(w[Ball])*attrs.dt;
+        // // Eu0[Ball] = prevEu0 + 0.5*prevEu.dot(wp)*attrs.dt;
+        // // std::cerr<<Eu[Ball].dot(wp)<<std::endl;
+        // // if (touch)
+        // // {
+        // //     std::cerr<<"++++++++++++++++++++++++++++++++++++++"<<std::endl;
+        // //     std::cerr<<"wp: "<<scientific(wp)<<std::endl;
+        // //     std::cerr<<"prevEu0: "<<scientific(prevEu0)<<std::endl;
+        // //     std::cerr<<"prevEu0 times wp: "<<scientific(prevEu0*wp)<<std::endl;
+        // //     std::cerr<<"prevEu: "<<scientific(prevEu.cross(wp))<<std::endl;
+        // //     std::cerr<<"prevEu cross wp: "<<scientific(prevEu.cross(wp))<<std::endl;
+
+        // //     // std::cerr<<"Eu0[Ball]: "<<scientific(Eu0[Ball])<<std::flush<<std::endl;
+        // //     // std::cerr<<"Eu[Ball]: "<<scientific(Eu[Ball])<<std::flush<<std::endl;
+        // //     // std::cerr<<"Eu[Ball].normsquared: "<<scientific(Eu[Ball].normsquared())<<std::flush<<std::endl;
+        // // }
+        // // Eu[Ball] = Eu[Ball] + 0.5*(Eu0[Ball]*w[Ball] - Eu[Ball].cross(w[Ball]))*attrs.dt;
+        // //verify the square of the parameters still add to unity
+        // double test = Eu0[Ball]*Eu0[Ball] + Eu[Ball].normsquared();
+
+        // // if (step > 2600 && Ball == 0)
+        // if (step > 5200 && Ball == 0)
         // {
-        //     MPIsafe_print(std::cerr,"ERROR: square of euler parameters is not 1.0\n");
+        //     std::cerr<<"++++++++++++++++++++++++++++++++++++++"<<std::endl;
+        //     std::cerr<<"wp: "<<scientific(wp)<<std::endl;
+        //     std::cerr<<"wpnonrot: "<<scientific(wpnonrot)<<std::endl;
+        //     std::cerr<<"prevEu0: "<<scientific(prevEu0)<<std::endl;
+        //     std::cerr<<"prevEu0p: "<<scientific(prevEu0p)<<std::endl;
+        //     std::cerr<<"Eup[Ball]: "<<scientific(Eup[Ball])<<std::endl;
+        //     // std::cerr<<"prevEu0 times wp: "<<scientific(prevEu0*wp)<<std::endl;
+        //     // std::cerr<<"prevEu: "<<scientific(prevEu.cross(wp))<<std::endl;
+        //     // std::cerr<<"prevEu cross wp: "<<scientific(prevEu.cross(wp))<<std::endl;
+
+        //     std::cerr<<"Eu0[Ball]: "<<scientific(Eu0[Ball])<<std::flush<<std::endl;
+        //     std::cerr<<"Eu[Ball]: "<<scientific(Eu[Ball])<<std::flush<<std::endl;
+        //     std::cerr<<"Eu[Ball].normsquared: "<<scientific(Eu[Ball].normsquared())<<std::flush<<std::endl;
+        //     std::cerr<<scientific(Eu0[Ball]*Eu0[Ball])<<std::flush<<std::endl;
+        //     std::cerr<<scientific(Eu[Ball].normsquared())<<std::endl;
+        // }
+
+
+
+        // if (test - 1.0 > 1e-10)
+        // {
+        //     std::cerr<<"STEP: "<<step<<std::endl; 
+            
+        //     MPIsafe_print(std::cerr,"ERROR: square of euler parameters is not 1.0 for ball "+std::to_string(Ball)+", it is "+scientific(test)+"\n");
         //     MPIsafe_exit(-1);
         // }
         /////////////////////////////////////////////////
@@ -5178,6 +5462,16 @@ void
 Ball_group::sim_looper(unsigned long long start_step=1)
 {
 
+    // double delta0 = a0[0]*a0[0]/(3*reducedR[0]);
+    // double deltac = pow(9/16,1/3)*delta0;
+    // double Fc = 3*pi*reducedGamma[0]*reducedR[0];
+    // attrs.dt = 0.014*sqrt(m[0]*deltac/Fc);
+    // attrs.dt = .000005 * sqrt((attrs.fourThirdsPiRho / regime_adjust) * attrs.r_min * attrs.r_min * attrs.r_min);
+    std::stringstream mess;
+    mess << "==================" << '\n';
+    mess << "NEW dt set to: " << attrs.dt << '\n';
+    mess << "==================" << '\n';
+    MPIsafe_print(std::cerr,mess.str());
 
     attrs.world_rank = getRank();
     attrs.world_size = getSize();
@@ -5273,11 +5567,11 @@ Ball_group::sim_looper(unsigned long long start_step=1)
         // Physics integration step:
         if (attrs.JKR)
         {
-            sim_one_step_JKR();
+            sim_one_step_JKR(Step);
         }
         else
         {
-            sim_one_step();
+            sim_one_step(Step);
         }
         // #ifndef GPU_ENABLE
         // #else
@@ -5302,6 +5596,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
                     std::cerr << "vMax = " << getVelMax() << "\nSteps recorded: " << Step / attrs.skip << '\n';
                     std::cerr << "Data Write to "<<data->getFileName()<<"\n";
                     
+                    std::cerr<<"bufferlines: "<<bufferlines<<std::endl;
                     data->Write(ballBuffer,"simData",bufferlines);
 
                     ballBuffer.clear();
@@ -5430,7 +5725,7 @@ void moveApart(const vec3 &projectile_direction,Ball_group &projectile,Ball_grou
 }
 
 // n_new = A^{-1}*n_old
-vec3 updateNhat(const double E0,const vec3 E,const vec3 n_hat)
+vec3 rotateVec(const double E0,const vec3 E,const vec3 vec)
 {
     const double E1 = E[0];
     const double E2 = E[1];
@@ -5446,10 +5741,11 @@ vec3 updateNhat(const double E0,const vec3 E,const vec3 n_hat)
     const double A21 = 2*(E2*E3 - E0*E1);
     const double A22 = E0*E0 - E1*E1 - E2*E2 + E3*E3;
 
-    vec3 new_n_hat{
-        n_hat[0]*A00 + n_hat[1]*A10 + n_hat[2]*A20,
-        n_hat[0]*A01 + n_hat[1]*A11 + n_hat[2]*A21,
-        n_hat[0]*A02 + n_hat[1]*A12 + n_hat[2]*A22
+    vec3 new_vec{
+        vec[0]*A00 + vec[1]*A10 + vec[2]*A20,
+        vec[0]*A01 + vec[1]*A11 + vec[2]*A21,
+        vec[0]*A02 + vec[1]*A12 + vec[2]*A22
     };
-    return new_n_hat;
+
+    return new_vec;
 }
