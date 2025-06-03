@@ -113,7 +113,7 @@ def main():
 	print(job)
 
 
-	attempts = [i for i in range(10)]
+	attempts = [i for i in range(30)]
 	# attempts = [0]
 
 	# N = [30,100,300]

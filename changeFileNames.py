@@ -222,13 +222,30 @@ def verify_directory_based_on_balls(directory_in_str):
 		# for i in [126,125,124,123,122]:
 		if maxIndex != -1 and minIndex != float("inf"):
 			for i in range(maxIndex,minIndex-1,-1): #This needs to go backwards so we don't overwrite anything. This is very important
+				#check the constants file
 				constants_file = directory_in_str+str(i)+"_constants.csv"
 				if os.path.exists(constants_file):
 					if len(u.get_radii(directory_in_str,i,relax=False)) != i:
 						print(f"index doesn't match ball number for index {i}")
-				else:
-					print(f"WARNING:: FILE MISSING for index {i}")
+				# else:
+				# 	print(f"WARNING:: FILE MISSING for index {i}")
 
+				#check the simData file
+				simData_file = directory_in_str+str(i)+"_simData.csv"
+				if os.path.exists(simData_file):
+					input_file = directory_in_str+'input.json'
+					with open(input_file,'r') as fp:
+						input_json = json.load(fp)
+					simTimeSeconds = input_json['simTimeSeconds']
+					timeResolution = input_json['timeResolution']
+					numLines = int(simTimeSeconds/timeResolution)
+
+					with open(simData_file, 'r') as file:
+						length = len(file.readlines())
+					if length > numLines+3:
+						print(f"simData file {simData_file} is {length} lines. This is bad.")
+				# else:
+				# 	print(f"WARNING:: FILE MISSING for index {i}")
 
 def get_num_balls(directory_in_str,index):
 	relax = False
@@ -259,19 +276,21 @@ def main():
 
 	job_templates = [input_json["data_directory"] + 'jobsCosine/' + 'lognormrelax_{a}/N_{n}/T_{t}/']
 	job_templates = [input_json["data_directory"] + 'jobsNovus/' + 'const_{a}/N_{n}/T_{t}/']
-	# job_templates = [input_json["data_directory"] + 'jobsNovus/' + 'const_{a}/N_{n}/T_{t}/']
+	job_templates = [input_json["data_directory"] + 'jobs/' + 'BAPA_{a}/M_{m}/N_{n}/T_{t}/']
 
 
-	attempts = [i for i in range(30)]
+	attempts = [i for i in range(10)]
 	# attempts = [i for i in range(30,40)]
 
 	# attempts = [0]
 
-	N = [30,100,300]
-	# N=[300]
+	M = [3,5,10,15]
 
-	Temps = [3,10,30,100,300,1000]
-	# Temps = [10]
+	# N = [30,100,300]
+	N=[300]
+
+	# Temps = [3,10,30,100,300,1000]
+	Temps = [1000]
 
 	# i = 0
 
@@ -279,13 +298,15 @@ def main():
 
 	for job_template in job_templates:
 		for a in attempts:
-			for n in N:
-				for t in Temps:
-					folder = job_template.replace("{a}",str(a)).replace("{n}",str(n)).replace("{t}",str(t))
-					print(folder)
-					rename_h5_files(folder,just_print)
-					# rename_files(folder,just_print)
-					
+			for m in M:
+				for n in N:
+					for t in Temps:
+						folder = job_template.replace("{a}",str(a)).replace("{m}",str(m)).replace("{n}",str(n)).replace("{t}",str(t))
+						# print(folder)
+						# rename_files(folder,just_print)
+						# rename_h5_files(folder,just_print)
+						verify_directory_based_on_balls(folder)
+
 	# if not just_print:
 	# 	for job_template in job_templates:
 	# 		for a in attempts:
