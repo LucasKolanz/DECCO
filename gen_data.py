@@ -182,7 +182,7 @@ if __name__ == '__main__':
 	#only take in the directory the data is in and the size of which 
 	#to calculate as an input.
 	#It should return a single data value.
-	bool_headers = [1,1,1,1]
+	bool_headers = [1,1,0,0]
 	# requested_data_functions = [data_functions[i] for i in range(len(data_functions)) if bool_headers[i]]
 	requested_data_headers = [data_headers[i] for i in range(len(data_headers)) if bool_headers[i]]
 
@@ -193,16 +193,18 @@ if __name__ == '__main__':
 		data_folders = []
 		# data_folders = path + 'jobs/BAPA_*'
 		# data_folders = [path + 'jobs/SeqStickConst_*/']
-		# data_folders = [path + 'jobs/SeqStickLognormrelax*/']
-		# data_folders = data_folders + [path + 'jobs/SeqStickConstrelax*/']
 		# data_folders = path + 'jobsCosine/lognorm_*/N_300/T_*/'
 		# data_folders = path + 'jobsCosine/lognorm_*/N_300/T_*/'
-		data_folders.append(path + f'jobsNovus/constrelax_*/N_{n}/*')
-		data_folders.append(path + f'jobsCosine/lognormrelax_*/N_{n}/*')
 		# data_folders = [path + 'jobsNovus/const_*/N_300/T_1000/']
 		# data_folders = data_folders + [path + 'jobsNovus/const_*/N_300/T_3/']
 		# data_folders.append(path + f'jobsNovus/constrelax_*/N_{n}/*')
 		# data_folders = path + 'jobsNovus/constrelax_*/N_300/T_*/'
+
+		# data_folders.append(path + 'jobs/SeqStickLognormrelax*/')
+		# data_folders.append(path + 'jobs/SeqStickConstrelax*/')
+		
+		data_folders.append(path + f'jobsNovus/constrelax_*/N_{n}/*')
+		data_folders.append(path + f'jobsCosine/lognormrelax_*/N_{n}/*')
 
 		possible_dirs = []
 		for data_folder in data_folders:

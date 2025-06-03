@@ -6,13 +6,15 @@ import json
 from PIL import Image
 from mpl_toolkits.axes_grid1 import ImageGrid
 import matplotlib.ticker as plticker
+from matplotlib.patches import FancyArrowPatch
+
 
 relative_path = ""
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
 
 plt.rcdefaults()
-plt.rcParams['font.size'] = 20
+plt.rcParams['font.size'] = 30
 
 def main():
 	constant = 1.5
@@ -26,7 +28,7 @@ def main():
 	path = input_json["data_directory"]
 
 	job_group = "const_rel"
-	job_group = "lognorm_rel"
+	job_group = "lognormrelax"
 
 	image_path = path + "data/figures/aggRenders/"
 	Nums = [30,100,300]
@@ -39,7 +41,7 @@ def main():
 	for N in Nums:
 		for t in temps:
 			# image = g.glob(image_path+'edited/N{}T{}A*'.format(N,t))[0]
-			glob_me = image_path+f'edited/agg-{job_group}*_a-*_N-{N}_T-{t}_cropped.png'
+			glob_me = image_path+f'edited/Coloredagg-{job_group}*_a-*_N-{N}_T-{t}_cropped.png'
 			# glob_me = image_path+f'/agg-{job_group}*_a-*_N-{N}_T-{t}.png'
 			print(glob_me)
 			image = g.glob(glob_me)[0]
@@ -83,9 +85,35 @@ def main():
 		# axe.imshow(im,cmap=None)
 	# axe.imshow(im, cmap=None)
 	ax.set_xlabel('Temp (K)')
-	ax.set_ylabel('Aggregate Size')
-	# plt.savefig(path + f'data/figures/AggComp_{job_group}.png')
-	plt.show()
+	ax.set_ylabel('Number of Particles')
+
+
+	h = 0.61
+	start = (0.35, h)    # figure-fraction coords
+	end   = (0.68, h)
+
+	arrow = FancyArrowPatch(
+	    start, end,
+	    transform=fig.transFigure,
+	    arrowstyle='-|>',
+	    mutation_scale=25,
+	    lw=5, color='black',
+	    zorder=200
+	)
+	fig.add_artist(arrow)
+
+	fig.text(
+	    0.515, end[1]+0.03,       # slightly above the head
+	    "Density increases with temperature",
+	    transform=fig.transFigure,
+	    color='black',
+	    fontsize=30,
+	    ha='center'
+	)
+
+
+	plt.savefig(path + f'data/figures/ColoredAggComp_{job_group}.png',dpi=1500)
+	# plt.show()
 
 if __name__ == '__main__':
 	main()

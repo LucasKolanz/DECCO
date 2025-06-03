@@ -795,7 +795,7 @@ def gen_seqstick_plots(distribution):
 		rel = "relax_"
 
 
-	requested_data_headers = gd.data_headers[:2] + [gd.data_headers[-1]]
+	requested_data_headers = gd.data_headers[:2]# + [gd.data_headers[-1]]
 
 
 	raw_data = np.full(shape=(len(requested_data_headers),len(attempts)),fill_value=np.nan,dtype=np.float64)
@@ -874,8 +874,8 @@ def gen_BPCA_vs_temp_plots(show_plots=True,save_plots=False,include_totals=False
 		# data_file = "nonrelax_job_data.csv" 
 
 
+		data_file = "nonrelax_job_data.csv" #This nonrelax data follows the Df figure in paper
 		data_file = "job_data.csv"
-		# data_file = "nonrelax_job_data.csv" #This nonrelax data follows the Df figure in paper
 
 
 
@@ -924,8 +924,8 @@ def gen_BPCA_vs_temp_plots(show_plots=True,save_plots=False,include_totals=False
 		print(avg_data)
 
 
-		# print(f"{requested_data_headers[0]}: {avg_data[0,2,0]} +- {err_data[0,2,0]}")
-		# print(f"{requested_data_headers[1]}: {avg_data[1,2,0]} +- {err_data[1,2,0]}")
+		print(f"{requested_data_headers[0]}: {avg_data[0,2,0]} +- {err_data[0,2,0]}")
+		print(f"{requested_data_headers[1]}: {avg_data[1,2,0]} +- {err_data[1,2,0]}")
 
 		
 		print("======================Starting figures======================")
@@ -1248,11 +1248,14 @@ def gen_BPCA_ratio_vs_temp_plots(show_plots=True,save_plots=False,include_totals
 
 		ax.axhline(1)
 
-		ax.set_ylabel(label_from_header(header))
+		# ax.set_ylabel(label_from_header(header))
+		ax.set_ylabel("Ratio")
 		# ax.set_title('{} {} vs Temp'.format(dataset_name,method))
 		ax.set_xscale('log')
 		if header == requested_data_headers[-1]:
-			fig.legend(loc='upper right',bbox_to_anchor=(0.97, 0.96))
+			# fig.legend(loc='lower right',bbox_to_anchor=(0.97, 0.96))
+			fig.legend(loc='lower right',bbox_to_anchor=(0.97, 0.165))
+
 		plt.tight_layout()
 		if save_plots:
 			plt.savefig("{}{}_ratioovertemp.png".format(figure_folder,header))
@@ -1426,8 +1429,8 @@ def gen_BPCA_ratio_nonreltorel_vs_temp_plots(show_plots=True,save_plots=False,in
 	# requested_data_functions = [data_functions[i] for i in range(len(data_functions)) if bool_headers[i]]
 	requested_data_headers = [gd.data_headers[i] for i in range(len(gd.data_headers)) if bool_headers[i]]
 
-	data_prefolder = path + 'jobsCosine/lognormrelax_'
 	data_prefolder = path + 'jobsNovus/constrelax_'
+	data_prefolder = path + 'jobsCosine/lognormrelax_'
 	
 	avg_data = np.full(shape=(len(data_files),len(requested_data_headers),len(N),len(temps)),fill_value=np.nan,dtype=np.float64)
 	std_data = np.full(shape=(len(data_files),len(requested_data_headers),len(N),len(temps)),fill_value=np.nan,dtype=np.float64)
@@ -1721,8 +1724,8 @@ if __name__ == '__main__':
 	# gen_relax_vs_tense_seqstick_plots(distribution="lognormal",show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 
 	# gen_BPCA_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
-	# gen_BPCA_ratio_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
-	gen_BPCA_temp_sensitivity_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
+	gen_BPCA_ratio_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
+	# gen_BPCA_temp_sensitivity_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_ratio_bugbetter_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_double_ratio_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_ratio_nonreltorel_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)

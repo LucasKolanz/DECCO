@@ -212,16 +212,24 @@ void runAggregation(std::string path, int num_balls)
 
     if  (!O.attrs.mid_sim_restart && O.attrs.typeSim != BAPA)
     {
-        O.sim_init_write(O.attrs.genBalls);
-        O.attrs.start_index = O.attrs.genBalls;
-        O.sim_looper(1);
+        // std::cerr<<"starting at step "<<O.attrs.start_step<<" with balls: "<<O.attrs.genBalls<<std::endl;
+        // std::cerr<<O.attrs.num_particles<<std::endl;
+        // exit(0);
+        // O.sim_init_write(O.attrs.genBalls);
+        // O.attrs.start_index = O.attrs.genBalls;
+        O.attrs.start_index = O.attrs.num_particles;
+        // O.sim_looper(1);
     }
-    else if (O.attrs.typeSim == BCCA || O.attrs.typeSim == BPCA)
+    else if (O.attrs.mid_sim_restart && (O.attrs.typeSim == BCCA || O.attrs.typeSim == BPCA))
     {
         O.sim_looper(O.attrs.start_step);
     }
 
-    int increment = 1; // This should be 1 for BPCA, if not BPCA, set in for loop
+    // std::cerr<<O.attrs.start_index<<std::endl;
+    // std::cerr<<"Out: "<<O.data->filename<<std::endl;
+    // exit(0);
+
+    int increment = 1; // This should be 1 for BPCA, for BCCA, set in for loop
     if (O.attrs.typeSim == BAPA)
     {
         increment = O.attrs.M;
@@ -232,6 +240,7 @@ void runAggregation(std::string path, int num_balls)
     {
         // t.start_event("add_projectile");
         O = O.add_projectile(O.attrs.typeSim);
+        std::cerr<<"projectile pos after add proj: "<<O.pos[O.attrs.num_particles-1]<<std::endl;
         if (O.attrs.typeSim == BCCA)
         {
             increment = O.attrs.num_particles/2;

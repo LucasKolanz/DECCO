@@ -4,6 +4,8 @@ import os
 import json
 from PIL import Image
 from mpl_toolkits.axes_grid1 import ImageGrid
+from matplotlib.patches import FancyArrowPatch
+
 
 relative_path = ""
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
@@ -22,13 +24,13 @@ def main():
         input_json = json.load(fp)
 
     path = input_json["data_directory"]
-    image_path = path + "data/figures/aggRenders/"
+    image_path = path + "data/figures/aggRenders/edited/"
 
     image_names = [
-        'agg-lognorm_rela_a-0_N-300_T-1000_cropped.png',
-        'agg-M__a-0_M-20_N-300_T-1000_cropped.png',
-        'agg-M__a-0_M-60_N-300_T-1000_cropped.png',
-        'agg-M_a-10_M-100_N-300_T-1000_cropped.png'
+        'ColoredFragg-lognormrelax_a-0_N-300_T-1000_cropped.png',
+        'ColoredFragg-BAPA_a-0_M-20_T-1000_cropped.png',
+        'ColoredFragg-BAPA_a-0_M-60_T-1000_cropped.png',
+        'ColoredFragg-BAPA_a-0_M-100_T-1000_cropped.png'
     ]
 
     images = []
@@ -58,7 +60,7 @@ def main():
 
     # Create a separate axis for the x-labels
     ax = fig.add_axes([0.1, 0.15, 0.8, 0.05])  # Move x-axis higher
-    ax.set_xticks([0.03, 0.35, 0.62, 0.93])  # Adjusted positions for x-axis labels
+    ax.set_xticks([0.07, 0.35, 0.65, 0.93])  # Adjusted positions for x-axis labels
     ax.set_xticklabels(["M=1", "M=20", "M=60", "M=100"], fontsize=30)
 
     # Hide y-axis completely
@@ -70,6 +72,29 @@ def main():
     ax.spines['bottom'].set_position(('outward', 5))
 
     ax.set_xlabel('Fragment Size', fontsize=30)
+
+    h = 0.2
+    start = (0.35, h)    # figure-fraction coords
+    end   = (0.68, h)
+
+    # arrow = FancyArrowPatch(
+    #     start, end,
+    #     transform=fig.transFigure,
+    #     arrowstyle='-|>',
+    #     mutation_scale=25,
+    #     lw=5, color='black',
+    #     zorder=200
+    # )
+    # fig.add_artist(arrow)
+
+    fig.text(
+        0.51, h,       # slightly above the head
+        "Structural complexity peaks somewhere in the middle",
+        transform=fig.transFigure,
+        color='black',
+        fontsize=30,
+        ha='center'
+    )
 
     # Save with tight bounding box to remove extra whitespace
     plt.savefig(path + 'data/figures/FraggComp_BAPA.png', bbox_inches='tight')

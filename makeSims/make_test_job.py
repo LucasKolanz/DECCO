@@ -35,14 +35,14 @@ if __name__ == '__main__':
 		print('compilation failed')
 		exit(-1)
 		
-	job_set_name = "TESTBPCA"
+	job_set_name = "fragTest"
 	# folder_name_scheme = "T_"
 
 	runs_at_once = 1
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	attempts = [0] 
-	N = [5]
-	Temps = [3]
+	N = [300]
+	Temps = [1]
 	folders = []
 	for attempt in attempts:
 		for n in N:
@@ -52,8 +52,8 @@ if __name__ == '__main__':
 					input_json = json.load(fp)
 				
 				# job = curr_folder + 'jobs/' + job_set_name + str(attempt) + '/'
-				job = input_json["data_directory"] + 'jobs/' + job_set_name + str(attempt) + '/'\
-							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
+				# job = input_json["data_directory"] + 'jobs/' + job_set_name + str(attempt) + '/'+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
+				job = input_json["data_directory"] + 'jobs/' + job_set_name + '/'
 				if not os.path.exists(job):
 					os.makedirs(job)
 				else:
@@ -65,14 +65,17 @@ if __name__ == '__main__':
 				######Change input values here######
 				input_json['temp'] = Temp
 				input_json['seed'] = 101
-				input_json['radiiDistribution'] = 'constant'
-				input_json['simType'] = 'BPCA'
+				input_json['radiiDistribution'] = 'constant'#'lognormal'
+				input_json['simType'] = 'Collider'
 				input_json['N'] = n
 				input_json['output_folder'] = job
 				input_json['dataFormat'] = "csv"
+				input_json['impactParameter'] = 1.0
+				input_json['simTimeSeconds'] = 1e-4
+				input_json['timeResolution'] = 1e-5
 				# input_json['kConsts'] = 3e3
 				# input_json['relaxIndex'] = n-3
-				# input_json['h_min'] = 0.5
+				input_json['h_min'] = 0.5
 				# input_json['u_s'] = 0.5
 				# input_json['u_r'] = 0.5
 				# input_json['projectileName'] = "299_2_R4e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_"
