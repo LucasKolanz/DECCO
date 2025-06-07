@@ -39,6 +39,9 @@ if __name__ == '__main__':
 	job_set_name = "const"
 	job_set_name = "mpTest"
 
+	MPI = False
+	GPU = True
+
 	# folder_name_scheme = "T_"
  
 	# attempts = [i for i in range(30)]
@@ -53,13 +56,13 @@ if __name__ == '__main__':
 
 	node = 1
 	N = [30,100,300]
-	N = [30]
+	N = [10]
 	Temps = [3,10,30,100,300,1000]
 	Temps = [3]
 
 	folders = []
 	for n in N:
-		threads = 16
+		threads = 1
 		# if n == 30:
 		# 	threads = 1
 		# elif n == 100:
@@ -95,11 +98,12 @@ if __name__ == '__main__':
 					input_json['radiiDistribution'] = 'constant'
 					input_json['N'] = n
 					input_json['h_min'] = 0.5
-					input_json['dataFormat'] = "h5"
+					input_json['dataFormat'] = "csv"
 					input_json['output_folder'] = job
 					input_json['OMPthreads'] = threads
 					# input_json['u_s'] = 0.5
 					# input_json['u_r'] = 0.5
+					input_json["impactParameter"] = -1;
 					input_json['note'] = "Test multicore"
 					####################################
 
@@ -111,8 +115,10 @@ if __name__ == '__main__':
 					sbatchfile += "#!/bin/bash\n"
 					# sbatchfile += "#SBATCH -A m2651\n"
 					# sbatchfile += "#SBATCH -C gpu\n"
+
 					# sbatchfile += "#SBATCH -q regular\n"
 					# sbatchfile += "#SBATCH -t 0:10:00\n"
+					sbatchfile += f"#SBATCH --partition=gpu.q\n"
 					sbatchfile += f"#SBATCH -J {job_set_name}\n"
 					sbatchfile += f"#SBATCH -N {node}\n"
 					sbatchfile += f"#SBATCH -n {node}\n"
@@ -125,10 +131,13 @@ if __name__ == '__main__':
 					sbatchfile += f'export OMP_NUM_THREADS={threads}\n'
 					sbatchfile += 'export SLURM_CPU_BIND="cores"\n'
 					# sbatchfile += 'module load hdf5/1.14.3\n'
-					sbatchfile += 'module load hdf5/1.10.8\n'
+					# sbatchfile += 'module load hdf5/1.10.8\n'
 					
-					# sbatchfile += f"srun -n {node} -c {threads} --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
-					sbatchfile += f"srun --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+					if MPI:
+						sbatchfile += f"srun -n {node} -c {threads} --mpi=pmi2 --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+					if GPU:
+						sbatchfile += f"srun -n {node} -c {threads} --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+					# sbatchfile += f"srun --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 
 
 					

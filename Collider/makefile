@@ -3,11 +3,13 @@
 
 
 CXX = CC
-CXX = nvc++
+CXX = nvcc
+CXX = mpic++
 CXX = g++
-# CXX = mpiCC
+
 
 # Base CXXFLAGS, without HDF5-specific flags
+# CXXFLAGS = -g -O2 -std=c++17 -fopenmp -fopenacc -foffload=nvptx-none -#-fopenacc 
 CXXFLAGS = -g -O2 -std=c++17 -fopenmp #-fopenacc 
 
 # Detect HDF5
@@ -22,12 +24,12 @@ ifeq ($(HDF5_TEST), 1)
 
 # 	HDF5_CXXFLAGS = -I/usr/include/hdf5/serial #Perlmutter
 
-    HDF5_CXXFLAGS = -I/usr/include/hdf5/serial
-    HDF5_LIBS = -L/usr/lib/x86_64-linux-gnu/hdf5/serial -lhdf5 -lhdf5_cpp
+#     HDF5_CXXFLAGS = -I/usr/include/hdf5/serial
+#     HDF5_LIBS = -L/usr/lib/x86_64-linux-gnu/hdf5/serial -lhdf5 -lhdf5_cpp
 
 	#For Perlmutter and Novus
-# 	HDF5_CXXFLAGS = -I${HDF5_DIR}/include 
-# 	HDF5_LIBS = -L${HDF5_DIR}/lib -lhdf5 -lhdf5_cpp
+	HDF5_CXXFLAGS = -I${HDF5_DIR}/include 
+	HDF5_LIBS = -L${HDF5_DIR}/lib -lhdf5 -lhdf5_cpp
 
 	CXXFLAGS += $(HDF5_CXXFLAGS) -DHDF5_ENABLE
 	LIBS = $(HDF5_LIBS)
@@ -36,12 +38,17 @@ else
 endif
 
 ifeq ($(MPI_TEST), 1)
-	CXXFLAGS += -DMPI_ENABLE -I$(CRAY_MPICH_DIR)/include
-	LIBS += -L$(CRAY_MPICH_DIR)/lib
+# 	CXXFLAGS += -DMPI_ENABLE -I$(CRAY_MPICH_DIR)/include
+# 	LIBS += -L$(CRAY_MPICH_DIR)/lib
+	CXXFLAGS += -DMPI_ENABLE 
+# 	LIBS += 
 endif
 
 ifeq ($(GPU_TEST), 1)
-    CXXFLAGS += -DGPU_ENABLE -acc=gpu -Minfo=accel -Wl,-znoexecstack #-fopt-info-omp -gpu=cuda11.8
+	#Novus
+    CXXFLAGS += -DGPU_ENABLE -Wl,-znoexecstack #-fopt-info-omp -gpu=cuda11.8
+#     CXXFLAGS += -DGPU_ENABLE -acc=gpu -Minfo=accel -Wl,-znoexecstack #-fopt-info-omp -gpu=cuda11.8
+#     CXXFLAGS += -DGPU_ENABLE -Wl,-znoexecstack #-fopt-info-omp -gpu=cuda11.8
 # 	CXXFLAGS += -DGPU_ENABLE -Wl,-znoexecstack -fdump-tree-optimized
 endif
 

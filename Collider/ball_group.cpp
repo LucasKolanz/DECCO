@@ -173,6 +173,7 @@ void Ball_group::aggregationInit(const std::string path,const int index)
         restart = 1;
     }
 
+
     // If the simulation is complete exit now. Otherwise, the call to 
     //find_whole_file_name will possibly delete one of the data files 
     if (restart == 2)
@@ -2860,9 +2861,9 @@ void Ball_group::pos_and_vel_for_collision(Ball_group &projectile,Ball_group &ta
     //Now we can move the aggregates apart a little bit if they are touching
     //If they are touching, move the projectile in projectile_direction
     moveApart(projectile_direction,projectile,target);
-    std::cerr<<"ptarget.attrs.initial_radius: "<<target.attrs.initial_radius<<std::endl;
-    std::cerr<<"projectile target dist at end of pos and vel for collision: "<<(projectile.getCOM()-target.getCOM()).norm()<<std::endl;
-    std::cerr<<"projectile at end of pos and vel for collision: "<<projectile.pos[0]<<std::endl;
+    // std::cerr<<"ptarget.attrs.initial_radius: "<<target.attrs.initial_radius<<std::endl;
+    // std::cerr<<"projectile target dist at end of pos and vel for collision: "<<(projectile.getCOM()-target.getCOM()).norm()<<std::endl;
+    // std::cerr<<"projectile at end of pos and vel for collision: "<<projectile.pos[0]<<std::endl;
 
     // MPIsafe_exit(-1);
 }
@@ -3311,6 +3312,7 @@ std::string Ball_group::find_file_name(std::string path,int index)
     const std::string simDatacsv = "simData.csv";
     const std::string datah5 = "data.h5";
     int file_index;
+
 
     for (const auto & entry : fs::directory_iterator(path))
     {
@@ -4494,11 +4496,13 @@ Ball_group::sim_looper(unsigned long long start_step=1)
                 if (Step / attrs.skip % 10 == 0) 
                 {
 
+
                     std::cerr << "vMax = " << getVelMax() << "\nSteps recorded: " << Step / attrs.skip << '\n';
                     std::cerr << "Data Write to "<<data->getFileName()<<"\n";
                     
                     data->Write(ballBuffer,"simData",bufferlines);
 
+                    std::cerr<<"HERERERERERERERER"<<std::endl;
                     ballBuffer.clear();
                     ballBuffer = std::vector<double>(data->getWidth("simData")*bufferlines);
                     data->Write(energyBuffer,"energy");

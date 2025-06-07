@@ -105,7 +105,11 @@ std::string get_rand_projectile_folder(std::string folder)
 {
     std::string rand_folder;
     bool exists = false;
-    while (!exists) //Make sure the random folder exists
+
+    int max_tries = 10000;
+    int tries = 0;
+
+    while (!exists && tries < max_tries) //Make sure the random folder exists
     {
         int i = 0;
         rand_folder = "";
@@ -145,7 +149,16 @@ std::string get_rand_projectile_folder(std::string folder)
         {
             exists = true;
         }
+        tries++;
     }
+
+    if (tries >= max_tries)
+    {
+        MPIsafe_print(std::cerr,"ERROR: max_tries reached in get_rand_projectile_folder.\n");
+        MPIsafe_exit(-1);
+
+    }
+
     return rand_folder;
 }
 
