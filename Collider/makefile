@@ -6,6 +6,7 @@ CXX = CC
 CXX = nvcc
 CXX = mpic++
 CXX = g++
+CXX = nvc++
 
 
 # Base CXXFLAGS, without HDF5-specific flags
@@ -15,9 +16,9 @@ CXXFLAGS = -g -O2 -std=c++17 -fopenmp #-fopenacc
 # Detect HDF5
 # HDF5_TEST := $(shell ldconfig -p | grep hdf5 >/dev/null 2>&1 && echo 1 || echo 0)
 HDF5_TEST = 1
-MPI_TEST = 0
-GPU_TEST = 0
-EXPERIMENTAL_FILESYSTEM = 0
+MPI_TEST = 1
+GPU_TEST = 1
+EXPERIMENTAL_FILESYSTEM = 1
 
 # Conditional HDF5 flags
 ifeq ($(HDF5_TEST), 1)
@@ -38,16 +39,18 @@ else
 endif
 
 ifeq ($(MPI_TEST), 1)
-# 	CXXFLAGS += -DMPI_ENABLE -I$(CRAY_MPICH_DIR)/include
+	CXXFLAGS += -DMPI_ENABLE -I$(CRAY_MPICH_DIR)/include
 # 	LIBS += -L$(CRAY_MPICH_DIR)/lib
-	CXXFLAGS += -DMPI_ENABLE 
-# 	LIBS += 
+# 	CXXFLAGS += -DMPI_ENABLE -I/apps/intel/compilers_and_libraries_2017.4.196/linux/mpi/mic/lib/release/libmpi.so.12/include
+	LIBS += -L$(LD_LIBRARY_PATH) -lmpi
+# 	CXXFLAGS += -DMPI_ENABLE 
+# 	LIBS += -lmpi
 endif
 
 ifeq ($(GPU_TEST), 1)
 	#Novus
-    CXXFLAGS += -DGPU_ENABLE -Wl,-znoexecstack #-fopt-info-omp -gpu=cuda11.8
-#     CXXFLAGS += -DGPU_ENABLE -acc=gpu -Minfo=accel -Wl,-znoexecstack #-fopt-info-omp -gpu=cuda11.8
+#     CXXFLAGS += -DGPU_ENABLE -Wl,-znoexecstack #-fopt-info-omp -gpu=cuda11.8
+    CXXFLAGS += -DGPU_ENABLE -acc=gpu -Minfo=accel -Wl,-znoexecstack #-fopt-info-omp -gpu=cuda11.8
 #     CXXFLAGS += -DGPU_ENABLE -Wl,-znoexecstack #-fopt-info-omp -gpu=cuda11.8
 # 	CXXFLAGS += -DGPU_ENABLE -Wl,-znoexecstack -fdump-tree-optimized
 endif

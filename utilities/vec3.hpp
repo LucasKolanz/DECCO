@@ -27,16 +27,49 @@ public:
     //	return *this;
     //}
 
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3 operator-() const ;
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3 operator+(const vec3& v) const;
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3 operator+=(const vec3& v);
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3 operator-(const vec3& v) const;
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3 operator-=(const vec3& v);
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3 operator*(const double scalar) const;
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3 operator*=(const double scalar);
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3 operator/(const double scalar) const;
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3 operator/=(const double scalar);
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     double& operator[](const int i);
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     double operator[](const int i) const;
 
     // bool operator==(const vec3& v) const

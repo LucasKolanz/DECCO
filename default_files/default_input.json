@@ -52,6 +52,6 @@
     "targetName": "",
     "output_prefix": "default",
     "output_folder": "default",
-    "data_directory": "/home/kolanzl/novus/kolanzl/SpaceLab_data/",
-    "project_directory": "/home/kolanzl/novus/kolanzl/SpaceLab/"
+    "data_directory": "/nfs/stak/users/kolanzl/DECCO/SpaceLab_data/",
+    "project_directory": "/nfs/stak/users/kolanzl/DECCO/SpaceLab/"
 }

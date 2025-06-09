@@ -4320,7 +4320,7 @@ void Ball_group::sim_one_step()
         double local_PE = PE;
         PE = 0.0;
         MPI_Reduce(&local_PE,&PE,1,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
-        #pragma acc update device(acc[0:num_particles],aacc[0:num_particles])
+        #pragma acc update device(acc[0:attrs.num_particles],aacc[0:attrs.num_particles])
     #endif
 
 

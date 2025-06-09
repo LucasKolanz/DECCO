@@ -40,8 +40,9 @@ def same_job(fullpath, job_name):
 	qattrs = [int(i) for i in qattrs if len(i) > 0]
 
 	if len(fpattrs) != len(qattrs):
-		print("ERROR IN same_job")
-		exit(0)
+		return False
+		# print("ERROR IN same_job")
+		# exit(0)
 
 	for i in range(len(qattrs)):
 		if fpattrs[i] != qattrs[i]:
@@ -88,7 +89,7 @@ if __name__ == '__main__':
 		
 
 	# job_set_name = "TESTBAPA"
-	job_set_name = "LARGEBAPA"
+	job_set_name = "LARGEBAPAGPU1"
 
 	# folder_name_scheme = "T_"
 
@@ -110,7 +111,7 @@ if __name__ == '__main__':
 	totalNodes = 1
 	MPITasksPerNode = 1
 	totalMPITasks = totalNodes*MPITasksPerNode
-	threadsPerTask = 16
+	threadsPerTask = 1
 
 	#load default input file
 	with open(project_path+"default_files/default_input.json",'r') as fp:
@@ -186,9 +187,10 @@ if __name__ == '__main__':
 						# sbatchfile += f'#SBATCH --partition=dri.q\n'
 
 						#NAME ORDER needs to be same as the file path order
-						sbatchfile += f"#SBATCH -J a={attempt},m={m},n={n},t={Temp}\n"
+						sbatchfile += f"#SBATCH -J LBGPU,GPUS={totalMPITasks},a={attempt},m={m},n={n},t={Temp}\n"
 						# sbatchfile += "#SBATCH -A kolanzl\n"
 						sbatchfile += "#SBATCH --partition=share\n"
+						# sbatchfile += "#SBATCH --partition=dgxh\n"
 						sbatchfile += f"#SBATCH --nodes {totalNodes}\n"
 						sbatchfile += f"#SBATCH --ntasks-per-node {totalMPITasks}\n"
 						sbatchfile += f"#SBATCH --cpus-per-task {threadsPerTask}\n\n"
@@ -198,11 +200,13 @@ if __name__ == '__main__':
 						# sbatchfile += 'module load gpu\n'
 
 						sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(threadsPerTask)
+						sbatchfile += 'lscpu\n'
 						# sbatchfile += 'export SLURM_CPU_BIND="socket"\n'
 						# sbatchfile += 'module load hdf5/1.14.3\n'
 						# sbatchfile += 'module load hdf5/1.10.8\n'
 						# sbatchfile += 'module load gnu12/12.3.0\n'
-						# sbatchfile += 'module load openmpi4/4.1.6\n'
+						sbatchfile += 'module load mpich/3.3\n'
+						sbatchfile += 'module list\n'
 						# sbatchfile += 'module swap openmpi4/4.1.6 mpich\n'
 
 						

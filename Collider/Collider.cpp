@@ -16,6 +16,7 @@
 #include "ball_group.hpp"
 #include "../timing/timing.hpp"
 #include "../utilities/Utils.hpp"
+#include "../utilities/MPI_utilities.hpp"
 
 #ifdef MPI_ENABLE
     #include <mpi.h>
@@ -45,6 +46,7 @@ main(int argc, char* argv[])
 {
         // MPI Initialization
     int world_rank, world_size;
+
     #ifdef MPI_ENABLE
         MPI_Init(&argc, &argv);
         MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
