@@ -14,7 +14,7 @@
 	"note": "",
 	//How many openMP threads do you want?
 	"OMPthreads": 1,
-	//Type of simulation, default to "BPCA", other options: "collider"
+	//Type of simulation, default to "BPCA", other options: "collider", "BAPA", "BCCA"
 	"simType": "BPCA",
 	//If simType is BCCA, true will collide copies of the aggregate to grow
 	//false will find another attempt that is complete to grow the aggregate
