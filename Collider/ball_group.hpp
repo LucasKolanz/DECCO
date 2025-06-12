@@ -8,6 +8,7 @@
 #ifndef BALL_GROUP_HPP
 #define BALL_GROUP_HPP
 
+#include <openacc.h>
 #include "../external/json/single_include/nlohmann/json.hpp"
 #include "../utilities/vec3.hpp"
 #include "../utilities/MPI_utilities.hpp"
