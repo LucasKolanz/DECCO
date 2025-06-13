@@ -82,11 +82,22 @@ public:
     //	return !(*this == v);
     //}
 
-
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     [[nodiscard]] double dot(const vec3& v) const;
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     [[nodiscard]] vec3 cross(const vec3& v) const;
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     double norm() const;
     double normsquared() const;
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3 normalized() const;
     vec3 normalized_safe() const;
     void print() const;

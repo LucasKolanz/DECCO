@@ -2,7 +2,7 @@
 #include <omp.h>
 #include <thread>
 #include <fstream>
-
+#include <stdio.h>
 
 #include "ball_group.hpp"
 #include "../utilities/vec3.hpp"
@@ -3211,7 +3211,6 @@ int Ball_group::check_restart(std::string folder)
     // int file_count = 0;
     int largest_file_index = -1;
     int file_index=0;
-    std::cerr<<"START CHECK RS"<<std::endl;
     for (const auto & entry : fs::directory_iterator(folder))
     {
         if (!fs::is_regular_file(entry.path())) {
@@ -3226,7 +3225,6 @@ int Ball_group::check_restart(std::string folder)
         }
 
         //Is the data in csv format? (and isnt job_data.csv)
-        std::cerr<<"FILE: "<<file<<std::endl;
         if (file.size() >= 4 && file.substr(file.size()-4,file.size()) == ".csv" && file != "job_data.csv")
         {
             // file_count++;
@@ -3543,7 +3541,7 @@ std::string Ball_group::find_whole_file_name(std::string path, const int index)
 }
 
 #ifndef GPU_ENABLE
-void Ball_group::sim_one_step()
+void Ball_group::sim_one_step(int step)
 {
     int world_rank = getRank();
     int world_size = getSize();
@@ -3931,12 +3929,14 @@ void Ball_group::sim_one_step()
 #endif 
 
 #ifdef GPU_ENABLE
-void Ball_group::sim_one_step()
+void Ball_group::sim_one_step(int step)
 {
     
     /// FIRST PASS - Update Kinematic Parameters:
     // t.start_event("UpdateKinPar");
     // double t0 = omp_get_wtime();
+
+    int stopStep = 27;
 
 
     #pragma acc parallel loop gang worker present(this,this->attrs,velh[0:attrs.num_particles],vel[0:attrs.num_particles],\
@@ -3971,7 +3971,7 @@ void Ball_group::sim_one_step()
     //     std::cerr<<" inside host_data: accsq="<< accsq
     //        <<", aaccsq="<< aaccsq<<"\n";
     // #pragma acc host_data use_device(accsq, aaccsq) 
-    #pragma acc parallel loop gang worker present(this, attrs.num_particles)
+    #pragma acc parallel loop gang worker present(this, attrs.num_particles) deviceptr(accsq, aaccsq)
     for (int i = 0; i < attrs.num_particles*attrs.num_particles; ++i)
     {
         accsq[i] = {0.0,0.0,0.0};
@@ -3979,316 +3979,307 @@ void Ball_group::sim_one_step()
     }
     // }
 
+
+    // if (step == stopStep)
+    // {
+    //     #pragma acc serial deviceptr(accsq, aaccsq)
+    //     {
+    //         for(size_t i=0; i<attrs.num_particles*attrs.num_particles; ++i) {
+
+    //             printf("init accsq[%llu] = (%f, %f, %f)\n",
+    //                    (unsigned long long)i,
+    //                    accsq[i].x, accsq[i].y, accsq[i].z);
+
+    //             printf("init aaccsq[%llu] = (%f, %f, %f)\n",
+    //                    (unsigned long long)i,
+    //                    aaccsq[i].x, aaccsq[i].y, aaccsq[i].z);
+    //         }
+    //     }
+    // // MPIsafe_exit(-1);
+    // }
+
     double t2 = omp_get_wtime();
     // double pe = 0.0;
     // #pragma acc enter data copyin(pe)
     // #pragma acc enter data copyin(writeS/tep)
 
+    // if (step == stopStep)
+    // {
+    //     std::cout<<"attrs.world_rank+1: "<<attrs.world_rank+1<<std::endl;
+    //     std::cout<<"attrs.num_pairs: "<<attrs.num_pairs<<std::endl;
+    //     std::cout<<"attrs.world_size: "<<attrs.world_size<<std::endl;
+    // }
 
-    #pragma acc parallel loop gang worker \
-        present(this,PE, m[0:attrs.num_particles],\
+
+    // #pragma acc parallel loop \
+    //     present(this,PE, m[0:attrs.num_particles],\
+    //         moi[0:attrs.num_particles],w[0:attrs.num_particles],vel[0:attrs.num_particles],\
+    //         pos[0:attrs.num_particles],R[0:attrs.num_particles],distances[0:attrs.num_pairs],\
+    //         attrs.num_pairs,attrs.num_particles,attrs.Ha,attrs.kin,attrs.kout,attrs.h_min,\
+    //         attrs.u_s,attrs.u_r,attrs.write_step,attrs.world_rank,attrs.world_size) \
+    //     reduction(+:PE) deviceptr(accsq, aaccsq)
+    
+    // #pragma acc parallel loop \
+    //     present(this, m[0:attrs.num_particles],\
+    //         moi[0:attrs.num_particles],w[0:attrs.num_particles],vel[0:attrs.num_particles],\
+    //         pos[0:attrs.num_particles],R[0:attrs.num_particles],distances[0:attrs.num_pairs]) \
+    //     reduction(+:PE) deviceptr(accsq, aaccsq)
+    // for (int pc = 1; pc <= 3; pc += 1)
+
+    #pragma acc parallel deviceptr(accsq, aaccsq) present(this,PE, m[0:attrs.num_particles],\
             moi[0:attrs.num_particles],w[0:attrs.num_particles],vel[0:attrs.num_particles],\
             pos[0:attrs.num_particles],R[0:attrs.num_particles],distances[0:attrs.num_pairs],\
             attrs.num_pairs,attrs.num_particles,attrs.Ha,attrs.kin,attrs.kout,attrs.h_min,\
-            attrs.u_s,attrs.u_r,attrs.write_step,attrs.world_rank,attrs.world_size) \
-        reduction(+:PE) deviceptr(accsq, aaccsq)
-    for (int pc = attrs.world_rank+1; pc <= attrs.num_pairs; pc += attrs.world_size)
+            attrs.u_s,attrs.u_r,attrs.write_step,attrs.world_rank,attrs.world_size)
     {
 
-        double pd = (double)pc;
-        pd = (sqrt(pd*8.0+1.0)+1.0)*0.5;
-        pd -= 0.00001;
-        int A = (int)pd;
-        int B = (int)((double)pc-(double)A*((double)A-1.0)*.5-1.0);
+        int start = attrs.world_rank+1;
+        int stop = attrs.num_pairs;
+        int step = attrs.world_size;
 
- 
-        const double sumRaRb = R[A] + R[B];
-        const vec3 rVecab = pos[B] - pos[A];  // Vector from a to b.
-        const vec3 rVecba = -rVecab;
-        const double dist = (rVecab).norm();
-
-        //////////////////////
-        // const double grav_scale = 3.0e21;
-        //////////////////////
-
-        // Check for collision between Ball and otherBall:
-        double overlap = sumRaRb - dist;
-
-        vec3 totalForceOnA{0, 0, 0};
-
-        // Distance array element: 1,0    2,0    2,1    3,0    3,1    3,2 ...
-        int e = static_cast<unsigned>(A * (A - 1) * .5) + B;  // a^2-a is always even, so this works.
-        double oldDist = distances[e];
-        /////////////////////////////
-        // double inoutT;
-        /////////////////////////////
-        // Check for collision between Ball and otherBall.
-        if (overlap > 0) {
-
-
-
-            double k;
-            if (dist >= oldDist) {
-                k = attrs.kout;
-            } else {
-                k = attrs.kin;
-            }
-
-            // Cohesion (in contact) h must always be h_min:
-            // constexpr double h = h_min;
-            const double h = attrs.h_min;
-            const double Ra = R[A];
-            const double Rb = R[B];
-            const double h2 = h * h;
-            // constexpr double h2 = h * h;
-            const double twoRah = 2 * Ra * h;
-            const double twoRbh = 2 * Rb * h;
-
-            // const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
-            //                              ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
-            //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
-            //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
-            //                              rVecab.normalized();
-
-            // ==========================================
-            // Test new vdw force equation with less division
-            const double d1 = h2 + twoRah + twoRbh;
-            const double d2 = d1 + 4 * Ra * Rb;
-            const double numer = 64*attrs.Ha*Ra*Ra*Ra*Rb*Rb*Rb*(h+Ra+Rb);
-            const double denomrecip = 1/(6*d1*d1*d2*d2);
-            const vec3 vdwForceOnA = (numer*denomrecip)*rVecab.normalized();
-            // ==========================================
-
-            // Elastic force:
-            // vec3 elasticForceOnA{0, 0, 0};
-            // if (std::fabs(overlap) > 1e-6)
-            // {
-            //     elasticForceOnA = -k * overlap * .5 * (rVecab / dist);
-            // }
-            const vec3 elasticForceOnA = -k * overlap * .5 * (rVecab / dist);
-            ///////////////////////////////
-            // elasticForce[A] += elasticForceOnA;
-            // elasticForce[B] -= elasticForceOnA;
-            ///////////////////////////////
-            ///////////////////////////////
-            ///////material parameters for silicate composite from Reissl 2023
-            // const double Estar = 1e5*169; //in Pa
-            // const double nu2 = 0.27*0.27; // nu squared (unitless)
-            // const double prevoverlap = sumRaRb - oldDist;
-            // const double rij = sqrt(std::pow(Ra,2)-std::pow((Ra-overlap/2),2));
-            // const double Tvis = 15e-12; //Viscoelastic timescale (15ps)
-            // // const double Tvis = 5e-12; //Viscoelastic timescale (5ps)
-            // const vec3 viscoelaticforceOnA = -(2*Estar/nu2) * 
-            //                                  ((overlap - prevoverlap)/dt) * 
-            //                                  rij * Tvis * (rVecab / dist);
-            const vec3 viscoelaticforceOnA = {0,0,0};
-            ///////////////////////////////
-
-            // Gravity force:
-            // const vec3 gravForceOnA = (G * m[A] * m[B] * grav_scale / (dist * dist)) * (rVecab / dist); //SCALE MASS
-            const vec3 gravForceOnA = {0,0,0};
-            // const vec3 gravForceOnA = (G * m[A] * m[B] / (dist * dist)) * (rVecab / dist);
-
-            // Sliding and Rolling Friction:
-            vec3 slideForceOnA{0, 0, 0};
-            vec3 rollForceA{0, 0, 0};
-            vec3 torqueA{0, 0, 0};
-            vec3 torqueB{0, 0, 0};
-
-            // Shared terms:
-            const double elastic_force_A_mag = elasticForceOnA.norm();
-            const vec3 r_a = rVecab * R[A] / sumRaRb;  // Center to contact point
-            const vec3 r_b = rVecba * R[B] / sumRaRb;
-            const vec3 w_diff = w[A] - w[B];
-
-            // Sliding friction terms:
-            const vec3 d_vel = vel[B] - vel[A];
-            const vec3 frame_A_vel_B = d_vel - d_vel.dot(rVecab) * (rVecab / (dist * dist)) -
-                                       w[A].cross(r_a) - w[B].cross(r_a);
-
-            // Compute sliding friction force:
-            const double rel_vel_mag = frame_A_vel_B.norm();
-            // if (rel_vel_mag > 1e-20)  // Divide by zero protection.
-            // if (rel_vel_mag > 1e-8)  // Divide by zero protection.
-            ////////////////////////////////////////// CALC THIS AT INITIALIZATION for all combos os Ra,Rb
-            // const double u_scale = calc_VDW_force_mag(Ra,Rb,h_min_physical)/
-            //                         vdwForceOnA.norm();         //Friction coefficient scale factor
-            //////////////////////////////////////////
-            if (rel_vel_mag > 1e-13)  // NORMAL ONE Divide by zero protection.
-            {
-                // slideForceOnA = u_s * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
-                // In the frame of A, B applies force in the direction of B's velocity.
-                ///////////////////////////////////
-                // if (mu_scale)
-                // {
-                //     if (u_scale[e]*u_s > max_mu)
-                //     {
-                //         slideForceOnA = max_mu * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
-                //     }
-                //     else
-                //     {
-                //         slideForceOnA = u_scale[e] * u_s * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
-                //     }
-                // }
-                // else
-                // {
-                    slideForceOnA = attrs.u_s * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
-                // }
-                ///////////////////////////////////
-            }
-            //////////////////////////////////////
-            // slideForce[A] += slideForceOnA;
-            // slideForce[B] -= slideForceOnA;
-            //////////////////////////////////////
-
-
-            // Compute rolling friction force:
-            const double w_diff_mag = w_diff.norm();
-            // if (w_diff_mag > 1e-20)  // Divide by zero protection.
-            // if (w_diff_mag > 1e-8)  // Divide by zero protection.
-            if (w_diff_mag > 1e-13)  // NORMAL ONE Divide by zero protection.
-            {
-                // rollForceA = 
-                //     -u_r * elastic_force_A_mag * (w_diff).cross(r_a) / 
-                //     (w_diff).cross(r_a).norm();
-                /////////////////////////////////////
-                // if (mu_scale)
-                // {
-                //     if (u_scale[e]*u_r > max_mu)
-                //     {
-                //         rollForceA = 
-                //             -max_mu * elastic_force_A_mag * (w_diff).cross(r_a) / 
-                //             (w_diff).cross(r_a).norm();
-                //     }
-                //     else
-                //     {
-                //         rollForceA = 
-                //             -u_scale[e] * u_r * elastic_force_A_mag * (w_diff).cross(r_a) / 
-                //             (w_diff).cross(r_a).norm();
-                //     }
-                // }
-                // else
-                // {
-                    rollForceA = 
-                        -attrs.u_r * elastic_force_A_mag * (w_diff).cross(r_a) / 
-                        (w_diff).cross(r_a).norm();
-                // }
-                /////////////////////////////////////
-            }
-
-
-            // Total forces on a:
-            // totalForceOnA = gravForceOnA + elasticForceOnA + slideForceOnA + vdwForceOnA;
-            ////////////////////////////////
-            totalForceOnA = viscoelaticforceOnA + gravForceOnA + elasticForceOnA + slideForceOnA + vdwForceOnA;
-            ////////////////////////////////
-
-            // Total torque a and b:
-            torqueA = r_a.cross(slideForceOnA + rollForceA);
-            torqueB = r_b.cross(-slideForceOnA + rollForceA); // original code
-
-            vec3 aaccA = (1/moi[A])*torqueA;
-            vec3 aaccB = (1/moi[B])*torqueB;
-
-            aaccsq[A*attrs.num_particles+B].x = aaccA.x;
-            aaccsq[A*attrs.num_particles+B].y = aaccA.y;
-            aaccsq[A*attrs.num_particles+B].z = aaccA.z;
-            aaccsq[B*attrs.num_particles+A].x = aaccB.x;
-            aaccsq[B*attrs.num_particles+A].y = aaccB.y;
-            aaccsq[B*attrs.num_particles+A].z = aaccB.z;
-
-            // aacc[A] += torqueA / moi[A];
-            // aacc[B] += torqueB / moi[B];
-
-            if (attrs.write_step) {
-                // No factor of 1/2. Includes both spheres:
-                // PE += -G * m[A] * m[B] * grav_scale / dist + 0.5 * k * overlap * overlap;
-                // PE += -G * m[A] * m[B] / dist + 0.5 * k * overlap * overlap;
-
-                // Van Der Waals + elastic:
-                const double diffRaRb = R[A] - R[B];
-                const double z = sumRaRb + h;
-                const double two_RaRb = 2 * R[A] * R[B];
-                const double denom_sum = z * z - (sumRaRb * sumRaRb);
-                const double denom_diff = z * z - (diffRaRb * diffRaRb);
-                const double U_vdw =
-                    -attrs.Ha / 6 *
-                    (two_RaRb / denom_sum + two_RaRb / denom_diff + 
-                    log(denom_sum / denom_diff));
-                PE += U_vdw + 0.5 * k * overlap * overlap; ///TURN ON FOR REAL SIM
-            }
-        } else  // Non-contact forces:
+        #pragma acc loop reduction(+:PE) 
+        for (int pc = start; pc <= stop; pc += step)
         {
 
-            // No collision: Include gravity and vdw:
-            // const vec3 gravForceOnA = (G * m[A] * m[B] * grav_scale / (dist * dist)) * (rVecab / dist);
-            const vec3 gravForceOnA = {0.0,0.0,0.0};
-            // Cohesion (non-contact) h must be positive or h + Ra + Rb becomes catastrophic cancellation:
-            double h = std::fabs(overlap);
-            if (h < attrs.h_min)  // If h is closer to 0 (almost touching), use hmin.
+            double pd = (double)pc;
+            pd = (sqrt(pd*8.0+1.0)+1.0)*0.5;
+            pd -= 0.00001;
+            int A = (int)pd;
+            int B = (int)((double)pc-(double)A*((double)A-1.0)*.5-1.0);
+
+     
+            const double sumRaRb = R[A] + R[B];
+            const vec3 rVecab = pos[B] - pos[A];  // Vector from a to b.
+            const vec3 rVecba = -rVecab;
+            const double dist = (rVecab).norm();
+
+            //////////////////////
+            // const double grav_scale = 3.0e21;
+            //////////////////////
+
+            // Check for collision between Ball and otherBall:
+            double overlap = sumRaRb - dist;
+
+            vec3 totalForceOnA{0, 0, 0};
+
+            // Distance array element: 1,0    2,0    2,1    3,0    3,1    3,2 ...
+            int e = static_cast<unsigned>(A * (A - 1) * .5) + B;  // a^2-a is always even, so this works.
+            double oldDist = distances[e];
+            /////////////////////////////
+            // double inoutT;
+            /////////////////////////////
+            // Check for collision between Ball and otherBall.
+            if (overlap > 0) {
+
+
+
+                double k;
+                if (dist >= oldDist) {
+                    k = attrs.kout;
+                } else {
+                    k = attrs.kin;
+                }
+
+                // Cohesion (in contact) h must always be h_min:
+                // constexpr double h = h_min;
+                const double h = attrs.h_min;
+                const double Ra = R[A];
+                const double Rb = R[B];
+                const double h2 = h * h;
+                // constexpr double h2 = h * h;
+                const double twoRah = 2 * Ra * h;
+                const double twoRbh = 2 * Rb * h;
+
+                // const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
+                //                              ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
+                //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
+                //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
+                //                              rVecab.normalized();
+
+                // ==========================================
+                // Test new vdw force equation with less division
+                const double d1 = h2 + twoRah + twoRbh;
+                const double d2 = d1 + 4 * Ra * Rb;
+                const double numer = 64*attrs.Ha*Ra*Ra*Ra*Rb*Rb*Rb*(h+Ra+Rb);
+                const double denomrecip = 1/(6*d1*d1*d2*d2);
+                const vec3 vdwForceOnA = (numer*denomrecip)*rVecab.normalized();
+                // ==========================================
+
+
+                const vec3 elasticForceOnA = -k * overlap * .5 * (rVecab / dist);
+
+
+                // Gravity force:
+                // const vec3 gravForceOnA = (G * m[A] * m[B] * grav_scale / (dist * dist)) * (rVecab / dist); //SCALE MASS
+                const vec3 gravForceOnA = {0,0,0};
+                // const vec3 gravForceOnA = (G * m[A] * m[B] / (dist * dist)) * (rVecab / dist);
+
+                // Sliding and Rolling Friction:
+                vec3 slideForceOnA{0, 0, 0};
+                vec3 rollForceA{0, 0, 0};
+                vec3 torqueA{0, 0, 0};
+                vec3 torqueB{0, 0, 0};
+
+                // Shared terms:
+                const double elastic_force_A_mag = elasticForceOnA.norm();
+                const vec3 r_a = rVecab * R[A] / sumRaRb;  // Center to contact point
+                const vec3 r_b = rVecba * R[B] / sumRaRb;
+                const vec3 w_diff = w[A] - w[B];
+
+                // Sliding friction terms:
+                const vec3 d_vel = vel[B] - vel[A];
+                const vec3 frame_A_vel_B = d_vel - d_vel.dot(rVecab) * (rVecab / (dist * dist)) -
+                                           w[A].cross(r_a) - w[B].cross(r_a);
+
+                // Compute sliding friction force:
+                const double rel_vel_mag = frame_A_vel_B.norm();
+
+                if (rel_vel_mag > 1e-13)  // NORMAL ONE Divide by zero protection.
+                {
+                        slideForceOnA = attrs.u_s * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
+
+                }
+
+
+                // Compute rolling friction force:
+                const double w_diff_mag = w_diff.norm();
+                if (w_diff_mag > 1e-13)  // NORMAL ONE Divide by zero protection.
+                {
+
+                        rollForceA = 
+                            -attrs.u_r * elastic_force_A_mag * (w_diff).cross(r_a) / 
+                            (w_diff).cross(r_a).norm();
+                }
+
+
+                // Total forces on a:
+                // totalForceOnA = gravForceOnA + elasticForceOnA + slideForceOnA + vdwForceOnA;
+                ////////////////////////////////
+                totalForceOnA = gravForceOnA + elasticForceOnA + slideForceOnA + vdwForceOnA;
+                ////////////////////////////////
+
+                // Total torque a and b:
+                torqueA = r_a.cross(slideForceOnA + rollForceA);
+                torqueB = r_b.cross(-slideForceOnA + rollForceA); // original code
+
+                vec3 aaccA = (1/moi[A])*torqueA;
+                vec3 aaccB = (1/moi[B])*torqueB;
+
+                aaccsq[A*attrs.num_particles+B].x = aaccA.x;
+                aaccsq[A*attrs.num_particles+B].y = aaccA.y;
+                aaccsq[A*attrs.num_particles+B].z = aaccA.z;
+                aaccsq[B*attrs.num_particles+A].x = aaccB.x;
+                aaccsq[B*attrs.num_particles+A].y = aaccB.y;
+                aaccsq[B*attrs.num_particles+A].z = aaccB.z;
+
+                // aacc[A] += torqueA / moi[A];
+                // aacc[B] += torqueB / moi[B];
+
+                if (attrs.write_step) {
+                    // No factor of 1/2. Includes both spheres:
+                    // PE += -G * m[A] * m[B] * grav_scale / dist + 0.5 * k * overlap * overlap;
+                    // PE += -G * m[A] * m[B] / dist + 0.5 * k * overlap * overlap;
+
+                    // Van Der Waals + elastic:
+                    const double diffRaRb = R[A] - R[B];
+                    const double z = sumRaRb + h;
+                    const double two_RaRb = 2 * R[A] * R[B];
+                    const double denom_sum = z * z - (sumRaRb * sumRaRb);
+                    const double denom_diff = z * z - (diffRaRb * diffRaRb);
+                    const double U_vdw =
+                        -attrs.Ha / 6 *
+                        (two_RaRb / denom_sum + two_RaRb / denom_diff + 
+                        log(denom_sum / denom_diff));
+                    PE += U_vdw + 0.5 * k * overlap * overlap; ///TURN ON FOR REAL SIM
+                }
+            } else  // Non-contact forces:
             {
-                h = attrs.h_min;
+
+                // No collision: Include gravity and vdw:
+                // const vec3 gravForceOnA = (G * m[A] * m[B] * grav_scale / (dist * dist)) * (rVecab / dist);
+                const vec3 gravForceOnA = {0.0,0.0,0.0};
+                // Cohesion (non-contact) h must be positive or h + Ra + Rb becomes catastrophic cancellation:
+                double h = std::fabs(overlap);
+                if (h < attrs.h_min)  // If h is closer to 0 (almost touching), use hmin.
+                {
+                    h = attrs.h_min;
+                }
+                const double Ra = R[A];
+                const double Rb = R[B];
+                const double h2 = h * h;
+                const double twoRah = 2 * Ra * h;
+                const double twoRbh = 2 * Rb * h;
+
+                // const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
+                //                              ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
+                //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
+                //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
+                //                              rVecab.normalized();
+                // ==========================================
+                // Test new vdw force equation with less division
+                const double d1 = h2 + twoRah + twoRbh;
+                const double d2 = d1 + 4 * Ra * Rb;
+                const double numer = 64*attrs.Ha*Ra*Ra*Ra*Rb*Rb*Rb*(h+Ra+Rb);
+                const double denomrecip = 1/(6*d1*d1*d2*d2);
+                const vec3 vdwForceOnA = (numer*denomrecip)*rVecab.normalized();
+                // ==========================================
+               
+                /////////////////////////////
+                totalForceOnA = vdwForceOnA + gravForceOnA;
+                // totalForceOnA = vdwForceOnA;
+                // totalForceOnA = gravForceOnA;
+                /////////////////////////////
+                if (attrs.write_step) {
+                    // PE += -G * m[A] * m[B] * grav_scale / dist; // Gravitational
+
+                    const double diffRaRb = R[A] - R[B];
+                    const double z = sumRaRb + h;
+                    const double two_RaRb = 2 * R[A] * R[B];
+                    const double denom_sum = z * z - (sumRaRb * sumRaRb);
+                    const double denom_diff = z * z - (diffRaRb * diffRaRb);
+                    const double U_vdw =
+                        -attrs.Ha / 6 *
+                        (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
+                    PE += U_vdw;  // Van Der Waals TURN ON FOR REAL SIM
+                }
+
+                // todo this is part of push_apart. Not great like this.
+                // For pushing apart overlappers:
+                // vel[A] = { 0,0,0 };
+                // vel[B] = { 0,0,0 };
             }
-            const double Ra = R[A];
-            const double Rb = R[B];
-            const double h2 = h * h;
-            const double twoRah = 2 * Ra * h;
-            const double twoRbh = 2 * Rb * h;
 
-            // const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
-            //                              ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
-            //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
-            //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
-            //                              rVecab.normalized();
-            // ==========================================
-            // Test new vdw force equation with less division
-            const double d1 = h2 + twoRah + twoRbh;
-            const double d2 = d1 + 4 * Ra * Rb;
-            const double numer = 64*attrs.Ha*Ra*Ra*Ra*Rb*Rb*Rb*(h+Ra+Rb);
-            const double denomrecip = 1/(6*d1*d1*d2*d2);
-            const vec3 vdwForceOnA = (numer*denomrecip)*rVecab.normalized();
-            // ==========================================
-           
-            /////////////////////////////
-            totalForceOnA = vdwForceOnA + gravForceOnA;
-            // totalForceOnA = vdwForceOnA;
-            // totalForceOnA = gravForceOnA;
-            /////////////////////////////
-            if (attrs.write_step) {
-                // PE += -G * m[A] * m[B] * grav_scale / dist; // Gravitational
+            // Newton's equal and opposite forces applied to acceleration of each ball:
+            vec3 accA = (1/m[A])*totalForceOnA; 
+            vec3 accB = -1.0*(1/m[B])*totalForceOnA; 
 
-                const double diffRaRb = R[A] - R[B];
-                const double z = sumRaRb + h;
-                const double two_RaRb = 2 * R[A] * R[B];
-                const double denom_sum = z * z - (sumRaRb * sumRaRb);
-                const double denom_diff = z * z - (diffRaRb * diffRaRb);
-                const double U_vdw =
-                    -attrs.Ha / 6 *
-                    (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
-                PE += U_vdw;  // Van Der Waals TURN ON FOR REAL SIM
-            }
 
-            // todo this is part of push_apart. Not great like this.
-            // For pushing apart overlappers:
-            // vel[A] = { 0,0,0 };
-            // vel[B] = { 0,0,0 };
+
+            accsq[A*attrs.num_particles+B].x = accA.x;
+            accsq[A*attrs.num_particles+B].y = accA.y;
+            accsq[A*attrs.num_particles+B].z = accA.z;
+            accsq[B*attrs.num_particles+A].x = accB.x;
+            accsq[B*attrs.num_particles+A].y = accB.y;
+            accsq[B*attrs.num_particles+A].z = accB.z;
+
+
+            // if (step == stopStep)
+            // {
+            //     printf("0: accsq[A*attrs.num_particles+B].y = %f\n",
+            //            accsq[A*attrs.num_particles+B].y);
+            //     printf("0: accsq[A*attrs.num_particles+B].x = %f\n",
+            //            accsq[A*attrs.num_particles+B].x);
+
+            //     // printf("0: aaccsq[%llu, %llu] = (%f, %f, %f)\n",
+            //     //        (unsigned long long)i,(unsigned long long)j,
+            //     //        aaccsq[i*attrs.num_particles+j].x, aaccsq[i*attrs.num_particles+j].y, aaccsq[i*attrs.num_particles+j].z);
+            // }
+
+
+            // So last distance can be known for COR:
+            distances[e] = dist;
+
         }
-
-        // Newton's equal and opposite forces applied to acceleration of each ball:
-        vec3 accA = (1/m[A])*totalForceOnA; 
-        vec3 accB = -1.0*(1/m[B])*totalForceOnA; 
-
-        accsq[A*attrs.num_particles+B].x = accA.x;
-        accsq[A*attrs.num_particles+B].y = accA.y;
-        accsq[A*attrs.num_particles+B].z = accA.z;
-        accsq[B*attrs.num_particles+A].x = accB.x;
-        accsq[B*attrs.num_particles+A].y = accB.y;
-        accsq[B*attrs.num_particles+A].z = accB.z;
-
-
-        // So last distance can be known for COR:
-        distances[e] = dist;
-
     }
 
     double t3 = omp_get_wtime();
@@ -4301,6 +4292,16 @@ void Ball_group::sim_one_step()
         #pragma acc loop seq
         for (int j = 0; j < attrs.num_particles; j++)
         {
+            // if (step == stopStep)
+            // {
+            //     printf("1: accsq[%llu, %llu] = (%f, %f, %f)\n",
+            //            (unsigned long long)i,(unsigned long long)j,
+            //            accsq[i*attrs.num_particles+j].x, accsq[i*attrs.num_particles+j].y, accsq[i*attrs.num_particles+j].z);
+
+            //     printf("1: aaccsq[%llu, %llu] = (%f, %f, %f)\n",
+            //            (unsigned long long)i,(unsigned long long)j,
+            //            aaccsq[i*attrs.num_particles+j].x, aaccsq[i*attrs.num_particles+j].y, aaccsq[i*attrs.num_particles+j].z);
+            // }
             acc[i].x += accsq[i*attrs.num_particles+j].x;
             acc[i].y += accsq[i*attrs.num_particles+j].y;
             acc[i].z += accsq[i*attrs.num_particles+j].z;
@@ -4310,6 +4311,39 @@ void Ball_group::sim_one_step()
         }
     // #pragma acc update self(acc[0:num_particles],aacc[0:num_particles]) //if(write_step)
     // #pragma acc update self(acc[i],aacc[i]) //if(write_step)
+    }
+
+    if (step == stopStep)
+    {
+
+        #pragma acc serial present(acc[0:attrs.num_particles], aacc[0:attrs.num_particles])
+        {
+            for(size_t i=0; i<attrs.num_particles; ++i) {
+
+                printf("2: acc[%llu] = (%f, %f, %f)\n",
+                       (unsigned long long)i,
+                       accsq[i].x, accsq[i].y, accsq[i].z);
+
+                printf("2: aacc[%llu] = (%f, %f, %f)\n",
+                       (unsigned long long)i,
+                       aaccsq[i].x, aaccsq[i].y, aaccsq[i].z);
+            }
+        }
+
+    //     #pragma acc serial deviceptr(accsq, aaccsq)
+    //     {
+    //         for(size_t i=0; i<attrs.num_particles*attrs.num_particles; ++i) {
+
+    //             printf("3: accsq[%llu] = (%f, %f, %f)\n",
+    //                    (unsigned long long)i,
+    //                    accsq[i].x, accsq[i].y, accsq[i].z);
+
+    //             printf("3: aaccsq[%llu] = (%f, %f, %f)\n",
+    //                    (unsigned long long)i,
+    //                    aaccsq[i].x, aaccsq[i].y, aaccsq[i].z);
+    //         }
+    //     }
+        MPIsafe_exit(-1);
     }
 
     double t4 = omp_get_wtime();
@@ -4486,7 +4520,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
         // std::cerr<<"step: "<<Step<<"\tskip: "<<attrs.skip<<std::endl;
 
         // Physics integration step:
-        sim_one_step();
+        sim_one_step(Step);
         // #ifndef GPU_ENABLE
         // #else
         //     sim_one_step_GPU();
@@ -4614,6 +4648,9 @@ Ball_group::sim_looper(unsigned long long start_step=1)
     accsq  = (vec3*) acc_malloc( attrs.num_particles*attrs.num_particles * sizeof(vec3) );
     aaccsq = (vec3*) acc_malloc( attrs.num_particles*attrs.num_particles * sizeof(vec3) );
 
+    // h_accsq  = (vec3*) acc_malloc( attrs.num_particles*attrs.num_particles * sizeof(vec3) );
+    // h_aaccsq = (vec3*) acc_malloc( attrs.num_particles*attrs.num_particles * sizeof(vec3) );
+
     #pragma acc enter data copyin(this[0:1],\
         velh[0:attrs.num_particles],vel[0:attrs.num_particles],wh[0:attrs.num_particles],w[0:attrs.num_particles],\
         moi[0:attrs.num_particles],m[0:attrs.num_particles],pos[0:attrs.num_particles],R[0:attrs.num_particles],\
@@ -4665,7 +4702,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
             // std::cerr<<"step: "<<Step<<"\tskip: "<<attrs.skip<<std::endl;
 
             // Physics integration step:
-            sim_one_step();
+            sim_one_step(Step);
             // #ifndef GPU_ENABLE
             // #else
             //     sim_one_step_GPU();
@@ -4700,11 +4737,19 @@ Ball_group::sim_looper(unsigned long long start_step=1)
 
                         attrs.num_writes = 0;
 
+                        ///////////////////TEMPORARY STOPGAP///////////////////
+                        if (!isConnected(pos,R,attrs.num_particles))
+                        {
+                            MPIsafe_print(std::cerr,"NOT CONNECTED AFTER WRITE\n");
+                            MPIsafe_exit(-1);
+                        }
+                        ///////////////////TEMPORARY STOPGAP///////////////////
                     }  // Data export end
                     
                     attrs.lastWrite = time(nullptr);
                 }
-                
+
+
                 // Reinitialize energies for next step:
                 KE = 0;
                 PE = 0;

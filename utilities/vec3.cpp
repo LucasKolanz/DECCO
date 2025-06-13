@@ -5,12 +5,14 @@
 #include <sstream>
 #include "vec3.hpp"
 
+
 vec3::vec3()
     : x(0)
     , y(0)
     , z(0)
 {
 }
+
 
 vec3::vec3(const double newx, const double newy, const double newz)
     : x(newx)
@@ -19,10 +21,19 @@ vec3::vec3(const double newx, const double newy, const double newz)
 {
 }
 
+#ifdef GPU_ENABLE
+    #pragma acc routine seq
+#endif
 vec3 vec3::operator-() const { return vec3(-x, -y, -z); }
 
+#ifdef GPU_ENABLE
+    #pragma acc routine seq
+#endif
 vec3 vec3::operator+(const vec3& v) const { return vec3(x + v.x, y + v.y, z + v.z); }
 
+#ifdef GPU_ENABLE
+    #pragma acc routine seq
+#endif
 vec3 vec3::operator+=(const vec3& v)
 {
     x += v.x;
@@ -31,8 +42,14 @@ vec3 vec3::operator+=(const vec3& v)
     return *this;
 }
 
+#ifdef GPU_ENABLE
+    #pragma acc routine seq
+#endif
 vec3 vec3::operator-(const vec3& v) const { return vec3(x - v.x, y - v.y, z - v.z); }
 
+#ifdef GPU_ENABLE
+    #pragma acc routine seq
+#endif
 vec3 vec3::operator-=(const vec3& v)
 {
     x -= v.x;
@@ -41,8 +58,14 @@ vec3 vec3::operator-=(const vec3& v)
     return *this;
 }
 
+#ifdef GPU_ENABLE
+    #pragma acc routine seq
+#endif
 vec3 vec3::operator*(const double scalar) const { return vec3(scalar * x, scalar * y, scalar * z); }
 
+#ifdef GPU_ENABLE
+    #pragma acc routine seq
+#endif
 vec3 vec3::operator*=(const double scalar)
 {
     x *= scalar;
@@ -51,8 +74,14 @@ vec3 vec3::operator*=(const double scalar)
     return *this;
 }
 
+#ifdef GPU_ENABLE
+    #pragma acc routine seq
+#endif
 vec3 vec3::operator/(const double scalar) const { return vec3(x / scalar, y / scalar, z / scalar); }
 
+#ifdef GPU_ENABLE
+    #pragma acc routine seq
+#endif
 vec3 vec3::operator/=(const double scalar)
 {
     x /= scalar;
@@ -71,6 +100,9 @@ vec3 vec3::operator/=(const double scalar)
 //	return !(*this == v);
 //}
 
+#ifdef GPU_ENABLE
+    #pragma acc routine seq
+#endif
 double& vec3::operator[](const int i)
 {
     switch (i) {
@@ -83,6 +115,9 @@ double& vec3::operator[](const int i)
     }
     assert(0);
 }
+#ifdef GPU_ENABLE
+    #pragma acc routine seq
+#endif
 double vec3::operator[](const int i) const
 {
     switch (i) {
@@ -96,13 +131,25 @@ double vec3::operator[](const int i) const
     assert(0);
 }
 
+#ifdef GPU_ENABLE
+    #pragma acc routine seq
+#endif
 [[nodiscard]] double vec3::dot(const vec3& v) const { return x * v.x + y * v.y + z * v.z; }
+#ifdef GPU_ENABLE
+    #pragma acc routine seq
+#endif
 [[nodiscard]] vec3 vec3::cross(const vec3& v) const
 {
     return vec3(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x);
 }
+#ifdef GPU_ENABLE
+    #pragma acc routine seq
+#endif
 double vec3::norm() const { return sqrt(x * x + y * y + z * z); }
 double vec3::normsquared() const { return x * x + y * y + z * z; }
+#ifdef GPU_ENABLE
+    #pragma acc routine seq
+#endif
 vec3 vec3::normalized() const { return *this / this->norm(); }
 
 vec3 vec3::normalized_safe() const

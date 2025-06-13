@@ -346,7 +346,7 @@ public:
     // vec3 random_offset(const double3x3 local_coords,vec3 projectile_pos,vec3 projectile_vel,const double projectile_rad);
     vec3 random_offset(Ball_group &projectile, Ball_group &target);
     void comSpinner(const double& spinX, const double& spinY, const double& spinZ) const;
-    void sim_one_step();
+    void sim_one_step(int step);
     void sim_looper(unsigned long long start_step);
     
     //Functions which calculate/set values for Ball_group
