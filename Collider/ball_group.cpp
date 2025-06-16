@@ -3937,19 +3937,10 @@ void Ball_group::sim_one_step(int step,bool write_step)
 void Ball_group::sim_one_step(int step,bool write_step)
 {
     
-    /// FIRST PASS - Update Kinematic Parameters:
-    // t.start_event("UpdateKinPar");
-    // double t0 = omp_get_wtime();
-
-    // int stopStep = 1;
-
-    // #pragma acc update device(this,velh[0:attrs.num_particles],vel[0:attrs.num_particles],\
-    //     acc[0:attrs.num_particles],attrs.dt,wh[0:attrs.num_particles],w[0:attrs.num_particles],aacc[0:attrs.num_particles],\
-    //     pos[0:attrs.num_particles],attrs.num_particles) 
-    std::cerr<<"START ONE STEP"<<std::endl;
 
 
-    #pragma acc serial loop deviceptr(d_velh,d_vel,d_acc,d_aacc,d_wh,d_w,d_pos,d_attrs)
+
+    #pragma acc parallel loop deviceptr(d_velh,d_vel,d_acc,d_aacc,d_wh,d_w,d_pos,d_attrs)
     for (int Ball = 0; Ball < d_attrs->num_particles; Ball++) {
         // Update velocity half step:
         d_velh[Ball] = d_vel[Ball] + .5 * d_acc[Ball] * d_attrs->dt;
@@ -3968,136 +3959,26 @@ void Ball_group::sim_one_step(int step,bool write_step)
     }
 
 
-    // #pragma acc update host(this,this->attrs,vel[0:attrs.num_particles],\
-    //     acc[0:attrs.num_particles],attrs.dt,wh[0:attrs.num_particles],w[0:attrs.num_particles],aacc[0:attrs.num_particles],\
-    //     pos[0:attrs.num_particles],attrs.num_particles) 
-    
-    // if (step == stopStep)
-    // {
 
-        // #pragma acc serial deviceptr(d_acc, d_aacc)
-        // {
-        //     for(size_t i=0; i<d_attrs->num_particles; ++i) {
 
-        //         printf("1: d_acc[%llu] = (%f, %f, %f)\n",
-        //                (unsigned long long)i,
-        //                d_acc[i].x, d_acc[i].y, d_acc[i].z);
-
-        //         printf("1: d_aacc[%llu] = (%f, %f, %f)\n",
-        //                (unsigned long long)i,
-        //                d_aacc[i].x, d_aacc[i].y, d_aacc[i].z);
-        //     }
-        // }
-    // }
-    // t.end_event("UpdateKinPar");
-
-    // int threads = attrs.OMPthreads;
-    double t1 = omp_get_wtime();
-
-    std::cerr<<"START ZEROING SQUARES"<<std::endl;
-
-    #pragma acc serial loop deviceptr(d_accsq, d_aaccsq,d_attrs)
+    #pragma acc parallel loop deviceptr(d_accsq, d_aaccsq,d_attrs)
     for (int i = 0; i < d_attrs->num_particles*d_attrs->num_particles; ++i)
     {
         d_accsq[i] = {0.0,0.0,0.0};
         d_aaccsq[i] = {0.0,0.0,0.0};
     }
-    // }
+ 
 
 
-    // if (step == stopStep)
-    // {
-    //     #pragma acc serial deviceptr(accsq, aaccsq)
-    //     {
-    //         for(size_t i=0; i<attrs.num_particles*attrs.num_particles; ++i) {
-
-    //             printf("init accsq[%llu] = (%f, %f, %f)\n",
-    //                    (unsigned long long)i,
-    //                    accsq[i].x, accsq[i].y, accsq[i].z);
-
-    //             printf("init aaccsq[%llu] = (%f, %f, %f)\n",
-    //                    (unsigned long long)i,
-    //                    aaccsq[i].x, aaccsq[i].y, aaccsq[i].z);
-    //         }
-    //     }
-    // // MPIsafe_exit(-1);
-    // }
-
-    std::cerr<<"STEP: "<<step<<" write: "<<write_step<<std::endl;
-
-    double t2 = omp_get_wtime();
 
     int start = attrs.world_rank+1;
     int stop = attrs.num_pairs;
     int leap = attrs.world_size;
 
 
-    // if (!acc_is_present(d_accsq, attrs.num_particles*attrs.num_particles * sizeof(vec3))) {
-    //     std::cerr << "d_accsq is NOT present on the device!" << std::endl;
-    // } else {
-    //     std::cerr << "d_accsq IS present on the device." << std::endl;
-    // }
-    // if (!acc_is_present(d_aaccsq, attrs.num_particles*attrs.num_particles * sizeof(vec3))) {
-    //     std::cerr << "d_aaccsq is NOT present on the device!" << std::endl;
-    // } else {
-    //     std::cerr << "d_aaccsq IS present on the device." << std::endl;
-    // }
-    // if (!acc_is_present(d_acc, attrs.num_particles * sizeof(vec3))) {
-    //     std::cerr << "d_acc is NOT present on the device!" << std::endl;
-    // } else {
-    //     std::cerr << "d_acc IS present on the device." << std::endl;
-    // }
-    // if (!acc_is_present(d_aacc, attrs.num_particles * sizeof(vec3))) {
-    //     std::cerr << "d_aacc is NOT present on the device!" << std::endl;
-    // } else {
-    //     std::cerr << "d_aacc IS present on the device." << std::endl;
-    // }
-    // if (!acc_is_present(d_pos, attrs.num_particles * sizeof(vec3))) {
-    //     std::cerr << "d_pos is NOT present on the device!" << std::endl;
-    // } else {
-    //     std::cerr << "d_pos IS present on the device." << std::endl;
-    // }
-    // if (!acc_is_present(d_w, attrs.num_particles * sizeof(vec3))) {
-    //     std::cerr << "d_w is NOT present on the device!" << std::endl;
-    // } else {
-    //     std::cerr << "d_w IS present on the device." << std::endl;
-    // }
-    // if (!acc_is_present(d_vel, attrs.num_particles * sizeof(vec3))) {
-    //     std::cerr << "d_vel is NOT present on the device!" << std::endl;
-    // } else {
-    //     std::cerr << "d_vel IS present on the device." << std::endl;
-    // }
-    // if (!acc_is_present(d_m, attrs.num_particles * sizeof(double))) {
-    //     std::cerr << "d_m is NOT present on the device!" << std::endl;
-    // } else {
-    //     std::cerr << "d_m IS present on the device." << std::endl;
-    // }
-    // if (!acc_is_present(d_R, attrs.num_particles * sizeof(double))) {
-    //     std::cerr << "d_R is NOT present on the device!" << std::endl;
-    // } else {
-    //     std::cerr << "d_R IS present on the device." << std::endl;
-    // }
-    // if (!acc_is_present(d_distances, attrs.num_pairs * sizeof(double))) {
-    //     std::cerr << "d_distances is NOT present on the device!" << std::endl;
-    // } else {
-    //     std::cerr << "d_distances IS present on the device." << std::endl;
-    // }
-    // if (!acc_is_present(d_moi, attrs.num_particles * sizeof(double))) {
-    //     std::cerr << "d_moi is NOT present on the device!" << std::endl;
-    // } else {
-    //     std::cerr << "d_moi IS present on the device." << std::endl;
-    // }
-    // if (!acc_is_present(d_attrs, sizeof(Device_attributes))) {
-    //     std::cerr << "d_attrs is NOT present on the device!" << std::endl;
-    // } else {
-    //     std::cerr << "d_attrs IS present on the device." << std::endl;
-    // }
-
-
-    #pragma acc serial deviceptr(d_accsq, d_aaccsq, d_m, d_moi, d_w, d_vel, d_pos, d_R, d_distances,d_attrs)
+    #pragma acc parallel deviceptr(d_accsq, d_aaccsq, d_m, d_moi, d_w, d_vel, d_pos, d_R, d_distances,d_attrs)
     {
 
-        // #pragma acc loop  
         #pragma acc loop reduction(+:PE) 
         for (int pc = start; pc <= stop; pc += leap)
         {
@@ -4133,8 +4014,6 @@ void Ball_group::sim_one_step(int step,bool write_step)
             // Check for collision between Ball and otherBall.
             if (overlap > 0) {
 
-                // std::cerr<<"touching"<<std::endl;
-
 
                 double k;
                 if (dist >= oldDist) {
@@ -4153,20 +4032,12 @@ void Ball_group::sim_one_step(int step,bool write_step)
                 const double twoRah = 2 * Ra * h;
                 const double twoRbh = 2 * Rb * h;
 
-                // const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
-                //                              ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
-                //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
-                //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
-                //                              rVecab.normalized();
 
-                // ==========================================
-                // Test new vdw force equation with less division
                 const double d1 = h2 + twoRah + twoRbh;
                 const double d2 = d1 + 4 * Ra * Rb;
                 const double numer = 64*d_attrs->Ha*Ra*Ra*Ra*Rb*Rb*Rb*(h+Ra+Rb);
                 const double denomrecip = 1/(6*d1*d1*d2*d2);
                 const vec3 vdwForceOnA = (numer*denomrecip)*rVecab.normalized();
-                // ==========================================
 
 
                 const vec3 elasticForceOnA = -k * overlap * .5 * (rVecab / dist);
@@ -4191,8 +4062,12 @@ void Ball_group::sim_one_step(int step,bool write_step)
 
                 // Sliding friction terms:
                 const vec3 vel_diff = d_vel[B] - d_vel[A];
+
+
                 const vec3 frame_A_vel_B = vel_diff - vel_diff.dot(rVecab) * (rVecab / (dist * dist)) -
-                                           d_w[A].cross(r_a) - w[B].cross(r_a);
+                                           d_w[A].cross(r_a) - d_w[B].cross(r_a);
+
+
 
                 // Compute sliding friction force:
                 const double rel_vel_mag = frame_A_vel_B.norm();
@@ -4235,9 +4110,6 @@ void Ball_group::sim_one_step(int step,bool write_step)
                 d_aaccsq[B*d_attrs->num_particles+A].y = aaccB.y;
                 d_aaccsq[B*d_attrs->num_particles+A].z = aaccB.z;
 
-                // aacc[A] += torqueA / moi[A];
-                // aacc[B] += torqueB / moi[B];
-
                 if (write_step) {
                     // No factor of 1/2. Includes both spheres:
                     // PE += -G * m[A] * m[B] * grav_scale / dist + 0.5 * k * overlap * overlap;
@@ -4255,9 +4127,9 @@ void Ball_group::sim_one_step(int step,bool write_step)
                         log(denom_sum / denom_diff));
                     PE += U_vdw + 0.5 * k * overlap * overlap; ///TURN ON FOR REAL SIM
                 }
-            } else  // Non-contact forces:
+            } 
+            else  // Non-contact forces:
             {
-                // printf("Not Touching\n");
 
                 // No collision: Include gravity and vdw:
                 // const vec3 gravForceOnA = (G * m[A] * m[B] * grav_scale / (dist * dist)) * (rVecab / dist);
@@ -4316,64 +4188,20 @@ void Ball_group::sim_one_step(int step,bool write_step)
             d_accsq[B*d_attrs->num_particles+A].z = accB.z;
 
 
-            // if (step == stopStep)
-            // {
-            //     printf("0: accsq[A*d_attrs->num_particles+B].y = %f\n",
-            //            accsq[A*d_attrs->num_particles+B].y);
-            //     printf("0: accsq[A*d_attrs->num_particles+B].x = %f\n",
-            //            accsq[A*d_attrs->num_particles+B].x);
-
-            //     // printf("0: aaccsq[%llu, %llu] = (%f, %f, %f)\n",
-            //     //        (unsigned long long)i,(unsigned long long)j,
-            //     //        aaccsq[i*d_attrs->num_particles+j].x, aaccsq[i*d_attrs->num_particles+j].y, aaccsq[i*d_attrs->num_particles+j].z);
-            // }
-
-
             // So last distance can be known for COR:
             d_distances[e] = dist;
 
         }
     }
 
-    std::cerr<<"FINISH BIG LOOP"<<std::endl;
 
-    // #pragma acc serial deviceptr(d_attrs)
-    // {
-    //     printf("num_particles = %d\n", d_attrs->num_particles);
-    // }
-
-    double t3 = omp_get_wtime();
-    // #pragma acc loop seq
-        // present(this[0:1])\
-    // #pragma acc parallel loop deviceptr(d_accsq,d_aaccsq,d_attrs)
-    #pragma acc serial loop deviceptr(d_accsq,d_aaccsq,d_acc,d_aacc,d_attrs)
+    #pragma acc parallel loop deviceptr(d_accsq,d_aaccsq,d_acc,d_aacc,d_attrs)
     for (int i = 0; i < d_attrs->num_particles; i++)
     {
-        // printf("Inside outer loop\n");
-        // printf("1: acc[%llu] = (%f, %f, %f)\n",
-        //        (unsigned long long)i,
-        //        d_acc[i].x, d_acc[i].y, d_acc[i].z);
-
-        // printf("1: aacc[%llu, %llu] = (%f, %f, %f)\n",
-        //        (unsigned long long)i,
-        //        d_aacc[i].x, d_aacc[i].y, d_aacc[i].z);
-
 
         #pragma acc loop seq
         for (int j = 0; j < d_attrs->num_particles; j++)
         {
-            // if (step == stopStep)
-            // {
-            // // }
-            // printf("Inside inner loop\n");
-            // printf("1: accsq[%llu, %llu] = (%f, %f, %f)\n",
-            //        (unsigned long long)i,(unsigned long long)j,
-            //        d_accsq[i*d_attrs->num_particles+j].x, d_accsq[i*d_attrs->num_particles+j].y, d_accsq[i*d_attrs->num_particles+j].z);
-
-            // printf("1: aaccsq[%llu, %llu] = (%f, %f, %f)\n",
-            //        (unsigned long long)i,(unsigned long long)j,
-            //        d_aaccsq[i*d_attrs->num_particles+j].x, d_aaccsq[i*d_attrs->num_particles+j].y, d_aaccsq[i*d_attrs->num_particles+j].z);
-
 
             d_acc[i].x += d_accsq[i*d_attrs->num_particles+j].x;
             d_acc[i].y += d_accsq[i*d_attrs->num_particles+j].y;
@@ -4385,49 +4213,11 @@ void Ball_group::sim_one_step(int step,bool write_step)
 
     }
 
-    std::cerr<<"FINISH SMALL LOOP"<<std::endl;
-
-    // if (step == stopStep)
-    // {
-
-    //     // #pragma acc serial present(acc[0:d_attrs->num_particles], aacc[0:d_attrs->num_particles])
-    //     // {
-    //         for(size_t i=0; i<d_attrs->num_particles; ++i) {
-
-    //             printf("2: acc[%llu] = (%f, %f, %f)\n",
-    //                    (unsigned long long)i,
-    //                    acc[i].x, acc[i].y, acc[i].z);
-
-    //             printf("2: aacc[%llu] = (%f, %f, %f)\n",
-    //                    (unsigned long long)i,
-    //                    aacc[i].x, aacc[i].y, aacc[i].z);
-    //         }
-    //     // }
-    //     MPIsafe_exit(-1);
-    // }
-
-    // //     #pragma acc serial deviceptr(accsq, aaccsq)
-    // //     {
-    // //         for(size_t i=0; i<d_attrs->num_particles*d_attrs->num_particles; ++i) {
-
-    // //             printf("3: accsq[%llu] = (%f, %f, %f)\n",
-    // //                    (unsigned long long)i,
-    // //                    accsq[i].x, accsq[i].y, accsq[i].z);
-
-    // //             printf("3: aaccsq[%llu] = (%f, %f, %f)\n",
-    // //                    (unsigned long long)i,
-    // //                    aaccsq[i].x, aaccsq[i].y, aaccsq[i].z);
-    // //         }
-    // //     }
-
-    double t4 = omp_get_wtime();
-
     
     if (write_step)
     {
         #pragma acc update host(PE)
     }
-    double t5 = omp_get_wtime();
 
     // #ifdef MPI_ENABLE
     //     //================================MUST FILL THIS OUT FOR MPI================================
@@ -4440,7 +4230,7 @@ void Ball_group::sim_one_step(int step,bool write_step)
     // #endif
 
 
-    #pragma acc serial loop deviceptr(d_velh,d_acc,d_aacc,d_w,d_vel,d_wh,d_attrs)
+    #pragma acc parallel loop deviceptr(d_velh,d_acc,d_aacc,d_w,d_vel,d_wh,d_attrs)
     for (int Ball = 0; Ball < d_attrs->num_particles; Ball++) {
         // Velocity for next step:
         d_vel[Ball] = d_velh[Ball] + .5 * d_acc[Ball] * d_attrs->dt;
@@ -4448,10 +4238,8 @@ void Ball_group::sim_one_step(int step,bool write_step)
     }  // THIRD PASS END
 
 
-    std::cerr<<"FINISH TINY LOOP"<<std::endl;
 
 
-    double t6 = omp_get_wtime();
     // THIRD PASS - Calculate velocity for next step:
     if (write_step && attrs.world_rank == 0) 
     {
@@ -4486,6 +4274,7 @@ void Ball_group::sim_one_step(int step,bool write_step)
     {
         attrs.num_writes ++;
     }
+
 
 }  // one Step end
 #endif
@@ -4730,14 +4519,12 @@ Ball_group::sim_looper(unsigned long long start_step=1)
     local_d_attrs.num_particles = attrs.num_particles;
     local_d_attrs.num_pairs = attrs.num_pairs;
 
-    d_attrs = (Device_attributes*) acc_malloc(sizeof(Device_attributes));
-    acc_memcpy_to_device(d_attrs, &local_d_attrs, sizeof(Device_attributes));
-    acc_map_data(this->d_attrs, d_attrs, sizeof(Device_attributes));
+
 
     //Copy the arrays to the GPU
+    d_attrs = (Device_attributes*) acc_malloc(sizeof(Device_attributes));
     d_accsq  = (vec3*) acc_malloc( attrs.num_particles*attrs.num_particles * sizeof(vec3) );
     d_aaccsq = (vec3*) acc_malloc( attrs.num_particles*attrs.num_particles * sizeof(vec3) );
-
     d_velh = (vec3*) acc_malloc( attrs.num_particles * sizeof(vec3) );
     d_vel = (vec3*) acc_malloc( attrs.num_particles * sizeof(vec3) );
     d_w = (vec3*) acc_malloc( attrs.num_particles * sizeof(vec3) );
@@ -4750,8 +4537,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
     d_m = (double*) acc_malloc( attrs.num_particles * sizeof(double) );
     d_distances = (double*) acc_malloc( attrs.num_pairs * sizeof(double) );
 
-    // acc_memcpy_to_device(d_accsq, d_accsq, attrs.num_particles*attrs.num_particles * sizeof(vec3));
-    // acc_memcpy_to_device(d_aaccsq, d_aaccsq, attrs.num_particles*attrs.num_particles * sizeof(vec3));
+    acc_memcpy_to_device(d_attrs, &local_d_attrs, sizeof(Device_attributes));
     acc_memcpy_to_device(d_velh, velh, attrs.num_particles * sizeof(vec3));
     acc_memcpy_to_device(d_vel, vel, attrs.num_particles * sizeof(vec3));
     acc_memcpy_to_device(d_w, w, attrs.num_particles * sizeof(vec3));
@@ -4764,6 +4550,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
     acc_memcpy_to_device(d_m, m, attrs.num_particles * sizeof(double));
     acc_memcpy_to_device(d_distances, distances, attrs.num_pairs * sizeof(double));
 
+    acc_map_data(this->d_attrs, d_attrs, sizeof(Device_attributes));
     acc_map_data(this->d_aaccsq, d_aaccsq, attrs.num_particles*attrs.num_particles * sizeof(vec3));
     acc_map_data(this->d_accsq, d_accsq, attrs.num_particles*attrs.num_particles * sizeof(vec3));
     acc_map_data(this->d_velh, velh, attrs.num_particles * sizeof(vec3));
@@ -4883,9 +4670,9 @@ Ball_group::sim_looper(unsigned long long start_step=1)
                 // Reinitialize energies for next step:
                 KE = 0;
                 PE = 0;
-                // #ifdef GPU_ENABLE
-                //     #pragma acc update device(PE)
-                // #endif
+                #ifdef GPU_ENABLE
+                    #pragma acc update device(PE)
+                #endif
                 mom = {0, 0, 0};
                 ang_mom = {0, 0, 0};
 
@@ -4899,27 +4686,32 @@ Ball_group::sim_looper(unsigned long long start_step=1)
     acc_memcpy_from_device(pos, d_pos, attrs.num_particles * sizeof(vec3));
     acc_memcpy_from_device(R, d_R, attrs.num_particles * sizeof(vec3));
 
+    acc_unmap_data(this->d_aaccsq);
+    acc_unmap_data(this->d_accsq);
     acc_unmap_data(this->d_aacc);
     acc_unmap_data(this->d_acc);
     acc_unmap_data(this->d_m);
     acc_unmap_data(this->d_w);
     acc_unmap_data(this->d_wh);
+    acc_unmap_data(this->d_moi);
     acc_unmap_data(this->d_vel);
     acc_unmap_data(this->d_velh);
     acc_unmap_data(this->d_pos);
     acc_unmap_data(this->d_R);
     acc_unmap_data(this->d_distances);
+    acc_unmap_data(this->d_attrs);
 
 
     if (d_accsq)  acc_free(d_accsq);
     if (d_aaccsq) acc_free(d_aaccsq);
     if (d_aacc) acc_free(d_aacc);
     if (d_acc) acc_free(d_acc);
+    if (d_moi) acc_free(d_moi);
     if (d_m) acc_free(d_m);
     if (d_w) acc_free(d_w);
-    if (d_w) acc_free(d_wh);
+    if (d_wh) acc_free(d_wh);
     if (d_vel) acc_free(d_vel);
-    if (d_vel) acc_free(d_velh);
+    if (d_velh) acc_free(d_velh);
     if (d_pos) acc_free(d_pos);
     if (d_R) acc_free(d_R);
     if (d_distances) acc_free(d_distances);

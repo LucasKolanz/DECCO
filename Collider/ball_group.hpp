@@ -49,8 +49,7 @@ struct Device_attributes
     double dt;
     int num_particles;
     int num_pairs;
-    int world_rank;
-    int world_size;
+    
 };
 
 

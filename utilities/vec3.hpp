@@ -16,7 +16,7 @@ public:
         #pragma acc routine seq
     #endif
     vec3();
-    
+
     #ifdef GPU_ENABLE
         #pragma acc routine seq
     #endif
@@ -106,8 +106,14 @@ public:
         #pragma acc routine seq
     #endif
     vec3 normalized() const;
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3 normalized_safe() const;
     void print() const;
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     [[nodiscard]] vec3 rot(char axis, double angle) const;
     // [[nodiscard]] vec3 rot(char axis, double angle);
     vec3 arbitrary_orthogonal() const;

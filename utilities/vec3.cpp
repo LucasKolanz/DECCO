@@ -150,12 +150,18 @@ double vec3::operator[](const int i) const
     #pragma acc routine seq
 #endif
 double vec3::norm() const { return sqrt(x * x + y * y + z * z); }
+#ifdef GPU_ENABLE
+    #pragma acc routine seq
+#endif
 double vec3::normsquared() const { return x * x + y * y + z * z; }
 #ifdef GPU_ENABLE
     #pragma acc routine seq
 #endif
 vec3 vec3::normalized() const { return *this / this->norm(); }
 
+#ifdef GPU_ENABLE
+    #pragma acc routine seq
+#endif
 vec3 vec3::normalized_safe() const
 {
     if (fabs(this->norm()) < 1e-13) {
@@ -167,6 +173,9 @@ vec3 vec3::normalized_safe() const
 
 void vec3::print() const { std::cout << x << ',' << y << ',' << z << "\n"; }
 
+#ifdef GPU_ENABLE
+    #pragma acc routine seq
+#endif
 [[nodiscard]] vec3 vec3::rot(char axis, double angle) const
 {
     double rotx[3][3] = {{1, 0, 0}, {0, cos(angle), -sin(angle)}, {0, sin(angle), cos(angle)}},
@@ -196,6 +205,9 @@ void vec3::print() const { std::cout << x << ',' << y << ',' << z << "\n"; }
     return newVec;
 }
 
+#ifdef GPU_ENABLE
+    #pragma acc routine seq
+#endif
 vec3 vec3::arbitrary_orthogonal() const
 {
     bool b0 = (x < y) && (x < z);
