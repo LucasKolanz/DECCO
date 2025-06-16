@@ -161,8 +161,8 @@ if __name__ == '__main__':
 					# input_json['v_custom'] = '5'
 
 					# input_json['timeResolution'] = 1e-6
-					# input_json['simTimeSeconds'] = 5e-4
-					input_json['simTimeSeconds'] = 2e-5
+					input_json['simTimeSeconds'] = 5e-4
+					# input_json['simTimeSeconds'] = 2e-5
 
 					input_json['dataFormat'] = "csv"
 					input_json['simType'] = "BPCA"
@@ -217,7 +217,7 @@ if __name__ == '__main__':
 					sbatchfile += 'echo "Running on host: $(hostname)"\n'
 					sbatchfile += 'export LD_LIBRARY_PATH=$PWD/lib:$LD_LIBRARY_PATH\n'
 					sbatchfile += 'echo $LD_LIBRARY_PATH\n'
-					sbatchfile += 'ls /usr/lib64/libc.*\n'
+					# sbatchfile += 'ls /usr/lib64/libc.*\n'
 					sbatchfile += "unset NV_ACC_DEBUG\n"
 					sbatchfile += "unset NV_ACC_NOTIFY\n"
 					# sbatchfile += "export NV_ACC_NOTIFY=3\n"
@@ -247,9 +247,9 @@ if __name__ == '__main__':
 					os.system(f"cp {project_path}Collider/ball_group.cpp {job}ball_group.cpp")
 					os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
 
-					os.system(f"mkdir {job}/lib")
-					os.system(f"cp /usr/lib64/libhdf5.so.103 {job}/lib/.")
-					os.system(f"cp /usr/lib64/libhdf5_cpp.so.103 {job}/lib/.")
+					# os.system(f"mkdir {job}/lib")
+					# os.system(f"cp /usr/lib64/libhdf5.so.103 {job}/lib/.")
+					# os.system(f"cp /usr/lib64/libhdf5_cpp.so.103 {job}/lib/.")
 					# os.system(f"cp /usr/lib64/libdl.so.2 {job}/lib/.")
 					# os.system(f"cp /usr/lib64/libsz.so.2 {job}/lib/.")
 					# os.system(f"cp /usr/lib64/libz.so.1 {job}/lib/.")

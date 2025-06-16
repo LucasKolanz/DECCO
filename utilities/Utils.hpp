@@ -6,6 +6,7 @@
 #include "../external/json/single_include/nlohmann/json.hpp"
 #include "linalg.hpp"
 #include "vec3.hpp"
+#include "MPI_utilities.hpp"
 
 using json = nlohmann::json;
 
@@ -25,7 +26,7 @@ void set_attribute(const json& input, const std::string &attribute_key, T &varia
     }
     else
     {
-        std::cerr<<"WARNING: attribute '"<<attribute_key<<"' does not exist."<<std::endl;
+        std::string message("WARNING: attribute '"+attribute_key+"' does not exist.\n");
     }
 }
 

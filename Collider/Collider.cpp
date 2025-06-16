@@ -44,9 +44,6 @@ timey t;
 int
 main(int argc, char* argv[])
 {
-    #ifdef GPU_ENABLE
-        std::cerr<<"GPU enabled"<<std::endl;
-    #else
 
         // MPI Initialization
     int world_rank, world_size;
@@ -55,13 +52,29 @@ main(int argc, char* argv[])
         MPI_Init(&argc, &argv);
         MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
         MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-        if (world_rank == 0)
-        {
-            std::cerr<<"MPI enabled"<<std::endl;
-        }
+        #ifdef GPU_ENABLE
+            int n = acc_get_num_devices(acc_device_nvidia);
+            acc_set_device_num(world_rank % n, acc_device_nvidia);
+            std::string deviceMessage("Total Visible NVIDIA devices: "+std::to_string(n)+'\n');
+            MPIsafe_print(std::cerr,deviceMessage);
+            fprintf(
+                stderr,
+                "Hello from rank %d, using GPU %d\n",
+                world_rank,world_rank%n);
+            fflush(stderr);
+        #endif
+            MPIsafe_print(std::cerr,"MPI enabled\n");
+            fprintf(
+                stderr,
+                "Hello from rank %d\n",
+                world_rank);
+            fflush(stderr);
     #else
         world_rank = 0;
         world_size = 1;
+    #endif
+    #ifdef GPU_ENABLE
+        MPIsafe_print(std::cerr,"GPU enabled\n");
     #endif
 
     if (world_rank == 0)
@@ -69,20 +82,8 @@ main(int argc, char* argv[])
         t.start_event("WholeThing");
         std::cerr<<"=========================================Start Simulation========================================="<<std::endl;
     }
-    #ifdef MPI_ENABLE
-        MPI_Barrier(MPI_COMM_WORLD);
-    #endif
 
-    //Verify we have all the nodes we asked for
-    fprintf(
-        stderr,
-        "Hello from rank %d\n",
-        world_rank);
-    fflush(stderr);
-    #ifdef MPI_ENABLE
-        MPI_Barrier(MPI_COMM_WORLD);
-    #endif
-
+    MPI_Barrier(MPI_COMM_WORLD);
 
     //make dummy ball group to read input file
     std::string location;

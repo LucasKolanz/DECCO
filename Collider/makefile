@@ -4,8 +4,8 @@
 
 CXX = CC
 CXX = nvcc
-CXX = mpic++
 CXX = g++
+CXX = mpic++
 CXX = nvc++
 
 
@@ -43,10 +43,16 @@ ifeq ($(HDF5_TEST), 1)
 endif
 
 ifeq ($(MPI_TEST), 1)
-	CXXFLAGS += -DMPI_ENABLE #-I$(CRAY_MPICH_DIR)/include
+# 	#Works for Engr
+# 	CXXFLAGS += -DMPI_ENABLE #-I$(CRAY_MPICH_DIR)/include
+# 	LIBS += -lmpi
+	#Works for Novus
+	CXXFLAGS += -DMPI_ENABLE -I$(MPI_DIR)/include
+	LIBS += -lmpi -L$(MPI_DIR)/lib
+
+
 # 	LIBS += -L$(CRAY_MPICH_DIR)/lib
 # 	CXXFLAGS += -DMPI_ENABLE -I/apps/intel/compilers_and_libraries_2017.4.196/linux/mpi/mic/lib/release/libmpi.so.12/include
-	LIBS += -lmpi
 # 	CXXFLAGS += -DMPI_ENABLE 
 # 	LIBS += -lmpi
 endif

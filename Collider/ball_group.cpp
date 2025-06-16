@@ -380,8 +380,8 @@ void Ball_group::set_seed_from_input(const std::string location)
 //Parses input.json file that is in the same folder the executable is in
 void Ball_group::parse_input_file(std::string location)
 {
-    std::cerr<<"STARTING PARSE_INPUT FILE"<<std::endl;
 
+    MPIsafe_print(std::cerr,"STARTING PARSE_INPUT FILE");
 
     // if (location == "")
     // {
@@ -4070,6 +4070,8 @@ void Ball_group::sim_one_step(int step,bool write_step)
     }
 
 
+
+
     #pragma acc parallel loop deviceptr(d_accsq,d_aaccsq,d_acc,d_aacc,d_attrs)
     for (int i = 0; i < d_attrs->num_particles; i++)
     {
@@ -4094,14 +4096,20 @@ void Ball_group::sim_one_step(int step,bool write_step)
         #pragma acc update host(PE)
     }
 
-    // #ifdef MPI_ENABLE
-    //     MPI_Allreduce(MPI_IN_PLACE,acc,attrs.num_particles*3,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
-    //     MPI_Allreduce(MPI_IN_PLACE,aacc,attrs.num_particles*3,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
-    //     double local_PE = PE;
-    //     PE = 0.0;
-    //     MPI_Reduce(&local_PE,&PE,1,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
-    //     #pragma acc update device(acc[0:attrs.num_particles],aacc[0:attrs.num_particles])
-    // #endif
+    #ifdef MPI_ENABLE
+        acc_memcpy_from_device(acc,d_acc, attrs.num_particles * sizeof(vec3));
+        acc_memcpy_from_device(aacc,d_aacc, attrs.num_particles * sizeof(vec3));
+
+        MPI_Allreduce(MPI_IN_PLACE,acc,attrs.num_particles*3,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE,aacc,attrs.num_particles*3,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+        double local_PE = PE;
+        PE = 0.0;
+        MPI_Reduce(&local_PE,&PE,1,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
+        // #pragma acc update device(acc[0:attrs.num_particles],aacc[0:attrs.num_particles])
+
+        acc_memcpy_to_device(d_acc,acc, attrs.num_particles * sizeof(vec3));
+        acc_memcpy_to_device(d_aacc,aacc, attrs.num_particles * sizeof(vec3));
+    #endif
 
 
     #pragma acc parallel loop deviceptr(d_velh,d_acc,d_aacc,d_w,d_vel,d_wh,d_attrs)
