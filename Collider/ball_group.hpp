@@ -38,6 +38,21 @@ enum simType {BPCA, BCCA, BAPA, collider, relax};
 constexpr double Kb = 1.380649e-16; //in erg/K
 constexpr double pi = 3.14159265358979311599796346854;
 
+struct Device_attributes
+{
+    double kout;
+    double kin;
+    double Ha;
+    double u_s;
+    double u_r;
+    double h_min;
+    double dt;
+    int num_particles;
+    int num_pairs;
+    int world_rank;
+    int world_size;
+};
+
 
 //This struct is meant to encompass all values necessary to carry out a simulation, besides the physical
 //attributes, such as position, velocity, etc. Note: it is important to add variables to the "=" operator definition
@@ -280,6 +295,7 @@ public:
     
 
     Ball_group_attributes attrs;
+    Device_attributes* d_attrs = nullptr;
 
     /////////////////////////////////
     // bool mu_scale = false;
@@ -305,13 +321,25 @@ public:
     vec3* w = nullptr;
     vec3* wh = nullptr;  ///< Angular velocity half step for integration purposes.
     vec3* aacc = nullptr;
-    #ifdef GPU_ENABLE
-        vec3* accsq = nullptr;
-        vec3* aaccsq = nullptr;
-    #endif
     double* R = nullptr;    ///< Radius
     double* m = nullptr;    ///< Mass
     double* moi = nullptr;  ///< Moment of inertia
+    #ifdef GPU_ENABLE
+        vec3* d_accsq = nullptr;
+        vec3* d_aaccsq = nullptr;
+
+        vec3* d_pos = nullptr;
+        vec3* d_vel = nullptr;
+        vec3* d_velh = nullptr;  ///< Velocity half step for integration purposes.
+        vec3* d_w = nullptr;
+        vec3* d_wh = nullptr;  ///< Angular velocity half step for integration purposes.
+        vec3* d_acc = nullptr;
+        vec3* d_aacc = nullptr;
+        double* d_R = nullptr;    ///< Radius
+        double* d_m = nullptr;    ///< Mass
+        double* d_moi = nullptr;  ///< Moment of inertia
+        double* d_distances = nullptr;  ///< Moment of inertia
+    #endif
     //////////////////////////////////
 
     //The DECCOData class takes care of reading and writing data in whatever format is specified in the input file 
@@ -346,7 +374,7 @@ public:
     // vec3 random_offset(const double3x3 local_coords,vec3 projectile_pos,vec3 projectile_vel,const double projectile_rad);
     vec3 random_offset(Ball_group &projectile, Ball_group &target);
     void comSpinner(const double& spinX, const double& spinY, const double& spinZ) const;
-    void sim_one_step(int step);
+    void sim_one_step(int step,bool write_step);
     void sim_looper(unsigned long long start_step);
     
     //Functions which calculate/set values for Ball_group

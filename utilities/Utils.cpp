@@ -19,8 +19,9 @@
 
 
 
-std::random_device rd;
-std::mt19937 random_generator(rd());
+// std::random_device rd;
+// std::mt19937 random_generator(rd());
+std::mt19937 random_generator;
 
 
 
@@ -60,8 +61,18 @@ std::mt19937 random_generator(rd());
 
 void seed_generators(size_t seed)
 {
+    MPIsafe_print(std::cerr,"SEEDING GENERATORS!! seed of "+std::to_string(seed)+"\n");
     random_generator.seed(seed);//This was in the else but it should be outside so random_generator is always seeded the same as srand (right?)
     srand(seed);
+
+    // std::uniform_real_distribution<double> dist(0.0, 1.0);  
+    // std::cerr << "Testing uniform:\n";
+    // for (int i = 0; i < 5; ++i)
+    //     std::cerr << "  " << dist(random_generator) << "\n";
+
+    // std::cerr << "Testing gaussian:\n";
+    // for (int i = 0; i < 5; ++i)
+    //     std::cerr << "  " << random_gaussian(0.0, 1.0) << "\n";
 }
 
 bool isAllDigits(const std::string& s) {
@@ -376,11 +387,18 @@ rand_int_between(const int min, const int max)
 }
 
 // Returns a random unit vector.
+//IMPORTANT: calling random_gaussian() in the call to vec3()
+//      ex: vec3 rand_dir = vec3(random_gaussian(), random_gaussian(), random_gaussian());
+//  will potentially give different results on different systems because the states of these 
+//  random calls are tied together, but the order in which the calls to random_gaussian 
+//  happen are not necessarily going to be the same each time.
 vec3
 rand_unit_vec3()
 {
-    return vec3(random_gaussian(), random_gaussian(), random_gaussian()).normalized();
-    // return vec3(get_gaus(), get_gaus(), get_gaus()).normalized();
+    double x = random_gaussian();
+    double y = random_gaussian();
+    double z = random_gaussian();
+    return vec3(x, y, z).normalized();
 }
 
 // // Returns a vector within the desired radius, and optionally outside an inner radius (shell).

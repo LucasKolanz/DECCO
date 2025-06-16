@@ -12,7 +12,14 @@ public:
     double y;
     double z;
 
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3();
+    
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3(const double newx, const double newy, const double newz);
 
     // vec3(const vec3& v) : x(v.x), y(v.y), z(v.z)

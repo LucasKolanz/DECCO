@@ -207,6 +207,9 @@ void runAggregation(std::string path, int num_balls)
     int world_rank = getRank();
 
     Ball_group O = Ball_group(path);  
+    std::cerr<<O.R<<std::endl;
+    std::cerr<<O.R[0]<<std::endl;
+
     safetyChecks(O);
     std::string message;
     message = "Asking for "+std::to_string(O.get_num_threads())+" threads.\n";
@@ -518,6 +521,7 @@ safetyChecks(Ball_group &O) //Should be ready to call sim_looper
     }
 
 
+    // std::cerr<<"num_particlesZ: "<<O.attrs.num_particles<<std::endl;
     for (int Ball = 0; Ball < O.attrs.num_particles; Ball++) {
         if (O.pos[Ball].norm() < vec3(1e-10, 1e-10, 1e-10).norm()) {
             fprintf(stderr, "\nA ball position is [0,0,0]. Possibly didn't initialize positions properly for rank %1d\n",getRank());

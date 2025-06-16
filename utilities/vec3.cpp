@@ -5,7 +5,9 @@
 #include <sstream>
 #include "vec3.hpp"
 
-
+#ifdef GPU_ENABLE
+    #pragma acc routine seq
+#endif
 vec3::vec3()
     : x(0)
     , y(0)
@@ -13,7 +15,9 @@ vec3::vec3()
 {
 }
 
-
+#ifdef GPU_ENABLE
+    #pragma acc routine seq
+#endif
 vec3::vec3(const double newx, const double newy, const double newz)
     : x(newx)
     , y(newy)
