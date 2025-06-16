@@ -18,7 +18,7 @@ Ball_group::Ball_group(std::string& path,bool test)
     std::string filename = find_file_name(path,attrs.relax_index);
     std::cerr<<"Filename: "<<filename<<std::endl; 
     loadSim(path, filename.substr(filename.find_last_of('/')+1,filename.size()));
-    std::cerr<<isConnected(pos,R,attrs.num_particles)<<std::endl;
+    // std::cerr<<isConnected(pos,R,attrs.num_particles)<<std::endl;
 }
 
 /// @brief For creating a new ballGroup of size nBalls
@@ -47,8 +47,6 @@ Ball_group::Ball_group(std::string& path, const int index)
     if (attrs.typeSim == BPCA || attrs.typeSim == BCCA || attrs.typeSim == BAPA)
     {
         aggregationInit(path,index);
-        std::cerr<<"in const R: "<<R<<std::endl;
-        std::cerr<<"in const acc: "<<acc<<std::endl;
     }
     else if (attrs.typeSim == collider)
     {
@@ -234,11 +232,6 @@ void Ball_group::aggregationInit(const std::string path,const int index)
             MPIsafe_print(std::cerr,"ERROR: genBalls > 2 not yet implimented (right)?\n");
         }
 
-        // if (mu_scale)
-        // {
-        //     calc_mu_scale_factor();
-        // }
-        // std::cerr<<initial_radius<<std::endl;
 
         attrs.m_total = getMass();
         calc_v_collapse();
@@ -249,7 +242,6 @@ void Ball_group::aggregationInit(const std::string path,const int index)
             attrs.v_custom = 1.0;
         }
         
-        // std::cerr<<"INIT VCUSTOM "<<v_custom<<std::endl;
         calibrate_dt(0, attrs.v_custom);
         simInit_cond_and_center(true);
         
@@ -265,37 +257,6 @@ void Ball_group::aggregationInit(const std::string path,const int index)
 }
 
 
-
-// /// @brief For continuing a sim.
-// /// @param fullpath is the filename and path excluding the suffix _simData.csv, _constants.csv, etc.
-// /// @param customVel To condition for specific vMax.
-// Ball_group::Ball_group(const std::string& path, const std::string& filename, int start_file_index=0)
-// {
-//     parse_input_file(std::string(path));
-//     sim_continue(path, filename,start_file_index);
-//     calc_v_collapse();
-//     calibrate_dt(0, v_custom);
-//     simInit_cond_and_center(false);
-// }
-
-/// @brief For two cluster sim.
-/// @param projectileName
-/// @param targetName
-/// @param customVel To condition for specific vMax.
-// Ball_group::Ball_group(
-//     const std::string& path,
-//     const std::string& projectileName,
-//     const std::string& targetName,
-//     const double& customVel=-1.)
-// {
-//     parse_input_file(std::string(path));
-//     // std::cerr<<path<<std::endl;
-//     sim_init_two_cluster(path, projectileName, targetName);
-//     calc_v_collapse();
-//     if (customVel > 0){calibrate_dt(0, customVel);}
-//     else {calibrate_dt(0, attrs.v_custom);}
-//     simInit_cond_and_center(true);
-// }
 
 Ball_group& Ball_group::operator=(const Ball_group& rhs)
 {
@@ -911,8 +872,7 @@ void Ball_group::calc_v_collapse()
     {
         position = 0;
         attrs.v_collapse = 0;
-        // std::cerr<<"HERE: "<<attrs.initial_radius-attrs.h_min<<std::endl;
-        // std::cerr<<"temp_dt: "<<temp_dt<<std::endl;
+
         // while (position < attrs.initial_radius) {
         while (position < attrs.initial_radius-attrs.h_min && count < max_count) {
             // todo - include vdw!!!
@@ -935,7 +895,6 @@ void Ball_group::calc_v_collapse()
             // attrs.v_collapse += attrs.G * attrs.m_total / (attrs.initial_radius * attrs.initial_radius) * temp_dt;
             
             position += attrs.v_collapse * temp_dt;
-            // std::cerr<<position<<std::endl;
             count++;
         }
         temp_dt /= 2;
@@ -1378,8 +1337,6 @@ vec3 Ball_group::random_offset(
 {
 
     const auto possible_radius = target.getRadius(target.getCOM()) + projectile.getRadius(projectile.getCOM());
-    // std::cerr<<target.getRadius(target.getCOM())<<std::endl;
-    // std::cerr<<projectile.getRadius(projectile.getCOM())<<std::endl;
     const auto projectile_vcom = projectile.getVCOM();
     // const auto projectile_radius = projectile.getRadius(projectile.getCOM());
     bool intersect = false;
@@ -1593,81 +1550,6 @@ void Ball_group::verify_projectile(const std::string projectile_folder,const int
 }
 
 
-
-    //Look for which folder "SpaceLab_data" is in.
-    //The attempt number should be in two folders from that
-    // std::vector<int> slashes;
-    // for (int i = 0; i < folder.length(); ++i) 
-    // {
-    //     if (folder[i] == '/')
-    //     {
-    //         slashes.push_back(i);
-    //         // std::cerr<<i<<std::endl;
-    //     }
-    // }
-
-    // int start,len,found_i;
-    // bool found = false;
-    // for (int i = 0; i < slashes.size()-1; ++i)
-    // {
-    //     start = slashes[i]+1;
-    //     len = slashes[i+1] - start;
-    //     if (folder.substr(start,len) == "SpaceLab_data")
-    //     {
-    //         found = true;
-    //         found_i = i;
-    //         break;
-    //     }
-
-    // }
-
-    // std::string attempts_folder;
-    // std::string attempts_folder_prefix;
-    // std::string prefix_suffix; 
-    // std::string everything_before_attempt;
-    // std::string everything_after_attempt;
-    // if (found)
-    // {
-    //     start = 0;
-    //     len = slashes[found_i+1+1] - start;
-    //     attempts_folder = folder.substr(start,len+1);
-
-    //     start = slashes[found_i+2]+1;
-    //     len = slashes[found_i+2+1] - start;
-    //     attempts_folder_prefix = folder.substr(start,len);
-    //     //Important the next line is above the line that changes attempt_folder_prefix
-    //     // std::cerr<<attempts_folder_prefix<<std::endl;
-    //     prefix_suffix = std::to_string(extractNumberFromString(attempts_folder_prefix));
-    //     attempts_folder_prefix = attempts_folder_prefix.substr(0,attempts_folder_prefix.length()-prefix_suffix.length());
-    //     everything_before_attempt = folder.substr(0,attempts_folder.length()+attempts_folder_prefix.length());
-    //     everything_after_attempt = folder.substr(attempts_folder.length()+attempts_folder_prefix.length()+prefix_suffix.length(),folder.length());
-    // }
-    // else
-    // {
-    //     std::string message("ERROR: SpaceLab_data folder not found. Total attempts could not be determined.");
-    //     MPIsafe_print(std::cerr,message);
-    //     MPIsafe_exit(-1);
-    // }
-
-    // std::vector<int> attempts;
-    // std::string fold;
-    // for (const auto & entry : fs::directory_iterator(attempts_folder))
-    // {
-    //     fold = entry.path();
-
-    //     // std::cerr<<fold<<std::endl;
-    //     if (fold.substr(attempts_folder.length(),attempts_folder_prefix.length()) == attempts_folder_prefix)
-    //     {
-    //         attempts.push_back(extractNumberFromString(fold));
-    //     }
-    // }
-
-    // int rand = rand_int_between(0,attempts.size()-1);
-    // std::cerr<<"Got an index of "<<rand<<" between 0 and "<<attempts.size()-1<<std::endl;
-    // std::string att = std::to_string(attempts[rand]);
-    
-    // return everything_before_attempt + att + everything_after_attempt;
-// }
 
 // @brief returns new ball group consisting of one particle
 //        where particle is given initial conditions
@@ -3936,9 +3818,6 @@ void Ball_group::sim_one_step(int step,bool write_step)
 #ifdef GPU_ENABLE
 void Ball_group::sim_one_step(int step,bool write_step)
 {
-    
-
-
 
     #pragma acc parallel loop deviceptr(d_velh,d_vel,d_acc,d_aacc,d_wh,d_w,d_pos,d_attrs)
     for (int Ball = 0; Ball < d_attrs->num_particles; Ball++) {
@@ -3959,8 +3838,6 @@ void Ball_group::sim_one_step(int step,bool write_step)
     }
 
 
-
-
     #pragma acc parallel loop deviceptr(d_accsq, d_aaccsq,d_attrs)
     for (int i = 0; i < d_attrs->num_particles*d_attrs->num_particles; ++i)
     {
@@ -3968,8 +3845,6 @@ void Ball_group::sim_one_step(int step,bool write_step)
         d_aaccsq[i] = {0.0,0.0,0.0};
     }
  
-
-
 
     int start = attrs.world_rank+1;
     int stop = attrs.num_pairs;
@@ -4220,7 +4095,6 @@ void Ball_group::sim_one_step(int step,bool write_step)
     }
 
     // #ifdef MPI_ENABLE
-    //     //================================MUST FILL THIS OUT FOR MPI================================
     //     MPI_Allreduce(MPI_IN_PLACE,acc,attrs.num_particles*3,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
     //     MPI_Allreduce(MPI_IN_PLACE,aacc,attrs.num_particles*3,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
     //     double local_PE = PE;
@@ -4236,7 +4110,6 @@ void Ball_group::sim_one_step(int step,bool write_step)
         d_vel[Ball] = d_velh[Ball] + .5 * d_acc[Ball] * d_attrs->dt;
         d_w[Ball] = d_wh[Ball] + .5 * d_aacc[Ball] * d_attrs->dt;
     }  // THIRD PASS END
-
 
 
 

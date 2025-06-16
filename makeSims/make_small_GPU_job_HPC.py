@@ -161,7 +161,8 @@ if __name__ == '__main__':
 					# input_json['v_custom'] = '5'
 
 					# input_json['timeResolution'] = 1e-6
-					input_json['simTimeSeconds'] = 5e-4
+					# input_json['simTimeSeconds'] = 5e-4
+					input_json['simTimeSeconds'] = 2e-5
 
 					input_json['dataFormat'] = "csv"
 					input_json['simType'] = "BPCA"

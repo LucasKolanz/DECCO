@@ -1352,6 +1352,7 @@ bool DECCOData::write_checkpoint()
 		checkpt_file = filename.substr(0,filename.find_last_of('_')+1)+"checkpoint.txt";
 	}
 
+	// std::cerr<<"CREATING FILE: "<<checkpt_file<<std::endl;
 	std::ofstream output(checkpt_file);
 	if (not output.good()) 
 	{
