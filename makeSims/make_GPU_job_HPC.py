@@ -89,7 +89,7 @@ if __name__ == '__main__':
 		
 
 	# job_set_name = "TESTBAPA"
-	job_set_name = "LARGEBAPAGPU1"
+	job_set_name = "LARGEBAPAGPU2"
 
 	# folder_name_scheme = "T_"
 
@@ -108,7 +108,7 @@ if __name__ == '__main__':
 	Temps = [3]
 	folders = []
 
-	totalNodes = 1
+	totalNodes = 2
 	MPITasksPerNode = 1
 	totalMPITasks = totalNodes*MPITasksPerNode
 	threadsPerTask = 1
@@ -150,12 +150,12 @@ if __name__ == '__main__':
 						input_json['N'] = n
 						input_json['M'] = m
 						input_json['output_folder'] = job
-						input_json['OMPthreads'] = threadsPerTask
+						input_json['OMPthreads'] = 1#threadsPerTask
 						input_json['MPInodes'] = 1
 						input_json['impactParameter'] = -1.0
 
-						input_json['seed'] = rand_int()
-						# input_json['seed'] = 101
+						# input_json['seed'] = rand_int()
+						input_json['seed'] = 101
 
 						# input_json['radiiDistribution'] = 'logNormal'
 						# input_json['h_min'] = 0.5
@@ -186,53 +186,124 @@ if __name__ == '__main__':
 						# sbatchfile += "#SBATCH -t 0:10:00\n"
 						# sbatchfile += f'#SBATCH --partition=dri.q\n'
 
+						# #FOR ENGR CLUSTER
+						# #NAME ORDER needs to be same as the file path order
+						# sbatchfile += f"#SBATCH -J LBGPU,GPUS={totalMPITasks},a={attempt},m={m},n={n},t={Temp}\n"
+						# # sbatchfile += "#SBATCH -A kolanzl\n"
+						# # sbatchfile += "#SBATCH --partition=share\n"
+						# sbatchfile += "#SBATCH --partition=dgxh\n"
+						# sbatchfile += f"#SBATCH --nodes {totalNodes}\n"
+						# sbatchfile += f"#SBATCH --ntasks-per-node {totalMPITasks}\n"
+						# sbatchfile += f"#SBATCH --gpus-per-node=1\n"
+						# # sbatchfile += f"#SBATCH --cpus-per-task {threadsPerTask}\n\n"
+						# # sbatchfile += "#SBATCH -N {}\n".format(1)#(node)
+
+						# # sbatchfile += "#SBATCH -G {}\n".format(node)
+						# # sbatchfile += 'module load gpu\n'
+
+						# sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(threadsPerTask)
+						# sbatchfile += 'lscpu\n'
+						# # sbatchfile += 'export SLURM_CPU_BIND="socket"\n'
+						# # sbatchfile += 'module load hdf5/1.14.3\n'
+						# # sbatchfile += 'module load hdf5/1.10.8\n'
+						# # sbatchfile += 'module load gcc/8.3\n'
+						# # sbatchfile += 'module load gnu12/12.3.0\n'
+
+						# sbatchfile += 'module purge\n'
+						# sbatchfile += 'module load hdf5/1.10.5_mpich-3.3\n'
+						# sbatchfile += 'module load slurm/24.05\n'
+						# sbatchfile += 'module load python/3.11\n'
+						# sbatchfile += 'module load nvhpcsdk/2024\n'
+						# sbatchfile += 'module load nvhpc/25.3\n'
+						# sbatchfile += 'module load mpich/3.3\n'
+						# sbatchfile += 'module list\n'
+						# sbatchfile += 'echo "Running on host: $(hostname)"\n'
+						# sbatchfile += 'export LD_LIBRARY_PATH=$PWD/lib:$LD_LIBRARY_PATH\n'
+						# sbatchfile += 'echo $LD_LIBRARY_PATH\n'
+						# sbatchfile += 'ls /usr/lib64/libc.*\n'
+						# sbatchfile += "unset NV_ACC_DEBUG\n"
+						# sbatchfile += "unset NV_ACC_NOTIFY\n"
+						# # sbatchfile += "export NV_ACC_NOTIFY=3\n"
+						# # sbatchfile += "export NV_ACC_DEBUG=0x800\n"
+						# sbatchfile += "export ACC_DEVICE_TYPE=nvidia\n"
+						# # sbatchfile += "export CUDA_LAUNCH_BLOCKING=1\n"
+						# sbatchfile += "nvidia-smi\n"
+
+						# #NAME ORDER needs to be same as the file path order
+						# sbatchfile += f"#SBATCH -J LBGPU,GPUS={totalMPITasks},a={attempt},m={m},n={n},t={Temp}\n"
+						# # sbatchfile += "#SBATCH -A kolanzl\n"
+						# # sbatchfile += "#SBATCH --partition=share\n"
+						# sbatchfile += "#SBATCH --partition=dgxh\n"
+						# sbatchfile += f"#SBATCH --nodes {totalNodes}\n"
+						# sbatchfile += f"#SBATCH --ntasks-per-node {totalMPITasks}\n"
+						# sbatchfile += f"#SBATCH --gpus-per-node=1\n"
+						# # sbatchfile += f"#SBATCH --cpus-per-task {threadsPerTask}\n\n"
+						# # sbatchfile += "#SBATCH -N {}\n".format(1)#(node)
+
+						# # sbatchfile += "#SBATCH -G {}\n".format(node)
+						# # sbatchfile += 'module load gpu\n'
+
+						# sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(threadsPerTask)
+						# sbatchfile += 'lscpu\n'
+						# os.system(f"mkdir {job}/lib")
+						# os.system(f"cp /usr/lib64/libhdf5.so.103 {job}/lib/.")
+						# os.system(f"cp /usr/lib64/libhdf5_cpp.so.103 {job}/lib/.")
+
+
+						#NOVUS CLUSTER
+						sbatchfile = ""
+						sbatchfile += "#!/bin/bash\n"
+						# sbatchfile += "#SBATCH -C gpu\n"
+						# sbatchfile += "#SBATCH -q regular\n"
+						# sbatchfile += "#SBATCH -t 0:10:00\n"
+						# sbatchfile += f'#SBATCH --partition=dri.q\n'
+
+						#FOR ENGR CLUSTER
 						#NAME ORDER needs to be same as the file path order
 						sbatchfile += f"#SBATCH -J LBGPU,GPUS={totalMPITasks},a={attempt},m={m},n={n},t={Temp}\n"
-						# sbatchfile += "#SBATCH -A kolanzl\n"
-						# sbatchfile += "#SBATCH --partition=share\n"
-						sbatchfile += "#SBATCH --partition=dgxh\n"
-						sbatchfile += f"#SBATCH --nodes {totalNodes}\n"
-						sbatchfile += f"#SBATCH --ntasks-per-node {totalMPITasks}\n"
-						sbatchfile += f"#SBATCH --gpus-per-node=1\n"
-						# sbatchfile += f"#SBATCH --cpus-per-task {threadsPerTask}\n\n"
+						sbatchfile += "#SBATCH --partition=preempt-gpu.q\n"
+						sbatchfile += "#SBATCH --gres=gpu:a40:2\n"
+						sbatchfile += f"#SBATCH --ntasks=2\n"
+						# sbatchfile += f"#SBATCH --nodes {totalNodes}\n"
+						# sbatchfile += f"#SBATCH --ntasks-per-node {totalMPITasks}\n"
+						# sbatchfile += f"#SBATCH --gpus-per-node=1\n"
+						sbatchfile += f"#SBATCH --cpus-per-task 1\n\n"
 						# sbatchfile += "#SBATCH -N {}\n".format(1)#(node)
 
 						# sbatchfile += "#SBATCH -G {}\n".format(node)
 						# sbatchfile += 'module load gpu\n'
 
-						sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(threadsPerTask)
+						# sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(threadsPerTask)
 						sbatchfile += 'lscpu\n'
 						# sbatchfile += 'export SLURM_CPU_BIND="socket"\n'
 						# sbatchfile += 'module load hdf5/1.14.3\n'
-						# sbatchfile += 'module load hdf5/1.10.8\n'
+						sbatchfile += 'module load hdf5/1.10.8\n'
 						# sbatchfile += 'module load gcc/8.3\n'
 						# sbatchfile += 'module load gnu12/12.3.0\n'
 
-						sbatchfile += 'module purge\n'
-						sbatchfile += 'module load hdf5/1.10.5_mpich-3.3\n'
-						sbatchfile += 'module load slurm/24.05\n'
-						sbatchfile += 'module load python/3.11\n'
-						sbatchfile += 'module load nvhpcsdk/2024\n'
-						sbatchfile += 'module load nvhpc/25.3\n'
-						sbatchfile += 'module load mpich/3.3\n'
+						# sbatchfile += 'module load mpich/3.3\n'
 						sbatchfile += 'module list\n'
 						sbatchfile += 'echo "Running on host: $(hostname)"\n'
-						sbatchfile += 'export LD_LIBRARY_PATH=$PWD/lib:$LD_LIBRARY_PATH\n'
-						sbatchfile += 'echo $LD_LIBRARY_PATH\n'
-						sbatchfile += 'ls /usr/lib64/libc.*\n'
-						sbatchfile += "unset NV_ACC_DEBUG\n"
-						sbatchfile += "unset NV_ACC_NOTIFY\n"
+						# sbatchfile += 'export LD_LIBRARY_PATH=$PWD/lib:$LD_LIBRARY_PATH\n'
+						# sbatchfile += 'echo $LD_LIBRARY_PATH\n'
+						# sbatchfile += 'ls /usr/lib64/libc.*\n'
+						# sbatchfile += "unset NV_ACC_DEBUG\n"
+						# sbatchfile += "unset NV_ACC_NOTIFY\n"
 						# sbatchfile += "export NV_ACC_NOTIFY=3\n"
 						# sbatchfile += "export NV_ACC_DEBUG=0x800\n"
 						sbatchfile += "export ACC_DEVICE_TYPE=nvidia\n"
-						# sbatchfile += "export CUDA_LAUNCH_BLOCKING=1\n"
+						sbatchfile += "echo $LD_LIBRARY_PATH\n"
+						sbatchfile += "export HDF5_USE_FILE_LOCKING=FALSE\n"
+						sbatchfile += "ls /opt/ohpc/pub/libs/gnu12/hdf5/1.10.8/lib/\n"
 						sbatchfile += "nvidia-smi\n"
+
+					
 
 						
 						# sbatchfile += f"srun -n {totalNodes} -c {threads} --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
-						sbatchfile += f"srun --ntasks-per-node={MPITasksPerNode} --cpus-per-task={threadsPerTask} --cpu-bind=socket numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+						# sbatchfile += f"srun --ntasks-per-node={MPITasksPerNode} --cpus-per-task={threadsPerTask} --cpu-bind=socket numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 						# sbatchfile += f"mpirun --bind-to socket --map-by node numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
-						# sbatchfile += f"mpirun -n {totalMPITasks} numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+						sbatchfile += f"mpirun -np 2 {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 						# sbatchfile += f"mpirun -n {totalMPITasks} {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 
 
@@ -249,9 +320,6 @@ if __name__ == '__main__':
 						os.system(f"cp {project_path}Collider/ball_group.cpp {job}ball_group.cpp")
 						os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
 
-						os.system(f"mkdir {job}/lib")
-						os.system(f"cp /usr/lib64/libhdf5.so.103 {job}/lib/.")
-						os.system(f"cp /usr/lib64/libhdf5_cpp.so.103 {job}/lib/.")
 						# os.system(f"cp /usr/lib64/libdl.so.2 {job}/lib/.")
 						# os.system(f"cp /usr/lib64/libsz.so.2 {job}/lib/.")
 						# os.system(f"cp /usr/lib64/libz.so.1 {job}/lib/.")

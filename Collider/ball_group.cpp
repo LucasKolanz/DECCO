@@ -1828,7 +1828,7 @@ void Ball_group::allocate_group(const int nBalls)
 {
     attrs.num_particles = nBalls;
 
-    std::cerr<<"allocating group of size: "<<nBalls<<std::endl;
+    MPIsafe_print(std::cerr,"allocating group of size: "+std::to_string(nBalls)+'\n');
 
     try {
         distances = new double[(attrs.num_particles * attrs.num_particles / 2) - (attrs.num_particles / 2)];
@@ -1852,7 +1852,9 @@ void Ball_group::allocate_group(const int nBalls)
 
         
     } catch (const std::exception& e) {
-        std::cerr << "Failed trying to allocate group. " << e.what() << '\n';
+        std::stringstream mess;
+        mess << "Failed trying to allocate group. " << e.what() << '\n';
+        MPIsafe_print(std::cerr,mess.str());
     }
 }
 

@@ -32,9 +32,9 @@ ifeq ($(HDF5_TEST), 1)
 
 	#For Perlmutter and Novus
 
-# 	HDF5_CXXFLAGS = -I${HDF5_DIR}/include 
-	HDF5_LIBS = -lhdf5 -lhdf5_cpp
-# 	HDF5_LIBS = -L${HDF5_DIR}/lib -lhdf5 -lhdf5_cpp
+	HDF5_CXXFLAGS = -I${HDF5_DIR}/include 
+# 	HDF5_LIBS = -lhdf5 -lhdf5_cpp
+	HDF5_LIBS = -L${HDF5_DIR}/lib -lhdf5 -lhdf5_cpp
 
 	CXXFLAGS += $(HDF5_CXXFLAGS) -DHDF5_ENABLE
 	LIBS += $(HDF5_LIBS)
