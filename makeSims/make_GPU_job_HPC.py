@@ -89,7 +89,7 @@ if __name__ == '__main__':
 		
 
 	# job_set_name = "TESTBAPA"
-	job_set_name = "LARGEBAPAGPU2"
+	job_set_name = "LARGEBAPAGPU1"
 
 	# folder_name_scheme = "T_"
 
@@ -108,7 +108,7 @@ if __name__ == '__main__':
 	Temps = [3]
 	folders = []
 
-	totalNodes = 2
+	totalNodes = 1
 	MPITasksPerNode = 1
 	totalMPITasks = totalNodes*MPITasksPerNode
 	threadsPerTask = 1
@@ -262,8 +262,8 @@ if __name__ == '__main__':
 						#NAME ORDER needs to be same as the file path order
 						sbatchfile += f"#SBATCH -J LBGPU,GPUS={totalMPITasks},a={attempt},m={m},n={n},t={Temp}\n"
 						sbatchfile += "#SBATCH --partition=preempt-gpu.q\n"
-						sbatchfile += "#SBATCH --gres=gpu:a40:2\n"
-						sbatchfile += f"#SBATCH --ntasks=2\n"
+						sbatchfile += "#SBATCH --gres=gpu:a40:1\n"
+						sbatchfile += f"#SBATCH --ntasks=1\n"
 						# sbatchfile += f"#SBATCH --nodes {totalNodes}\n"
 						# sbatchfile += f"#SBATCH --ntasks-per-node {totalMPITasks}\n"
 						# sbatchfile += f"#SBATCH --gpus-per-node=1\n"
@@ -303,7 +303,7 @@ if __name__ == '__main__':
 						# sbatchfile += f"srun -n {totalNodes} -c {threads} --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 						# sbatchfile += f"srun --ntasks-per-node={MPITasksPerNode} --cpus-per-task={threadsPerTask} --cpu-bind=socket numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 						# sbatchfile += f"mpirun --bind-to socket --map-by node numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
-						sbatchfile += f"mpirun -np 2 {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+						sbatchfile += f"mpirun -np 1 {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 						# sbatchfile += f"mpirun -n {totalMPITasks} {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 
 

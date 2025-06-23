@@ -94,7 +94,7 @@ struct Ball_group_attributes
     int world_rank = -1;
     int world_size = -1;
     int num_pairs = -1;
-    bool write_step = false;
+    // bool write_step = false;
 
     const std::string sim_meta_data_name = "sim_info";
 

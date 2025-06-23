@@ -4,9 +4,9 @@
 
 CXX = CC
 CXX = nvcc
-CXX = g++
 CXX = mpic++
 CXX = nvc++
+CXX = g++
 
 
 # Base CXXFLAGS, without HDF5-specific flags
@@ -17,8 +17,8 @@ CXXFLAGS = -g -O2 -std=c++17 -fopenmp #-fopenacc
 # HDF5_TEST := $(shell ldconfig -p | grep hdf5 >/dev/null 2>&1 && echo 1 || echo 0)
 HDF5_TEST = 1
 MPI_TEST = 1
-GPU_TEST = 1
-EXPERIMENTAL_FILESYSTEM = 1
+GPU_TEST = 0
+EXPERIMENTAL_FILESYSTEM = 0
 
 LIBS += -L$(LD_LIBRARY_PATH)
 

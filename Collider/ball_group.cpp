@@ -3463,7 +3463,7 @@ void Ball_group::sim_one_step(int step,bool write_step)
     double dt = attrs.dt;
     int num_parts = attrs.num_particles;
     int threads = attrs.OMPthreads;
-    bool write_step = attrs.write_step;
+    // bool write_step = attrs.write_step;
 
     
     long long A;
@@ -4167,7 +4167,7 @@ void
 Ball_group::sim_looper(unsigned long long start_step=1)
 {
 
-
+    bool write_step = false;
     attrs.world_rank = getRank();
     attrs.world_size = getSize();
     attrs.num_pairs = static_cast<int>(attrs.num_particles*(attrs.num_particles-1)/2);
@@ -4190,24 +4190,9 @@ Ball_group::sim_looper(unsigned long long start_step=1)
         "For a total of "+dToSci(attrs.simTimeSeconds/attrs.timeResolution)+" timesteps saved per sim.\n");
     MPIsafe_print(std::cerr,message);
 
-    //Set the number of threads to be appropriate
-    // #ifndef GPU_ENABLE
+
     attrs.OMPthreads = get_num_threads();
-    // #else
-    //     std::cerr<<"ADDING STUFF TO THE GPUUUUU"<<std::endl;
-        // #pragma acc enter data copyin(this) 
-    //     #pragma acc enter data create(accsq[0:attrs.num_particles*attrs.num_particles],aaccsq[0:attrs.num_particles*attrs.num_particles])
-    //     #pragma acc enter data copyin(moi[0:attrs.num_particles],m[0:attrs.num_particles],\
-    //         w[0:attrs.num_particles],vel[0:attrs.num_particles],pos[0:attrs.num_particles],R[0:attrs.num_particles],\
-    //         distances[0:attrs.num_pairs]) 
-    //     #pragma acc enter data copyin(acc[0:attrs.num_particles],aacc[0:attrs.num_particles],\
-    //         velh[0:attrs.num_particles],wh[0:attrs.num_particles]) 
-    //     #pragma acc enter data copyin(attrs.dt,attrs.num_pairs,attrs.num_particles,attrs.Ha,attrs.kin,attrs.kout,attrs.h_min,\
-    //         attrs.u_s,attrs.u_r,attrs.world_rank,attrs.world_size,attrs.write_step,PE)
-    //     // #pragma acc enter data copyin(accsq[0:attrs.num_particles*attrs.num_particles],\
-    //     //     aaccsq[0:attrs.num_particles*attrs.num_particles],acc[0:attrs.num_particles],aacc[0:attrs.num_particles],\
-    //     //     velh[0:attrs.num_particles],wh[0:attrs.num_particles]) 
-    // #endif
+
 
     for (Step = start_step; Step < attrs.steps; Step++)  // Steps start at 1 for non-restart because the 0 step is initial conditions.
     {
@@ -4219,7 +4204,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
             // {
             //     t.start_event("writeProgressReport");
             // }
-            attrs.write_step = true;
+            write_step = true;
 
             // #ifdef GPU_ENABLE
             //     #pragma acc update device(attrs.write_step)
@@ -4255,20 +4240,20 @@ Ball_group::sim_looper(unsigned long long start_step=1)
                 // t.end_event("writeProgressReport");
             }
         } else {
-            attrs.write_step = attrs.debug;
+            write_step = attrs.debug;
         }
 
 
         // std::cerr<<"step: "<<Step<<"\tskip: "<<attrs.skip<<std::endl;
 
         // Physics integration step:
-        sim_one_step(Step);
+        sim_one_step(Step,write_step);
         // #ifndef GPU_ENABLE
         // #else
         //     sim_one_step_GPU();
         // #endif
 
-        if (attrs.write_step) {
+        if (write_step) {
 
             std::cerr<<"WRITING STEP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"<<std::endl;
 
