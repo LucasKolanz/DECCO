@@ -72,13 +72,13 @@ if __name__ == '__main__':
 				input_json['output_folder'] = job
 				input_json['dataFormat'] = "csv"
 				input_json['impactParameter'] = -1.0
-				input_json['simTimeSeconds'] = 1e-3
+				input_json['simTimeSeconds'] = 1e-4
 				input_json['timeResolution'] = 1e-5
 				# input_json['material'] = "amorphousCarbon"
 				input_json['material'] = "quartz"
 				# input_json['JKR'] = "False"
 				input_json['JKR'] = "True"
-				# input_json['kConsts'] = 3e3
+				input_json['density'] = 2.6
 				# input_json['relaxIndex'] = n-3
 				input_json['h_min'] = 0.5
 				# input_json['u_s'] = 0.5

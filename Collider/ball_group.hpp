@@ -48,8 +48,9 @@ struct material_properties
     double density; //(g/cm^3) 
 };
 
-const material_properties quartz_mat = {25.0,54e10,23.1e10,0.17,2.6}; //all from Wada 2007 
-const material_properties aCarbon_mat = {25.0,250e10,110e10,0.2,2.7}; //Properties from page 141 in Properties of Amorphous Carbon by Silva. TAC values used (in the middle of the range used) surface energy from page 149
+const material_properties quartz_mat = {25.0,54e10,23.0769e10,0.17,2.6}; //all from Wada 2007 
+// const material_properties quartz_mat = {25.0,54e10,23.0769e10,0.17,2.6}; //all from Wada 2007 
+const material_properties aCarbon_mat = {25.0,250e10,1.04167e12,0.2,2.7}; //Properties from page 141 in Properties of Amorphous Carbon by Silva. TAC values used (in the middle of the range used) surface energy from page 149
 
 
 //This struct is meant to encompass all values necessary to carry out a simulation, besides the physical
@@ -305,7 +306,9 @@ public:
     // enum distributions {constant, logNorm};
     // enum simType {BPCA, BCCA, collider, relax};
     
-
+    double max_overlap = 0.0;
+    double min_overlap = 0.0;
+    bool touched = false;
     Ball_group_attributes attrs;
 
     /////////////////////////////////
@@ -492,7 +495,11 @@ private:
 bool is_touching(Ball_group &projectile,Ball_group &target);
 void moveApart(const vec3 &projectile_direction,Ball_group &projectile,Ball_group &target);
 bool get_JKR(const std::string folder);
-vec3 rotateVec(const double E0,const vec3 E,const vec3 vec);
-
+// vec3 rotateVec(const double E0,const vec3 E,const vec3 vec);
+vec3 quatRotate(const double s, const vec3& v, const vec3& vec);
+vec3 worldToLocal(const double s, const vec3& v,const vec3& vecWorld);
+vec3 localToWorld(const double s, const vec3& v,const vec3& vecLocal);
+vec3 rotateVecA(const double E0,const vec3 E,const vec3 vec);
+vec3 rotateVecInvA(const double E0,const vec3 E,const vec3 vec);
 
 #endif
