@@ -33,34 +33,40 @@ if __name__ == "__main__":
         power.append(float(elements[6][len("power: "):]))
 
     print(f"Time Integrated Power: {np.trapz(power)}")
-    start = 0
-    end = 10000
+    start = 56
+    end = 61
+    step = 1
 
     fig,ax = plt.subplots()
 
     maxTorque = max([abs(i) for i in totalTorque])
     maxw = max([abs(i) for i in w])
+    # maxw=0
     maxnA = max([abs(i) for i in nA])
 
     maxmax = max(maxTorque,maxw,maxnA)
     # maxmax = 1
 
-    totalTorque = [i*(maxmax/maxTorque) for i in totalTorque]
-    w = [i*(maxmax/maxw) for i in w]
-    nA = [i*(maxmax/maxnA) for i in nA]
+    # totalTorque = [i*(maxmax/maxTorque) for i in totalTorque]
+    # w = [i*(maxmax/maxw) for i in w]
+    # nA = [i*(maxmax/maxnA) for i in nA]
 
     print(f"min torque in range {start} to {end}: {min(totalTorque[start:end])} at step {start + totalTorque[start:end].index(min(totalTorque[start:end]))}")
-    print(f"min w in range {start} to {end}: {min(w[start:end])} at step {start + w[start:end].index(min(w[start:end]))}")
+    print(f"corresponding w in range {start} to {end}: {w[totalTorque[start:end].index(min(totalTorque[start:end]))]} at step {start + totalTorque[start:end].index(min(totalTorque[start:end]))}")
     print(f"min nA in range {start} to {end}: {min(nA[start:end])} at step {start + nA[start:end].index(min(nA[start:end]))}")
 
     ax.plot(steps[start:end],totalTorque[start:end],label="totalTorque",marker=".")
     ax.plot(steps[start:end],w[start:end],label=f"w",marker="*")
     ax.plot(steps[start:end],nA[start:end],label=f"nA")
+    ax.axhline(y=0)
 
     ax.legend()
 
     plt.show() 
 
+    fig,ax = plt.subplots()
+    ax.plot(steps[start:end:step],power[start:end:step],label="power",marker=".")
+    plt.show() 
     # for data in [totalTorque,w,nA]:
 
 

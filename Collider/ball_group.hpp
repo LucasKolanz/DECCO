@@ -48,8 +48,8 @@ struct material_properties
     double density; //(g/cm^3) 
 };
 
+// const material_properties quartz_mat = {25.0,54e1,23.0769e1,0.17,2.6}; //all from Wada 2007 
 const material_properties quartz_mat = {25.0,54e10,23.0769e10,0.17,2.6}; //all from Wada 2007 
-// const material_properties quartz_mat = {25.0,54e10,23.0769e10,0.17,2.6}; //all from Wada 2007 
 const material_properties aCarbon_mat = {25.0,250e10,1.04167e12,0.2,2.7}; //Properties from page 141 in Properties of Amorphous Carbon by Silva. TAC values used (in the middle of the range used) surface energy from page 149
 
 
@@ -84,7 +84,7 @@ struct Ball_group_attributes
     int start_step = 1;
     int relax_index = 0;
 
-    int skip=-1;  // Steps thrown away before recording a step to the buffer. 500*.04 is every 20 seconds in sim.
+    unsigned long long skip=-1;  // Steps thrown away before recording a step to the buffer. 500*.04 is every 20 seconds in sim.
     unsigned long long steps=0;
 
     double dt=-1;

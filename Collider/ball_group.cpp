@@ -335,8 +335,8 @@ void Ball_group::customInit()
     moi[0] = .4 * m[0] * R[0] * R[0];
     moi[1] = .4 * m[1] * R[1] * R[1];
     
-    w[0] = {0, 0, 0};   
-    w[1] = {0.0, 0.0, 0.01};   
+    w[0] = {0, 0, 0.0};   
+    w[1] = {0.0, 0.0, 0.0};   
 
     pos[0] = {0, R[0], 0};
     pos[1] = {0, -9.98938e-6, 0};
@@ -345,7 +345,7 @@ void Ball_group::customInit()
     // pos[1] = {0, -(R[1]+1.01e-6), 0};
 
     // double bel = 35.0;
-    double bel = 0.0;
+    double bel = 1.0;
     std::cout<<"velocity of impact: "<<bel*2<<std::endl;
     // vel[0] = {0,-bel,0};
     // vel[1] = {0,bel,0};
@@ -990,11 +990,11 @@ void Ball_group::calibrate_dt(int const Step, const double& customSpeed = -1.)
     message = "";
 
     if (attrs.timeResolution / attrs.dt > 1.) {
-        attrs.skip = static_cast<int>(floor(attrs.timeResolution / attrs.dt));
+        attrs.skip = static_cast<unsigned long long>(floor(attrs.timeResolution / attrs.dt));
         message += "Skip: " + std::to_string(attrs.skip) + '\n';
     } else {
         message += "Desired time resolution is lower than dt. Setting to 1 second per skip.\n";
-        attrs.skip = static_cast<int>(floor(1. / attrs.dt));
+        attrs.skip = static_cast<unsigned long long>(floor(1. / attrs.dt));
     }
     MPIsafe_print(std::cerr,message);
 }
@@ -4414,8 +4414,8 @@ void Ball_group::sim_one_step_JKR(int step)
     int world_size = getSize();
     /// FIRST PASS - Update Kinematic Parameters:
     // t.start_event("UpdateKinPar");
-    // for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
-    for (int Ball = 1; Ball < attrs.num_particles; Ball++) {
+    // for (int Ball = 1; Ball < attrs.num_particles; Ball++) {
+    for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
         // Update velocity half step:
         velh[Ball] = vel[Ball] + .5 * acc[Ball] * attrs.dt;
 
@@ -4423,87 +4423,43 @@ void Ball_group::sim_one_step_JKR(int step)
         wh[Ball] = w[Ball] + .5 * aacc[Ball] * attrs.dt;
 
         // Update position:
-        // pos[Ball] += velh[Ball] * attrs.dt;
+        pos[Ball] += velh[Ball] * attrs.dt;
 
-
-        // ///////////////////2nd order verlet///////////////////
-        // const vec3 wp = w[Ball];
+        //Update contact pointers
+        ///////////////////2nd order verlet///////////////////
+        const vec3 wp = wh[Ball];
         
-        // const double prevEu0 = Eu0[Ball];
-        // const vec3 prevEu = Eu[Ball];
-        // const double prevEu0p = Eu0p[Ball];
-        // const vec3 prevEup = Eup[Ball];
-        // Eu0p[Ball] = 0.5*prevEu.dot(wp);
-        // Eup[Ball] = 0.5*(prevEu0*wp - prevEu.cross(wp));
+        const double prevEu0 = Eu0[Ball];
+        const vec3 prevEu = Eu[Ball];
+        const double prevEu0p = Eu0p[Ball];
+        const vec3 prevEup = Eup[Ball];
+        Eu0p[Ball] = 0.5*prevEu.dot(wp);
+        Eup[Ball] = 0.5*(prevEu0*wp - prevEu.cross(wp));
 
         // Eu0[Ball] = prevEu0 + 0.5*(Eu0p[Ball]+prevEu0p)*attrs.dt;
         // Eu[Ball] = prevEu + 0.5*(Eup[Ball]+prevEup)*attrs.dt;
-        // double test = Eu0[Ball]*Eu0[Ball] + Eu[Ball].normsquared();
-        // Eu0[Ball] /= sqrt(test);
-        // Eu[Ball] /= sqrt(test);
 
-        // //////////////////////////////////////////////////////
+        Eu0[Ball] = prevEu0 + Eu0p[Ball]*attrs.dt;
+        Eu[Ball] = prevEu + Eup[Ball]*attrs.dt;
+        
 
+        double length = sqrt(Eu0[Ball]*Eu0[Ball] + Eu[Ball].normsquared());
+        Eu0[Ball] /= length;
+        Eu[Ball] /= length;
 
-        /////////////////////////////////////////////////
-        //This is just euler integration. This should be verified whether or not this is a good enough way to do this
-        // const vec3 prevEu = Eu[Ball];
-        // const double prevEu0 = Eu0[Ball];
-        // Update other eulerian paramters 
-        // Eu[Ball] = prevEu + 0.5*(prevEu0*wp - prevEu.cross(wp))*attrs.dt;
-        // // Update 0th eulerian parameter 
-        // // Eu0[Ball] = Eu0[Ball] + 0.5*Eu[Ball].dot(w[Ball])*attrs.dt;
-        // Eu0[Ball] = prevEu0 + 0.5*prevEu.dot(wp)*attrs.dt;
-        // std::cerr<<Eu[Ball].dot(wp)<<std::endl;
-        // if (touch)
-        // {
-        //     std::cerr<<"++++++++++++++++++++++++++++++++++++++"<<std::endl;
-        //     std::cerr<<"wp: "<<scientific(wp)<<std::endl;
-        //     std::cerr<<"prevEu0: "<<scientific(prevEu0)<<std::endl;
-        //     std::cerr<<"prevEu0 times wp: "<<scientific(prevEu0*wp)<<std::endl;
-        //     std::cerr<<"prevEu: "<<scientific(prevEu.cross(wp))<<std::endl;
-        //     std::cerr<<"prevEu cross wp: "<<scientific(prevEu.cross(wp))<<std::endl;
-
-        //     // std::cerr<<"Eu0[Ball]: "<<scientific(Eu0[Ball])<<std::flush<<std::endl;
-        //     // std::cerr<<"Eu[Ball]: "<<scientific(Eu[Ball])<<std::flush<<std::endl;
-        //     // std::cerr<<"Eu[Ball].normsquared: "<<scientific(Eu[Ball].normsquared())<<std::flush<<std::endl;
-        // }
-        // Eu[Ball] = Eu[Ball] + 0.5*(Eu0[Ball]*w[Ball] - Eu[Ball].cross(w[Ball]))*attrs.dt;
-        //verify the square of the parameters still add to unity
-        // test = Eu0[Ball]*Eu0[Ball] + Eu[Ball].normsquared();
-
-        // // if (step > 2600 && Ball == 0)
-        // if (step > 5200 && Ball == 0)
-        // {
-        //     std::cerr<<"++++++++++++++++++++++++++++++++++++++"<<std::endl;
-        //     std::cerr<<"wp: "<<scientific(wp)<<std::endl;
-        //     std::cerr<<"wpnonrot: "<<scientific(wpnonrot)<<std::endl;
-        //     std::cerr<<"prevEu0: "<<scientific(prevEu0)<<std::endl;
-        //     std::cerr<<"prevEu0p: "<<scientific(prevEu0p)<<std::endl;
-        //     std::cerr<<"Eup[Ball]: "<<scientific(Eup[Ball])<<std::endl;
-        //     // std::cerr<<"prevEu0 times wp: "<<scientific(prevEu0*wp)<<std::endl;
-        //     // std::cerr<<"prevEu: "<<scientific(prevEu.cross(wp))<<std::endl;
-        //     // std::cerr<<"prevEu cross wp: "<<scientific(prevEu.cross(wp))<<std::endl;
-
-        //     std::cerr<<"Eu0[Ball]: "<<scientific(Eu0[Ball])<<std::flush<<std::endl;
-        //     std::cerr<<"Eu[Ball]: "<<scientific(Eu[Ball])<<std::flush<<std::endl;
-        //     std::cerr<<"Eu[Ball].normsquared: "<<scientific(Eu[Ball].normsquared())<<std::flush<<std::endl;
-        //     std::cerr<<scientific(Eu0[Ball]*Eu0[Ball])<<std::flush<<std::endl;
-        //     std::cerr<<scientific(Eu[Ball].normsquared())<<std::endl;
-        // }
-
-
+        //////////////////////////////////////////////////////
 
         // if (test - 1.0 > 1e-10)
         // {
         //     std::cerr<<"STEP: "<<step<<std::endl; 
-            
+        //     // std::cerr<<"sliding disp: "<<slidingDisp<<std::endl;
+        //     // std::cerr<<"crit sliding disp: "<<critSlideDisp<<std::endl;
+        //     // std::cerr<<"rollingDisp: "<<rollingDisp<<std::endl;
+        //     // std::cerr<<"critrollingDisp: "<<critRollingDisp<<std::endl;
         //     MPIsafe_print(std::cerr,"ERROR: square of euler parameters is not 1.0 for ball "+std::to_string(Ball)+", it is "+scientific(test)+"\n");
         //     MPIsafe_exit(-1);
         // }
-        // // /////////////////////////////////////////////////
 
-        //Update contact pointers
 
         // Reinitialize acceleration to be recalculated:
         acc[Ball] = {0, 0, 0};
@@ -4549,6 +4505,13 @@ void Ball_group::sim_one_step_JKR(int step)
     // double critRollingDisp;
     // vec3 slidingDisp;
     // double critSlideDisp;
+    vec3 totalTorqueAwrite;
+    vec3 rollingTorqueAwrite;
+    vec3 slidingTorqueAwrite;
+    vec3 nAwrite;
+    double powerwrite;
+    vec3 slidingForceAwrite;
+
 
 
     for (pc = world_rank + 1; pc <= (((lllen*lllen)-lllen)/2); pc += world_size)
@@ -4749,6 +4712,12 @@ void Ball_group::sim_one_step_JKR(int step)
 
             // std::cerr<<slidingDisp<<std::endl;
             const double ks = 8.0*a0[e]*reducedGstar[e];
+            // double I      = moi[A];
+            // double omega0 = sqrt( ks * R[A]*R[A] / I );
+            // double dtmax  = M_PI / omega0;
+            // std::cerr << "dt       = " << dt
+            //           << "\ndt_max  = " << dtmax << std::endl;
+            // exit(0);
             // const double slidingPot = 0.5*ks*(slidingDisp0.dot(slidingDisp0));
             const vec3 slidingForceA = -ks*slidingDisp*(R[A] + R[B] - slidingDisp0.dot(n_c))*dist_reciprocal;
 
@@ -4783,25 +4752,25 @@ void Ball_group::sim_one_step_JKR(int step)
                 MPIsafe_exit(-1);
             }
 
-            // if (step == 1)
-            // {
-            //     std::cout<<"pos[0]: "<<scientific(pos[0])<<std::endl;
-            //     std::cout<<"pos[1]: "<<scientific(pos[1])<<std::endl;
-            //     std::cout<<"nA: "<<nA<<std::endl;
-            //     std::cout<<"nB: "<<nB<<std::endl;
-            //     std::cout<<"nc: "<<n_c<<std::endl;
-            //     std::cout<<"slidingDisp0: "<<slidingDisp0<<std::endl;
-            //     std::cout<<"slidingDisp: "<<slidingDisp<<std::endl;
-            //     std::cout<<"ks: "<<ks<<std::endl;
-            //     std::cout<<"a0[e]: "<<a0[e]<<std::endl;
-            //     std::cout<<"nu[0]: "<<nu[0]<<std::endl;
-            //     std::cout<<"nu[1]: "<<nu[1]<<std::endl;
-            //     std::cout<<"G[0]: "<<G[0]<<std::endl;
-            //     std::cout<<"G[1]: "<<G[1]<<std::endl;
-            //     std::cout<<"reducedGstar[e]: "<<reducedGstar[e]<<std::endl;
-            //     std::cout<<"slidingForceA: "<<slidingForceA<<std::endl;
-            //     exit(0);
-            // }
+            if (step == 1)
+            {
+                std::cout<<"pos[0]: "<<scientific(pos[0])<<std::endl;
+                std::cout<<"pos[1]: "<<scientific(pos[1])<<std::endl;
+                std::cout<<"nA: "<<nA<<std::endl;
+                std::cout<<"nB: "<<nB<<std::endl;
+                std::cout<<"nc: "<<n_c<<std::endl;
+                std::cout<<"slidingDisp0: "<<slidingDisp0<<std::endl;
+                std::cout<<"slidingDisp: "<<slidingDisp<<std::endl;
+                std::cout<<"ks: "<<ks<<std::endl;
+                std::cout<<"a0[e]: "<<a0[e]<<std::endl;
+                std::cout<<"nu[0]: "<<nu[0]<<std::endl;
+                std::cout<<"nu[1]: "<<nu[1]<<std::endl;
+                std::cout<<"G[0]: "<<G[0]<<std::endl;
+                std::cout<<"G[1]: "<<G[1]<<std::endl;
+                std::cout<<"reducedGstar[e]: "<<reducedGstar[e]<<std::endl;
+                std::cout<<"slidingForceA: "<<slidingForceA<<std::endl;
+                // exit(0);
+            }
 
 
            // -----------------This is the sliding force/torque adding stuff--------------------------
@@ -4832,8 +4801,12 @@ void Ball_group::sim_one_step_JKR(int step)
             const double kr = 12.0*pi*reducedGamma[e];
             const vec3 rollingTorqueA = -reducedR[e]*kr*nA.cross(rollingDisp);
             const vec3 rollingTorqueB = -reducedR[e]*kr*nB.cross(rollingDisp);
-            // totalTorqueA += rollingTorqueA;
-            // totalTorqueB += rollingTorqueB; //(SHOULD ROLLINGDISP BE NEGATIVE??)
+
+
+
+ 
+            totalTorqueA += rollingTorqueA;
+            totalTorqueB += rollingTorqueB; //(SHOULD ROLLINGDISP BE NEGATIVE??)
 
             //////////////////////////////////////////////////////////////////////////////////////////
             //Verify this conserves conserved quantities
@@ -4863,33 +4836,14 @@ void Ball_group::sim_one_step_JKR(int step)
 
 
 
+            // totalTorqueAwrite = totalTorqueA;
+            // rollingTorqueAwrite = rollingTorqueA;
+            // slidingTorqueAwrite = slidingTorqueA;
+            // nAwrite = nA;
+            // powerwrite = power;
+            // slidingForceAwrite = slidingForceA;
 
-
-            ///////////////////////////////write to file///////////////////////////////
-            // std::cerr<<"nc; "<<n_c<<std::endl;
-            // std::cerr<<"kr: "<<kr<<std::endl;
-            // std::cerr<<"rollingDisp: "<<rollingDisp<<std::endl;
-            std::ofstream outfile;
-            outfile.open("/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/JKRTest/test.txt", std::ios_base::app);
-            outfile<<"step: "<<step<<std::endl;
-            outfile<<"totalTorqueA: "<<totalTorqueA<<std::endl;
-            outfile<<"rollingTorqueA: "<<rollingTorqueA<<std::endl;
-
-
-            // outfile<<"R[1]: "<<R[1]<<std::endl;
-            // outfile<<"ks: "<<ks<<std::endl;
-            // outfile<<"slidingDisp: "<<slidingDisp<<std::endl;
-            outfile<<"slidingTorqueA: "<<slidingTorqueA<<std::endl;
-            outfile<<"w[1]: "<<w[1]<<std::endl;
-            outfile<<"nA: "<<nA<<std::endl;
-            outfile<<"Power: "<<totalTorqueA.dot(w[A])<<std::endl;
-            outfile<<"nB: "<<nB<<std::endl;
-            outfile<<"pos[A]: "<<pos[A]<<std::endl;
-            // outfile<<"Eu0[A]: "<<Eu0[A]<<std::endl;
-            // outfile<<"Eu[A]: "<<Eu[A]<<std::endl;
-            outfile<<"slidingForceA: "<<slidingForceA<<std::endl;
-            // exit(0);
-            //////////////////////////////////////////////////////////////
+            
 
 
 
@@ -4985,8 +4939,8 @@ void Ball_group::sim_one_step_JKR(int step)
     // t.start_event("CalcVelocityforNextStep");
     for (int Ball = 0; Ball < attrs.num_particles; Ball++) 
     {
-        // if (1)
-        if (Ball != 0)
+        // if (Ball != 0)
+        if (1)
         {
             // Velocity for next step:
             vel[Ball] = velh[Ball] + .5 * acc[Ball] * attrs.dt;
@@ -4994,41 +4948,11 @@ void Ball_group::sim_one_step_JKR(int step)
 
 
         
-            ///////////////////2nd order verlet///////////////////
-            const vec3 wp = w[Ball];
             
-            const double prevEu0 = Eu0[Ball];
-            const vec3 prevEu = Eu[Ball];
-            const double prevEu0p = Eu0p[Ball];
-            const vec3 prevEup = Eup[Ball];
-            Eu0p[Ball] = 0.5*prevEu.dot(wp);
-            Eup[Ball] = 0.5*(prevEu0*wp - prevEu.cross(wp));
-
-            // Eu0[Ball] = prevEu0 + 0.5*(Eu0p[Ball]+prevEu0p)*attrs.dt;
-            // Eu[Ball] = prevEu + 0.5*(Eup[Ball]+prevEup)*attrs.dt;
-
-            Eu0[Ball] = prevEu0 + Eu0p[Ball]*attrs.dt;
-            Eu[Ball] = prevEu + Eup[Ball]*attrs.dt;
-            
-
-            double length = sqrt(Eu0[Ball]*Eu0[Ball] + Eu[Ball].normsquared());
-            Eu0[Ball] /= length;
-            Eu[Ball] /= length;
-
-            //////////////////////////////////////////////////////
-
-            // if (test - 1.0 > 1e-10)
-            // {
-            //     std::cerr<<"STEP: "<<step<<std::endl; 
-            //     // std::cerr<<"sliding disp: "<<slidingDisp<<std::endl;
-            //     // std::cerr<<"crit sliding disp: "<<critSlideDisp<<std::endl;
-            //     // std::cerr<<"rollingDisp: "<<rollingDisp<<std::endl;
-            //     // std::cerr<<"critrollingDisp: "<<critRollingDisp<<std::endl;
-            //     MPIsafe_print(std::cerr,"ERROR: square of euler parameters is not 1.0 for ball "+std::to_string(Ball)+", it is "+scientific(test)+"\n");
-            //     MPIsafe_exit(-1);
-            // }
         }
 
+
+        
 
         /////////////////////////////////////////////////
 
@@ -5061,6 +4985,37 @@ void Ball_group::sim_one_step_JKR(int step)
     {
         attrs.num_writes ++;
     }
+
+
+    // ///////////////////////////////write to file///////////////////////////////
+    // // std::cerr<<"nc; "<<n_c<<std::endl;
+    // // std::cerr<<"kr: "<<kr<<std::endl;
+    // // std::cerr<<"rollingDisp: "<<rollingDisp<<std::endl;
+    // std::ofstream outfile;
+    // outfile.open("/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/JKRTest/test.txt", std::ios_base::app);
+    // outfile<<"step: "<<step<<std::endl;
+    // outfile<<"totalTorqueA: "<<totalTorqueAwrite<<std::endl;
+    // outfile<<"rollingTorqueA: "<<rollingTorqueAwrite<<std::endl;
+
+
+    // // outfile<<"R[1]: "<<R[1]<<std::endl;
+    // // outfile<<"ks: "<<ks<<std::endl;
+    // // outfile<<"slidingDisp: "<<slidingDisp<<std::endl;
+    // outfile<<"slidingTorqueA: "<<slidingTorqueAwrite<<std::endl;
+    // outfile<<"w[1]: "<<w[1]<<std::endl;
+    // outfile<<"nA: "<<nAwrite<<std::endl;
+    // outfile<<"Power: "<<totalTorqueAwrite.dot(w[A])<<std::endl;
+    // // outfile<<"nB: "<<nB<<std::endl;
+    // // outfile<<"pos[A]: "<<pos[A]<<std::endl;
+    // // outfile<<"Eu0[A]: "<<Eu0[A]<<std::endl;
+    // // outfile<<"Eu[A]: "<<Eu[A]<<std::endl;
+    // outfile<<"slidingForceA: "<<slidingForceAwrite<<std::endl;
+    // outfile<<"==================================================="<<std::endl;
+    // // exit(0);
+    // //////////////////////////////////////////////////////////////
+
+
+
     // t.end_event("CalcVelocityforNextStep");
 }  // one Step end
 #endif 
