@@ -306,9 +306,12 @@ public:
     // enum distributions {constant, logNorm};
     // enum simType {BPCA, BCCA, collider, relax};
     
-    double max_overlap = 0.0;
+    //Take these out after JKR stuff is figured out
+    double max_w = 0.0;
     double min_overlap = 0.0;
     bool touched = false;
+
+
     Ball_group_attributes attrs;
 
     /////////////////////////////////

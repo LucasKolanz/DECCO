@@ -23,50 +23,64 @@ if __name__ == "__main__":
     w = []
     nA = []
     power = []
+    vel = []
+    rollingDisp = []
+    slidingDisp = []    
 
     for line in content.split("step: ")[1:-1]:
         elements = line.split("\n")
         steps.append(int(elements[0]))
         totalTorque.append(float(elements[1][len("totalTorqueA: 0,0,"):]))
         w.append(float(elements[4][len("w[1]: 0,0,"):]))
-        nA.append(float(elements[5][len("nA: "):].split(',')[0]))
+        nA.append(float(elements[5][len("nA: "):].split(',')[1]))
         power.append(float(elements[6][len("power: "):]))
 
-    print(f"Time Integrated Power: {np.trapz(power)}")
-    start = 56
-    end = 61
+        vel.append(float(elements[7][len("VelNorm: "):]))
+        rolldisp = elements[8][len("rollingDisp: "):].split(',')
+        rollingDisp.append(np.linalg.norm([float(rolldisp[0]),float(rolldisp[1]),float(rolldisp[2])]))
+        sliddisp = elements[9][len("slidingDisp: "):].split(',')
+        # slidingDisp.append(np.linalg.norm([float(sliddisp[0]),float(sliddisp[1]),float(sliddisp[2])]))
+        slidingDisp.append(float(sliddisp[0]))
+
+    # print(f"Time Integrated Power: {np.trapz(power)}")
+    start = 1
+    end = -1
     step = 1
 
     fig,ax = plt.subplots()
 
-    maxTorque = max([abs(i) for i in totalTorque])
-    maxw = max([abs(i) for i in w])
-    # maxw=0
-    maxnA = max([abs(i) for i in nA])
+    # maxTorque = max([abs(i) for i in totalTorque])
+    # maxw = max([abs(i) for i in w])
+    # # maxw=0
+    # maxnA = max([abs(i) for i in nA])
+    # maxmax = max(maxTorque,maxw,maxnA)
 
-    maxmax = max(maxTorque,maxw,maxnA)
-    # maxmax = 1
+    # # maxmax = 1
 
     # totalTorque = [i*(maxmax/maxTorque) for i in totalTorque]
     # w = [i*(maxmax/maxw) for i in w]
-    # nA = [i*(maxmax/maxnA) for i in nA]
+    # # nA = [i*(maxmax/maxnA) for i in nA]
 
     print(f"min torque in range {start} to {end}: {min(totalTorque[start:end])} at step {start + totalTorque[start:end].index(min(totalTorque[start:end]))}")
     print(f"corresponding w in range {start} to {end}: {w[totalTorque[start:end].index(min(totalTorque[start:end]))]} at step {start + totalTorque[start:end].index(min(totalTorque[start:end]))}")
     print(f"min nA in range {start} to {end}: {min(nA[start:end])} at step {start + nA[start:end].index(min(nA[start:end]))}")
 
-    ax.plot(steps[start:end],totalTorque[start:end],label="totalTorque",marker=".")
+    # ax.plot(steps[start:end],totalTorque[start:end],label="totalTorque",marker=".")
     ax.plot(steps[start:end],w[start:end],label=f"w",marker="*")
     ax.plot(steps[start:end],nA[start:end],label=f"nA")
-    ax.axhline(y=0)
+    # ax.plot(steps[start:end],vel[start:end],label=f"vel")
+    # ax.plot(list(range(len(vel[start:end]))),vel[start:end],label=f"vel")
+    # ax.plot(steps[start:end],rollingDisp[start:end],label=f"rollingDisp")
+    ax.plot(steps[start:end],slidingDisp[start:end],label=f"slidingDisp")
+    # ax.axhline(y=0)
 
     ax.legend()
 
     plt.show() 
 
-    fig,ax = plt.subplots()
-    ax.plot(steps[start:end:step],power[start:end:step],label="power",marker=".")
-    plt.show() 
+    # fig,ax = plt.subplots()
+    # ax.plot(steps[start:end:step],power[start:end:step],label="power",marker=".")
+    # plt.show() 
     # for data in [totalTorque,w,nA]:
 
 

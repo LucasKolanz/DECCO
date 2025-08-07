@@ -33,6 +33,16 @@ def calc_KE(vel,w,mass,moi):
 	KE += 0.5 * np.einsum('i,i->', moi, np.einsum('ij,ij->i', w, w))
 	return KE
 
+def calc_transKE(vel,mass):
+	#tranlational KE
+	KE = 0.5 * np.einsum('i,i->', mass, np.einsum('ij,ij->i', vel, vel))
+	return KE
+
+def calc_rotKE(w,moi):
+	#rotational KE
+	KE = 0.5 * np.einsum('i,i->', moi, np.einsum('ij,ij->i', w, w))
+	return KE
+
 #calculates VDW and spring PE given the position of each ball pos, the radius of each ball radius, 
 #the Hamakers constant between pairs HA, and spring constant K
 #NOT FINISHED
@@ -63,13 +73,42 @@ def verify_simData(directory,HA=0):
 		pos,vel,w = u.get_simData(directory,i,relax)
 		timesteps = pos.shape[0]
 
-		KE = np.zeros((timesteps),dtype=np.float64)
-		PE = np.zeros((timesteps),dtype=np.float64)
+
+		rotKE = np.zeros((timesteps),dtype=np.float64)
+		transKE = np.zeros((timesteps),dtype=np.float64)
+
+		# PE = np.zeros((timesteps),dtype=np.float64)
 
 		for step in range(timesteps):
-			# KE[step] = calc_KE(vel[step],w[step],mass,moi)
-			PE[step] = calc_PE(pos[step],radius,HA=0.1,K=0.1)
+			transKE[step] = calc_transKE(vel[step],mass)
+			rotKE[step] = calc_rotKE(w[step],moi)
 
+			# PE[step] = calc_PE(pos[step],radius,HA=0.1,K=0.1)
+		plt.figure(figsize=(10, 6))
+		# plt.plot(time, KE, label='Kinetic Energy')
+		plt.plot(time, rotKE, label='Rotational KE')
+		plt.plot(time, transKE, label='Translational KE')
+		plt.plot(time, transKE+rotKE, label='Total KE')
+		# plt.axhline(y=horizontal_line_value, color='red', linestyle='--', label='Reference Value')
+		plt.xlabel('Time (s)')
+		plt.ylabel('Energy (ergs)')
+		# plt.title('Rotational Kinetic Energy vs. Time (About Center of Mass)')
+		plt.legend()
+		plt.grid(True)
+		# plt.show()
+
+		plt.figure(figsize=(10, 6))
+		# plt.plot(time, KE, label='Kinetic Energy')
+		plt.plot(time, w[:,0,2], label='w0')
+		plt.plot(time, w[:,1,2], label='w1')
+		# plt.plot(time, transKE, label='Translational KE')
+		# plt.plot(time, transKE+rotKE, label='Total KE')
+		# plt.axhline(y=horizontal_line_value, color='red', linestyle='--', label='Reference Value')
+		plt.xlabel('Time (s)')
+		plt.ylabel('Energy (ergs)')
+		# plt.title('Rotational Kinetic Energy vs. Time (About Center of Mass)')
+		plt.legend()
+		plt.grid(True)
 
 
 def verify_energy(directory):
@@ -78,17 +117,36 @@ def verify_energy(directory):
 	for i in indices:
 		time,PE,KE,E,p,L = u.get_energy(directory,data_index=i,relax=relax)
 		
+		start = 0
+		stop = -1
 
 		# Plot rotational kinetic energy versus time
 		plt.figure(figsize=(10, 6))
-		plt.plot(time, KE, label='Kinetic Energy')
+		plt.plot(time[start:stop], KE[start:stop], label='Kinetic Energy')
+		plt.plot(time[start:stop], PE[start:stop], label='Potential Energy')
+		plt.plot(time[start:stop], E[start:stop], label='Total Energy')
 		# plt.axhline(y=horizontal_line_value, color='red', linestyle='--', label='Reference Value')
 		plt.xlabel('Time (s)')
 		plt.ylabel('Energy (ergs)')
 		# plt.title('Rotational Kinetic Energy vs. Time (About Center of Mass)')
 		plt.legend()
 		plt.grid(True)
-		plt.show()
+
+		print(KE[1])
+		print(PE[1])
+		print(E[1])
+
+		# plt.figure(figsize=(10, 6))
+		# # plt.plot(time, KE, label='Kinetic Energy')
+		# # plt.plot(time, L, label='L')
+		# plt.plot(time, p, label='p')
+		# # plt.axhline(y=horizontal_line_value, color='red', linestyle='--', label='Reference Value')
+		# plt.xlabel('Time (s)')
+		# plt.ylabel('Energy (ergs)')
+		# # plt.title('Rotational Kinetic Energy vs. Time (About Center of Mass)')
+		# plt.legend()
+		# plt.grid(True)
+		# # plt.show()
 
 
 
@@ -101,7 +159,8 @@ if __name__ == '__main__':
 	directory = "/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/JKRTest/"
 	relax = ("relax" in directory)
 
-	verify_energy(directory)
-	# verify_simData(directory)
+	# verify_energy(directory)
+	verify_simData(directory)
+	plt.show()
 
 	

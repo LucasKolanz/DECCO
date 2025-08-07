@@ -326,6 +326,7 @@ void Ball_group::customInit()
     }
 
 
+    // R[0] = 0.5e-5;
     R[0] = 1e-5;
     R[1] = 1e-5;
 
@@ -338,20 +339,27 @@ void Ball_group::customInit()
     w[0] = {0, 0, 0.0};   
     w[1] = {0.0, 0.0, 0.0};   
 
-    pos[0] = {0, R[0], 0};
-    pos[1] = {0, -9.98938e-6, 0};
+    pos[0] = {0, R[0] , 0};
+    // pos[1] = {0,-R[1], 0};
+    pos[1] = {0,-9.98938e-6, 0};
+
+    // pos[0] = {0, R[0], 0};
+    // pos[1] = {0, -9.98938e-6, 0};
+
+
     // pos[1] = {0, -(R[1]), 0};
     // pos[0] = {0, R[0]+1.01e-6, 0};
     // pos[1] = {0, -(R[1]+1.01e-6), 0};
 
     // double bel = 35.0;
-    double bel = 1.0;
+    double bel = 50.0;
     std::cout<<"velocity of impact: "<<bel*2<<std::endl;
-    // vel[0] = {0,-bel,0};
-    // vel[1] = {0,bel,0};
+    vel[0] = {bel,0,0};
+    vel[1] = {-bel,0,0};
+    // vel[0] = {-bel/std::sqrt(2),-bel/std::sqrt(2),0};
     // vel[1] = {bel/std::sqrt(2),bel/std::sqrt(2),0};
-    vel[0] = {0,0,0};
-    vel[1] = {0,0,0};
+    // vel[0] = {0,0,0};
+    // vel[1] = {-bel,0,0};
     // vel[1] = {0,0,bel};
 
     calc_helpfuls(true);
@@ -2305,8 +2313,12 @@ void Ball_group::init_conditions_JKR()
 
             vec3 totalForceA{0, 0, 0};
             vec3 totalForceB{0, 0, 0};
-            
+
             int e = static_cast<int>(A * (A - 1) * .5) + B;  // a^2-a is always even, so this works.
+            
+            const double alpha = 2*pi*reducedGamma[e]*reducedR[e]*reducedR[e] * (1/reducedE[e]);
+            const double beta = pow((4*reducedR[e]*(1.0/3.0)),3);
+                
             if (overlap > 0) //overlapping
             {
                 const double dist_reciprocal = 1.0/dist;
@@ -2315,78 +2327,118 @@ void Ball_group::init_conditions_JKR()
                 //set contact pointers. This should only be done unconditionally like this in init_conditions_JKR
                 n_hats[2*e] = rotateVecA(Eu0[A],Eu[A],-n_c);
                 // std::cerr<<n_hats[2*e]<<std::endl;
-                n_hats[2*e+1] = rotateVecA(Eu0[A],Eu[A],n_c);
-                // std::cerr<<n_hats[2*e+1]<<std::endl;
+                n_hats[2*e+1] = rotateVecA(Eu0[B],Eu[B],n_c);
+                const vec3 nA = n_hats[2*e];
+                const vec3 nB = n_hats[2*e+1];
 
                 //normal 
-                
+                const double lambda = std::cbrt(alpha/2.0 + sqrt(alpha*alpha/4 + beta*overlap*overlap*overlap))\
+                                +std::cbrt(alpha/2.0 - sqrt(alpha*alpha/4 + beta*overlap*overlap*overlap));
+
+                double cont=1.0;
+                // if (dist > oldDist && overlap <= 1.49e-8) {
+                //     cont = -1.0;
+                // } else {
+                //     cont = 1.0;
+                // }
+
+                const double contactRadius = 0.5*sqrt(alpha/lambda) + cont*0.5*sqrt(2.0*sqrt(alpha*lambda) - lambda*lambda);
+                // std::cout<<"contactRadius: "<<contactRadius<<std::endl;
+
+                const double JKRForce = 4*reducedE[e]*contactRadius*contactRadius*contactRadius * (1.0/(3.0*reducedR[e]))\
+                                        -4*sqrt(pi*reducedE[e]*(reducedGamma[e])/2.0)*sqrt(contactRadius)*contactRadius;
+
+                const double reduced_mass = (m[A]*m[B])/(m[A]+m[B]);
+                const double kt = 2*reducedE[e]*contactRadius;
+                // const double normViscConst = 0.0132; //normal critical damping ratio. 0 for no damping 1, for critical damping
+                const double normViscConst = 0.0; 
+                const double relativeVelocity = (vel[B] - vel[A]).dot((rVecab)/rVecab.norm());
+                const double dampingForceA = -2.0*normViscConst*sqrt(reduced_mass*kt) * relativeVelocity;
+
+                const vec3 normalForceA = (JKRForce + dampingForceA)*n_c;
+
+                totalForceA += normalForceA;
+                totalForceB -= normalForceA;     
 
                 vec3 totalTorqueA{0, 0, 0};
                 vec3 totalTorqueB{0, 0, 0};
 
                 //sliding
-                const vec3 slidingDisp0 = R[A]*n_hats[2*e] - R[B]*n_hats[2*e+1] + (sumRaRb)*n_c;
-                const vec3 slidingDisp = slidingDisp0 - (slidingDisp0.dot(n_c))*n_c;
-                // std::cerr<<slidingDisp<<std::endl;
+                const vec3 slidingDisp0 = R[A]*nA - R[B]*nB + (sumRaRb)*n_c;
+                const vec3 slidingDisp = slidingDisp0 - (slidingDisp0.dot(n_c))*n_c;// std::cerr<<slidingDisp<<std::endl;
                 const double ks = 8.0*a0[e]*reducedGstar[e];
-                // const double slidingPot = 0.5*ks*(slidingDisp0.dot(slidingDisp0));
                 const vec3 slidingForceA = -ks*slidingDisp*(R[A] + R[B] - slidingDisp0.dot(n_c))*dist_reciprocal;
 
                 //////////////////////////////////////////////////////////////////////////////////////////
                 //Verify this conserves conserved quantities
                 const vec3 slidingForceB = -1.0*slidingForceA;
-                const vec3 slidingTorqueA = -R[A]*ks*n_hats[2*e+1].cross(slidingDisp);
-                const vec3 slidingTorqueB = -R[B]*ks*n_hats[2*e].cross(-1.0*slidingDisp);
-                if ((slidingTorqueA+slidingTorqueB+(slidingForceA.cross((rVecab)/2.0))+(slidingForceB.cross((rVecba)/2.0))).norm() > 1e-10)
+                const vec3 slidingTorqueA = -R[A]*ks*nA.cross(slidingDisp);
+                const vec3 slidingTorqueB = R[B]*ks*nB.cross(slidingDisp);
+
+                //I changed the sign of these because I think there was a mistake in Wada 2007 equation 19
+                const vec3 internalTorqueA = -(slidingForceA.cross((pos[A]-pos[B])/2.0));
+                const vec3 internalTorqueB = -(slidingForceB.cross((pos[B]-pos[A])/2.0));
+
+                if ((slidingTorqueA+slidingTorqueB+internalTorqueA+internalTorqueB).norm() > 1e-10)
                 {
-                    // MPIsafe_print(std::cerr,"(slidingTorqueA+slidingTorqueB+(slidingForceA.cross((rVecba)/2.0))+(slidingForceB.cross((rVecab)/2.0))).norm() = "+std::to_string((slidingTorqueA+slidingTorqueB+(slidingForceA.cross((rVecba)/2.0))+(slidingForceB.cross((rVecab)/2.0))).norm())+'\n');
-                    // MPIsafe_print(std::cerr,"slidingTorqueA: = "+std::to_string(slidingTorqueA.norm())+'\n');
-                    // MPIsafe_print(std::cerr,"slidingTorqueB: = "+std::to_string(slidingTorqueB.norm())+'\n');
-                    // MPIsafe_print(std::cerr,"slidingForceA: = "+std::to_string(slidingForceA.norm())+'\n');
-                    // MPIsafe_print(std::cerr,"slidingForceB: = "+std::to_string(slidingForceB.norm())+'\n');
-                    MPIsafe_print(std::cerr,"ERROR: Sliding forces and torques are not conserved in init_conditions_JKR.\n");
+                    MPIsafe_print(std::cerr,"ERROR: sliding degrees of freedom not conserved in init_conditions_JKR.");
+                    MPIsafe_print(std::cerr,"(slidingTorqueA) = "+scientific(slidingTorqueA)+"\n");
+                    MPIsafe_print(std::cerr,"(slidingTorqueB) = "+scientific(slidingTorqueB)+"\n");
+                    MPIsafe_print(std::cerr,"(internalTorqueA) = "+scientific(internalTorqueA)+"\n");
+                    MPIsafe_print(std::cerr,"(internalTorqueB) = "+scientific(internalTorqueB)+"\n");
                     MPIsafe_exit(-1);
-                }
-                else
-                {
-                    MPIsafe_print(std::cerr,"(slidingTorqueA+slidingTorqueB+(slidingForceA.cross((rVecba)/2.0))+(slidingForceB.cross((rVecab)/2.0))).norm() = "+std::to_string((slidingTorqueA+slidingTorqueB+(slidingForceA.cross((rVecba)/2.0))+(slidingForceB.cross((rVecab)/2.0))).norm())+'\n');
-                    MPIsafe_print(std::cerr,"slidingTorqueA: = "+std::to_string(slidingTorqueA.norm())+'\n');
-                    MPIsafe_print(std::cerr,"slidingTorqueB: = "+std::to_string(slidingTorqueB.norm())+'\n');
-                    MPIsafe_print(std::cerr,"slidingForceA: = "+std::to_string(slidingForceA.norm())+'\n');
-                    MPIsafe_print(std::cerr,"slidingForceB: = "+std::to_string(slidingForceB.norm())+'\n');
                 }
                 //////////////////////////////////////////////////////////////////////////////////////////
 
-                // totalForceA += slidingForceA;
-                // totalForceB -= slidingForceA;
-                // totalTorqueA += -R[A]*ks*n_hats[2*e].cross(slidingDisp);
-                // totalTorqueB += -R[B]*ks*n_hats[2*e+1].cross(-1.0*slidingDisp);
+                totalForceA += slidingForceA;
+                totalForceB += slidingForceB;
+                
+                totalTorqueA += slidingTorqueA;
+                totalTorqueB += slidingTorqueB;
 
                 //rolling
-                const vec3 rollingDisp = reducedR[e]*(n_hats[2*e+1] + n_hats[2*e]);
+                const vec3 rollingDisp = reducedR[e]*(nA + nB);
+                const double critRollingDisp = 2e-8;
+                if (critRollingDisp < rollingDisp.norm())
+                {
+                    std::cerr<<"ROLLING DISP GREATER THAN CRIT DISP in init_conditions_JKR"<<std::endl;
+                    std::cerr<<"crit disp: "<<critRollingDisp<<std::endl;
+                    std::cerr<<"your disp: "<<rollingDisp<<std::endl;
+                    MPIsafe_exit(-1);
+
+                }
+
                 const double kr = 12.0*pi*reducedGamma[e];
-                // totalTorqueA += -reducedR[e]*kr*n_hats[2*e].cross(rollingDisp);
-                // totalTorqueB += -reducedR[e]*kr*n_hats[2*e+1].cross(rollingDisp); //(SHOULD ROLLINGDISP BE NEGATIVE??)
+                const vec3 rollingTorqueA = -reducedR[e]*kr*nA.cross(rollingDisp);
+                const vec3 rollingTorqueB = -reducedR[e]*kr*nB.cross(rollingDisp);
+     
+                totalTorqueA += rollingTorqueA;
+                totalTorqueB += rollingTorqueB; //(SHOULD ROLLINGDISP BE NEGATIVE??)
 
                 //////////////////////////////////////////////////////////////////////////////////////////
                 //Verify this conserves conserved quantities
-                const vec3 rollingTorqueA = -reducedR[e]*kr*n_hats[2*e].cross(rollingDisp);
-                const vec3 rollingTorqueB = -reducedR[e]*kr*n_hats[2*e+1].cross(rollingDisp);
                 if ((rollingTorqueA+rollingTorqueB).norm() > 1e-10)
                 {
                     MPIsafe_print(std::cerr,"ERROR: Rolling forces and torques are not conserved in init_conditions_JKR.\n");
                     MPIsafe_print(std::cerr,"(rollingTorqueA+rollingTorqueB).norm() = "+std::to_string((rollingTorqueA+rollingTorqueB).norm())+'\n');
+                    MPIsafe_print(std::cerr,"rollingTorqueA = "+scientific(rollingTorqueA)+'\n');
+                    MPIsafe_print(std::cerr,"rollingTorqueB = "+scientific(rollingTorqueB)+'\n');
                     MPIsafe_exit(-1);
-                }
-                else
-                {
-                    MPIsafe_print(std::cerr,"(rollingTorqueA+rollingTorqueB).norm() = "+std::to_string((rollingTorqueA+rollingTorqueB).norm())+'\n');
-                    MPIsafe_print(std::cerr,"rollingTorqueA: = "+std::to_string(rollingTorqueA.norm())+'\n');
-                    MPIsafe_print(std::cerr,"rollingTorqueB: = "+std::to_string(rollingTorqueB.norm())+'\n');
                 }
                 //////////////////////////////////////////////////////////////////////////////////////////
                 aacc[A] += totalTorqueA / moi[A];
                 aacc[B] += totalTorqueB / moi[B];
+
+                //JKR sliding PE
+                PE += 0.5*ks*slidingDisp.dot(slidingDisp);
+
+                //JKR rolling PE
+                PE += 0.5*kr*rollingDisp.dot(rollingDisp);
+
+                //JKR normal PE
+                PE += 8.0*reducedE[e]*std::pow(contactRadius,5)*(1.0/(15.0*reducedR[e]*reducedR[e])) \
+                        - 8.0*std::sqrt(pi*reducedGamma[e]*reducedE[e])*std::pow(contactRadius,3.5)*(1/(3.0*reducedR[e])) \
+                        + 2.0*pi*reducedGamma[e]*contactRadius*contactRadius;
             }
             else
             {
@@ -3487,7 +3539,7 @@ void Ball_group::updateDTK(const double& velocity)
     double delta0 = a0[0]*a0[0]/(3.0*reducedR[0]);
     double deltac = pow(9.0/16.0,1.0/3.0)*delta0;
     double Fc = 3.0*pi*(reducedGamma[0])*reducedR[0];
-    attrs.dt = 0.014*sqrt(m[0]*deltac/Fc);
+    attrs.dt = 0.014*sqrt(m[0]*deltac/Fc)/10;
 
     std::stringstream message;
     message << "==================" << '\n';
@@ -4436,29 +4488,33 @@ void Ball_group::sim_one_step_JKR(int step)
         Eu0p[Ball] = 0.5*prevEu.dot(wp);
         Eup[Ball] = 0.5*(prevEu0*wp - prevEu.cross(wp));
 
-        // Eu0[Ball] = prevEu0 + 0.5*(Eu0p[Ball]+prevEu0p)*attrs.dt;
-        // Eu[Ball] = prevEu + 0.5*(Eup[Ball]+prevEup)*attrs.dt;
+        double length;
+        
+        //////////////////forward eulder update for quaternions//////////////////
+        // Eu0[Ball] = prevEu0 + Eu0p[Ball]*attrs.dt;
+        // Eu[Ball] = prevEu + Eup[Ball]*attrs.dt;
+        /////////////////////////////////////////////////////////////////////////
 
-        Eu0[Ball] = prevEu0 + Eu0p[Ball]*attrs.dt;
-        Eu[Ball] = prevEu + Eup[Ball]*attrs.dt;
+        //////////////////trapezoidal update for quaternions//////////////////
+        vec3 Eustar = prevEu + attrs.dt*Eup[Ball];
+        double Eu0star = prevEu0 + attrs.dt*Eu0p[Ball];
+
+        length = sqrt(Eu0star*Eu0star + Eustar.normsquared());
+        Eu0star /= length;
+        Eustar /= length;
+
+        const double Eu0starp = 0.5*Eustar.dot(wp);
+        const vec3 Eustarp = 0.5*(Eu0star*wp - Eustar.cross(wp));
+
+        Eu0[Ball] = prevEu0 + 0.5*(Eu0p[Ball]+Eu0starp)*attrs.dt;
+        Eu[Ball] = prevEu + 0.5*(Eup[Ball]+Eustarp)*attrs.dt;
+        //////////////////////////////////////////////////////////////////////
+
         
 
-        double length = sqrt(Eu0[Ball]*Eu0[Ball] + Eu[Ball].normsquared());
+        length = sqrt(Eu0[Ball]*Eu0[Ball] + Eu[Ball].normsquared());
         Eu0[Ball] /= length;
         Eu[Ball] /= length;
-
-        //////////////////////////////////////////////////////
-
-        // if (test - 1.0 > 1e-10)
-        // {
-        //     std::cerr<<"STEP: "<<step<<std::endl; 
-        //     // std::cerr<<"sliding disp: "<<slidingDisp<<std::endl;
-        //     // std::cerr<<"crit sliding disp: "<<critSlideDisp<<std::endl;
-        //     // std::cerr<<"rollingDisp: "<<rollingDisp<<std::endl;
-        //     // std::cerr<<"critrollingDisp: "<<critRollingDisp<<std::endl;
-        //     MPIsafe_print(std::cerr,"ERROR: square of euler parameters is not 1.0 for ball "+std::to_string(Ball)+", it is "+scientific(test)+"\n");
-        //     MPIsafe_exit(-1);
-        // }
 
 
         // Reinitialize acceleration to be recalculated:
@@ -4501,9 +4557,9 @@ void Ball_group::sim_one_step_JKR(int step)
     //         default(none) private(A,B,pc) 
     int touch_step = -1;
 
-    // vec3 rollingDisp;
+    vec3 rollingDispwrite;
     // double critRollingDisp;
-    // vec3 slidingDisp;
+    vec3 slidingDispwrite;
     // double critSlideDisp;
     vec3 totalTorqueAwrite;
     vec3 rollingTorqueAwrite;
@@ -4526,8 +4582,6 @@ void Ball_group::sim_one_step_JKR(int step)
         int e = static_cast<unsigned>(A * (A - 1) * .5) + B;  // a^2-a is always even, so this works.
         double oldDist = distances[e];
 
-        // double v_stick = 1.07*pow(reducedGamma[e],5.0/6.0)/(pow(reducedR[e],5.0/6.0)*pow(density[0],0.5)*reducedE[e]);
-        // std::cerr<<"V_STICK: "<<v_stick<<std::endl;
 
         const double sumRaRb = R[A] + R[B];
         const vec3 rVecab = pos[B] - pos[A];  // Vector from a to b.
@@ -4538,11 +4592,10 @@ void Ball_group::sim_one_step_JKR(int step)
 
         double delta0 = a0[e]*a0[e]/(3*reducedR[e]);
         double deltac = pow(9.0/16.0,1.0/3.0)*delta0;
-
         const double alpha = 2*pi*reducedGamma[e]*reducedR[e]*reducedR[e] * (1/reducedE[e]);
-        // std::cout<<"alpha: "<<alpha<<std::endl;
         const double beta = pow((4*reducedR[e]*(1.0/3.0)),3);
-        // std::cout<<"beta: "<<beta<<std::endl;
+            
+
 
 
         const double delta_b = -0.75 * std::cbrt(0.25) * std::pow(alpha, 2.0/3.0) / reducedR[e];
@@ -4598,7 +4651,7 @@ void Ball_group::sim_one_step_JKR(int step)
         {
             touched = true;
 
-            if (overlap > max_overlap) {max_overlap = overlap;}
+            // if (overlap > max_overlap) {max_overlap = overlap;}
             //////////////////////////Old normal direction stuff//////////////////////////
             
 
@@ -4609,7 +4662,6 @@ void Ball_group::sim_one_step_JKR(int step)
             //////////////////////////////////////////////////////////////////////////////
             const double h = h_min;
             
-
 
 
             const vec3 n_c = (pos[A]-pos[B])*dist_reciprocal;
@@ -4634,9 +4686,10 @@ void Ball_group::sim_one_step_JKR(int step)
 
             const double reduced_mass = (m[A]*m[B])/(m[A]+m[B]);
             const double kt = 2*reducedE[e]*contactRadius;
-            const double beta = 0.0132; //normal critical damping ratio. 0 for no damping 1, for critical damping
+            // const double normViscConst = 0.0132; //normal critical damping ratio. 0 for no damping 1, for critical damping
+            const double normViscConst = 0.0; 
             const double relativeVelocity = (vel[B] - vel[A]).dot((rVecab)/rVecab.norm());
-            const double dampingForceA = -2.0*beta*sqrt(reduced_mass*kt) * relativeVelocity;
+            const double dampingForceA = -2.0*normViscConst*sqrt(reduced_mass*kt) * relativeVelocity;
 
             const vec3 normalForceA = (JKRForce + dampingForceA)*n_c;
 
@@ -4665,69 +4718,61 @@ void Ball_group::sim_one_step_JKR(int step)
             }
             else
             {
-                // std::cerr<<"n_hats[2*e+1]: "<<n_hats[2*e+1]<<std::endl;
-                // std::cerr<<"n_hats[2*e]: "<<n_hats[2*e]<<std::endl;
-                
-                // std::cerr<<"Eu0[B]: "<<Eu0[B]<<std::endl;
-                // std::cerr<<"Eu[B]: "<<Eu[B]<<std::endl;
 
-                // n_hats[2*e+1] = {0.0, 0.999999, 0.0015708};
 
                 nA = rotateVecInvA(Eu0[A],Eu[A],n_hats[2*e]);
                 nB = rotateVecInvA(Eu0[B],Eu[B],n_hats[2*e+1]);
-
-                // nA = localToWorld(Eu0[A],Eu[A],n_hats[2*e]);
-                // nB = localToWorld(Eu0[B],Eu[B],n_hats[2*e+1]);
-                
-                // std::cerr<<"nB; "<<nB<<std::endl;
-
-                // n_hats[2*e+1] = nA;
-                // n_hats[2*e] = nB;
-
-
+                // n_hats[2*e] = rotateVecA(Eu0[A],Eu[A],-n_c);
+                // n_hats[2*e+1] = rotateVecA(Eu0[B],Eu[B],n_c);
      
             }
 
             vec3 totalTorqueA{0, 0, 0};
             vec3 totalTorqueB{0, 0, 0};
 
+            //calculate effective radius for torques
+            const double effectiveStiffnessA = E[A]*(1.0/(1.0-nu[A]*nu[A]));
+            const double effectiveStiffnessB = E[B]*(1.0/(1.0-nu[B]*nu[B]));
+            const double Sab = effectiveStiffnessA/effectiveStiffnessB;
+            const double Sba = 1.0/Sab;
+            const double rAeff = (R[A] - overlap/(1+Sab));
+            const double rBeff = (R[B] - overlap/(1+Sba));
+
             //sliding
             const vec3 slidingDisp0 = R[A]*nA - R[B]*nB + (sumRaRb)*n_c;
-            // const vec3 slidingDisp0 = R[A]*nA - R[B]*nB + (sumRaRb)*n_c;
-            // slidingDisp = slidingDisp0 - (slidingDisp0.dot(n_c))*n_c;
-            const vec3 slidingDisp = slidingDisp0 - (slidingDisp0.dot(n_c))*n_c;
+            vec3 slidingDisp = slidingDisp0 - (slidingDisp0.dot(n_c))*n_c;
 
-            // critSlideDisp = reducedG[e]*a0[e]/(16*pi*reducedGstar[e]);
-            const double critSlideDisp = reducedG[e]*a0[e]/(16*pi*reducedGstar[e]);
+            const double critSlideDisp = reducedG[e]*a0[e]/(16.0*pi*reducedGstar[e]);
 
             if (critSlideDisp < slidingDisp.norm())
             {
-                std::cerr<<"SLIDING DISP GREATER THAN CRIT DISP"<<std::endl;
-                std::cerr<<"crit disp: "<<critSlideDisp<<std::endl;
-                std::cerr<<"your disp: "<<slidingDisp<<std::endl;
-                std::cerr<<"step: "<<step<<std::endl;
-                MPIsafe_exit(-1);
+                const vec3 deltaSlidingDisp = slidingDisp*(1-critSlideDisp*(1.0/slidingDisp.norm()));
+                const double thetaA = acos(nA.dot(deltaSlidingDisp.normalized()));
+                const double thetaB = acos(nB.dot(deltaSlidingDisp.normalized()));
+                const double correctionFactorA = 1.0+1.0/std::pow(tan(thetaA),2);
+                const double correctionFactorB = 1.0+1.0/std::pow(tan(thetaB),2);
+
+                nA = (nA - 0.5*deltaSlidingDisp*correctionFactorA*(1.0/R[A])).normalized();
+                nB = (nB - 0.5*deltaSlidingDisp*correctionFactorB*(1.0/R[B])).normalized();
+
+                n_hats[2*e] = rotateVecA(Eu0[A],Eu[A],nA);
+                n_hats[2*e+1] = rotateVecA(Eu0[B],Eu[B],nB);
+
+                slidingDisp = critSlideDisp*slidingDisp*(1.0/slidingDisp.norm());
 
             }
 
             // std::cerr<<slidingDisp<<std::endl;
             const double ks = 8.0*a0[e]*reducedGstar[e];
-            // double I      = moi[A];
-            // double omega0 = sqrt( ks * R[A]*R[A] / I );
-            // double dtmax  = M_PI / omega0;
-            // std::cerr << "dt       = " << dt
-            //           << "\ndt_max  = " << dtmax << std::endl;
-            // exit(0);
-            // const double slidingPot = 0.5*ks*(slidingDisp0.dot(slidingDisp0));
-            const vec3 slidingForceA = -ks*slidingDisp*(R[A] + R[B] - slidingDisp0.dot(n_c))*dist_reciprocal;
+            const vec3 slidingForceA = (-ks*slidingDisp*(R[A] + R[B] - slidingDisp0.dot(n_c))*dist_reciprocal);
 
             //////////////////////////////////////////////////////////////////////////////////////////
             //Verify this conserves conserved quantities
             const vec3 slidingForceB = -1.0*slidingForceA;
-            // std::cerr<<"slidingForceB: "<<slidingForceB<<std::endl;
-            const vec3 slidingTorqueA = -R[A]*ks*nA.cross(slidingDisp);
-            double power = slidingTorqueA.dot(w[A]);
-            const vec3 slidingTorqueB = R[B]*ks*nB.cross(slidingDisp);
+            // const vec3 slidingTorqueA = (-rAeff*ks*nA.cross(slidingDisp));
+            // const vec3 slidingTorqueB = (rBeff*ks*nB.cross(slidingDisp));
+            const vec3 slidingTorqueA = (-R[A]*ks*nA.cross(slidingDisp));
+            const vec3 slidingTorqueB = (R[B]*ks*nB.cross(slidingDisp));
 
             //I changed the sign of these because I think there was a mistake in Wada 2007 equation 19
             const vec3 internalTorqueA = -(slidingForceA.cross((pos[A]-pos[B])/2.0));
@@ -4735,42 +4780,16 @@ void Ball_group::sim_one_step_JKR(int step)
 
             if ((slidingTorqueA+slidingTorqueB+internalTorqueA+internalTorqueB).norm() > 1e-10)
             {
+                MPIsafe_print(std::cerr,"ERROR: sliding degrees of freedom not conserved.");
                 MPIsafe_print(std::cerr,"Step: "+std::to_string(step)+'\n');
-                // MPIsafe_print(std::cerr,"n_hats[2*e+1] = "+scientific(n_hats[2*e+1])+'\n');
-                // MPIsafe_print(std::cerr,"n_hats[2*e] = "+scientific(n_hats[2*e])+'\n');
                 MPIsafe_print(std::cerr,"(slidingTorqueA) = "+scientific(slidingTorqueA)+"\n");
                 MPIsafe_print(std::cerr,"(slidingTorqueB) = "+scientific(slidingTorqueB)+"\n");
                 MPIsafe_print(std::cerr,"(internalTorqueA) = "+scientific(internalTorqueA)+"\n");
                 MPIsafe_print(std::cerr,"(internalTorqueB) = "+scientific(internalTorqueB)+"\n");
-
-
-                // MPIsafe_print(std::cerr,"slidingTorqueA: = "+scientific(slidingTorqueA)+'\n');
-                // MPIsafe_print(std::cerr,"slidingTorqueB: = "+scientific(slidingTorqueB)+'\n');
-                // MPIsafe_print(std::cerr,"slidingForceA: = "+scientific(slidingForceA)+'\n');
-                // MPIsafe_print(std::cerr,"slidingForceB: = "+scientific(slidingForceB)+'\n');
-                // MPIsafe_print(std::cerr,"ERROR: Sliding forces and torques are not conserved in sim_one_step_JKR.\n");
                 MPIsafe_exit(-1);
             }
 
-            if (step == 1)
-            {
-                std::cout<<"pos[0]: "<<scientific(pos[0])<<std::endl;
-                std::cout<<"pos[1]: "<<scientific(pos[1])<<std::endl;
-                std::cout<<"nA: "<<nA<<std::endl;
-                std::cout<<"nB: "<<nB<<std::endl;
-                std::cout<<"nc: "<<n_c<<std::endl;
-                std::cout<<"slidingDisp0: "<<slidingDisp0<<std::endl;
-                std::cout<<"slidingDisp: "<<slidingDisp<<std::endl;
-                std::cout<<"ks: "<<ks<<std::endl;
-                std::cout<<"a0[e]: "<<a0[e]<<std::endl;
-                std::cout<<"nu[0]: "<<nu[0]<<std::endl;
-                std::cout<<"nu[1]: "<<nu[1]<<std::endl;
-                std::cout<<"G[0]: "<<G[0]<<std::endl;
-                std::cout<<"G[1]: "<<G[1]<<std::endl;
-                std::cout<<"reducedGstar[e]: "<<reducedGstar[e]<<std::endl;
-                std::cout<<"slidingForceA: "<<slidingForceA<<std::endl;
-                // exit(0);
-            }
+            double power = slidingTorqueA.dot(w[A]);
 
 
            // -----------------This is the sliding force/torque adding stuff--------------------------
@@ -4783,27 +4802,33 @@ void Ball_group::sim_one_step_JKR(int step)
 
             //////////////////////////////////////////////////////////////////////////////////////////
             //rolling
-            // rollingDisp = reducedR[e]*(nA + nB);
-            // critRollingDisp = 2e-8;
-
-            const vec3 rollingDisp = reducedR[e]*(nA + nB);
+            vec3 rollingDisp = reducedR[e]*(nA + nB);
             const double critRollingDisp = 2e-8;
+            const double kr = 12.0*pi*reducedGamma[e];
             if (critRollingDisp < rollingDisp.norm())
             {
-                std::cerr<<"ROLLING DISP GREATER THAN CRIT DISP"<<std::endl;
-                std::cerr<<"crit disp: "<<critRollingDisp<<std::endl;
-                std::cerr<<"your disp: "<<rollingDisp<<std::endl;
-                std::cerr<<"step: "<<step<<std::endl;
-                MPIsafe_exit(-1);
+
+                const vec3 deltaRollingDisp = rollingDisp*(1-critRollingDisp*(1.0/rollingDisp.norm()));
+                const double thetaA = acos(nA.dot(deltaRollingDisp.normalized()));
+                const double thetaB = acos(nB.dot(deltaRollingDisp.normalized()));
+                const double correctionFactorA = 1.0+1.0/std::pow(tan(thetaA),2);
+                const double correctionFactorB = 1.0+1.0/std::pow(tan(thetaB),2);
+
+                nA = (nA - 0.5*deltaRollingDisp*correctionFactorA*(1.0/R[A])).normalized();
+                nB = (nB - 0.5*deltaRollingDisp*correctionFactorB*(1.0/R[B])).normalized();
+
+                n_hats[2*e] = rotateVecA(Eu0[A],Eu[A],nA);
+                n_hats[2*e+1] = rotateVecA(Eu0[B],Eu[B],nB);
+
+                rollingDisp = critRollingDisp*rollingDisp*(1.0/rollingDisp.norm());
 
             }
 
-            const double kr = 12.0*pi*reducedGamma[e];
+            // const double reducedReff = rAeff*rBeff/(rAeff+rBeff);
+            // const vec3 rollingTorqueA = -reducedReff*kr*nA.cross(rollingDisp);
+            // const vec3 rollingTorqueB = -reducedReff*kr*nB.cross(rollingDisp);
             const vec3 rollingTorqueA = -reducedR[e]*kr*nA.cross(rollingDisp);
             const vec3 rollingTorqueB = -reducedR[e]*kr*nB.cross(rollingDisp);
-
-
-
  
             totalTorqueA += rollingTorqueA;
             totalTorqueB += rollingTorqueB; //(SHOULD ROLLINGDISP BE NEGATIVE??)
@@ -4812,65 +4837,81 @@ void Ball_group::sim_one_step_JKR(int step)
             //Verify this conserves conserved quantities
             if ((rollingTorqueA+rollingTorqueB).norm() > 1e-10)
             {
-                MPIsafe_print(std::cerr,"ERROR: Rolling forces and torques are not conserved in init_conditions_JKR.\n");
+                MPIsafe_print(std::cerr,"ERROR: Rolling forces and torques are not conserved in step "+std::to_string(step)+".\n");
                 MPIsafe_print(std::cerr,"(rollingTorqueA+rollingTorqueB).norm() = "+std::to_string((rollingTorqueA+rollingTorqueB).norm())+'\n');
                 MPIsafe_print(std::cerr,"rollingTorqueA = "+scientific(rollingTorqueA)+'\n');
                 MPIsafe_print(std::cerr,"rollingTorqueB = "+scientific(rollingTorqueB)+'\n');
                 MPIsafe_exit(-1);
             }
-
-
-            // std::cerr<<scientific(rollingTorqueA)<<std::endl;
-            // std::cerr<<scientific(rollingTorqueB)<<std::endl;
-            // std::cerr<<"========================================================"<<std::endl;
-            // if (step == 10)
-            // {
-            //     exit(0);
-            // }
-
-
-           //  ////////////////////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////
+            
             aacc[A] += totalTorqueA / moi[A];
-            // std::cerr<<"aacc of a: "<<aacc[A]<<std::endl;
             aacc[B] += totalTorqueB / moi[B];
 
 
 
-            // totalTorqueAwrite = totalTorqueA;
-            // rollingTorqueAwrite = rollingTorqueA;
-            // slidingTorqueAwrite = slidingTorqueA;
-            // nAwrite = nA;
-            // powerwrite = power;
-            // slidingForceAwrite = slidingForceA;
+            totalTorqueAwrite = totalTorqueA;
+            rollingTorqueAwrite = rollingTorqueA;
+            slidingTorqueAwrite = slidingTorqueA;
+            nAwrite = nA;
+            powerwrite = power;
+            slidingForceAwrite = slidingForceA;
+            rollingDispwrite = rollingDisp;
+            slidingDispwrite = slidingDisp;
 
             
+            if (step < 10 || step > attrs.steps-10)
+            {
+                std::cout<<"step: "<<step<<std::endl;
+                std::cout<<"nA: "<<nA<<std::endl;
+                std::cout<<"nB: "<<nB<<std::endl;
+                std::cout<<"slidingDisp: "<<slidingDisp<<std::endl;
+                std::cout<<"rollingDisp: "<<rollingDisp<<std::endl;
+                std::cout<<"slidingTorqueA: "<<slidingTorqueA<<std::endl;
+                // std::cout<<"slidingTorqueB: "<<slidingTorqueB<<std::endl;
+                std::cout<<"rollingTorqueA: "<<rollingTorqueA<<std::endl;
+                // std::cout<<"rollingTorqueB: "<<rollingTorqueB<<std::endl;
+                std::cout<<"slidingForceA : "<<slidingForceA<<std::endl;
+                // std::cout<<"slidingForceB : "<<slidingForceB<<std::endl;
+                std::cout<<"============================================================="<<std::endl;
+            }
 
 
+            if (write_step) {
+                // No factor of 1/2. Includes both spheres:
+                // PE += -G * m[A] * m[B] * grav_scale / dist + 0.5 * k * overlap * overlap;
+                // PE += -G * m[A] * m[B] / dist + 0.5 * k * overlap * overlap;
 
-           //  if (write_step) {
-           //      // No factor of 1/2. Includes both spheres:
-           //      // PE += -G * m[A] * m[B] * grav_scale / dist + 0.5 * k * overlap * overlap;
-           //      // PE += -G * m[A] * m[B] / dist + 0.5 * k * overlap * overlap;
+                // Van Der Waals + elastic:
+                // const double diffRaRb = R[A] - R[B];
+                // const double z = sumRaRb + h;
+                // const double two_RaRb = 2 * R[A] * R[B];
+                // const double denom_sum = z * z - (sumRaRb * sumRaRb);
+                // const double denom_diff = z * z - (diffRaRb * diffRaRb);
+                // const double U_vdw =
+                //     -Ha / 6 *
+                //     (two_RaRb / denom_sum + two_RaRb / denom_diff + 
+                //     log(denom_sum / denom_diff));
+                // PE += U_vdw + 0.5 * k * overlap * overlap; ///TURN ON FOR REAL SIM
 
-           //      // Van Der Waals + elastic:
-           //      const double diffRaRb = R[A] - R[B];
-           //      const double z = sumRaRb + h;
-           //      const double two_RaRb = 2 * R[A] * R[B];
-           //      const double denom_sum = z * z - (sumRaRb * sumRaRb);
-           //      const double denom_diff = z * z - (diffRaRb * diffRaRb);
-           //      const double U_vdw =
-           //          -Ha / 6 *
-           //          (two_RaRb / denom_sum + two_RaRb / denom_diff + 
-           //          log(denom_sum / denom_diff));
-           //      // PE += U_vdw + 0.5 * k * overlap * overlap; ///TURN ON FOR REAL SIM
+                //Sliding PE
+                // PE += 0.5*ks*slidingDisp.normsquared();
 
-           //      //Sliding PE
-           //      // PE += 0.5*ks*slidingDisp.normsquared();
+                // //Rolling PE
+                // PE += 0.5*kr*rollingDisp.normsquared();
 
-           //      // //Rolling PE
-           //      // PE += 0.5*kr*rollingDisp.normsquared();
+                //JKR sliding PE
+                PE += 0.5*ks*slidingDisp.dot(slidingDisp);
 
-            // }
+                //JKR rolling PE
+                PE += 0.5*kr*rollingDisp.dot(rollingDisp);
+
+                //JKR normal PE
+                PE += 8.0*reducedE[e]*std::pow(contactRadius,5)*(1.0/(15.0*reducedR[e]*reducedR[e])) \
+                        - 8.0*std::sqrt(pi*reducedGamma[e]*reducedE[e])*std::pow(contactRadius,3.5)*(1.0/(3.0*reducedR[e])) \
+                        + 2.0*pi*reducedGamma[e]*contactRadius*contactRadius;
+
+            }
         } else  // Non-contact forces:
         {
 
@@ -4986,33 +5027,42 @@ void Ball_group::sim_one_step_JKR(int step)
         attrs.num_writes ++;
     }
 
+    // if (w[1].norm() > max_w) max_w = w[1].norm();
 
-    // ///////////////////////////////write to file///////////////////////////////
-    // // std::cerr<<"nc; "<<n_c<<std::endl;
-    // // std::cerr<<"kr: "<<kr<<std::endl;
-    // // std::cerr<<"rollingDisp: "<<rollingDisp<<std::endl;
-    // std::ofstream outfile;
-    // outfile.open("/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/JKRTest/test.txt", std::ios_base::app);
-    // outfile<<"step: "<<step<<std::endl;
-    // outfile<<"totalTorqueA: "<<totalTorqueAwrite<<std::endl;
-    // outfile<<"rollingTorqueA: "<<rollingTorqueAwrite<<std::endl;
+    ///////////////////////////////write to file///////////////////////////////
+    // if (step < 30000 || step > attrs.steps - 30000)
+    // {
+    //     // std::cerr<<"nc; "<<n_c<<std::endl;
+    //     // std::cerr<<"kr: "<<kr<<std::endl;
+    //     // std::cerr<<"rollingDisp: "<<rollingDisp<<std::endl;
+    //     std::ofstream outfile;
+    //     outfile.open("/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/JKRTest/test.txt", std::ios_base::app);
+    //     outfile<<"step: "<<step<<std::endl;
+    //     outfile<<"totalTorqueA: "<<totalTorqueAwrite<<std::endl;
+    //     outfile<<"rollingTorqueA: "<<rollingTorqueAwrite<<std::endl;
 
 
-    // // outfile<<"R[1]: "<<R[1]<<std::endl;
-    // // outfile<<"ks: "<<ks<<std::endl;
-    // // outfile<<"slidingDisp: "<<slidingDisp<<std::endl;
-    // outfile<<"slidingTorqueA: "<<slidingTorqueAwrite<<std::endl;
-    // outfile<<"w[1]: "<<w[1]<<std::endl;
-    // outfile<<"nA: "<<nAwrite<<std::endl;
-    // outfile<<"Power: "<<totalTorqueAwrite.dot(w[A])<<std::endl;
-    // // outfile<<"nB: "<<nB<<std::endl;
-    // // outfile<<"pos[A]: "<<pos[A]<<std::endl;
-    // // outfile<<"Eu0[A]: "<<Eu0[A]<<std::endl;
-    // // outfile<<"Eu[A]: "<<Eu[A]<<std::endl;
-    // outfile<<"slidingForceA: "<<slidingForceAwrite<<std::endl;
-    // outfile<<"==================================================="<<std::endl;
-    // // exit(0);
-    // //////////////////////////////////////////////////////////////
+    //     // outfile<<"R[1]: "<<R[1]<<std::endl;
+    //     // outfile<<"ks: "<<ks<<std::endl;
+    //     // outfile<<"slidingDisp: "<<slidingDisp<<std::endl;
+    //     outfile<<"slidingTorqueA: "<<slidingTorqueAwrite<<std::endl;
+    //     outfile<<"w[1]: "<<w[1]<<std::endl;
+    //     outfile<<"nA: "<<nAwrite<<std::endl;
+    //     outfile<<"Power: "<<totalTorqueAwrite.dot(w[A])<<std::endl;
+    //     outfile<<"VelNorm: "<<vel[1].norm()<<std::endl;
+    //     outfile<<"rollingDisp: "<<rollingDispwrite<<std::endl;
+    //     outfile<<"slidingDisp: "<<slidingDispwrite<<std::endl;
+        
+    //     // outfile<<"nB: "<<nB<<std::endl;
+    //     // outfile<<"pos[A]: "<<pos[A]<<std::endl;
+    //     // outfile<<"Eu0[A]: "<<Eu0[A]<<std::endl;
+    //     // outfile<<"Eu[A]: "<<Eu[A]<<std::endl;
+    //     outfile<<"slidingForceA: "<<slidingForceAwrite<<std::endl;
+
+    //     outfile<<"==================================================="<<std::endl;
+    //     // exit(0);
+    // }
+    //////////////////////////////////////////////////////////////
 
 
 
@@ -5704,8 +5754,8 @@ Ball_group::sim_looper(unsigned long long start_step=1)
         std::cerr << "\n===============================================================\n";
     }
 
-    std::cout<<"MAX_OVERLAP: "<<max_overlap<<std::endl;
-    std::cout<<"MIN_OVERLAP: "<<min_overlap<<std::endl;
+    std::cout<<"MAX_w: "<<max_w<<std::endl;
+    // std::cout<<"MIN_OVERLAP: "<<min_overlap<<std::endl;
 
     data->write_checkpoint();
 }  // end simLooper
@@ -5796,7 +5846,7 @@ vec3 rotateVecInvA(const double E0,const vec3 E,const vec3 vec)
     // std::cerr<<"NEWVEC NORM: "<<scientific(new_vec.norm())<<std::endl;
     // std::cerr<<"OTHER NEWVEC NORM: "<<new_vec.normalized()<<std::endl;
     // std::cerr<<"TEST: "<<sqrt(std::pow(1.0,2.0)+std::pow(-0.000356613,2.0))<<std::endl;
-    new_vec = new_vec;
+    new_vec = new_vec/new_vec.norm();
     // std::cerr<<"NORMED NEWVEC: "<<new_vec<<std::endl;
 
     return new_vec;
@@ -5829,7 +5879,7 @@ vec3 rotateVecA(const double E0,const vec3 E,const vec3 vec)
     // std::cerr<<"NEWVEC NORM: "<<scientific(new_vec.norm())<<std::endl;
     // std::cerr<<"OTHER NEWVEC NORM: "<<new_vec.normalized()<<std::endl;
     // std::cerr<<"TEST: "<<sqrt(std::pow(1.0,2.0)+std::pow(-0.000356613,2.0))<<std::endl;
-    new_vec = new_vec;
+    new_vec = new_vec/new_vec.norm();
     // std::cerr<<"NORMED NEWVEC: "<<new_vec<<std::endl;
 
     return new_vec;
