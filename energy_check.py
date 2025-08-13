@@ -101,11 +101,12 @@ def verify_simData(directory,HA=0):
 		# plt.plot(time, KE, label='Kinetic Energy')
 		plt.plot(time, w[:,0,2], label='w0')
 		plt.plot(time, w[:,1,2], label='w1')
+		# plt.plot(time, w[:,2,2], label='w2')
 		# plt.plot(time, transKE, label='Translational KE')
 		# plt.plot(time, transKE+rotKE, label='Total KE')
 		# plt.axhline(y=horizontal_line_value, color='red', linestyle='--', label='Reference Value')
 		plt.xlabel('Time (s)')
-		plt.ylabel('Energy (ergs)')
+		plt.ylabel('angular velocity (rad/s)')
 		# plt.title('Rotational Kinetic Energy vs. Time (About Center of Mass)')
 		plt.legend()
 		plt.grid(True)
@@ -117,12 +118,12 @@ def verify_energy(directory):
 	for i in indices:
 		time,PE,KE,E,p,L = u.get_energy(directory,data_index=i,relax=relax)
 		
-		start = 0
+		start = 1
 		stop = -1
 
 		# Plot rotational kinetic energy versus time
 		plt.figure(figsize=(10, 6))
-		plt.plot(time[start:stop], KE[start:stop], label='Kinetic Energy')
+		# plt.plot(time[start:stop], KE[start:stop], label='Kinetic Energy')
 		plt.plot(time[start:stop], PE[start:stop], label='Potential Energy')
 		plt.plot(time[start:stop], E[start:stop], label='Total Energy')
 		# plt.axhline(y=horizontal_line_value, color='red', linestyle='--', label='Reference Value')
@@ -132,9 +133,9 @@ def verify_energy(directory):
 		plt.legend()
 		plt.grid(True)
 
-		print(KE[1])
-		print(PE[1])
-		print(E[1])
+		# print(KE[1])
+		# print(PE[1])
+		# print(E[1])
 
 		# plt.figure(figsize=(10, 6))
 		# # plt.plot(time, KE, label='Kinetic Energy')
@@ -150,6 +151,59 @@ def verify_energy(directory):
 
 
 
+def verify_contactRadius(directory):
+	data = np.loadtxt(directory+"contactRadii.txt",delimiter=",",dtype=np.float64)
+
+	a = data[:,0]
+	overlap = data[:,1]
+	force = data[:,2]
+
+	# print(a)
+
+	start = 1
+	stop = 1000
+
+	# Plot rotational kinetic energy versus time
+	plt.figure(figsize=(10, 6))
+	plt.plot(list(range(len(a[start:stop]))), a[start:stop], label='contact radius')
+	plt.plot(list(range(len(a[start:stop]))), overlap[start:stop], label='overlap')
+
+	# plt.axhline(y=horizontal_line_value, color='red', linestyle='--', label='Reference Value')
+	plt.xlabel('step')
+	plt.ylabel('a (cm)')
+	# plt.title('Rotational Kinetic Energy vs. Time (About Center of Mass)')
+	plt.legend()
+	plt.grid(True)
+
+
+def verify_displacements(directory):
+	data = np.loadtxt(directory+"out.txt",delimiter=",",dtype=np.float64)
+
+	slidingDisp = data[:,0]
+	rollingDisp = data[:,1]
+	overlap = data[:,2]
+
+	# print(a)
+
+	start = 0
+	stop = 10000
+
+	# Plot rotational kinetic energy versus time
+	plt.figure(figsize=(10, 6))
+	plt.plot(list(range(len(slidingDisp[start:stop]))), slidingDisp[start:stop], label='sliding')
+	plt.plot(list(range(len(slidingDisp[start:stop]))), rollingDisp[start:stop], label='rolling')
+	# plt.plot(list(range(len(slidingDisp[start:stop]))), overlap[start:stop], label='overlap')
+
+	# plt.axhline(y=horizontal_line_value, color='red', linestyle='--', label='Reference Value')
+	plt.xlabel('step')
+	plt.ylabel('a (cm)')
+	# plt.title('Rotational Kinetic Energy vs. Time (About Center of Mass)')
+	plt.legend()
+	plt.grid(True)
+
+
+
+
 if __name__ == '__main__':
 	with open(project_path+"default_files/default_input.json",'r') as fp:
 		input_json = json.load(fp)
@@ -159,8 +213,10 @@ if __name__ == '__main__':
 	directory = "/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/JKRTest/"
 	relax = ("relax" in directory)
 
-	# verify_energy(directory)
+	verify_energy(directory)
 	verify_simData(directory)
+	# verify_contactRadius(directory)
+	# verify_displacements(directory)
 	plt.show()
 
 	

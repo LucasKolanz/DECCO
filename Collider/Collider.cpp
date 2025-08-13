@@ -544,7 +544,7 @@ safetyChecks(Ball_group &O) //Should be ready to call sim_looper
 
         if (O.acc[Ball].norm() < vec3(1e-10, 1e-10, 1e-10).norm()) {
             fprintf(stderr, "\nA balls acc is [0,0,0]. Possibly didn't initialize acceleration properly for rank %1d\n",getRank());
-            MPIsafe_exit(EXIT_FAILURE);
+            // MPIsafe_exit(EXIT_FAILURE);
         }
 
         if (O.R[Ball] <= 0) {

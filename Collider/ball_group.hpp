@@ -350,8 +350,11 @@ public:
 
 
     double* distances = nullptr; //pairwise
+    double* a_store = nullptr; //pairwise
+    bool* loading_flag = nullptr; //pairwise
 
     vec3* pos = nullptr;
+    vec3* phi = nullptr;
     vec3* vel = nullptr;
     vec3* velh = nullptr;  ///< Velocity half step for integration purposes.
     vec3* acc = nullptr;

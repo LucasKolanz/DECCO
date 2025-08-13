@@ -314,7 +314,7 @@ std::string
 scientific(const vec3 value)
 {
     std::stringstream ss;
-    ss << std::setprecision(15) << '(' << std::scientific << value[0] << ',' << value[1] << ',' << value[2] << ')';
+    ss << std::setprecision(15) << std::scientific << value[0] << ',' << value[1] << ',' << value[2];
     return ss.str();
 }
 
