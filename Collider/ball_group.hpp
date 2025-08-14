@@ -343,10 +343,11 @@ public:
     double* reducedGstar = nullptr; //pairwise (dynes/cm^2)
     double* reducedR = nullptr; //pairwise (cm)
     double* reducedGamma = nullptr; //surface Energy per unit area (reducedGamma=gamma1+gamma2-2*gamma12)(D and T) pairwise (dynes/cm^2)
-    double* Eu0 = nullptr;//0th eulerian parameter for each particle
-    double* Eu0p = nullptr;//0th eulerian half step parameter for each particle for integration
-    vec3* Eu = nullptr;//The rest of the eulerian parameters for each particle
-    vec3* Eup = nullptr;//The rest of the eulerian half step parameters for each particle for integration
+    rotation* q = nullptr; //quaternion in form (w,x,y,z)
+    // double* Eu0 = nullptr;//0th eulerian parameter for each particle
+    // double* Eu0p = nullptr;//0th eulerian half step parameter for each particle for integration
+    // vec3* Eu = nullptr;//The rest of the eulerian parameters for each particle
+    // vec3* Eup = nullptr;//The rest of the eulerian half step parameters for each particle for integration
 
 
     double* distances = nullptr; //pairwise

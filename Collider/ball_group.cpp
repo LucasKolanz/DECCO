@@ -159,10 +159,11 @@ Ball_group::Ball_group(const Ball_group& rhs)
                 E[i] = rhs.E[i];
                 gamma[i] = rhs.gamma[i];
                 density[i] = rhs.density[i];
-                Eu0[i] = rhs.Eu0[i];
-                Eu0p[i] = rhs.Eu0p[i];
-                Eu[i] = rhs.Eu[i];
-                Eup[i] = rhs.Eup[i];
+                q[i] = rhs.q[i];
+                // Eu0[i] = rhs.Eu0[i];
+                // Eu0p[i] = rhs.Eu0p[i];
+                // Eu[i] = rhs.Eu[i];
+                // Eup[i] = rhs.Eup[i];
             }
         }
 
@@ -431,10 +432,11 @@ Ball_group& Ball_group::operator=(const Ball_group& rhs)
     reducedR = rhs.reducedR;
     reducedGamma = rhs.reducedGamma;
 
-    Eu0 = rhs.Eu0;
-    Eu0p = rhs.Eu0p;
-    Eu = rhs.Eu;
-    Eup = rhs.Eup;
+    q = rhs.q;
+    // Eu0 = rhs.Eu0;
+    // Eu0p = rhs.Eu0p;
+    // Eu = rhs.Eu;
+    // Eup = rhs.Eup;
 
 
     data = rhs.data;
@@ -470,11 +472,13 @@ void Ball_group::JKRpropertiesInit(const materials mat_enum)
         G[i] = mat.shearModulus;
         // density[i] = mat.density;
 
-        Eu0[i] = 1;
-        Eu[i] = {0,0,0};
+        
+        // q[i] = rotation();
+        // Eu0[i] = 1;
+        // Eu[i] = {0,0,0};
 
-        Eu0p[i] = 0;
-        Eup[i] = {0,0,0};
+        // Eu0p[i] = 0;
+        // Eup[i] = {0,0,0};
     }
 }
 
@@ -1406,14 +1410,14 @@ void Ball_group::sim_init_write(int counter)
 
 
     //test writing out the angular position
-    std::ofstream outfile;
-    outfile.open("/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/JKRTest/angularPosition.txt", std::ios_base::app);
+    // std::ofstream outfile;
+    // outfile.open("/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/JKRTest/angularPosition.txt", std::ios_base::app);
 
-    for (int i = 0; i < attrs.num_particles; ++i)
-    {
-        outfile<<scientific(Eu0[i])<<','<<scientific(Eu[i])<<";";
-    }
-    outfile<<'\n';
+    // for (int i = 0; i < attrs.num_particles; ++i)
+    // {
+    //     outfile<<scientific(Eu0[i])<<','<<scientific(Eu[i])<<";";
+    // }
+    // outfile<<'\n';
 
 }
 
@@ -2222,10 +2226,11 @@ void Ball_group::allocate_group_JKR(const int nBalls)
         reducedGstar = new double[attrs.num_pairs];
         reducedR = new double[attrs.num_pairs];
         reducedGamma = new double[attrs.num_pairs];
-        Eu0 = new double[attrs.num_particles];
-        Eu = new vec3[attrs.num_particles];
-        Eu0p = new double[attrs.num_particles];
-        Eup = new vec3[attrs.num_particles];
+        q = new rotation[attrs.num_particles];
+        // Eu0 = new double[attrs.num_particles];
+        // Eu = new vec3[attrs.num_particles];
+        // Eu0p = new double[attrs.num_particles];
+        // Eup = new vec3[attrs.num_particles];
 
         
     } catch (const std::exception& e) {
@@ -2311,10 +2316,11 @@ void Ball_group::freeMemory() const
         delete[] reducedGstar;
         delete[] reducedR;
         delete[] reducedGamma;
-        delete[] Eu0;
-        delete[] Eu;
-        delete[] Eu0p;
-        delete[] Eup;
+        delete[] q;
+        // delete[] Eu0;
+        // delete[] Eu;
+        // delete[] Eu0p;
+        // delete[] Eup;
     }
     // delete data;
     
@@ -2330,7 +2336,7 @@ void Ball_group::init_conditions_JKR()
     {
         acc[i] = {0.0,0.0,0.0};
         aacc[i] = {0.0,0.0,0.0};
-        phi[i] = {0.0,0.0,0.0};
+        // phi[i] = {0.0,0.0,0.0};
     }
 
     for (int A = 1; A < attrs.num_particles; A++)  // cuda
@@ -2360,11 +2366,13 @@ void Ball_group::init_conditions_JKR()
                 // std::cerr<<dist<<std::endl;
                 const vec3 n_c = rVecba*dist_reciprocal;
                 //set contact pointers. This should only be done unconditionally like this in init_conditions_JKR
-                n_hats[2*e] = worldToLocal(Eu0[A],Eu[A],-n_c);
-                // std::cerr<<n_hats[2*e]<<std::endl;
-                n_hats[2*e+1] = worldToLocal(Eu0[B],Eu[B],n_c);
-                const vec3 nA = n_hats[2*e];
-                const vec3 nB = n_hats[2*e+1];
+                // n_hats[2*e] = worldToLocal(Eu0[A],Eu[A],-n_c);
+                // n_hats[2*e+1] = worldToLocal(Eu0[B],Eu[B],n_c);
+                n_hats[2*e] = q[A].worldToLocal(-n_c);
+                n_hats[2*e+1] = q[B].worldToLocal(n_c);
+
+                const vec3 nA = q[A].localToWorld(n_hats[2*e]);
+                const vec3 nB = q[B].localToWorld(n_hats[2*e+1]);
 
                 //normal 
                 const double lambda = std::cbrt(alpha/2.0 + sqrt(alpha*alpha/4 + beta*overlap*overlap*overlap))\
@@ -2477,26 +2485,6 @@ void Ball_group::init_conditions_JKR()
                 n_hats[2*e+1] = {std::numeric_limits<double>::quiet_NaN(),std::numeric_limits<double>::quiet_NaN(),std::numeric_limits<double>::quiet_NaN()};
                 n_hats[2*e] = {std::numeric_limits<double>::quiet_NaN(),std::numeric_limits<double>::quiet_NaN(),std::numeric_limits<double>::quiet_NaN()};
            
-                // //add VDW force to total force
-                // double h = std::fabs(overlap);
-                // if (h < attrs.h_min)  // If h is closer to 0 (almost touching), use hmin.
-                // {
-                //     h = attrs.h_min;
-                // }
-                // const double Ra = R[A];
-                // const double Rb = R[B];
-                // const double h2 = h * h;
-                // const double twoRah = 2 * Ra * h;
-                // const double twoRbh = 2 * Rb * h;
-                // const vec3 vdwForceOnA =
-                //     attrs.Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
-                //     ((h + Ra + Rb) /
-                //      ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
-                //       (h2 + twoRah + twoRbh + 4 * Ra * Rb) * (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
-                //     rVecab.normalized();
-
-                // totalForceA = vdwForceOnA;  // +gravForceOnA;
-                // totalForceB = -vdwForceOnA;  // +gravForceOnA;
             }
             acc[A] += totalForceA / m[A];
             acc[B] += totalForceB / m[B];
@@ -2519,7 +2507,6 @@ void Ball_group::init_conditions()
     {
         acc[i] = {0.0,0.0,0.0};
         aacc[i] = {0.0,0.0,0.0};
-        phi[i] = {0.0,0.0,0.0};
     }
 
     // SECOND PASS - Check for collisions, apply forces and torques:
@@ -4537,39 +4524,19 @@ void Ball_group::sim_one_step_JKR(int step)
         //Update contact pointers
         ///////////////////2nd order verlet///////////////////
         
-        const double prevEu0 = Eu0[Ball];
-        const vec3 prevEu = Eu[Ball];
-        const vec3 w_body = worldToLocal(prevEu0,prevEu,wh[Ball]);
+        const vec3 w_body = q[Ball].worldToLocal(wh[Ball]);
+        // const double prevEu0 = Eu0[Ball];
+        // const vec3 prevEu = Eu[Ball];
+        // const vec3 w_body = worldToLocal(prevEu0,prevEu,wh[Ball]);
         // const double prevEu0p = Eu0p[Ball];
         // const vec3 prevEup = Eup[Ball];
         // Eu0p[Ball] = 0.5*prevEu.dot(w_body);
         // Eup[Ball] = 0.5*(prevEu0*w_body - prevEu.cross(w_body));
 
 
+        q[Ball].exponential_integrate(w_body,attrs.dt);
 
-
-        //We integrate attitude on SO(3) with a Lie-group midpoint (exponential map)
-        //  update implemented in unit quaternions (Δq right-multiplication with 
-        //  half-step body-frame angular velocity). Might have energy drift over very long
-        //  time periods. If so, try Lie-group variational integrators.
-        // --- build Δq from body-frame ω at half step (use your w_body) ---
-        double wb = w_body.norm();
-        double half = 0.5 * wb * attrs.dt;
-        double c = std::cos(half);
-        double s_over = (wb > 0.0) ? std::sin(half) / wb : 0.5 * attrs.dt;   // small-angle safe
-        vec3  dqv = s_over * w_body;
-        double dq0 = c;
-
-        // --- right multiply: q_new = q_old ⊗ Δq ---
-        double q0 = Eu0[Ball];
-        vec3   qv = Eu[Ball];
-        double new0 = q0*dq0 - qv.dot(dqv);
-        vec3   newv = q0*dqv + dq0*qv + qv.cross(dqv);
-
-        // normalize (and optionally keep sign continuity for pretty logs)
-        double L = std::sqrt(new0*new0 + newv.normsquared());
-        Eu0[Ball] =  new0 / L;
-        Eu[Ball]  =  newv / L;
+        
 
 
 
@@ -4705,22 +4672,7 @@ void Ball_group::sim_one_step_JKR(int step)
         // if (overlap > delta_b) 
         if (overlap > 0 || (in_crit_dist && (!std::isnan(n_hats[2*e+1][0]) && !std::isnan(n_hats[2*e][0])))) 
         {
-            // touched = true;
-
-            // if (overlap > max_overlap) {max_overlap = overlap;}
-            //////////////////////////Old normal direction stuff//////////////////////////
             
-
-
-            
-            /////////////////////////////////////VDW CALC/////////////////////////////////////////
-            // // Cohesion (in contact) h must always be h_min:
-            //////////////////////////////////////////////////////////////////////////////
-            // const double h = h_min;
-            
-
-
-            // const vec3 n_c = (pos[A]-pos[B])*dist_reciprocal;
             const vec3 n_c = -rVecab*dist_reciprocal;
 
 
@@ -4815,16 +4767,22 @@ void Ball_group::sim_one_step_JKR(int step)
            //  //if these are not nan then update n_hat based on the last time steps eulerian parameters
             if (std::isnan(n_hats[2*e+1][0]) && std::isnan(n_hats[2*e][0]))
             {
-                n_hats[2*e] = worldToLocal(Eu0[A],Eu[A],-n_c);
-                n_hats[2*e+1] = worldToLocal(Eu0[B],Eu[B],n_c);
+                // n_hats[2*e] = worldToLocal(Eu0[A],Eu[A],-n_c);
+                // n_hats[2*e+1] = worldToLocal(Eu0[B],Eu[B],n_c);
+                n_hats[2*e] = q[A].worldToLocal(-n_c);
+                n_hats[2*e+1] = q[B].worldToLocal(n_c);
 
-                nA = localToWorld(Eu0[A],Eu[A],n_hats[2*e]);
-                nB = localToWorld(Eu0[B],Eu[B],n_hats[2*e+1]);
+                // nA = localToWorld(Eu0[A],Eu[A],n_hats[2*e]);
+                // nB = localToWorld(Eu0[B],Eu[B],n_hats[2*e+1]);
+                nA = q[A].localToWorld(n_hats[2*e]);
+                nB = q[B].localToWorld(n_hats[2*e+1]);
             }
             else
             {
-                nA = localToWorld(Eu0[A],Eu[A],n_hats[2*e]);
-                nB = localToWorld(Eu0[B],Eu[B],n_hats[2*e+1]);  
+                // nA = localToWorld(Eu0[A],Eu[A],n_hats[2*e]);
+                // nB = localToWorld(Eu0[B],Eu[B],n_hats[2*e+1]);
+                nA = q[A].localToWorld(n_hats[2*e]);
+                nB = q[B].localToWorld(n_hats[2*e+1]);  
 
             }
 
@@ -4858,8 +4816,10 @@ void Ball_group::sim_one_step_JKR(int step)
                 nA = (nA - 0.5*deltaSlidingDisp*correctionFactorA/R[A]).normalized();
                 nB = (nB - 0.5*deltaSlidingDisp*correctionFactorB/R[B]).normalized();
 
-                n_hats[2*e] = worldToLocal(Eu0[A],Eu[A],nA);
-                n_hats[2*e+1] = worldToLocal(Eu0[B],Eu[B],nB);
+                // n_hats[2*e] = worldToLocal(Eu0[A],Eu[A],nA);
+                // n_hats[2*e+1] = worldToLocal(Eu0[B],Eu[B],nB);
+                n_hats[2*e] = q[A].worldToLocal(nA);
+                n_hats[2*e+1] = q[B].worldToLocal(nB);
 
                 slidingDisp = critSlideDisp*slidingDisp/slidingDisp.norm();
 
@@ -4929,8 +4889,10 @@ void Ball_group::sim_one_step_JKR(int step)
                 nA = (nA - 0.5*deltaRollingDisp*correctionFactorA/R[A]).normalized();
                 nB = (nB - 0.5*deltaRollingDisp*correctionFactorB/R[B]).normalized();
 
-                n_hats[2*e] = worldToLocal(Eu0[A],Eu[A],nA);
-                n_hats[2*e+1] = worldToLocal(Eu0[B],Eu[B],nB);
+                // n_hats[2*e] = worldToLocal(Eu0[A],Eu[A],nA);
+                // n_hats[2*e+1] = worldToLocal(Eu0[B],Eu[B],nB);
+                n_hats[2*e] = q[A].worldToLocal(nA);
+                n_hats[2*e+1] = q[B].worldToLocal(nB);
 
                 rollingDisp = critRollingDisp*rollingDisp/rollingDisp.norm();
 
@@ -5651,14 +5613,14 @@ Ball_group::sim_looper(unsigned long long start_step=1)
         if (attrs.write_step) {
 
             //test writing out the angular position
-            std::ofstream outfile;
-            outfile.open("/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/JKRTest/angularPosition.txt", std::ios_base::app);
+            // std::ofstream outfile;
+            // outfile.open("/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/JKRTest/angularPosition.txt", std::ios_base::app);
 
-            for (int i = 0; i < attrs.num_particles; ++i)
-            {
-                outfile<<scientific(Eu0[i])<<','<<scientific(Eu[i])<<";";
-            }
-            outfile<<'\n';
+            // for (int i = 0; i < attrs.num_particles; ++i)
+            // {
+            //     outfile<<scientific(Eu0[i])<<','<<scientific(Eu[i])<<";";
+            // }
+            // outfile<<'\n';
 
 
 
@@ -5810,96 +5772,96 @@ void moveApart(const vec3 &projectile_direction,Ball_group &projectile,Ball_grou
     }
 }
 
-// // n_new = A^{-1}*n_old
-vec3 rotateVecInvA(const double E0,const vec3 E,const vec3 vec)
-{
-    const double E1 = E[0];
-    const double E2 = E[1];
-    const double E3 = E[2];
+// // // n_new = A^{-1}*n_old
+// vec3 rotateVecInvA(const double E0,const vec3 E,const vec3 vec)
+// {
+//     const double E1 = E[0];
+//     const double E2 = E[1];
+//     const double E3 = E[2];
 
-    const double A00 = E0*E0 + E1*E1 - E2*E2 - E3*E3;
-    const double A01 = 2*(E1*E2 + E0*E3);
-    const double A02 = 2*(E1*E3 - E0*E2);
-    const double A10 = 2*(E1*E2 - E0*E3);
-    const double A11 = E0*E0 - E1*E1 + E2*E2 - E3*E3;
-    const double A12 = 2*(E2*E3 + E0*E1);
-    const double A20 = 2*(E1*E3 + E0*E2);
-    const double A21 = 2*(E2*E3 - E0*E1);
-    const double A22 = E0*E0 - E1*E1 - E2*E2 + E3*E3;
+//     const double A00 = E0*E0 + E1*E1 - E2*E2 - E3*E3;
+//     const double A01 = 2*(E1*E2 + E0*E3);
+//     const double A02 = 2*(E1*E3 - E0*E2);
+//     const double A10 = 2*(E1*E2 - E0*E3);
+//     const double A11 = E0*E0 - E1*E1 + E2*E2 - E3*E3;
+//     const double A12 = 2*(E2*E3 + E0*E1);
+//     const double A20 = 2*(E1*E3 + E0*E2);
+//     const double A21 = 2*(E2*E3 - E0*E1);
+//     const double A22 = E0*E0 - E1*E1 - E2*E2 + E3*E3;
 
-    vec3 new_vec{
-        vec[0]*A00 + vec[1]*A10 + vec[2]*A20,
-        vec[0]*A01 + vec[1]*A11 + vec[2]*A21,
-        vec[0]*A02 + vec[1]*A12 + vec[2]*A22
-    };
+//     vec3 new_vec{
+//         vec[0]*A00 + vec[1]*A10 + vec[2]*A20,
+//         vec[0]*A01 + vec[1]*A11 + vec[2]*A21,
+//         vec[0]*A02 + vec[1]*A12 + vec[2]*A22
+//     };
 
-    // std::cerr<<"UNNORMED NEWVEC: "<<new_vec<<std::endl;
-    // std::cerr<<"NEWVEC NORM: "<<scientific(new_vec.norm())<<std::endl;
-    // std::cerr<<"OTHER NEWVEC NORM: "<<new_vec.normalized()<<std::endl;
-    // std::cerr<<"TEST: "<<sqrt(std::pow(1.0,2.0)+std::pow(-0.000356613,2.0))<<std::endl;
-    new_vec = new_vec/new_vec.norm();
-    // std::cerr<<"NORMED NEWVEC: "<<new_vec<<std::endl;
+//     // std::cerr<<"UNNORMED NEWVEC: "<<new_vec<<std::endl;
+//     // std::cerr<<"NEWVEC NORM: "<<scientific(new_vec.norm())<<std::endl;
+//     // std::cerr<<"OTHER NEWVEC NORM: "<<new_vec.normalized()<<std::endl;
+//     // std::cerr<<"TEST: "<<sqrt(std::pow(1.0,2.0)+std::pow(-0.000356613,2.0))<<std::endl;
+//     new_vec = new_vec/new_vec.norm();
+//     // std::cerr<<"NORMED NEWVEC: "<<new_vec<<std::endl;
 
-    return new_vec;
-}
+//     return new_vec;
+// }
 
-// // n_new = A^{-1}*n_old
-vec3 rotateVecA(const double E0,const vec3 E,const vec3 vec)
-{
-    const double E1 = E[0];
-    const double E2 = E[1];
-    const double E3 = E[2];
+// // // n_new = A^{-1}*n_old
+// vec3 rotateVecA(const double E0,const vec3 E,const vec3 vec)
+// {
+//     const double E1 = E[0];
+//     const double E2 = E[1];
+//     const double E3 = E[2];
 
-    const double A00 = E0*E0 + E1*E1 - E2*E2 - E3*E3;
-    const double A01 = 2*(E1*E2 + E0*E3);
-    const double A02 = 2*(E1*E3 - E0*E2);
-    const double A10 = 2*(E1*E2 - E0*E3);
-    const double A11 = E0*E0 - E1*E1 + E2*E2 - E3*E3;
-    const double A12 = 2*(E2*E3 + E0*E1);
-    const double A20 = 2*(E1*E3 + E0*E2);
-    const double A21 = 2*(E2*E3 - E0*E1);
-    const double A22 = E0*E0 - E1*E1 - E2*E2 + E3*E3;
+//     const double A00 = E0*E0 + E1*E1 - E2*E2 - E3*E3;
+//     const double A01 = 2*(E1*E2 + E0*E3);
+//     const double A02 = 2*(E1*E3 - E0*E2);
+//     const double A10 = 2*(E1*E2 - E0*E3);
+//     const double A11 = E0*E0 - E1*E1 + E2*E2 - E3*E3;
+//     const double A12 = 2*(E2*E3 + E0*E1);
+//     const double A20 = 2*(E1*E3 + E0*E2);
+//     const double A21 = 2*(E2*E3 - E0*E1);
+//     const double A22 = E0*E0 - E1*E1 - E2*E2 + E3*E3;
 
-    vec3 new_vec{
-        vec[0]*A00 + vec[1]*A01 + vec[2]*A02,
-        vec[0]*A10 + vec[1]*A11 + vec[2]*A12,
-        vec[0]*A20 + vec[1]*A21 + vec[2]*A22
-    };
+//     vec3 new_vec{
+//         vec[0]*A00 + vec[1]*A01 + vec[2]*A02,
+//         vec[0]*A10 + vec[1]*A11 + vec[2]*A12,
+//         vec[0]*A20 + vec[1]*A21 + vec[2]*A22
+//     };
 
-    // std::cerr<<"UNNORMED NEWVEC: "<<new_vec<<std::endl;
-    // std::cerr<<"NEWVEC NORM: "<<scientific(new_vec.norm())<<std::endl;
-    // std::cerr<<"OTHER NEWVEC NORM: "<<new_vec.normalized()<<std::endl;
-    // std::cerr<<"TEST: "<<sqrt(std::pow(1.0,2.0)+std::pow(-0.000356613,2.0))<<std::endl;
-    new_vec = new_vec/new_vec.norm();
-    // std::cerr<<"NORMED NEWVEC: "<<new_vec<<std::endl;
+//     // std::cerr<<"UNNORMED NEWVEC: "<<new_vec<<std::endl;
+//     // std::cerr<<"NEWVEC NORM: "<<scientific(new_vec.norm())<<std::endl;
+//     // std::cerr<<"OTHER NEWVEC NORM: "<<new_vec.normalized()<<std::endl;
+//     // std::cerr<<"TEST: "<<sqrt(std::pow(1.0,2.0)+std::pow(-0.000356613,2.0))<<std::endl;
+//     new_vec = new_vec/new_vec.norm();
+//     // std::cerr<<"NORMED NEWVEC: "<<new_vec<<std::endl;
 
-    return new_vec;
-}
+//     return new_vec;
+// }
 
 
-// q = (s, v) where s is scalar part, v is vec3 THIS ONLY WORKS FOR UNIT VEC QUATERNIONS
-vec3 quatRotate(const double s, const vec3& v, const vec3& vec)
-{
-    // t = 2 q_vec × vec
-    vec3 t = 2.0 * v.cross(vec);
+// // q = (s, v) where s is scalar part, v is vec3 THIS ONLY WORKS FOR UNIT VEC QUATERNIONS
+// vec3 quatRotate(const double s, const vec3& v, const vec3& vec)
+// {
+//     // t = 2 q_vec × vec
+//     vec3 t = 2.0 * v.cross(vec);
 
-    // return vec + s t + q_vec × t
-    return vec + s * t + v.cross(t);
-}
+//     // return vec + s t + q_vec × t
+//     return vec + s * t + v.cross(t);
+// }
 
-// -------------------------------
-// World  → Local (use conjugate)
-// -------------------------------
-vec3 worldToLocal(const double s, const vec3& v,const vec3& vecWorld)
-{
-    // conjugate is (s, -v)
-    return quatRotate(s, -v, vecWorld);
-}
+// // -------------------------------
+// // World  → Local (use conjugate)
+// // -------------------------------
+// vec3 worldToLocal(const double s, const vec3& v,const vec3& vecWorld)
+// {
+//     // conjugate is (s, -v)
+//     return quatRotate(s, -v, vecWorld);
+// }
 
-// -------------------------------
-// Local → World
-// -------------------------------
-vec3 localToWorld(const double s, const vec3& v,const vec3& vecLocal)
-{
-    return quatRotate(s,  v, vecLocal);
-}
+// // -------------------------------
+// // Local → World
+// // -------------------------------
+// vec3 localToWorld(const double s, const vec3& v,const vec3& vecLocal)
+// {
+//     return quatRotate(s,  v, vecLocal);
+// }
