@@ -6,6 +6,7 @@
 #include "../external/json/single_include/nlohmann/json.hpp"
 #include "linalg.hpp"
 #include "vec3.hpp"
+#include "MPI_utilities.hpp"
 
 using json = nlohmann::json;
 
@@ -25,11 +26,12 @@ void set_attribute(const json& input, const std::string &attribute_key, T &varia
     }
     else
     {
-        std::cerr<<"WARNING: attribute '"<<attribute_key<<"' does not exist."<<std::endl;
+        std::string message("WARNING: attribute '"+attribute_key+"' does not exist.\n");
     }
 }
 
 void seed_generators(size_t seed);
+
 
 bool isAllDigits(const std::string& s);
 //Returns all the folders in a particular directory
@@ -43,6 +45,7 @@ std::vector<std::string> get_folders_in_directory(const std::string directory);
 //This function does not check if the job in the random folder is complete or not
 std::string get_rand_projectile_folder(std::string folder);
 nlohmann::json getJsonFromFolder(std::string location);
+std::string data_type_from_input(const std::string location);
 int extractNumberFromString(const std::string& s);
 std::string dToSci(double value);
 std::string vToSci(vec3 value);

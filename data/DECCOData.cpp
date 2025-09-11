@@ -3,12 +3,17 @@
 #include <fstream>
 #include <cmath>
 #include <algorithm>
+#include <regex>
 #include <cstring>
 
 
 #include "DECCOData.hpp"
+#include "../Collider/ball_group.hpp"
 #include "../utilities/vec3.hpp"
+#include "../utilities/Utils.hpp"
 #include "../utilities/MPI_utilities.hpp"
+#include "../utilities/simple_graph.hpp"
+
 
 #ifdef EXPERIMENTAL_FILESYSTEM
 	#include <experimental/filesystem>
@@ -1352,6 +1357,7 @@ bool DECCOData::write_checkpoint()
 		checkpt_file = filename.substr(0,filename.find_last_of('_')+1)+"checkpoint.txt";
 	}
 
+	// std::cerr<<"CREATING FILE: "<<checkpt_file<<std::endl;
 	std::ofstream output(checkpt_file);
 	if (not output.good()) 
 	{
@@ -1509,3 +1515,162 @@ std::string DECCOData::genTimingMetaData()
 	return meta_data;
 }
 
+//Returns the path + filename of the specified index
+//If index < 0 (default is -1) then it will return the largest (completed) index for csv
+//and returns largest index that passes allConnected for hdf5 
+std::string find_whole_file_name(std::string path, const int index)
+{
+
+	std::string largest_file_name;
+	std::string simDatacsv = "simData.csv";
+    std::string datah5 = "data.h5";
+    int csv = -1;
+    std::string dataType = data_type_from_input(path);
+    if (dataType == "csv")
+    {
+        csv = 1;
+    }
+    else if (dataType == "h5" || dataType == "hdf5")
+    {
+        csv = 0;
+    }
+    else
+    {
+        std::string test_file = path+std::to_string(index);
+        if (fs::exists(test_file+"_simData.csv"))
+        {
+            return test_file + "_simData.csv";
+        }
+        else if (fs::exists(test_file+"_data.h5"))
+        {
+            return test_file + "_data.h5";
+        }
+        else if (fs::exists(test_file+"_data.hdf5"))
+        {
+            return test_file + "_data.hdf5";
+        }
+        else
+        {
+            MPIsafe_print(std::cerr,"ERROR in find_whole_file_name: dataType '"+dataType+"' not recognized.");
+            MPIsafe_exit(-1);
+        }
+    }
+
+    //if index is greater than zero we know if its csv or h5 so just return here
+    if (index >= 0)
+    {
+        if (csv == 1)
+        {
+            return std::to_string(index) + "_" + simDatacsv;
+        }
+        else
+        {
+            return std::to_string(index) + "_" + datah5;
+        }
+    }
+
+    if (getRank() == 0)
+    {
+
+	    std::regex pattern;
+	    if (csv)
+	    {
+	    	pattern = std::regex(R"((\d+)_simData\.csv)");
+	    }
+	    else
+	    {
+	    	pattern = std::regex(R"((\d+)_data\.h5)");
+	    }
+
+	    // Store (index, filename) pairs
+	    std::vector<std::pair<int, std::string>> files;
+
+	    for (const auto& entry : fs::directory_iterator(path)) {
+	        if (entry.is_regular_file()) {
+	            std::string fname = entry.path().filename().string();
+	            std::smatch match;
+	            if (std::regex_match(fname, match, pattern)) {
+	                int index = std::stoi(match[1].str());
+	                files.emplace_back(index, fname);
+	            }
+	        }
+	    }
+
+	    // Sort by index descending
+	    std::sort(files.begin(), files.end(),
+	              [](auto& a, auto& b) { return a.first > b.first; });
+
+
+
+	    // Print results
+	    for (auto it = files.begin(); it != files.end(); /* no ++ here */) 
+	    {	
+	    	const auto idx  = it->first;
+			const auto name = it->second;
+	    	bool checkpoint_exists = fs::exists(path+std::to_string(idx)+"_checkpoint.txt");
+
+	    	if (csv == 1 && index < 0 && !checkpoint_exists) 
+		    {
+
+	            std::string file1 = path + name;
+	            std::string file2 = path + name.substr(0,name.size()-simDatacsv.size()) + "constants.csv";
+	            std::string file3 = path + name.substr(0,name.size()-simDatacsv.size()) + "energy.csv";
+
+	            std::cerr<<"Removing the following files: \n\t"<<file1<<"\n\t"<<file2<<"\n\t"<<file3<<std::endl;
+
+	            delete_file(file1);
+	            delete_file(file2);
+	            delete_file(file3);
+		        
+		        it = files.erase(it);
+		    }
+			else if (csv == 0 && index < 0 && !checkpoint_exists)
+			{
+		    	Ball_group temp(idx);
+		    	temp.loadSim(path,name,false);
+		        if (!isConnected(temp.pos,temp.R,temp.attrs.num_particles))
+		        {
+		            std::string file1 = path + name;
+	            	std::cerr<<"Removing the following files: \n\t"<<file1<<std::endl;
+		            delete_file(file1);
+
+		            it = files.erase(it);
+				}
+			}
+			else
+			{
+				break;
+			}
+		}
+
+		if (!files.empty()) {
+            largest_file_name = files.front().second;  // pick the new top
+        } else {
+            largest_file_name.clear(); // signal “none”
+            MPIsafe_print(std::cerr,"ERROR: All files deleted in "+path+'\n');
+            MPIsafe_exit(-1);
+        }
+	}
+
+	MPIsafe_bcast_string(largest_file_name, /*root=*/0);
+
+    return largest_file_name;
+}
+
+//Deletes the given file. Should give this function a full file path.
+void delete_file(const std::string& delete_me)
+{
+	if (fs::exists(delete_me))
+	{
+		int status = remove(delete_me.c_str());
+		if (status != 0)
+	    {
+	        MPIsafe_print(std::cerr,"File: '"+delete_me+"' could not be removed, now exiting with failure.\n");
+	        MPIsafe_exit(EXIT_FAILURE);
+	    }
+	}
+	else
+	{
+	    MPIsafe_print(std::cerr,"File: '"+delete_me+"' does not exist. Skipping deletion.\n");
+	}
+}

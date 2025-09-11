@@ -16,6 +16,7 @@
 #include "ball_group.hpp"
 #include "../timing/timing.hpp"
 #include "../utilities/Utils.hpp"
+#include "../utilities/MPI_utilities.hpp"
 
 #ifdef MPI_ENABLE
     #include <mpi.h>
@@ -43,19 +44,36 @@ timey t;
 int
 main(int argc, char* argv[])
 {
-        // MPI Initialization
+    // MPI Initialization
     int world_rank, world_size;
+
     #ifdef MPI_ENABLE
         MPI_Init(&argc, &argv);
         MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
         MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-        if (world_rank == 0)
-        {
-            std::cerr<<"MPI enabled"<<std::endl;
-        }
+        #ifdef GPU_ENABLE
+            int n = acc_get_num_devices(acc_device_nvidia);
+            acc_set_device_num(world_rank % n, acc_device_nvidia);
+            std::string deviceMessage("Total Visible NVIDIA devices: "+std::to_string(n)+'\n');
+            MPIsafe_print(std::cerr,deviceMessage);
+            fprintf(
+                stderr,
+                "Hello from rank %d, using GPU %d\n",
+                world_rank,world_rank%n);
+            fflush(stderr);
+        #endif
+            MPIsafe_print(std::cerr,"MPI enabled\n");
+            fprintf(
+                stderr,
+                "Hello from rank %d\n",
+                world_rank);
+            fflush(stderr);
     #else
         world_rank = 0;
         world_size = 1;
+    #endif
+    #ifdef GPU_ENABLE
+        MPIsafe_print(std::cerr,"GPU enabled\n");
     #endif
 
     if (world_rank == 0)
@@ -63,20 +81,10 @@ main(int argc, char* argv[])
         t.start_event("WholeThing");
         std::cerr<<"=========================================Start Simulation========================================="<<std::endl;
     }
+
     #ifdef MPI_ENABLE
         MPI_Barrier(MPI_COMM_WORLD);
     #endif
-
-    //Verify we have all the nodes we asked for
-    fprintf(
-        stderr,
-        "Hello from rank %d\n",
-        world_rank);
-    fflush(stderr);
-    #ifdef MPI_ENABLE
-        MPI_Barrier(MPI_COMM_WORLD);
-    #endif
-
 
     //make dummy ball group to read input file
     std::string location;
@@ -205,6 +213,7 @@ void runAggregation(std::string path, int num_balls)
     int world_rank = getRank();
 
     Ball_group O = Ball_group(path);  
+
     safetyChecks(O);
     std::string message;
     message = "Asking for "+std::to_string(O.get_num_threads())+" threads.\n";
@@ -212,22 +221,13 @@ void runAggregation(std::string path, int num_balls)
 
     if  (!O.attrs.mid_sim_restart && O.attrs.typeSim != BAPA)
     {
-        // std::cerr<<"starting at step "<<O.attrs.start_step<<" with balls: "<<O.attrs.genBalls<<std::endl;
-        // std::cerr<<O.attrs.num_particles<<std::endl;
-        // exit(0);
-        // O.sim_init_write(O.attrs.genBalls);
-        // O.attrs.start_index = O.attrs.genBalls;
         O.attrs.start_index = O.attrs.num_particles;
-        // O.sim_looper(1);
     }
     else if (O.attrs.mid_sim_restart && (O.attrs.typeSim == BCCA || O.attrs.typeSim == BPCA))
     {
         O.sim_looper(O.attrs.start_step);
     }
 
-    // std::cerr<<O.attrs.start_index<<std::endl;
-    // std::cerr<<"Out: "<<O.data->filename<<std::endl;
-    // exit(0);
 
     int increment = 1; // This should be 1 for BPCA, for BCCA, set in for loop
     if (O.attrs.typeSim == BAPA)
@@ -516,6 +516,7 @@ safetyChecks(Ball_group &O) //Should be ready to call sim_looper
     }
 
 
+    // std::cerr<<"num_particlesZ: "<<O.attrs.num_particles<<std::endl;
     for (int Ball = 0; Ball < O.attrs.num_particles; Ball++) {
         if (O.pos[Ball].norm() < vec3(1e-10, 1e-10, 1e-10).norm()) {
             fprintf(stderr, "\nA ball position is [0,0,0]. Possibly didn't initialize positions properly for rank %1d\n",getRank());

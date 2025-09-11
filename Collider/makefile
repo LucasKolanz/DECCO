@@ -3,45 +3,66 @@
 
 
 CXX = CC
+CXX = nvcc
+CXX = mpic++
 CXX = nvc++
 CXX = g++
-# CXX = mpiCC
+
 
 # Base CXXFLAGS, without HDF5-specific flags
+# CXXFLAGS = -g -O2 -std=c++17 -fopenmp -fopenacc -foffload=nvptx-none -#-fopenacc 
 CXXFLAGS = -g -O2 -std=c++17 -fopenmp #-fopenacc 
 
 # Detect HDF5
 # HDF5_TEST := $(shell ldconfig -p | grep hdf5 >/dev/null 2>&1 && echo 1 || echo 0)
 HDF5_TEST = 1
-MPI_TEST = 0
+MPI_TEST = 1
 GPU_TEST = 0
 EXPERIMENTAL_FILESYSTEM = 0
+
+LIBS += -L$(LD_LIBRARY_PATH)
 
 # Conditional HDF5 flags
 ifeq ($(HDF5_TEST), 1)
 
 # 	HDF5_CXXFLAGS = -I/usr/include/hdf5/serial #Perlmutter
 
-    HDF5_CXXFLAGS = -I/usr/include/hdf5/serial
-    HDF5_LIBS = -L/usr/lib/x86_64-linux-gnu/hdf5/serial -lhdf5 -lhdf5_cpp
+#     HDF5_CXXFLAGS = -I/usr/include/hdf5/serial
+#     HDF5_LIBS = -L/usr/lib/x86_64-linux-gnu/hdf5/serial -lhdf5 -lhdf5_cpp
 
 	#For Perlmutter and Novus
-# 	HDF5_CXXFLAGS = -I${HDF5_DIR}/include 
-# 	HDF5_LIBS = -L${HDF5_DIR}/lib -lhdf5 -lhdf5_cpp
+
+	HDF5_CXXFLAGS = -I${HDF5_DIR}/include 
+# 	HDF5_LIBS = -lhdf5 -lhdf5_cpp
+	HDF5_LIBS = -L${HDF5_DIR}/lib -lhdf5 -lhdf5_cpp
 
 	CXXFLAGS += $(HDF5_CXXFLAGS) -DHDF5_ENABLE
-	LIBS = $(HDF5_LIBS)
-else
-	LIBS =
+	LIBS += $(HDF5_LIBS)
+# else
+# 	LIBS =
 endif
 
 ifeq ($(MPI_TEST), 1)
-	CXXFLAGS += -DMPI_ENABLE -I$(CRAY_MPICH_DIR)/include
-	LIBS += -L$(CRAY_MPICH_DIR)/lib
+# 	#Works for Engr
+# 	CXXFLAGS += -DMPI_ENABLE #-I$(CRAY_MPICH_DIR)/include
+# 	LIBS += -lmpi
+	#Works for Novus
+	CXXFLAGS += -DMPI_ENABLE -I$(MPI_DIR)/include
+	LIBS += -lmpi -L$(MPI_DIR)/lib
+
+
+# 	LIBS += -L$(CRAY_MPICH_DIR)/lib
+# 	CXXFLAGS += -DMPI_ENABLE -I/apps/intel/compilers_and_libraries_2017.4.196/linux/mpi/mic/lib/release/libmpi.so.12/include
+# 	CXXFLAGS += -DMPI_ENABLE 
+# 	LIBS += -lmpi
 endif
 
 ifeq ($(GPU_TEST), 1)
+	#Novus
+#     CXXFLAGS += -DGPU_ENABLE -Wl,-znoexecstack #-fopt-info-omp -gpu=cuda11.8
     CXXFLAGS += -DGPU_ENABLE -acc=gpu -Minfo=accel -Wl,-znoexecstack #-fopt-info-omp -gpu=cuda11.8
+#     CXXFLAGS += -DGPU_ENABLE -acc=gpu -Minfo=accel -Wl,-znoexecstack -gpu=cuda11.8
+#     CXXFLAGS += -DGPU_ENABLE -Wl,-znoexecstack #-fopt-info-omp -gpu=cuda11.8
 # 	CXXFLAGS += -DGPU_ENABLE -Wl,-znoexecstack -fdump-tree-optimized
 endif
 

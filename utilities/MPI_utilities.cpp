@@ -54,3 +54,15 @@ void MPIsafe_barrier()
         MPI_Barrier(MPI_COMM_WORLD);
     #endif
 }
+
+void MPIsafe_bcast_string(std::string& s, int root) 
+{
+    #ifdef MPI_ENABLE
+        int len = static_cast<int>(s.size());
+        MPI_Bcast(&len, 1, MPI_INT, root, MPI_COMM_WORLD);
+        s.resize(len);
+        if (len > 0) {
+            MPI_Bcast(s.data(), len, MPI_CHAR, root, MPI_COMM_WORLD);
+        }
+    #endif
+}

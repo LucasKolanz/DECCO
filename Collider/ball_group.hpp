@@ -8,6 +8,7 @@
 #ifndef BALL_GROUP_HPP
 #define BALL_GROUP_HPP
 
+#include <openacc.h>
 #include "../external/json/single_include/nlohmann/json.hpp"
 #include "../utilities/vec3.hpp"
 #include "../utilities/MPI_utilities.hpp"
@@ -36,6 +37,20 @@ enum simType {BPCA, BCCA, BAPA, collider, relax};
 
 constexpr double Kb = 1.380649e-16; //in erg/K
 constexpr double pi = 3.14159265358979311599796346854;
+
+struct Device_attributes
+{
+    double kout;
+    double kin;
+    double Ha;
+    double u_s;
+    double u_r;
+    double h_min;
+    double dt;
+    int num_particles;
+    int num_pairs;
+    
+};
 
 
 //This struct is meant to encompass all values necessary to carry out a simulation, besides the physical
@@ -79,7 +94,7 @@ struct Ball_group_attributes
     int world_rank = -1;
     int world_size = -1;
     int num_pairs = -1;
-    bool write_step = false;
+    // bool write_step = false;
 
     const std::string sim_meta_data_name = "sim_info";
 
@@ -161,6 +176,8 @@ struct Ball_group_attributes
     std::string filetype = "h5";
     int num_writes = 0;
 
+    bool allocated = false;
+
 
     // Overload the assignment operator
     Ball_group_attributes& operator=(const Ball_group_attributes& other) 
@@ -179,6 +196,7 @@ struct Ball_group_attributes
             debug = other.debug;
             write_all = other.write_all;
             mid_sim_restart = other.mid_sim_restart;
+            allocated = other.allocated;
 
             num_particles = other.num_particles;
             num_particles_added = other.num_particles_added;
@@ -279,6 +297,7 @@ public:
     
 
     Ball_group_attributes attrs;
+    Device_attributes* d_attrs = nullptr;
 
     /////////////////////////////////
     // bool mu_scale = false;
@@ -304,13 +323,25 @@ public:
     vec3* w = nullptr;
     vec3* wh = nullptr;  ///< Angular velocity half step for integration purposes.
     vec3* aacc = nullptr;
-    #ifdef GPU_ENABLE
-        vec3* accsq = nullptr;
-        vec3* aaccsq = nullptr;
-    #endif
     double* R = nullptr;    ///< Radius
     double* m = nullptr;    ///< Mass
     double* moi = nullptr;  ///< Moment of inertia
+    #ifdef GPU_ENABLE
+        vec3* d_accsq = nullptr;
+        vec3* d_aaccsq = nullptr;
+
+        vec3* d_pos = nullptr;
+        vec3* d_vel = nullptr;
+        vec3* d_velh = nullptr;  ///< Velocity half step for integration purposes.
+        vec3* d_w = nullptr;
+        vec3* d_wh = nullptr;  ///< Angular velocity half step for integration purposes.
+        vec3* d_acc = nullptr;
+        vec3* d_aacc = nullptr;
+        double* d_R = nullptr;    ///< Radius
+        double* d_m = nullptr;    ///< Mass
+        double* d_moi = nullptr;  ///< Moment of inertia
+        double* d_distances = nullptr;  ///< Moment of inertia
+    #endif
     //////////////////////////////////
 
     //The DECCOData class takes care of reading and writing data in whatever format is specified in the input file 
@@ -345,7 +376,7 @@ public:
     // vec3 random_offset(const double3x3 local_coords,vec3 projectile_pos,vec3 projectile_vel,const double projectile_rad);
     vec3 random_offset(Ball_group &projectile, Ball_group &target);
     void comSpinner(const double& spinX, const double& spinY, const double& spinZ) const;
-    void sim_one_step();
+    void sim_one_step(int step,bool write_step);
     void sim_looper(unsigned long long start_step);
     
     //Functions which calculate/set values for Ball_group
@@ -390,7 +421,7 @@ public:
     Ball_group add_projectile(const simType);
     void merge_ball_group(const Ball_group& src,const bool includeRadius=true);
     void freeMemory() const;
-    std::string find_whole_file_name(std::string path,const int index=-1);
+    // std::string find_whole_file_name(std::string path,const int index=-1);
     int check_restart(std::string folder);
     #ifdef HDF5_ENABLE
         void loadDatafromH5(std::string path, std::string file);
@@ -399,7 +430,6 @@ public:
     void parse_meta_data(std::string metadata);
     std::string find_file_name(std::string path,int index);
     int get_num_threads();
-    std::string data_type_from_input(const std::string location);
 
 
 
@@ -415,7 +445,7 @@ public:
     // void simDataWrite(std::string& outFilename);
     void threeSizeSphere(const int nBalls);
     void generate_ball_field(const int nBalls);
-    void loadSim(const std::string& path, const std::string& filename);
+    void loadSim(const std::string& path, const std::string& filename,const bool verbose = true);
     void distSizeSphere(const int nBalls);
     void oneSizeSphere(const int nBalls);
     void placeBalls(const int nBalls);

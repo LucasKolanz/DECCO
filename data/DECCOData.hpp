@@ -189,6 +189,7 @@ public:
 	std::string genMetaData(int data_index);
 	std::string getFileName();
 	bool write_checkpoint();
+
 	
 	
 	std::string filename;
@@ -243,5 +244,10 @@ private:
 	std::string genTimingMetaData();
 
 };
+
+std::string find_whole_file_name(std::string path, const int index);
+void delete_file(const std::string& delete_me);
+
+
 
 #endif

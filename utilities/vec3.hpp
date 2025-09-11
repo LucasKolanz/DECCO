@@ -12,7 +12,14 @@ public:
     double y;
     double z;
 
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3();
+
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3(const double newx, const double newy, const double newz);
 
     // vec3(const vec3& v) : x(v.x), y(v.y), z(v.z)
@@ -27,16 +34,49 @@ public:
     //	return *this;
     //}
 
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3 operator-() const ;
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3 operator+(const vec3& v) const;
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3 operator+=(const vec3& v);
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3 operator-(const vec3& v) const;
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3 operator-=(const vec3& v);
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3 operator*(const double scalar) const;
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3 operator*=(const double scalar);
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3 operator/(const double scalar) const;
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3 operator/=(const double scalar);
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     double& operator[](const int i);
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     double operator[](const int i) const;
 
     // bool operator==(const vec3& v) const
@@ -49,14 +89,31 @@ public:
     //	return !(*this == v);
     //}
 
-
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     [[nodiscard]] double dot(const vec3& v) const;
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     [[nodiscard]] vec3 cross(const vec3& v) const;
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     double norm() const;
     double normsquared() const;
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3 normalized() const;
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3 normalized_safe() const;
     void print() const;
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     [[nodiscard]] vec3 rot(char axis, double angle) const;
     // [[nodiscard]] vec3 rot(char axis, double angle);
     vec3 arbitrary_orthogonal() const;

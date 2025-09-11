@@ -47,35 +47,30 @@ if __name__ == '__main__':
 	# attempts = [21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40]
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	# attempts = [i for i in range(30)]
-	attempts = [i for i in range(30)]
-	# attempts = [30]
-	# attempts_300 = [i for i in range(30)]
-	# attempts = [1] 
-	attempts_300 = attempts
+	attempts = [i for i in range(15)]
+	# attempts = [3]
+
 
 	#test it out first
 	# attempts = [0]
 	# attempts_300 = [0]
 
 	node = 1
-	N = [30,100,300]
-	# N = [300]
+	# N = [30,100,300]
+	N = [300]
 	Temps = [3,10,30,100,300,1000]
-	# Temps = [3]
+	# Temps = [1000]
 
 	folders = []
 	for n in N:
 		threads = 1
-		if n == 30:
-			threads = 1
-		elif n == 100:
-			threads = 2
-		else:# n == 300:
-			threads = 16
-		temp_attempt = attempts
-		if n == 300:
-			temp_attempt = attempts_300
-		for attempt in temp_attempt:
+		# if n == 30:
+		# 	threads = 1
+		# elif n == 100:
+		# 	threads = 2
+		# else:# n == 300:
+		# 	threads = 16
+		for attempt in attempts:
 			for Temp in Temps:
 				with open(project_path+"default_files/default_input.json",'r') as fp:
 					input_json = json.load(fp)
@@ -104,8 +99,9 @@ if __name__ == '__main__':
 					input_json['dataFormat'] = "h5"
 					input_json['output_folder'] = job
 					input_json['OMPthreads'] = threads
-					# input_json['u_s'] = 0.5
-					# input_json['u_r'] = 0.5
+					input_json['impactParameter'] = -1.0
+					input_json['u_s'] = 0.1
+					input_json['u_r'] = 0.001
 					input_json['note'] = "Rerunning constant size ball runs."
 					####################################
 
@@ -119,7 +115,7 @@ if __name__ == '__main__':
 					# sbatchfile += "#SBATCH -C gpu\n"
 					# sbatchfile += "#SBATCH -q regular\n"
 					# sbatchfile += "#SBATCH -t 0:10:00\n"
-					sbatchfile += f"#SBATCH -J {job_set_name}\n"
+					sbatchfile += f"#SBATCH -J a={attempt},n={n},t={Temp}\n"
 					sbatchfile += f"#SBATCH -N {node}\n"
 					sbatchfile += f"#SBATCH -n {node}\n"
 					sbatchfile += f"#SBATCH -c {threads}\n\n"
