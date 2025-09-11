@@ -39,9 +39,11 @@ def same_job(fullpath, job_name):
 	qattrs = re.split(r'\D+',job_name)
 	qattrs = [int(i) for i in qattrs if len(i) > 0]
 
+
 	if len(fpattrs) != len(qattrs):
-		print("ERROR IN same_job")
-		exit(0)
+		return False
+		# print("ERROR IN same_job")
+		# exit(0)
 
 	for i in range(len(qattrs)):
 		if fpattrs[i] != qattrs[i]:
@@ -95,13 +97,13 @@ if __name__ == '__main__':
 	SPECIAL_FOLDER = ""#"/home/lucas/Desktop/SpaceLab_data/largejob/"
 
 	# runs_at_once = 10
-	# attempts = [2] 
+	# attempts = [10] 
 	attempts = [i for i in range(0,25)]
-	# attempts = [0]#[0,1,2,3,4,5,6,7,8,9]#,11,12,13,14,15,16,17,18,19,20] 
+	# attempts = [i for i in range(25,30)]
 
 	N = [300] #final size
 	M = [3,5,10,15] #starting sizes
-	# M = [15] 
+	# M = [3] 
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [1000]
@@ -183,7 +185,8 @@ if __name__ == '__main__':
 						# sbatchfile += "#SBATCH -C gpu\n"
 						# sbatchfile += "#SBATCH -q regular\n"
 						# sbatchfile += "#SBATCH -t 0:10:00\n"
-						# sbatchfile += f'#SBATCH --partition=dri.q\n'
+						# sbatchfile += f'#SBATCH --account=lazzati\n'
+						# sbatchfile += f'#SBATCH --partition=lazzati.q\n'
 
 						#NAME ORDER needs to be same as the file path order
 						sbatchfile += f"#SBATCH -J a={attempt},m={m},n={n},t={Temp}\n"

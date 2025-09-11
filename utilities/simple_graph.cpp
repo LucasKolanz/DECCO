@@ -39,7 +39,7 @@ void makeGraph(Graph& g, vec3* pos, double* R, int n)
 bool isConnected(vec3* pos, double* R, int n)
 {
 	Graph g;
-	std::cerr<<"n: "<<n<<std::endl;
+	// std::cerr<<"n: "<<n<<std::endl;
 	makeGraph(g,pos,R,n);
 
 	if (g.empty()) //If it is empty we have a problem somewhere
@@ -72,10 +72,16 @@ bool isConnected(vec3* pos, double* R, int n)
         }
     }
 
-    std::cerr<<"countVisited: "<<countVisited<<std::endl;
-    std::cerr<<"(int)g.size(): "<<(int)g.size()<<std::endl;
+
+    bool connected = (countVisited == n);
+
+    if (!connected)
+    {
+    	std::string message;
+    	message = "countVisited: "+std::to_string(countVisited)+"\n(int)g.size(): "+std::to_string((int)g.size())+'\n';
+    }
     // If we've visited all vertices, the graph is connected
-    return (countVisited == n);
+    return connected;
 }
 
 

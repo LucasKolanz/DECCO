@@ -193,6 +193,20 @@ nlohmann::json getJsonFromFolder(std::string location)
     return nlohmann::json::parse(ifs);
 }
 
+std::string data_type_from_input(const std::string location)
+{
+    json inputs = getJsonFromFolder(location);
+    if (inputs.contains("dataFormat"))
+    {
+        return inputs["dataFormat"];
+    }
+    else
+    {
+        std::cerr<<"WARNING: dataFormat input does not exist."<<std::endl;
+        return "WARNING: dataFormat input does not exist.";
+    }
+}
+
 int extractNumberFromString(const std::string& s) 
 {
     size_t length = s.length();

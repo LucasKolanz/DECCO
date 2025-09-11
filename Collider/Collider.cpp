@@ -44,8 +44,7 @@ timey t;
 int
 main(int argc, char* argv[])
 {
-
-        // MPI Initialization
+    // MPI Initialization
     int world_rank, world_size;
 
     #ifdef MPI_ENABLE
@@ -83,7 +82,9 @@ main(int argc, char* argv[])
         std::cerr<<"=========================================Start Simulation========================================="<<std::endl;
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    #ifdef MPI_ENABLE
+        MPI_Barrier(MPI_COMM_WORLD);
+    #endif
 
     //make dummy ball group to read input file
     std::string location;

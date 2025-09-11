@@ -3,6 +3,9 @@
 #include <thread>
 #include <fstream>
 #include <stdio.h>
+#include <vector>
+// #include <regex>
+// #include <algorithm>
 
 #include "ball_group.hpp"
 #include "../utilities/vec3.hpp"
@@ -180,7 +183,6 @@ void Ball_group::aggregationInit(const std::string path,const int index)
         MPIsafe_print(std::cerr,"Simulation already complete. Now exiting. . .\n");
         MPIsafe_exit(0);
     }
-
     std::string filename = find_whole_file_name(path,index);
 
     bool just_restart = false;
@@ -329,19 +331,7 @@ void Ball_group::init_data(int counter = 0)
 }
 
 
-std::string Ball_group::data_type_from_input(const std::string location)
-{
-    json inputs = getJsonFromFolder(location);
-    if (inputs.contains("dataFormat"))
-    {
-        return inputs["dataFormat"];
-    }
-    else
-    {
-        std::cerr<<"WARNING: dataFormat input does not exist."<<std::endl;
-        return "WARNING: dataFormat input does not exist.";
-    }
-}
+
 
 void Ball_group::set_seed_from_input(const std::string location)
 {
@@ -381,7 +371,7 @@ void Ball_group::set_seed_from_input(const std::string location)
 void Ball_group::parse_input_file(std::string location)
 {
 
-    MPIsafe_print(std::cerr,"STARTING PARSE_INPUT FILE");
+    MPIsafe_print(std::cerr,"STARTING PARSE_INPUT FILE\n");
 
     // if (location == "")
     // {
@@ -1826,35 +1816,43 @@ void Ball_group::merge_ball_group(const Ball_group& src,const bool includeRadius
 /// Allocate balls
 void Ball_group::allocate_group(const int nBalls)
 {
-    attrs.num_particles = nBalls;
+    if (!attrs.allocated)
+    {
+        attrs.num_particles = nBalls;
 
-    MPIsafe_print(std::cerr,"allocating group of size: "+std::to_string(nBalls)+'\n');
+        MPIsafe_print(std::cerr,"allocating group of size: "+std::to_string(nBalls)+'\n');
 
-    try {
-        distances = new double[(attrs.num_particles * attrs.num_particles / 2) - (attrs.num_particles / 2)];
+        try {
+            distances = new double[(attrs.num_particles * attrs.num_particles / 2) - (attrs.num_particles / 2)];
 
-        // #ifdef MPI_ENABLE
-        // #ifdef GPU_ENABLE
-        //     d_accsq = new vec3[attrs.num_particles*attrs.num_particles];
-        //     d_aaccsq = new vec3[attrs.num_particles*attrs.num_particles];
-        // #endif
+            // #ifdef MPI_ENABLE
+            // #ifdef GPU_ENABLE
+            //     d_accsq = new vec3[attrs.num_particles*attrs.num_particles];
+            //     d_aaccsq = new vec3[attrs.num_particles*attrs.num_particles];
+            // #endif
+                
+            pos = new vec3[attrs.num_particles];
+            vel = new vec3[attrs.num_particles];
+            velh = new vec3[attrs.num_particles];
+            acc = new vec3[attrs.num_particles];
+            w = new vec3[attrs.num_particles];
+            wh = new vec3[attrs.num_particles];
+            aacc = new vec3[attrs.num_particles];
+            R = new double[attrs.num_particles];
+            m = new double[attrs.num_particles];
+            moi = new double[attrs.num_particles];
+
             
-        pos = new vec3[attrs.num_particles];
-        vel = new vec3[attrs.num_particles];
-        velh = new vec3[attrs.num_particles];
-        acc = new vec3[attrs.num_particles];
-        w = new vec3[attrs.num_particles];
-        wh = new vec3[attrs.num_particles];
-        aacc = new vec3[attrs.num_particles];
-        R = new double[attrs.num_particles];
-        m = new double[attrs.num_particles];
-        moi = new double[attrs.num_particles];
-
-        
-    } catch (const std::exception& e) {
-        std::stringstream mess;
-        mess << "Failed trying to allocate group. " << e.what() << '\n';
-        MPIsafe_print(std::cerr,mess.str());
+        } catch (const std::exception& e) {
+            std::stringstream mess;
+            mess << "Failed trying to allocate group. " << e.what() << '\n';
+            MPIsafe_print(std::cerr,mess.str());
+        }
+        attrs.allocated = true;
+    }
+    else
+    {
+        MPIsafe_print(std::cerr,"Group already allocated, skipping allocation.\n");
     }
 }
 
@@ -2356,7 +2354,7 @@ void Ball_group::generate_ball_field(const int nBalls)
 }
 
 /// Make ballGroup from file data.
-void Ball_group::loadSim(const std::string& path, const std::string& filename)
+void Ball_group::loadSim(const std::string& path, const std::string& filename,const bool verbose)
 {
     std::string file = filename;
     //file we are loading is csv file
@@ -2426,11 +2424,14 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename)
 
     calc_helpfuls();
 
-    std::string message("Balls: " + std::to_string(attrs.num_particles) + '\n' + 
-                        "Mass: " + dToSci(attrs.m_total) + '\n' +
-                        "Approximate radius: " + dToSci(attrs.initial_radius) + " cm.\n" +
-                        "SOC: " + dToSci(attrs.soc) + '\n');
-    MPIsafe_print(std::cerr,message);
+    if (verbose)
+    {
+        std::string message("Balls: " + std::to_string(attrs.num_particles) + '\n' + 
+                            "Mass: " + dToSci(attrs.m_total) + '\n' +
+                            "Approximate radius: " + dToSci(attrs.initial_radius) + " cm.\n" +
+                            "SOC: " + dToSci(attrs.soc) + '\n');
+        MPIsafe_print(std::cerr,message);
+    }
 }
 
 void Ball_group::parse_meta_data(std::string metadata)
@@ -3269,165 +3270,168 @@ std::string Ball_group::find_file_name(std::string path,int index)
 
 //Returns the path + filename of the specified index
 //If index < 0 (default is -1) then it will return the largest (completed) index
-std::string Ball_group::find_whole_file_name(std::string path, const int index)
-{
-    std::string file;
-    std::string largest_file_name;
-    std::string second_largest_file_name;
-    std::string simDatacsv = "simData.csv";
-    std::string datah5 = "data.h5";
+// std::string Ball_group::find_whole_file_name(std::string path, const int index)
+// {
+//     std::string file;
+//     std::string largest_file_name;
+//     std::string second_largest_file_name;
+//     std::string simDatacsv = "simData.csv";
+//     std::string datah5 = "data.h5";
 
-    // TODO::: write this function so we actually know if its csv or h5
-    std::string dataType = data_type_from_input(path);
-    int csv = -1;
-    if (dataType == "csv")
-    {
-        csv = 1;
-    }
-    else if (dataType == "h5" || dataType == "hdf5")
-    {
-        csv = 0;
-    }
-    else
-    {
-        std::string test_file = path+std::to_string(index);
-        if (fs::exists(test_file+"_simData.csv"))
-        {
-            return test_file + "_simData.csv";
-        }
-        else if (fs::exists(test_file+"_data.h5"))
-        {
-            return test_file + "_data.h5";
-        }
-        else if (fs::exists(test_file+"_data.hdf5"))
-        {
-            return test_file + "_data.hdf5";
-        }
-        else
-        {
-            MPIsafe_print(std::cerr,"ERROR in find_whole_file_name: dataType '"+dataType+"' not recognized.");
-            MPIsafe_exit(-1);
-        }
-    }
+//     // TODO::: write this function so we actually know if its csv or h5
+//     std::string dataType = data_type_from_input(path);
+//     int csv = -1;
+//     if (dataType == "csv")
+//     {
+//         csv = 1;
+//     }
+//     else if (dataType == "h5" || dataType == "hdf5")
+//     {
+//         csv = 0;
+//     }
+//     else
+//     {
+//         std::string test_file = path+std::to_string(index);
+//         if (fs::exists(test_file+"_simData.csv"))
+//         {
+//             return test_file + "_simData.csv";
+//         }
+//         else if (fs::exists(test_file+"_data.h5"))
+//         {
+//             return test_file + "_data.h5";
+//         }
+//         else if (fs::exists(test_file+"_data.hdf5"))
+//         {
+//             return test_file + "_data.hdf5";
+//         }
+//         else
+//         {
+//             MPIsafe_print(std::cerr,"ERROR in find_whole_file_name: dataType '"+dataType+"' not recognized.");
+//             MPIsafe_exit(-1);
+//         }
+//     }
 
-    int largest_file_index = -1;
-    int second_largest_file_index = -1;
-    int file_index=0;
-    for (const auto & entry : fs::directory_iterator(path))
-    {
-        file = entry.path();
-        size_t pos = file.find_last_of("/");
-        file = file.erase(0,pos+1);
+//     int largest_file_index = -1;
+//     int second_largest_file_index = -1;
+//     int file_index=0;
+//     for (const auto & entry : fs::directory_iterator(path))
+//     {
+//         file = entry.path();
+//         size_t pos = file.find_last_of("/");
+//         file = file.erase(0,pos+1);
 
-        //Is the data in csv format?
-        //If so, find largest and second largest file index
-        // if (file.size() > simDatacsv.size() && csv)
-        if (file.size() > simDatacsv.size() && file.substr(file.size()-simDatacsv.size(),file.size()) == simDatacsv)
-        {
-            // file_count++;
-            size_t _pos = file.find_first_of("_");
-            size_t _secpos = file.substr(_pos+1,file.size()).find_first_of("_");
-            _secpos += _pos+1; //add 1 to account for _pos+1 in substr above
-            file_index = stoi(file.substr(0,file.find_first_of("_")));
-            if (file[_pos+1] == 'R')
-            {
-                file_index = 0;
-            }
-            if (file_index > largest_file_index)
-            {
-                second_largest_file_index = largest_file_index;
-                second_largest_file_name = largest_file_name;
-                largest_file_index = file_index;
-                largest_file_name = file;
-            }
-            else if (file_index > second_largest_file_index)
-            {
-                second_largest_file_name = file;
-                second_largest_file_index = file_index;
-            }
-
-
-
-        }
-        // else if (file.size() > datah5.size() && not csv)
-        else if (file.size() > datah5.size() && file.substr(file.size()-datah5.size(),file.size()) == datah5)
-        {
-            size_t _pos = file.find_first_of("_");
-            file_index = stoi(file.substr(0,file.find_first_of("_")));
-            if (file_index > largest_file_index)
-            {
-                largest_file_index = file_index;
-                largest_file_name = file;
-            }
-        }
-    }
+//         //Is the data in csv format?
+//         //If so, find largest and second largest file index
+//         // if (file.size() > simDatacsv.size() && csv)
+//         if (file.size() > simDatacsv.size() && file.substr(file.size()-simDatacsv.size(),file.size()) == simDatacsv)
+//         {
+//             // file_count++;
+//             size_t _pos = file.find_first_of("_");
+//             size_t _secpos = file.substr(_pos+1,file.size()).find_first_of("_");
+//             _secpos += _pos+1; //add 1 to account for _pos+1 in substr above
+//             file_index = stoi(file.substr(0,file.find_first_of("_")));
+//             if (file[_pos+1] == 'R')
+//             {
+//                 file_index = 0;
+//             }
+//             if (file_index > largest_file_index)
+//             {
+//                 second_largest_file_index = largest_file_index;
+//                 second_largest_file_name = largest_file_name;
+//                 largest_file_index = file_index;
+//                 largest_file_name = file;
+//             }
+//             else if (file_index > second_largest_file_index)
+//             {
+//                 second_largest_file_name = file;
+//                 second_largest_file_index = file_index;
+//             }
 
 
 
-    //if index is greater than zero we know if its csv or h5 so just return here
-    if (index >= 0)
-    {
-        if (csv == 1)
-        {
-            return std::to_string(index) + "_" + simDatacsv;
-        }
-        else
-        {
-            return std::to_string(index) + "_" + datah5;
-        }
-    }
+//         }
+//         // else if (file.size() > datah5.size() && not csv)
+//         else if (file.size() > datah5.size() && file.substr(file.size()-datah5.size(),file.size()) == datah5)
+//         {
+//             size_t _pos = file.find_first_of("_");
+//             file_index = stoi(file.substr(0,file.find_first_of("_")));
+//             if (file_index > largest_file_index)
+//             {
+//                 largest_file_index = file_index;
+//                 largest_file_name = file;
+//             }
+//         }
+//     }
 
 
-    //TODO: check if {index}_checkpoint.txt exists don't delete, that sim is complete
-    bool checkpoint_exists = fs::exists(path+std::to_string(largest_file_index)+"_checkpoint.txt");
-    if (csv == 1 && index < 0 && second_largest_file_index > 0 && !checkpoint_exists)
-    {
-        if (getRank() == 0)
-        {
-            std::string file1 = path + largest_file_name;
-            std::string file2 = path + largest_file_name.substr(0,largest_file_name.size()-simDatacsv.size()) + "constants.csv";
-            std::string file3 = path + largest_file_name.substr(0,largest_file_name.size()-simDatacsv.size()) + "energy.csv";
-            // std::string file4 = path + largest_file_name.substr(0,largest_file_name.size()-simDatacsv.size()) + "checkpoint.txt";
 
-            std::string message("Removing the following files: \n"
-                                +'\t'+file1+'\n'
-                                +'\t'+file2+'\n'
-                                +'\t'+file3+'\n');
-                                // +'\t'+file4+'\n');
-            MPIsafe_print(std::cerr,message);
-
-            int status1 = remove(file1.c_str());
-            int status2 = remove(file2.c_str());
-            int status3 = remove(file3.c_str());
-            // int status4 = remove(file4.c_str());
+//     //if index is greater than zero we know if its csv or h5 so just return here
+//     if (index >= 0)
+//     {
+//         if (csv == 1)
+//         {
+//             return std::to_string(index) + "_" + simDatacsv;
+//         }
+//         else
+//         {
+//             return std::to_string(index) + "_" + datah5;
+//         }
+//     }
 
 
-            if (status1 != 0)
-            {
-                MPIsafe_print(std::cerr,"File1: '"+file1+"' could not be removed, now exiting with failure.\n");
-                MPIsafe_exit(EXIT_FAILURE);
-            }
-            else if (status2 != 0)
-            {
-                MPIsafe_print(std::cerr,"File2: '"+file2+"' could not be removed, now exiting with failure.\n");
-                MPIsafe_exit(EXIT_FAILURE);
-            }
-            else if (status3 != 0)
-            {
-                MPIsafe_print(std::cerr,"File3: '"+file3+"' could not be removed, now exiting with failure.\n");
-                MPIsafe_exit(EXIT_FAILURE);
-            }
-            // else if (status4 != 0)
-            // {
-            //     MPIsafe_print(std::cerr,"File4: '"+file4+"' could not be removed, now exiting with failure.\n");
-            //     MPIsafe_exit(EXIT_FAILURE);
-            // }
-        }
-        MPIsafe_barrier();
-        largest_file_name = second_largest_file_name;
-    }
-    return largest_file_name;
-}
+//     //TODO: check if {index}_checkpoint.txt exists don't delete, that sim is complete
+//     bool checkpoint_exists = fs::exists(path+std::to_string(largest_file_index)+"_checkpoint.txt");
+//     //If this is all true then we need to delete the whole partial file and just use the previous finished one. 
+//     if (csv == 1 && index < 0 && second_largest_file_index > 0 && !checkpoint_exists) 
+//     {
+//         if (getRank() == 0)
+//         {
+//             std::string file1 = path + largest_file_name;
+//             std::string file2 = path + largest_file_name.substr(0,largest_file_name.size()-simDatacsv.size()) + "constants.csv";
+//             std::string file3 = path + largest_file_name.substr(0,largest_file_name.size()-simDatacsv.size()) + "energy.csv";
+//             // std::string file4 = path + largest_file_name.substr(0,largest_file_name.size()-simDatacsv.size()) + "checkpoint.txt";
+
+//             std::string message("Removing the following files: \n"
+//                                 +'\t'+file1+'\n'
+//                                 +'\t'+file2+'\n'
+//                                 +'\t'+file3+'\n');
+//                                 // +'\t'+file4+'\n');
+//             MPIsafe_print(std::cerr,message);
+
+//             int status1 = remove(file1.c_str());
+//             int status2 = remove(file2.c_str());
+//             int status3 = remove(file3.c_str());
+//             // int status4 = remove(file4.c_str());
+
+
+//             if (status1 != 0)
+//             {
+//                 MPIsafe_print(std::cerr,"File1: '"+file1+"' could not be removed, now exiting with failure.\n");
+//                 MPIsafe_exit(EXIT_FAILURE);
+//             }
+//             else if (status2 != 0)
+//             {
+//                 MPIsafe_print(std::cerr,"File2: '"+file2+"' could not be removed, now exiting with failure.\n");
+//                 MPIsafe_exit(EXIT_FAILURE);
+//             }
+//             else if (status3 != 0)
+//             {
+//                 MPIsafe_print(std::cerr,"File3: '"+file3+"' could not be removed, now exiting with failure.\n");
+//                 MPIsafe_exit(EXIT_FAILURE);
+//             }
+//             // else if (status4 != 0)
+//             // {
+//             //     MPIsafe_print(std::cerr,"File4: '"+file4+"' could not be removed, now exiting with failure.\n");
+//             //     MPIsafe_exit(EXIT_FAILURE);
+//             // }
+//         }
+//         MPIsafe_barrier();
+//         largest_file_name = second_largest_file_name;
+//     }
+//     elseif (csv == 0 && index < 0 && second_largest_file_index > 0 && !checkpoint_exists)
+
+//     return largest_file_name;
+// }
 
 #ifndef GPU_ENABLE
 void Ball_group::sim_one_step(int step,bool write_step)

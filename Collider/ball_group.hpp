@@ -176,6 +176,8 @@ struct Ball_group_attributes
     std::string filetype = "h5";
     int num_writes = 0;
 
+    bool allocated = false;
+
 
     // Overload the assignment operator
     Ball_group_attributes& operator=(const Ball_group_attributes& other) 
@@ -194,6 +196,7 @@ struct Ball_group_attributes
             debug = other.debug;
             write_all = other.write_all;
             mid_sim_restart = other.mid_sim_restart;
+            allocated = other.allocated;
 
             num_particles = other.num_particles;
             num_particles_added = other.num_particles_added;
@@ -418,7 +421,7 @@ public:
     Ball_group add_projectile(const simType);
     void merge_ball_group(const Ball_group& src,const bool includeRadius=true);
     void freeMemory() const;
-    std::string find_whole_file_name(std::string path,const int index=-1);
+    // std::string find_whole_file_name(std::string path,const int index=-1);
     int check_restart(std::string folder);
     #ifdef HDF5_ENABLE
         void loadDatafromH5(std::string path, std::string file);
@@ -427,7 +430,6 @@ public:
     void parse_meta_data(std::string metadata);
     std::string find_file_name(std::string path,int index);
     int get_num_threads();
-    std::string data_type_from_input(const std::string location);
 
 
 
@@ -443,7 +445,7 @@ public:
     // void simDataWrite(std::string& outFilename);
     void threeSizeSphere(const int nBalls);
     void generate_ball_field(const int nBalls);
-    void loadSim(const std::string& path, const std::string& filename);
+    void loadSim(const std::string& path, const std::string& filename,const bool verbose = true);
     void distSizeSphere(const int nBalls);
     void oneSizeSphere(const int nBalls);
     void placeBalls(const int nBalls);
