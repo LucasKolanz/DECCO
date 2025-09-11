@@ -5,11 +5,17 @@ import glob
 import numpy as np
 import h5py
 import json
+from itertools import product
 
 relative_path = ""
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
 
+patterns = ["$a$","$m$","$n$","$t$"]
+
+def unroll(*lists):
+    normalized = [lst if len(lst) > 0 else [None] for lst in lists]
+    return list(product(*normalized))
 
 
 #If job folder doesnt exist return -1, 
@@ -31,39 +37,31 @@ def status(fullpath):
 
 
 #gets the status of every job following the pattern given in job_base
-def get_status(job_base,\
-				N=[30,100,300],\
-				M=[20,50,60],\
-				Temps=[3,10,30,100,300,1000],\
-				num_attempts=10):
+#and the unrolled variables
+def get_status(job_base,unrolled):
 
-	if isinstance(num_attempts,int):
-		attempts = [i for i in range(num_attempts)]
-	elif isinstance(num_attempts,list):
-		attempts = num_attempts
-
-	stati = np.full((len(attempts),len(M),len(N),len(Temps)),fill_value=np.nan);
+	stati = np.full((len(unrolled)),fill_value=np.nan);
 
 	unfinished_jobs = []
 
-	for a_i,attempt in enumerate(attempts):
-		for m_i,m in enumerate(M):
-			for n_i,n in enumerate(N):
-				for T_i,Temp in enumerate(Temps):
-					job = job_base.replace("$a$",str(attempt)).replace("$m$",str(m)).replace("$n$",str(n)).replace("$t$",str(Temp))
-					job_status = status(job)
-					if job_status == -1:
-						# print(f"job doesnt exist: {job}")
-						pass
-					elif job_status == 0:
-						# print(f"job is initialized: {job}")
-						pass
-					elif job_status == 1:
-						# print(f"job is started: {job}")
-						
-						unfinished_jobs.append(job)
+	for a_i,attrs in enumerate(unrolled):
+		job = job_base
+		for v_i,value in enumerate(attrs):
+			if value is not None:
+				job = job.replace(patterns[v_i],str(value))
+				job_status = status(job)
+				if job_status == -1:
+					# print(f"job doesnt exist: {job}")
+					pass
+				elif job_status == 0:
+					# print(f"job is initialized: {job}")
+					pass
+				elif job_status == 1:
+					# print(f"job is started: {job}")
+					
+					unfinished_jobs.append(job)
 
-				stati[a_i,m_i,n_i,T_i] = job_status
+				stati[a_i] = job_status
 
 	return stati, unfinished_jobs
 
@@ -105,10 +103,10 @@ def main():
 		input_json = json.load(fp)
 
 	
-	job = input_json["data_directory"] + 'jobs/const$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + 'jobs/BAPA_$a$/M_$m$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobs/constrollingfric$a$/N_$n$/T_$t$/'
 	# job = input_json["data_directory"] + 'jobsNovus/constantX_relax$a$/N_$n$/T_$t$/'
 	print(job)
 
@@ -118,27 +116,55 @@ def main():
 
 	# N = [30,100,300]
 	N = [300]
-	M = [3,5,10,15]
+	M = []
 	# N=[5]
 
-	Temps = [1000]
+	Temps = [3,10,30,100,300,1000]
+
 	# Temps = [3]
 
-	job_status,unfinished_jobs = get_status(job,N,M,Temps,attempts)
-	progress_bar_percents = np.full((len(M),len(N),len(Temps),3),fill_value=-1,dtype=np.float64)
+	#attempts needs to be first, otherwise follow the order in the list of patterns (called patterns)
+	unrolled = unroll(attempts,M,N,Temps)
+
+	job_status,unfinished_jobs = get_status(job,unrolled)
+
+	# progress_bar_percents = np.full((len(M),len(N),len(Temps),3),fill_value=-1,dtype=np.float64)
 	lines = []
 
 	max_len = -1
-	for m_i,m in enumerate(M):		
-		for n_i,n in enumerate(N):
-			for T_i,T in enumerate(Temps):
+
+	skipsize = int(len(job_status)/len(attempts))
+
+	for start in range(skipsize):
+		m = unrolled[start][1]
+		n = unrolled[start][2]
+		T = unrolled[start][3]
+		
+		length = min(len(attempts),100)
+		progress_bar = get_progress_bar(job_status[start::skipsize],length)
+
+		line_start = "Progress of "
+		if m is not None:
+			line_start += f"M={m}, "
+		if n is not None: 
+			line_start += f"N={n}, "
+		if T is not None: 
+			line_start += f"T={T}, "
+		line = f"{line_start} [{''.join(progress_bar)}]"
+		lines.append(line)
+		if len(line) > max_len:
+			max_len = len(line)
+
+	# for m_i,m in enumerate(M):		
+		# for n_i,n in enumerate(N):
+		# 	for T_i,T in enumerate(Temps):
 				
-				length = min(len(attempts),100)
-				progress_bar = get_progress_bar(job_status[:,m_i,n_i,T_i],length)
-				line = f"Progress of M={m}, N={n}, T={T}: [{''.join(progress_bar)}]"
-				lines.append(line)
-				if len(line) > max_len:
-					max_len = len(line)
+		# 		length = min(len(attempts),100)
+		# 		progress_bar = get_progress_bar(job_status[:,m_i,n_i,T_i],length)
+		# 		line = f"Progress of M={m}, N={n}, T={T}: [{''.join(progress_bar)}]"
+		# 		lines.append(line)
+		# 		if len(line) > max_len:
+		# 			max_len = len(line)
 
 	output_line = list("_"*(max_len+2))
 	output_line[0] = " "
