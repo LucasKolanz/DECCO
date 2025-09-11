@@ -305,7 +305,7 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 	temps = [1000]
 	# temps = [3,10]
 	Nums = [300]
-	M = [1,20,30,50,60,100]
+	M = [1,3,5,10,15,20,30,50,60,100]
 	
 	
 	attempts = [i for i in range(20)]
@@ -1225,6 +1225,8 @@ def gen_BPCA_ratio_vs_temp_plots(show_plots=True,save_plots=False,include_totals
 	    'text.latex.preamble': r'\usepackage{amsmath} \usepackage{bm}'
 	})
 
+	labels = [label_from_header(i) for i in requested_data_headers]
+	
 	#Plot metric vs M for all metrics and all N and temps
 	for h_i,header in enumerate(requested_data_headers):
 
@@ -1248,6 +1250,19 @@ def gen_BPCA_ratio_vs_temp_plots(show_plots=True,save_plots=False,include_totals
 
 		ax.axhline(1)
 
+		ax.text(0.82, 0.95, labels[h_i],
+        	transform=ax.transAxes,  # now (0,0) = bottom-left, (1,1) = top-right of the axes
+        	ha="left", va="top")
+		# if h_i == 0:
+		# 	ax.text(400,1.19,labels[h_i])
+		# elif h_i == 1:
+		# 	ax.text(400,1.1,labels[h_i])
+		# elif h_i == 2:
+		# 	ax.text(400,1.035,labels[h_i])
+		# elif h_i == 3:
+		# 	ax.text(400,1.01,labels[h_i])
+
+
 		# ax.set_ylabel(label_from_header(header))
 		ax.set_ylabel("Ratio")
 		# ax.set_title('{} {} vs Temp'.format(dataset_name,method))
@@ -1259,9 +1274,9 @@ def gen_BPCA_ratio_vs_temp_plots(show_plots=True,save_plots=False,include_totals
 		plt.tight_layout()
 		if save_plots:
 			plt.savefig("{}{}_ratioovertemp.png".format(figure_folder,header))
-		if show_plots:
-			plt.show() 
-		plt.close()
+	if show_plots:
+		plt.show() 
+	plt.close()
 
 def gen_BPCA_double_ratio_vs_temp_plots(show_plots=True,save_plots=False,include_totals=False):
 	with open(project_path+"default_files/default_input.json",'r') as fp:
@@ -1578,7 +1593,7 @@ def gen_BPCA_temp_sensitivity_plots(show_plots=True,save_plots=False,include_tot
 	requested_data_headers = requested_data_headers[:2] + [requested_data_headers[3]] + [requested_data_headers[2]]
 
 	data_prefolders = []
-	data_prefolders.append(path + 'jobsNovus/constrelax_')
+	# data_prefolders.append(path + 'jobsNovus/constrelax_')
 	data_prefolders.append(path + 'jobsCosine/lognormrelax_')
 	
 	for data_prefolder in data_prefolders:
@@ -1653,24 +1668,31 @@ def gen_BPCA_temp_sensitivity_plots(show_plots=True,save_plots=False,include_tot
 		})
 
 		fig,ax = plt.subplots(figsize=(10,5))
-		dummy_x_data = [0,.2,.4,.6]
+		# dummy_x_data = [0,.2,.4,.6]
+		dummy_x_data = [0.015,.2,.4,.585]
 
-
+		ticks = []
+		ticklabels = []
 		for n_i,n in enumerate(N):
 			rang = []
 			if n == 30:
 				rang = [0,4]
-				shift = -0.035
+				# shift = -0.035
+				shift = -0.04
 			elif n == 100:
 				rang = [4,8]
 				shift = 0
 			else:
 				rang = [8,12]
-				shift = 0.035
+				# shift = 0.035
+				shift = 0.04
 			x_data = [i+shift for i in dummy_x_data]
 
 			ax.errorbar(x=x_data,y=slope_data[:,n_i],yerr=slope_sigma_data[:,n_i],\
 					fmt='o',linewidth=2, capsize=6,label=f"N={n}")
+
+			ticks.extend(x_data)
+			ticklabels.extend([n]*4)
 
 
 		plt.axvline(x = 0.1, color = 'black')
@@ -1678,19 +1700,26 @@ def gen_BPCA_temp_sensitivity_plots(show_plots=True,save_plots=False,include_tot
 		plt.axvline(x = 0.5, color = 'black')
 
 
-		ticklabels = [label_from_header(i) for i in requested_data_headers]
-		ticklabels.extend([""]*(len(dummy_x_data)-len(requested_data_headers)))
+		labels = [label_from_header(i) for i in requested_data_headers]
+		# ticklabels.extend([""]*(len(dummy_x_data)-len(requested_data_headers)))
 
-		ax.xaxis.set(ticks=dummy_x_data,
+		ax.xaxis.set(ticks=ticks,
 				ticklabels=ticklabels)
+
+		ax.text(-0.01,0.025,labels[0])
+		ax.text(0.168,0.025,labels[1])
+		ax.text(0.387,0.025,labels[2])
+		ax.text(0.56,0.025,labels[3])
 
 		plt.hlines(0,xmin=-0.0685,xmax=0.6685,linestyle="--",color='black')
 
 		ax.set_ylabel('Sensitivity to Temperature')
+		ax.set_xlabel('Aggregate size (N)')
 		ax.set_ylim(-0.0010770496039509136, 0.02782241381226227)
 		ax.set_xlim(-0.0685, 0.6685)
 		
-		fig.legend(loc='lower left',bbox_to_anchor=(0.785,0.65))
+		# fig.legend(loc='lower left',bbox_to_anchor=(0.785,0.65))
+		# fig.legend(loc='lower left',bbox_to_anchor=(0.785,0.48))
 		plt.tight_layout()
 		if save_plots:
 			plt.savefig("{}{}_methodComp.png".format(figure_folder,dataset_name))

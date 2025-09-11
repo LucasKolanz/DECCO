@@ -114,7 +114,6 @@ def get_directores(root_dir):
 
 def get_directores_containing(root_dir,necessary_files):
 	directories_with_file = []
-	
 	for dirs in glob.glob(root_dir):
 		for current_dir, subdirs, files in os.walk(dirs):
 			# Check if it's a deepest directory (no subdirectories)

@@ -40,7 +40,7 @@ if __name__ == '__main__':
 
 
 	job_set_name = "TEST"
-	job_set_name = "const"
+	job_set_name = "constrollingfric"
 	# folder_name_scheme = "T_"
 
 	# runs_at_once = 7

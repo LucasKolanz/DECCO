@@ -36,14 +36,17 @@ def calc_porosity_abc(data_folder,size,relax=False):
 		return np.nan
 	# num_balls = data.shape[0]
 
+	vol = [(4*np.pi/3)*r**3 for r in radius]
+
 	effective_radius = np.power(np.sum(np.power(radius,3)),1/3) 
 
 		
+	# principal_moi = u.get_principal_moi(vol,data)
 	principal_moi = u.get_principal_moi(mass,data)
-	# principal_moi = u.get_principal_moi(np.mean(mass),data)
 	
 	
 	alphai = principal_moi/(0.4*np.sum(mass)*effective_radius**2)
+	# alphai = principal_moi/(0.4*np.sum(vol)*effective_radius**2)
 	
 	a = effective_radius * np.sqrt(alphai[1] + alphai[2] - alphai[0])
 	b = effective_radius * np.sqrt(alphai[2] + alphai[0] - alphai[1])
@@ -155,6 +158,7 @@ def calc_from_size(size,directory,existing_headers,existing_values,requested_hea
 
 
 if __name__ == '__main__':
+	# print(calc_porosity_abc("/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobsCosine/lognormrelax_0/N_300/T_1000/",300,True))
 	with open(project_path+"default_files/default_input.json",'r') as fp:
 		input_json = json.load(fp)
 	
@@ -163,17 +167,17 @@ if __name__ == '__main__':
 	# data_prefolder = path + 'jobsNovus/const_relax'
 	# data_prefolder = path + 'jobsCosine/lognormrelax_*'
 
-	data_file = "test_job_data.csv" #without centering #mean mass
-	data_file = "test_RKBMs_job_data.csv" #print both ways of RKBM
-	data_file = "test_maxnc_job_data.csv" #max nc
-	data_file = "DELETE_job_data.csv" #with centering 
-	data_file = "nonrelax_job_data.csv" #This nonrelax data follows the Df figure in paper
+	# data_file = "test_job_data.csv" #without centering #mean mass
+	# data_file = "test_RKBMs_job_data.csv" #print both ways of RKBM
+	# data_file = "test_maxnc_job_data.csv" #max nc
+	# data_file = "DELETE_job_data.csv" #with centering 
+	# data_file = "nonrelax_job_data.csv" #This nonrelax data follows the Df figure in paper
 	data_file = "job_data.csv" #with centering
 
 
 
 
-	N = [30,100,300]
+	N = [300]
 
 	#list of the functions that calculate the data you want
 	#if adding to this list, name your function calc_*header_name*
@@ -191,30 +195,25 @@ if __name__ == '__main__':
 	for n_i,n in enumerate(N):
 	
 		data_folders = []
-		# data_folders = path + 'jobs/BAPA_*'
+		data_folders = [path + 'jobs/BAPA_*']
+		# data_folders = [path + 'jobs/BAPA_0/M_60/*']
 		# data_folders = [path + 'jobs/SeqStickConst_*/']
-		# data_folders = path + 'jobsCosine/lognorm_*/N_300/T_*/'
-		# data_folders = path + 'jobsCosine/lognorm_*/N_300/T_*/'
+		# data_folders = [path + 'jobsCosine/lognorm_*/N_300/T_*/']
+		# data_folders = [path + 'jobsCosine/lognorm_*/N_300/T_*/']
 		# data_folders = [path + 'jobsNovus/const_*/N_300/T_1000/']
 		# data_folders = data_folders + [path + 'jobsNovus/const_*/N_300/T_3/']
 		# data_folders.append(path + f'jobsNovus/constrelax_*/N_{n}/*')
-		# data_folders = path + 'jobsNovus/constrelax_*/N_300/T_*/'
+		# data_folders = [path + 'jobsNovus/constrelax_*/N_300/T_*/']
 
 		# data_folders.append(path + 'jobs/SeqStickLognormrelax*/')
 		# data_folders.append(path + 'jobs/SeqStickConstrelax*/')
 		
-		data_folders.append(path + f'jobsNovus/constrelax_*/N_{n}/*')
-		data_folders.append(path + f'jobsCosine/lognormrelax_*/N_{n}/*')
+		# data_folders.append(path + f'jobsNovus/constrelax_*/N_{n}/*')
+		# data_folders.append(path + f'jobsCosine/lognormrelax_*/N_{n}/*')
 
 		possible_dirs = []
 		for data_folder in data_folders:
 			possible_dirs.extend(u.get_directores_containing(data_folder,["timing.txt"]))
-
-
-
-
-		
-
 
 
 		#list of intermediate sizes to calculate data for.
@@ -223,9 +222,6 @@ if __name__ == '__main__':
 		requested_sizes = [n]
 
 
-
-		# possible_dirs = ['/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_0/M_20/N_300/T_1000/']
-		# print(possible_dirs)
 		for directory in possible_dirs:
 			relax = ("relax" in directory)
 			# relax = False
