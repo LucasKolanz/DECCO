@@ -106,7 +106,7 @@ def main():
 	job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + 'jobs/BAPA_$a$/M_$m$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobs/constrollingfric$a$/N_$n$/T_$t$/'
+	# job = input_json["data_directory"] + 'jobs/constrollingfric$a$/N_$n$/T_$t$/'
 	# job = input_json["data_directory"] + 'jobsNovus/constantX_relax$a$/N_$n$/T_$t$/'
 	print(job)
 
@@ -116,12 +116,12 @@ def main():
 
 	# N = [30,100,300]
 	N = [300]
-	M = []
-	# N=[5]
+	M = [3,5,10,15]
+	# M=[]
+	# Temps = [3,10,30,100,300,1000]
+	Temps = [1000]
 
-	Temps = [3,10,30,100,300,1000]
 
-	# Temps = [3]
 
 	#attempts needs to be first, otherwise follow the order in the list of patterns (called patterns)
 	unrolled = unroll(attempts,M,N,Temps)

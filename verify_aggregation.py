@@ -82,6 +82,7 @@ if __name__ == '__main__':
 	path = input_json["data_directory"]
 
 	data_prefolder = path + 'jobs/BAPA_*'
+	# data_prefolder = path + 'jobs/constrollingfric*'
 	# data_prefolder = '/home/kolanzl/Desktop/Visualize/V19/'
 
 	possible_dirs = u.get_directores(data_prefolder)
@@ -96,7 +97,7 @@ if __name__ == '__main__':
 		has_failed = False
 		failed_indices = []
 		for index in u.get_all_indices(directory,checkpoint=False):
-			print(index)
+			# print(index)
 			try:
 				pos,_,_,radius,_,_ = u.get_all_data(directory,data_index=index,linenum=-1,relax=False)
 			except:
@@ -107,12 +108,17 @@ if __name__ == '__main__':
 				has_failed = True
 				failed_indices.append(index)
 		if has_failed:
-			failed_files.append([str(i)+"_*" for i in failed_indices])
-			failed_folders.append(directory)
+			print(f"directory failed connection check: {directory}")
+			print(f"\tfor indices: {failed_indices}")
+			# failed_files.append([str(i)+"_*" for i in failed_indices])
+			# failed_folders.append(directory)
 	
-
 	print("The following folders had AttributeError when attempting to get data:")
 	print(attErrs)
+
+	print(failed_folders)
+	print(failed_files)
+	exit(0)
 	# for f_i,failed_folder in enumerate(failed_folders):
 	# 	print(f"folder: {failed_folder}")
 	# 	for file in failed_folder[f_i]:

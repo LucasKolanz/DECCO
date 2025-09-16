@@ -196,6 +196,7 @@ if __name__ == '__main__':
 	
 		data_folders = []
 		data_folders = [path + 'jobs/BAPA_*']
+		data_folders = [path + 'jobs/constrollingfric*']
 		# data_folders = [path + 'jobs/BAPA_0/M_60/*']
 		# data_folders = [path + 'jobs/SeqStickConst_*/']
 		# data_folders = [path + 'jobsCosine/lognorm_*/N_300/T_*/']

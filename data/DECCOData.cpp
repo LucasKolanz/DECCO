@@ -321,7 +321,6 @@ std::vector<double> HDF5Handler::readFile(const std::string datasetName, hsize_t
         dataspace.getSimpleExtentDims(dims_out, NULL);
         hsize_t total_size = dims_out[0];
 
-
         if (start > total_size)
         {
         	MPIsafe_print(std::cerr, "DECCOData ERROR: invalid start input\n");
@@ -867,23 +866,12 @@ std::string HDF5Handler::genTimingMetaData(int width)
 
 
 
-// __attribute__((optimize("O0")))
 H5::DataSet HDF5Handler::createDataSet(std::vector<double>& data,const std::string datasetName,
 										int fileExists,int max_size)
 {
 	H5::H5File file;
     H5::DataSet dataset;
     H5::DataSpace dataspace;
-    // std::cout<<"Filename in create: "<<filename<<std::endl;
-    // std::cout<<"datasetName: "<<datasetName<<std::endl;
-    // std::cout<<"data: "<<data[0]<<std::endl;
-    // int i;
-	// for (i = 0; i < data.size()-1; i++)
-	// {
-	// 	std::cout<<data[i]<<", ";
-	// }
-	// std::cout<<data[i]<<std::endl;
-    // printVec(data);
 
     if (fileExists == 1)//fileExists
     {
@@ -1206,11 +1194,10 @@ std::vector<double> DECCOData::Read(std::string data_type, bool all, int line,st
 					// start = line*widths[data_index];
 				}
 
+	std::cerr<<"writes: "<<writes<<std::endl;
+
 				data_read = H.readFile(data_type,start,widths[data_index]);
-				// for (int i = 0; i < data_read.size(); i++)
-				// {
-				// 	std::cerr<<data_read[i]<<", ";
-				// }
+
 			}
 		#else // csv's are still being read by functions in ball_group
 			MPIsafe_print(std::cerr,"ERROR: csv file type not yet readable by DECCOData.\n");
@@ -1568,6 +1555,8 @@ std::string find_whole_file_name(std::string path, const int index)
         }
     }
 
+    bool empty = false;
+
     if (getRank() == 0)
     {
 
@@ -1594,6 +1583,8 @@ std::string find_whole_file_name(std::string path, const int index)
 	            }
 	        }
 	    }
+
+	    if (files.empty()) {empty = true;}
 
 	    // Sort by index descending
 	    std::sort(files.begin(), files.end(),
@@ -1649,9 +1640,7 @@ std::string find_whole_file_name(std::string path, const int index)
 		if (!files.empty()) {
             largest_file_name = files.front().second;  // pick the new top
         } else {
-            largest_file_name.clear(); // signal “none”
-            MPIsafe_print(std::cerr,"ERROR: All files deleted in "+path+'\n');
-            MPIsafe_exit(-1);
+            largest_file_name = "";
         }
 	}
 

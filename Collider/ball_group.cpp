@@ -325,6 +325,8 @@ void Ball_group::init_data(int counter = 0)
         MPIsafe_print(std::cerr,message);
         MPIsafe_exit(EXIT_FAILURE);
     }
+
+
     data = new DECCOData(sav_file,\
                         attrs.num_particles,attrs.steps/attrs.skip+1,attrs.steps);
     
@@ -4258,8 +4260,6 @@ Ball_group::sim_looper(unsigned long long start_step=1)
         // #endif
 
         if (write_step) {
-
-            std::cerr<<"WRITING STEP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"<<std::endl;
 
             if (attrs.world_rank == 0)
             {    

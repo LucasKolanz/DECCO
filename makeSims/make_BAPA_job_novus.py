@@ -6,6 +6,10 @@ import random
 import re
 import sys
 
+from datetime import datetime
+
+random.seed(datetime.now().timestamp())
+
 relative_path = "../"
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
@@ -98,8 +102,8 @@ if __name__ == '__main__':
 
 	# runs_at_once = 10
 	# attempts = [10] 
-	attempts = [i for i in range(0,25)]
-	# attempts = [i for i in range(25,30)]
+	# attempts = [i for i in range(0,25)]
+	attempts = [i for i in range(25,30)]
 
 	N = [300] #final size
 	M = [3,5,10,15] #starting sizes
@@ -185,8 +189,8 @@ if __name__ == '__main__':
 						# sbatchfile += "#SBATCH -C gpu\n"
 						# sbatchfile += "#SBATCH -q regular\n"
 						# sbatchfile += "#SBATCH -t 0:10:00\n"
-						# sbatchfile += f'#SBATCH --account=lazzati\n'
-						# sbatchfile += f'#SBATCH --partition=lazzati.q\n'
+						sbatchfile += f'#SBATCH --account=lazzati\n'
+						sbatchfile += f'#SBATCH --partition=lazzati.q\n'
 
 						#NAME ORDER needs to be same as the file path order
 						sbatchfile += f"#SBATCH -J a={attempt},m={m},n={n},t={Temp}\n"
