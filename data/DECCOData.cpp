@@ -1520,7 +1520,6 @@ std::string DECCOData::genTimingMetaData()
 //and returns largest index that passes allConnected for hdf5 
 std::string find_whole_file_name(std::string path, const int index)
 {
-
 	std::string largest_file_name;
 	std::string simDatacsv = "simData.csv";
     std::string datah5 = "data.h5";
@@ -1635,6 +1634,10 @@ std::string find_whole_file_name(std::string path, const int index)
 		            delete_file(file1);
 
 		            it = files.erase(it);
+				}
+				else
+				{
+					break;
 				}
 			}
 			else
