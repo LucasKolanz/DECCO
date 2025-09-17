@@ -49,19 +49,21 @@ def get_status(job_base,unrolled):
 		for v_i,value in enumerate(attrs):
 			if value is not None:
 				job = job.replace(patterns[v_i],str(value))
-				job_status = status(job)
-				if job_status == -1:
-					# print(f"job doesnt exist: {job}")
-					pass
-				elif job_status == 0:
-					# print(f"job is initialized: {job}")
-					pass
-				elif job_status == 1:
-					# print(f"job is started: {job}")
-					
-					unfinished_jobs.append(job)
+		job_status = status(job)
+		if job_status == -1:
+			# print(f"job doesnt exist: {job}")
+			unfinished_jobs.append(job)
+			# pass
+		elif job_status == 0:
+			# print(f"job is initialized: {job}")
+			unfinished_jobs.append(job)
+			# pass
+		elif job_status == 1:
+			# print(f"job is started: {job}")
+			
+			unfinished_jobs.append(job)
 
-				stati[a_i] = job_status
+		stati[a_i] = job_status
 
 	return stati, unfinished_jobs
 
@@ -103,11 +105,12 @@ def main():
 		input_json = json.load(fp)
 
 	
-	job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobs/BAPA_$a$/M_$m$/N_$n$/T_$t$/'
-	# job = input_json["data_directory"] + 'jobs/constrollingfric$a$/N_$n$/T_$t$/'
+	# job = input_json["data_directory"] + 'jobsCosine/lognorm_relax$a$/N_$n$/T_$t$/'
+	# job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
 	# job = input_json["data_directory"] + 'jobsNovus/constantX_relax$a$/N_$n$/T_$t$/'
+	
+	# job = input_json["data_directory"] + 'jobs/BAPA_$a$/M_$m$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobs/constrollingfric$a$/N_$n$/T_$t$/'
 	print(job)
 
 
@@ -116,10 +119,10 @@ def main():
 
 	# N = [30,100,300]
 	N = [300]
-	M = [3,5,10,15]
-	# M=[]
-	# Temps = [3,10,30,100,300,1000]
-	Temps = [1000]
+	# M = [3,5,10,15]
+	M=[]
+	Temps = [3,10,30,100,300,1000]
+	# Temps = [1000]
 
 
 

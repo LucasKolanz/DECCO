@@ -118,7 +118,7 @@ if __name__ == '__main__':
 
 	print(failed_folders)
 	print(failed_files)
-	exit(0)
+
 	# for f_i,failed_folder in enumerate(failed_folders):
 	# 	print(f"folder: {failed_folder}")
 	# 	for file in failed_folder[f_i]:
