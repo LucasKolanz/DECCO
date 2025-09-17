@@ -123,6 +123,7 @@ def main():
 	job_set_names = ["const"]
 	job_set_names = ["lognorm"]
 	job_set_names = ["BAPA"]
+	# job_set_names = ["constrollingfric"]
 	
 
 	attempts = [i for i in range(30)]
@@ -133,8 +134,11 @@ def main():
 
 
 	N = [300]
-	Temps = [1000]
+	Temps = [3,10,30,100,300,1000]
+	# Temps = [1000]
+
 	M = [3,5,10,15]
+	# M = []
 
 	# Temps = [3]
 	for j_i,job_set_name in enumerate(job_set_names):
@@ -143,6 +147,8 @@ def main():
 		elif job_set_name == "const":
 			jobfolder = "jobsNovus"
 		elif job_set_name == "BAPA":
+			jobfolder = "jobs"
+		elif job_set_name == "constrollingfric":
 			jobfolder = "jobs"
 		else:
 			print("ERROR: unrecognized job_set_name.")
@@ -156,6 +162,10 @@ def main():
 									+ "/M_" + str(m) + '/N_' + str(n) + '/T_' + str(Temp) + '/'
 						remote_job_folder = remote_base_folder + 'jobs/' + job_set_name + '_' + str(attempt)\
 									+ "/M_" + str(m) + '/N_' + str(n) + '/T_' + str(Temp) + '/'
+						# local_job_folder = data_directory  + jobfolder + '/' + job_set_name + '' + str(attempt)\
+						# 			+ '/N_' + str(n) + '/T_' + str(Temp) + '/'
+						# remote_job_folder = remote_base_folder + 'jobs/' + job_set_name + '' + str(attempt)\
+						# 			+ '/N_' + str(n) + '/T_' + str(Temp) + '/'
 
 
 						if os.path.exists(local_job_folder+"timing.txt"): #Have we already copied this job over?

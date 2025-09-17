@@ -1511,10 +1511,6 @@ def gen_BPCA_ratio_nonreltorel_vs_temp_plots(show_plots=True,save_plots=False,in
 	print("======================Starting figures======================")
 	# print(data.shape)
 	print("Data has {} nan values".format(np.count_nonzero(np.isnan(raw_data))))
-	
-
-	
-
 
 	#	plt.close("all")
 	plt.rcParams.update({
@@ -1728,15 +1724,160 @@ def gen_BPCA_temp_sensitivity_plots(show_plots=True,save_plots=False,include_tot
 		plt.close()
 
 
+def gen_BPCA_rolling_fric_plots(show_plots=True,save_plots=False,include_totals=False):
+	with open(project_path+"default_files/default_input.json",'r') as fp:
+		input_json = json.load(fp)
+	
+	path = input_json["data_directory"]
+
+
+	temps = [3,10,30,100,300,1000]
+	N = [300]
+	attempts = [i for i in range(30)]
+
+	
+	data_files = []
+	# data_files.append("nonrelax_job_data.csv") #This nonrelax data follows the Df figure in paper
+	data_file = "job_data.csv"
+
+
+	bool_headers = [1,1,0,0]
+	# requested_data_functions = [data_functions[i] for i in range(len(data_functions)) if bool_headers[i]]
+	requested_data_headers = [gd.data_headers[i] for i in range(len(gd.data_headers)) if bool_headers[i]]
+
+	data_prefolders = []
+	data_prefolders.append(path + 'jobs/constrollingfric')
+	data_prefolders.append(path + 'jobsNovus/const_')
+	
+	avg_data = np.full(shape=(len(data_prefolders),len(requested_data_headers),len(N),len(temps)),fill_value=np.nan,dtype=np.float64)
+	std_data = np.full(shape=(len(data_prefolders),len(requested_data_headers),len(N),len(temps)),fill_value=np.nan,dtype=np.float64)
+	num_data = np.full(shape=(len(data_prefolders),len(requested_data_headers),len(N),len(temps)),fill_value=np.nan,dtype=np.float64)
+	err_data = np.full(shape=(len(data_prefolders),len(requested_data_headers),len(N),len(temps)),fill_value=np.nan,dtype=np.float64)
+	for d_i,data_prefolder in enumerate(data_prefolders):
+		dataset_name = data_prefolder.split("/")[-1].strip("_")
+		figure_folder = path+f'data/figures/{dataset_name}/'
+
+		if save_plots and not os.path.exists(figure_folder):
+			os.makedirs(figure_folder)
+
+		relax = ("relax" in data_prefolder)
+		# relax = not ("nonrelax" in data_file)
+		# relax = False
+		print(f"relax: {relax}")
+		rel = ""
+		if relax:
+			rel = "relax_"
+
+		raw_data = np.full(shape=(len(requested_data_headers),len(attempts),len(N),len(temps)),fill_value=np.nan,dtype=np.float64)
+		for a_i,a in enumerate(attempts):
+			for n_i,n in enumerate(N):
+				size = n
+				for t_i,t in enumerate(temps):
+					folder = f"{data_prefolder}{a}/N_{n}/T_{t}/"
+					full_data_path = folder+f"{rel}{data_file}"
+					if os.path.exists(full_data_path):
+						print(f"opening {full_data_path}")
+						with open(full_data_path,'r') as fp:
+							existing_data = fp.readlines()
+
+						existing_sizes = [int(i.split('=')[1].strip("\n\t ")) for i in existing_data if i[:2] == "N="]
+						#even though the data can have other sizes in it, 
+						#we only want the data of size n
+						if size not in existing_sizes:
+							print(f"ERROR: Data of size {n} does not exist for {folder}.")
+							continue
+						index = existing_sizes.index(size)*4
+						existing_headers_for_size = existing_data[index+1].strip("\n\t ").split(",")
+						existing_values_for_size = existing_data[index+2].strip("\n\t ").split(",")
+						
+						for h_i,header in enumerate(requested_data_headers):
+							if header in existing_headers_for_size:
+								raw_data[h_i,a_i,n_i,t_i] = existing_values_for_size[existing_headers_for_size.index(header)]
+					else:
+						print(f"DNE: {full_data_path}")
+
+
+		avg_data[d_i,:,:,:] = np.nanmean(raw_data,axis=1)
+		std_data[d_i,:,:,:] = np.nanstd(raw_data,axis=1)
+		num_data[d_i,:,:,:] = np.count_nonzero(~np.isnan(raw_data),axis=1)
+		err_data[d_i,:,:,:] = std_data[d_i,:,:,:]/np.sqrt(num_data[d_i,:,:,:])
+
+
+	# ratio_data = avg_data[0]/avg_data[1]
+	# ratio_errs = ratio_data*np.sqrt((err_data[0]/avg_data[0])**2+(err_data[1]/avg_data[1])**2)
+
+
+	# print(f"{requested_data_headers[0]}: {avg_data[0,2,0]} +- {err_data[0,2,0]}")
+	# print(f"{requested_data_headers[1]}: {avg_data[1,2,0]} +- {err_data[1,2,0]}")
+
+	
+	print("======================Starting figures======================")
+	# print(data.shape)
+	print("Data has {} nan values".format(np.count_nonzero(np.isnan(raw_data))))
+
+	#	plt.close("all")
+	plt.rcParams.update({
+	    'font.size': 18,
+	    'text.usetex': True,
+	    'text.latex.preamble': r'\usepackage{amsmath} \usepackage{bm}'
+	})
+
+	#Plot metric vs M for all metrics and all N and temps
+	for h_i,header in enumerate(requested_data_headers):
+
+		fig,ax = plt.subplots()
+
+		for n_i,n in enumerate(N):
+			# print(avg_data[h_i,n_i,:])
+			# ax.plot(temps,ratio_data[h_i,n_i,:],\
+			ax.errorbar(temps,avg_data[0,h_i,n_i,:],yerr=err_data[0,h_i,n_i,:],\
+					label=f"rolling fric 0.001 N={n}",\
+					color=colors[h_i],\
+					linestyle=styles[0],\
+					marker='.',markersize=10,zorder=5)
+			if include_totals:
+				for txt_i, txt in enumerate(num_data[0,h_i,n_i,:]):
+					ax.annotate("{:0.0f}".format(txt), (temps[txt_i], avg_data[0,h_i,n_i,txt_i]))
+
+			ax.errorbar(temps,avg_data[1,h_i,n_i,:],yerr=err_data[1,h_i,n_i,:],\
+					label=f"rolling fric 1e-5 N={n}",\
+					color=colors[h_i],\
+					linestyle=styles[1],\
+					marker='.',markersize=10,zorder=5)
+
+			if include_totals:
+				for txt_i, txt in enumerate(num_data[1,h_i,n_i,:]):
+					ax.annotate("{:0.0f}".format(txt), (temps[txt_i], avg_data[1,h_i,n_i,txt_i]))
+
+
+		# if include_totals:
+		# 	for txt_i, txt in enumerate(num_data[h_i,:,n_i,t_i]):
+		# 		ax.annotate("{:0.0f}".format(txt), (M[txt_i], avg_data[h_i,txt_i,n_i,t_i]))
+
+		bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+		ax.set_xlabel('Temperature in K')
+
+		ax.set_ylabel(label_from_header(header))
+		# ax.set_title('{} {} vs Temp'.format(dataset_name,method))
+		ax.set_xscale('log')
+		# if header == requested_data_headers[-1]:
+		fig.legend(loc='upper right',bbox_to_anchor=(0.97, 0.96))
+		plt.tight_layout()
+		if save_plots:
+			plt.savefig("{}{}_{}_rationonreltorelovertemp.png".format(figure_folder,dataset_name,header))
+		if show_plots:
+			plt.show() 
+		plt.close()
+
 
 if __name__ == '__main__':
 	#Do you want to see plots of the data as they are made?
 	show_plots = True
 	#Do you want to save the plots once they are made?
-	save_plots = True
+	save_plots = False
 	#Do you want the number of runs next to each point on the plots
 	#so you know how many more runs need to finish
-	include_totals = False
+	include_totals = True
 
 
 
@@ -1753,11 +1894,12 @@ if __name__ == '__main__':
 	# gen_relax_vs_tense_seqstick_plots(distribution="lognormal",show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 
 	# gen_BPCA_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
-	gen_BPCA_ratio_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
+	# gen_BPCA_ratio_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_temp_sensitivity_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_ratio_bugbetter_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_double_ratio_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_ratio_nonreltorel_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
+	gen_BPCA_rolling_fric_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 
 
 

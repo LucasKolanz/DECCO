@@ -12,6 +12,7 @@
 jobs/*
 jobsCosine/*
 erroredJobs/*
+tmp/*
 
 RenderOption*
 

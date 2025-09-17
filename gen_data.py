@@ -209,6 +209,7 @@ if __name__ == '__main__':
 		# data_folders.append(path + 'jobs/SeqStickLognormrelax*/')
 		# data_folders.append(path + 'jobs/SeqStickConstrelax*/')
 		
+		# data_folders.append(path + f'jobsNovus/const_*/N_{n}/*')
 		# data_folders.append(path + f'jobsNovus/constrelax_*/N_{n}/*')
 		# data_folders.append(path + f'jobsCosine/lognormrelax_*/N_{n}/*')
 
