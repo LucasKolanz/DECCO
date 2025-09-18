@@ -126,10 +126,38 @@ Ball_group::Ball_group(const Ball_group& rhs)
 
 }
 
-// Initializes relax job (only new, not for restart)
+// Initializes relax job (only new, restart is not ready yet)
 void Ball_group::relaxInit(const std::string path)
 {
-    std::string filename = find_file_name(path,attrs.relax_index); 
+    int restart;
+    restart = check_restart(path,/*relax=*/true);
+    bool relax;
+    int index;
+    std::string filename;
+
+    if (restart == 1)
+    {
+        filename = find_restart_point(path,-1,/*relax=*/true); 
+        MPIsafe_print(std::cerr,"Restarting is not yet ready for relax jobs. Finish this section to use it.");
+        MPIsafe_exit(0);
+    }
+    else if (restart == 0)
+    {
+        filename = find_file_name(path,attrs.relax_index,/*relax=*/false);
+    }
+    // If the simulation is complete exit now. Otherwise, the call to 
+    //find_restart_point will possibly delete one of the data files 
+    else if (restart == 2)
+    {
+        MPIsafe_print(std::cerr,"Simulation already complete. Now exiting. . .\n");
+        MPIsafe_exit(0);
+    }
+    else
+    {
+        std::string message("ERROR: restart code '"+std::to_string(restart)+"' not recognized.\n");
+        MPIsafe_print(std::cerr,message);
+        MPIsafe_exit(-1);
+    }
 
     loadSim(path, filename.substr(filename.find_last_of('/')+1,filename.size()));
     zeroVel();
@@ -149,6 +177,7 @@ void Ball_group::relaxInit(const std::string path)
         // calibrate_dt(0, attrs.v_custom);
     }
     simInit_cond_and_center(false);
+  
 
 }
 
@@ -177,13 +206,13 @@ void Ball_group::aggregationInit(const std::string path,const int index)
     }
 
     // If the simulation is complete exit now. Otherwise, the call to 
-    //find_whole_file_name will possibly delete one of the data files 
+    //find_restart_point will possibly delete one of the data files 
     if (restart == 2)
     {
         MPIsafe_print(std::cerr,"Simulation already complete. Now exiting. . .\n");
         MPIsafe_exit(0);
     }
-    std::string filename = find_whole_file_name(path,index);
+    std::string filename = find_restart_point(path,index);
 
     bool just_restart = false;
 
@@ -3092,12 +3121,28 @@ void Ball_group::sim_init_two_cluster(
     //                 rounder(attrs.impactParameter * 180 / 3.14159, 2) + "_rho" + rounder(attrs.density, 4);
 }
 
+
+
 // @brief checks if this is new job or restart.
 // @returns 0 if this is starting from scratch
 // @returns 1 if this is a restart
 // @returns 2 if this job is already finished
-int Ball_group::check_restart(std::string folder) 
+int Ball_group::check_restart(std::string folder,bool relax/*=false*/) 
 {
+    std::string simDatacsv;
+    std::string datah5;
+
+    if (relax)
+    {
+        simDatacsv = "_RELAXsimData.csv";
+        datah5 = "_RELAXdata.h5";
+    }
+    else
+    {
+        simDatacsv = "_simData.csv";
+        datah5 = "_data.h5";
+    }
+
     std::string file;
     // int tot_count = 0;
     // int file_count = 0;
@@ -3117,24 +3162,20 @@ int Ball_group::check_restart(std::string folder)
         }
 
         //Is the data in csv format? (and isnt job_data.csv)
-        if (file.size() >= 4 && file.substr(file.size()-4,file.size()) == ".csv" && file != "job_data.csv")
+        if (file.size() >= simDatacsv.size() && file.substr(file.size()-simDatacsv.size(),file.size()) == simDatacsv)
         {
             // file_count++;
             size_t _pos = file.find_first_of("_");
             size_t _secpos = file.substr(_pos+1,file.size()).find_first_of("_");
             _secpos += _pos+1; //add 1 to account for _pos+1 in substr above
             file_index = stoi(file.substr(0,file.find_first_of("_")));
-            if (file[_pos+1] == 'R')
-            {
-                file_index = 0;
-            }
 
             if (file_index > largest_file_index)
             {
                 largest_file_index = file_index;
             }
         }
-        else if (file.size() >= 3 && file.substr(file.size()-3,file.size()) == ".h5")
+        else if (file.size() >= datah5.size() && file.substr(file.size()-datah5.size(),file.size()) == datah5)
         {
             size_t _pos = file.find_first_of("_");
             file_index = stoi(file.substr(0,file.find_first_of("_")));
@@ -3200,74 +3241,7 @@ int Ball_group::get_num_threads()
 }
 
 
-std::string Ball_group::find_file_name(std::string path,int index)
-{
-    std::string file;
-    const std::string simDatacsv = "simData.csv";
-    const std::string datah5 = "data.h5";
-    int file_index;
 
-
-    for (const auto & entry : fs::directory_iterator(path))
-    {
-
-        file = entry.path();
-        size_t slash_pos = file.find_last_of("/");
-        file = file.erase(0,slash_pos+1);
-        size_t _pos = file.find_first_of("_");
-
-        if (_pos != std::string::npos) // only go in here if we found a data file
-        {
-            //Is the data in csv format? (but first verify the call to substr wont fail)
-            if (file.size() >= simDatacsv.size() && file.substr(file.size()-simDatacsv.size(),file.size()) == simDatacsv)
-            {
-                int num_ = std::count(file.begin(),file.end(),'_');
-                file_index = stoi(file.substr(0,file.find_first_of("_")));
-                if (num_ > 1) // old name convention
-                {
-                    if (index == 0)
-                    {
-                        if (file[_pos+1] == 'R')
-                        {
-                            return path+file;
-                        }
-                    }
-                    else if (index > 0)
-                    {
-                        if (file_index == index)
-                        {
-                            return path+file;
-                        }
-                    }
-                }
-                else if (num_ == 1) // new name convention ONLY TESTED WITH THIS CASE
-                {
-                    if (file_index == index)
-                    {
-                        return path+file;
-                    }
-                }
-                else
-                {
-                    MPIsafe_print(std::cerr,"ERROR: filename convention is not recognized for file '"+file+"'\n");
-                    exit(-1);
-                }
-
-            }
-            else if (file.size() >= datah5.size() && file.substr(file.size()-datah5.size(),file.size()) == datah5)
-            {
-                file_index = stoi(file.substr(0,file.find_first_of("_")));
-                if (file_index == index)
-                {
-                    return path+file;
-                }
-            }
-        }
-    }
-    
-    MPIsafe_print(std::cerr,"ERROR: file at path '"+path+"' with index '"+std::to_string(index)+"' not found. Now exiting . . .\n");
-    exit(-1);
-}
 
 
 //Returns the path + filename of the specified index

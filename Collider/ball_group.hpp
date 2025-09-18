@@ -422,13 +422,13 @@ public:
     void merge_ball_group(const Ball_group& src,const bool includeRadius=true);
     void freeMemory() const;
     // std::string find_whole_file_name(std::string path,const int index=-1);
-    int check_restart(std::string folder);
+    int check_restart(std::string folder,bool restart=false);
     #ifdef HDF5_ENABLE
         void loadDatafromH5(std::string path, std::string file);
     #endif
     std::string get_data_info();
     void parse_meta_data(std::string metadata);
-    std::string find_file_name(std::string path,int index);
+
     int get_num_threads();
 
 

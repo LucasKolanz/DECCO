@@ -245,7 +245,8 @@ private:
 
 };
 
-std::string find_whole_file_name(std::string path, const int index);
+std::string find_restart_point(std::string path, const int index,bool relax=false);
+std::string find_file_name(std::string path,int index,bool relax=false);
 void delete_file(const std::string& delete_me);
 
 

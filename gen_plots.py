@@ -1747,7 +1747,7 @@ def gen_BPCA_rolling_fric_plots(show_plots=True,save_plots=False,include_totals=
 
 	data_prefolders = []
 	data_prefolders.append(path + 'jobs/constrollingfric')
-	data_prefolders.append(path + 'jobsNovus/const_')
+	data_prefolders.append(path + 'jobsNovus/constrelax_')
 	
 	avg_data = np.full(shape=(len(data_prefolders),len(requested_data_headers),len(N),len(temps)),fill_value=np.nan,dtype=np.float64)
 	std_data = np.full(shape=(len(data_prefolders),len(requested_data_headers),len(N),len(temps)),fill_value=np.nan,dtype=np.float64)
