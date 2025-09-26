@@ -8,69 +8,15 @@ import sys
 
 from datetime import datetime
 
-random.seed(datetime.now().timestamp())
 
 relative_path = "../"
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
 
 sys.path.append(project_path+"utilities/")
-# sys.path.append("/home/kolanzl/Desktop/SpaceLab/")
 import utils as u
 
-##These functions should be in utils but putting them here because utils wont commit ??
-def get_squeue_output():
-    try:
-        # Run the squeue command and capture its output
 
-        result = subprocess.run(['squeue', '-o', '"%.20u %.25j"'], capture_output=True, text=True)
-        output = result.stdout
-        return output
-    except subprocess.CalledProcessError as e:
-        # Handle any errors that occur during the command execution
-        print(f"Error executing squeue: {e}")
-        return None
-
-
-def same_job(fullpath, job_name):
-
-	fpsplit = fullpath.split('/')
-	start_ind = fpsplit.index("SpaceLab_data") + 1
-
-	fpattrs = re.split(r'\D+',"".join(fpsplit[start_ind:-1]))
-	fpattrs = [int(i) for i in fpattrs if len(i) > 0]
-	
-	qattrs = re.split(r'\D+',job_name)
-	qattrs = [int(i) for i in qattrs if len(i) > 0]
-
-
-	if len(fpattrs) != len(qattrs):
-		return False
-		# print("ERROR IN same_job")
-		# exit(0)
-
-	for i in range(len(qattrs)):
-		if fpattrs[i] != qattrs[i]:
-			return False
-	return True
-
-def on_queue(fullpath):
-	queue_out = get_squeue_output()
-	for line in queue_out.split('\n')[1:]:
-		line = line.strip('"').split()
-		if len(line) > 0:
-			if line[0] == "kolanzl" and line[1] != "interactive":
-				if same_job(fullpath,line[1]):
-					return True
-	return False
-
-
-def rand_int():
-	# Generating a random integer from 0 to the maximum unsigned integer in C++
-	# In C++, the maximum value for an unsigned int is typically 2^32 - 1
-	max_unsigned_int_cpp = 2**32 - 1
-	random_unsigned_int = random.randint(0, max_unsigned_int_cpp)
-	return random_unsigned_int
 
 def run_job(location):
 	output_file = location + "sim_output.txt"
@@ -102,12 +48,12 @@ if __name__ == '__main__':
 
 	# runs_at_once = 10
 	# attempts = [10] 
-	# attempts = [i for i in range(0,25)]
-	attempts = [i for i in range(25,30)]
+	attempts = [i for i in range(0,25)]
+	# attempts = [i for i in range(25,30)]
 
 	N = [300] #final size
 	M = [3,5,10,15] #starting sizes
-	# M = [3] 
+	# M = [5] 
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [1000]
@@ -134,6 +80,7 @@ if __name__ == '__main__':
 					
 					# job = curr_folder + 'jobs/' + job_set_name + str(attempt) + '/'
 					job = job_template.replace('{a}',str(attempt)).replace('{m}',str(m)).replace('{n}',str(n)).replace('{t}',str(Temp))
+					# job = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/fixme/"
 
 					# print(rand_int())
 					if not os.path.exists(job):
@@ -145,7 +92,7 @@ if __name__ == '__main__':
 					if os.path.exists(job+"timing.txt"):
 						print(f"Sim already complete: {job}")
 
-					elif on_queue(job):
+					elif u.on_queue(job):
 						print(f"Sim already on queue: {job}")
 					else:
 						print(f"(Re)Starting job: {job}")
@@ -159,8 +106,8 @@ if __name__ == '__main__':
 						input_json['MPInodes'] = 1
 						input_json['impactParameter'] = -1.0
 
-						input_json['seed'] = rand_int()
-						# input_json['seed'] = 101
+						input_json['seed'] = u.rand_int()
+						# input_json['seed'] = -1372429765
 
 						# input_json['radiiDistribution'] = 'logNormal'
 						# input_json['h_min'] = 0.5
@@ -172,7 +119,7 @@ if __name__ == '__main__':
 
 						input_json['dataFormat'] = "csv"
 						input_json['simType'] = "BAPA"
-						input_json['random_folder_template'] = input_json['data_directory']+"/localLognormData/lognorm{a}/N_30/T_1000/"
+						input_json['random_folder_template'] = input_json['data_directory']+"localLognormData/lognorm{a}/N_30/T_1000/"
 
 						# input_json['u_s'] = 0.5
 						# input_json['u_r'] = 0.5
@@ -189,8 +136,8 @@ if __name__ == '__main__':
 						# sbatchfile += "#SBATCH -C gpu\n"
 						# sbatchfile += "#SBATCH -q regular\n"
 						# sbatchfile += "#SBATCH -t 0:10:00\n"
-						sbatchfile += f'#SBATCH --account=lazzati\n'
-						sbatchfile += f'#SBATCH --partition=lazzati.q\n'
+						# sbatchfile += f'#SBATCH --account=lazzati\n'
+						# sbatchfile += f'#SBATCH --partition=lazzati.q\n'
 
 						#NAME ORDER needs to be same as the file path order
 						sbatchfile += f"#SBATCH -J a={attempt},m={m},n={n},t={Temp}\n"
@@ -248,10 +195,10 @@ if __name__ == '__main__':
 
 
 	print(folders)
-	cwd = os.getcwd()
-	for folder in folders:
-		os.chdir(folder)
-		os.system('sbatch sbatchMulti.bash')
-	os.chdir(cwd)
+	# cwd = os.getcwd()
+	# for folder in folders:
+	# 	os.chdir(folder)
+	# 	os.system('sbatch sbatchMulti.bash')
+	# os.chdir(cwd)
 
 	

@@ -8,18 +8,9 @@ relative_path = "../"
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
 
+sys.path.append(project_path+"utilities/")
+import utils as u
 
-	# out = os.system("./ColliderSingleCore.o {}".format(curr_folder))
-	# out = os.system("./ColliderSingleCore.o {} 1>> {} 2>> {}".format(curr_folder,output_file,error_file))
-	
-	# cmd = ["srun","-n","1","-c","2","{}ColliderSingleCore.x".format(location), location, str(num_balls)]
-
-def rand_int():
-	# Generating a random integer from 0 to the maximum unsigned integer in C++
-	# In C++, the maximum value for an unsigned int is typically 2^32 - 1
-	max_unsigned_int_cpp = 2**32 - 1
-	random_unsigned_int = random.randint(0, max_unsigned_int_cpp)
-	return random_unsigned_int
 
 def run_job(location):
 	output_file = location + "sim_output.txt"
@@ -62,7 +53,7 @@ if __name__ == '__main__':
 	with open(project_path+"default_files/default_input.json",'r') as fp:
 		input_json = json.load(fp)
 
-	job_template = input_json["data_directory"] + 'jobs/' + job_set_name + '{a}/N_{n}/T_{t}/'
+	job_template = input_json["data_directory"] + 'jobs/' + job_set_name + '_{a}/N_{n}/T_{t}/'
 
 	for attempt in attempts:
 		for n in N:
@@ -89,7 +80,7 @@ if __name__ == '__main__':
 				input_json['MPInodes'] = 1
 				input_json['impactParameter'] = -1.0
 
-				input_json['seed'] = rand_int()
+				input_json['seed'] = u.rand_int()
 				# input_json['seed'] = 101
 
 				input_json['radiiDistribution'] = 'logNormal'

@@ -15,6 +15,9 @@ import h5py
 #from treelib import Node, Tree
 import time
 from itertools import combinations
+from itertools import product
+import subprocess
+import re
 # cwd = os.getcwd()
 # os.system("cd /home/kolanzl/Open3D/build")
 # sys.path.append("/home/kolanzl/Open3D/build/lib/python_package/open3d")
@@ -47,6 +50,8 @@ data_columns = 11
 
 # def cube(V):
 	# return
+
+
 
 #this function taken from 
 #https://scipython.com/book/chapter-6-numpy/problems/p65/the-moment-of-inertia-tensor/
@@ -1388,6 +1393,11 @@ class o3doctree(object):
 		return early_stop
 
 
+############################Helpful Functions############################
+def unroll(*lists):
+    normalized = [lst if len(lst) > 0 else [None] for lst in lists]
+    return list(product(*normalized))
+
 #############################Novus Functions#############################
 def get_squeue_output():
     try:
@@ -1413,9 +1423,11 @@ def same_job(fullpath, job_name):
 	qattrs = re.split(r'\D+',job_name)
 	qattrs = [int(i) for i in qattrs if len(i) > 0]
 
+
 	if len(fpattrs) != len(qattrs):
-		print("ERROR IN same_job")
-		exit(0)
+		return False
+		# print("ERROR IN same_job")
+		# exit(0)
 
 	for i in range(len(qattrs)):
 		if fpattrs[i] != qattrs[i]:
@@ -1431,3 +1443,12 @@ def on_queue(fullpath):
 				if same_job(fullpath,line[1]):
 					return True
 	return False
+
+
+def rand_int():
+	random.seed(datetime.now().timestamp())
+	# Generating a random integer from 0 to the maximum unsigned integer in C++
+	# In C++, the maximum value for an unsigned int is typically 2^32 - 1
+	max_unsigned_int_cpp = 2**32 - 1
+	random_unsigned_int = random.randint(0, max_unsigned_int_cpp)
+	return random_unsigned_int

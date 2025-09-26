@@ -93,7 +93,7 @@ if __name__ == '__main__':
 	# runs_at_once = 7
 
 	attempts = [i for i in range(30)]
-	# attempts = [0]
+	# attempts = [19]
 
 
 	#test it out first
@@ -103,7 +103,7 @@ if __name__ == '__main__':
 	node = 1
 	N = [300]
 	Temps = [3,10,30,100,300,1000]
-	# Temps = [1000]
+	# Temps = [100]
 
 	folders = []
 	for n in N:
@@ -121,6 +121,7 @@ if __name__ == '__main__':
 
 				job = input_json["data_directory"] + 'jobs/' + job_set_name + str(attempt) + '/'\
 							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
+				# job = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/fixme/"
 
 				if not os.path.exists(job):
 					os.makedirs(job)

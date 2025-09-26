@@ -139,7 +139,7 @@ if __name__ == '__main__':
 				with open(project_path+"default_files/default_input.json",'r') as fp:
 					input_json = json.load(fp)
 
-				job = input_json["data_directory"] + 'jobs/' + job_set_name + str(attempt) + '/'\
+				job = input_json["data_directory"] + 'jobs/' + job_set_name + '_' + str(attempt) + '/'\
 							+ 'N_' + str(ns[0])+'-'+str(ns[1]) + '/' + 'eta_' + str(eta) + '/'
 
 				if not os.path.exists(job):

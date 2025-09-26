@@ -112,8 +112,8 @@ def main():
 	)
 
 
-	plt.savefig(path + f'data/figures/ColoredAggComp_{job_group}.png',dpi=1500)
-	# plt.show()
+	# plt.savefig(path + f'data/figures/ColoredAggComp_{job_group}.png',dpi=1500)
+	plt.show()
 
 if __name__ == '__main__':
 	main()
