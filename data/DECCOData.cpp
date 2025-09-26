@@ -1505,11 +1505,26 @@ std::string DECCOData::genTimingMetaData()
 //Returns the path + filename of the specified index
 //If index < 0 (default is -1) then it will return the largest (completed) index for csv
 //and returns largest index that passes allConnected for hdf5 
-std::string find_whole_file_name(std::string path, const int index)
+//If relax is true, it looks for the relax file instead of the regular file.
+std::string find_restart_point(std::string path, const int index,bool relax/*=false*/)
 {
+	std::string simDatacsv;
+	std::string datah5;
+	std::string relax_string = "RELAX";
+
+	if (relax)
+    {
+    	simDatacsv = "_RELAXsimData.csv";
+	    datah5 = "_RELAXdata.h5";
+    }
+    else
+    {
+	    simDatacsv = "_simData.csv";
+	    datah5 = "_data.h5";
+    }
 	std::string largest_file_name;
-	std::string simDatacsv = "simData.csv";
-    std::string datah5 = "data.h5";
+	// std::string simDatacsv = "simData.csv";
+    // std::string datah5 = "data.h5";
     int csv = -1;
     std::string dataType = data_type_from_input(path);
     if (dataType == "csv")
@@ -1523,18 +1538,18 @@ std::string find_whole_file_name(std::string path, const int index)
     else
     {
         std::string test_file = path+std::to_string(index);
-        if (fs::exists(test_file+"_simData.csv"))
+        if (fs::exists(test_file+simDatacsv))
         {
-            return test_file + "_simData.csv";
+            return test_file + simDatacsv;
         }
-        else if (fs::exists(test_file+"_data.h5"))
+        else if (fs::exists(test_file+datah5))
         {
-            return test_file + "_data.h5";
+            return test_file + datah5;
         }
-        else if (fs::exists(test_file+"_data.hdf5"))
-        {
-            return test_file + "_data.hdf5";
-        }
+        // else if (fs::exists(test_file+"_data.hdf5"))
+        // {
+        //     return test_file + "_data.hdf5";
+        // }
         else
         {
             MPIsafe_print(std::cerr,"ERROR in find_whole_file_name: dataType '"+dataType+"' not recognized.");
@@ -1547,11 +1562,11 @@ std::string find_whole_file_name(std::string path, const int index)
     {
         if (csv == 1)
         {
-            return std::to_string(index) + "_" + simDatacsv;
+            return path + std::to_string(index) + simDatacsv;
         }
         else
         {
-            return std::to_string(index) + "_" + datah5;
+            return path + std::to_string(index) + datah5;
         }
     }
 
@@ -1563,11 +1578,14 @@ std::string find_whole_file_name(std::string path, const int index)
 	    std::regex pattern;
 	    if (csv)
 	    {
-	    	pattern = std::regex(R"((\d+)_simData\.csv)");
+	    	if (relax){pattern = std::regex(R"((\d+)_RELAXsimData\.csv)");}
+	    	else {pattern = std::regex(R"((\d+)_simData\.csv)");}
 	    }
 	    else
 	    {
-	    	pattern = std::regex(R"((\d+)_data\.h5)");
+	    	if (relax){pattern = std::regex(R"((\d+)_RELAXdata\.h5)");}
+	    	else {pattern = std::regex(R"((\d+)_data\.h5)");}
+	    	
 	    }
 
 	    // Store (index, filename) pairs
@@ -1597,14 +1615,15 @@ std::string find_whole_file_name(std::string path, const int index)
 	    {	
 	    	const auto idx  = it->first;
 			const auto name = it->second;
-	    	bool checkpoint_exists = fs::exists(path+std::to_string(idx)+"_checkpoint.txt");
+			std::string checkpt_file = path+std::to_string(idx)+"_"+relax_string+"checkpoint.txt";
+	    	bool checkpoint_exists = fs::exists(checkpt_file);
 
 	    	if (csv == 1 && index < 0 && !checkpoint_exists) 
 		    {
 
 	            std::string file1 = path + name;
-	            std::string file2 = path + name.substr(0,name.size()-simDatacsv.size()) + "constants.csv";
-	            std::string file3 = path + name.substr(0,name.size()-simDatacsv.size()) + "energy.csv";
+	            std::string file2 = path + name.substr(0,name.size()-simDatacsv.size()) + relax_string + "constants.csv";
+	            std::string file3 = path + name.substr(0,name.size()-simDatacsv.size()) + relax_string + "energy.csv";
 
 	            std::cerr<<"Removing the following files: \n\t"<<file1<<"\n\t"<<file2<<"\n\t"<<file3<<std::endl;
 
@@ -1617,12 +1636,14 @@ std::string find_whole_file_name(std::string path, const int index)
 			else if (csv == 0 && index < 0 && !checkpoint_exists)
 			{
 		    	Ball_group temp(idx);
-		    	temp.loadSim(path,name,false);
+		    	temp.loadSim(path,name,/*verbose=*/false);
 		        if (!isConnected(temp.pos,temp.R,temp.attrs.num_particles))
 		        {
 		            std::string file1 = path + name;
 	            	std::cerr<<"Removing the following files: \n\t"<<file1<<std::endl;
 		            delete_file(file1);
+	            	// std::cerr<<"Removing the following files: \n\t"<<checkpt_file<<std::endl;
+		            // delete_file(checkpt_file);
 
 		            it = files.erase(it);
 				}
@@ -1646,7 +1667,66 @@ std::string find_whole_file_name(std::string path, const int index)
 
 	MPIsafe_bcast_string(largest_file_name, /*root=*/0);
 
-    return largest_file_name;
+    return path + largest_file_name;
+}
+
+//This function returns the name of the file in the directory path with the index index.
+//If relax is true, it looks for the relax file instead of the regular file
+//It differes from find_whole_file_name because it won't delete anything and you give an index of -1.
+std::string find_file_name(std::string path,int index,bool relax/*=false*/)
+{
+    std::string simDatacsv;
+	std::string datah5;
+
+	if (relax)
+    {
+    	simDatacsv = "_RELAXsimData.csv";
+	    datah5 = "_RELAXdata.h5";
+    }
+    else
+    {
+	    simDatacsv = "_simData.csv";
+	    datah5 = "_data.h5";
+    }
+
+    std::string file;
+    int file_index;
+
+
+    for (const auto & entry : fs::directory_iterator(path))
+    {
+
+        file = entry.path();
+        size_t slash_pos = file.find_last_of("/");
+        file = file.erase(0,slash_pos+1);
+        size_t _pos = file.find_first_of("_");
+
+        if (_pos != std::string::npos) // only go in here if we found a data file
+        {
+            //Is the data in csv format? (but first verify the call to substr wont fail)
+            if (file.size() >= simDatacsv.size() && file.substr(file.size()-simDatacsv.size(),file.size()) == simDatacsv)
+            {
+                file_index = stoi(file.substr(0,file.find_first_of("_")));
+               
+                if (file_index == index)
+                {
+                    return path+file;
+                }
+
+            }
+            else if (file.size() >= datah5.size() && file.substr(file.size()-datah5.size(),file.size()) == datah5)
+            {
+                file_index = stoi(file.substr(0,file.find_first_of("_")));
+                if (file_index == index)
+                {
+                    return path+file;
+                }
+            }
+        }
+    }
+    
+    MPIsafe_print(std::cerr,"ERROR: file at path '"+path+"' with index '"+std::to_string(index)+"' not found. Now exiting . . .\n");
+    exit(-1);
 }
 
 //Deletes the given file. Should give this function a full file path.

@@ -53,8 +53,11 @@ if __name__ == '__main__':
 
 	# copy_job_set_name = "SeqStickLognorm_"
 	# relax_job_set_name = "SeqStickLognormrelax_"
-	copy_job_set_name = "SeqStickConst_"
-	relax_job_set_name = "SeqStickConstrelax_"
+	# copy_job_set_name = "SeqStickConst_"
+	# relax_job_set_name = "SeqStickConstrelax_"
+	copy_job_set_name = "constrollingfric"
+	relax_job_set_name = "constrollingfricrelax"
+
 	job_group = "jobs"
 
 	
@@ -65,8 +68,8 @@ if __name__ == '__main__':
 
 	runs_at_once = 5
 	# runs_at_once = 1
-	attempts = [i for i in range(30)] 
-	# attempts = [0] 
+	# attempts = [i for i in range(30)] 
+	attempts = [2] 
 	N = [300]
 	# N = [100]
 	# Temps = [3,10,30,100,300,1000]
@@ -87,9 +90,12 @@ if __name__ == '__main__':
 				# 			+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
 
 				job = default_input_json["data_directory"] + f'{job_group}/' + relax_job_set_name + str(attempt) + '/'\
-							+ 'N_' + str(n) + '/'
+							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
 				copyjob = default_input_json["data_directory"] + f'{job_group}/' + copy_job_set_name + str(attempt) + '/'\
-							+ 'N_' + str(n) + '/' 
+							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
+
+				# print(job)
+				# print(copyjob)
 				
 
 				if os.path.exists(copyjob+"timing.txt"):
@@ -114,7 +120,7 @@ if __name__ == '__main__':
 						# input_json['h_min'] = 0.5
 						# input_json['dataFormat'] = "csv"
 						input_json['relaxIndex'] = n
-						input_json['simTimeSeconds'] = 1e-3
+						input_json['simTimeSeconds'] = 1e-2
 						# input_json['timeResolution'] = 
 
 						input_json['output_folder'] = job
