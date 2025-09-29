@@ -51,14 +51,14 @@ if __name__ == '__main__':
 	rsize = job_set_name.split("_")[0]
 
 	attempts = [i for i in range(30)]
-	# attempts = [0]
+	# attempts = [23]
 
 	# N = [30,100,300]
 	N = [300]
 	# M = [3,5,10,15]
 	# M=[]
 	Temps = [30,100,300,1000]
-	# Temps = [1000]
+	# Temps = [30]
 
 
 
@@ -76,7 +76,7 @@ if __name__ == '__main__':
 		n = values[1]
 		Temp = values[2]
 
-
+		job_name = f"relax=1,a={attempt},n={n},t={Temp}"
 
 		#load default input file
 		with open(project_path+"default_files/default_input.json",'r') as fp:
@@ -90,7 +90,7 @@ if __name__ == '__main__':
 
 		
 
-		if os.path.exists(copyjob+"timing.txt"):
+		if os.path.exists(copyjob+"timing.txt") and u.find_max_index(copyjob) == n:
 			with open(copyjob+"input.json",'r') as fp:
 				input_json = json.load(fp)
 			
@@ -103,7 +103,7 @@ if __name__ == '__main__':
 			if os.path.exists(job+"timing.txt"):
 				print(f"Sim already complete: {job}")
 
-			elif u.on_queue(job):
+			elif u.on_queue(job_name):
 				print(f"Sim already on queue: {job}")
 			else:
 				####################################
@@ -143,11 +143,12 @@ if __name__ == '__main__':
 				sbatchfile = ""
 				sbatchfile += "#!/bin/bash\n"
 				# sbatchfile += "#SBATCH -C gpu\n"
-				sbatchfile += f"#SBATCH -J relax=1,a={attempt},n={n},t={Temp}\n"
+				sbatchfile += f"#SBATCH -J {job_name}\n"
 				sbatchfile += f"#SBATCH --nodes {totalNodes}\n"
 				sbatchfile += f"#SBATCH --ntasks-per-node {totalMPITasks}\n"
 				sbatchfile += f"#SBATCH --cpus-per-task {threadsPerTask}\n\n"
 				sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(threadsPerTask)
+				sbatchfile += 'module load hdf5/1.10.8\n'
 				
 				# sbatchfile += f"srun -n {node} -c {threads} --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 				# sbatchfile += f"srun -n {node} -c {threads} --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
@@ -168,8 +169,10 @@ if __name__ == '__main__':
 
 				folders.append(job)
 
+		elif os.path.exists(copyjob+"timing.txt") and not u.find_max_index(copyjob) == n:
+			print(f"!!!!!!!!!!!!!!origin job 'finished' but does not have n={n} file: {copyjob}")
 		else:
-			print(f"origin job doesn't exist: {copyjob}")
+			print(f"origin job not finished or doesn't exist: {copyjob}")
 
 
 
@@ -187,10 +190,10 @@ if __name__ == '__main__':
 	# 	pool.join()
 
 	print(folders)
-	cwd = os.getcwd()
-	for folder in folders:
-		os.chdir(folder)
-		os.system('sbatch sbatch.bash')
-	os.chdir(cwd)
+	# cwd = os.getcwd()
+	# for folder in folders:
+	# 	os.chdir(folder)
+	# 	os.system('sbatch sbatch.bash')
+	# os.chdir(cwd)
 
 	

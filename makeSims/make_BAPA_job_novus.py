@@ -48,8 +48,8 @@ if __name__ == '__main__':
 
 	# runs_at_once = 10
 	# attempts = [10] 
-	attempts = [i for i in range(0,25)]
-	# attempts = [i for i in range(25,30)]
+	# attempts = [i for i in range(0,25)]
+	attempts = [i for i in range(25,30)]
 
 	N = [300] #final size
 	M = [3,5,10,15] #starting sizes
@@ -136,8 +136,8 @@ if __name__ == '__main__':
 						# sbatchfile += "#SBATCH -C gpu\n"
 						# sbatchfile += "#SBATCH -q regular\n"
 						# sbatchfile += "#SBATCH -t 0:10:00\n"
-						# sbatchfile += f'#SBATCH --account=lazzati\n'
-						# sbatchfile += f'#SBATCH --partition=lazzati.q\n'
+						sbatchfile += f'#SBATCH --account=lazzati\n'
+						sbatchfile += f'#SBATCH --partition=lazzati.q\n'
 
 						#NAME ORDER needs to be same as the file path order
 						sbatchfile += f"#SBATCH -J a={attempt},m={m},n={n},t={Temp}\n"
@@ -152,8 +152,8 @@ if __name__ == '__main__':
 						sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(threadsPerTask)
 						# sbatchfile += 'export SLURM_CPU_BIND="socket"\n'
 						# sbatchfile += 'module load hdf5/1.14.3\n'
-						# sbatchfile += 'module load hdf5/1.10.8\n'
 						sbatchfile += 'module load gnu12/12.3.0\n'
+						sbatchfile += 'module load hdf5/1.10.8\n'
 						sbatchfile += 'module load openmpi4/4.1.6\n'
 						# sbatchfile += 'module swap openmpi4/4.1.6 mpich\n'
 

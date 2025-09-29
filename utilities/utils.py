@@ -1412,41 +1412,49 @@ def get_squeue_output():
         return None
 
 
-def same_job(fullpath, job_name):
+# def same_job(fullpath, job_name):
 
-	fpsplit = fullpath.split('/')
-	start_ind = fpsplit.index("SpaceLab_data") + 1
+# 	print(job_name)
 
-	fpattrs = re.split(r'\D+',"".join(fpsplit[start_ind:-1]))
-	fpattrs = [int(i) for i in fpattrs if len(i) > 0]
+# 	fpsplit = fullpath.split('/')
+# 	start_ind = fpsplit.index("SpaceLab_data") + 1
+
+# 	fpattrs = re.split(r'\D+',"".join(fpsplit[start_ind:-1]))
+# 	fpattrs = [int(i) for i in fpattrs if len(i) > 0]
 	
-	qattrs = re.split(r'\D+',job_name)
-	qattrs = [int(i) for i in qattrs if len(i) > 0]
+# 	qattrs = re.split(r'\D+',job_name)
+# 	qattrs = [int(i) for i in qattrs if len(i) > 0]
 
 
-	if len(fpattrs) != len(qattrs):
-		return False
-		# print("ERROR IN same_job")
-		# exit(0)
+# 	print(fpattrs)
+# 	print(qattrs)
 
-	for i in range(len(qattrs)):
-		if fpattrs[i] != qattrs[i]:
-			return False
-	return True
+# 	if len(fpattrs) != len(qattrs):
+# 		return False
+# 		# print("ERROR IN same_job")
+# 		# exit(0)
 
-def on_queue(fullpath):
+# 	for i in range(len(qattrs)):
+# 		if fpattrs[i] != qattrs[i]:
+# 			return False
+	# return True
+
+def on_queue(job_name):
 	queue_out = get_squeue_output()
 	for line in queue_out.split('\n')[1:]:
 		line = line.strip('"').split()
 		if len(line) > 0:
 			if line[0] == "kolanzl" and line[1] != "interactive":
-				if same_job(fullpath,line[1]):
+				# if same_job(fullpath,line[1]):
+				if job_name == line[1]:
 					return True
 	return False
 
 
 def rand_int():
-	random.seed(datetime.now().timestamp())
+	import datetime
+
+	random.seed(datetime.datetime.now().timestamp())
 	# Generating a random integer from 0 to the maximum unsigned integer in C++
 	# In C++, the maximum value for an unsigned int is typically 2^32 - 1
 	max_unsigned_int_cpp = 2**32 - 1

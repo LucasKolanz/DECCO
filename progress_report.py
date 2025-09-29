@@ -110,6 +110,7 @@ def main():
 	# job = input_json["data_directory"] + 'jobsNovus/constantX_relax$a$/N_$n$/T_$t$/'
 	
 	# job = input_json["data_directory"] + 'jobs/BAPA_$a$/M_$m$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobs/constrollingfricrelax$a$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + 'jobs/constrollingfric$a$/N_$n$/T_$t$/'
 	print(job)
 
