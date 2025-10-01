@@ -3,6 +3,7 @@ import json
 import sys
 import multiprocessing as mp
 import subprocess
+import argparse
 import numpy as np
 
 relative_path = "../"
@@ -25,6 +26,18 @@ def run_job(location):
 if __name__ == '__main__':
 	#make new output folders
 	# curr_folder = os.getcwd() + '/'
+
+	parser = argparse.ArgumentParser(
+	description="Prepare DEM jobs and optionally submit them via Slurm."
+	)
+	parser.add_argument(
+		"-r",
+		"--run",
+		action="store_true",
+		help="Actually submit jobs with sbatch (otherwise do a dry run).",
+	)
+
+	args = parser.parse_args()
 
 
 	try:
@@ -190,10 +203,11 @@ if __name__ == '__main__':
 	# 	pool.join()
 
 	print(folders)
-	# cwd = os.getcwd()
-	# for folder in folders:
-	# 	os.chdir(folder)
-	# 	os.system('sbatch sbatch.bash')
-	# os.chdir(cwd)
+	if args.run:
+		cwd = os.getcwd()
+		for folder in folders:
+			os.chdir(folder)
+			os.system('sbatch sbatch.bash')
+		os.chdir(cwd)
 
 	

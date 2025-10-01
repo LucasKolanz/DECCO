@@ -2,11 +2,11 @@ import os
 import json
 import multiprocessing as mp
 import subprocess
-import random
 import re
-import sys
+import argparse
+import random
 
-from datetime import datetime
+import sys
 
 
 relative_path = "../"
@@ -27,6 +27,18 @@ def run_job(location):
 		subprocess.run(cmd,stdout=out,stderr=err)
 
 if __name__ == '__main__':
+
+	parser = argparse.ArgumentParser(
+	description="Prepare DEM jobs and optionally submit them via Slurm."
+	)
+	parser.add_argument(
+		"-r",
+		"--run",
+		action="store_true",
+		help="Actually submit jobs with sbatch (otherwise do a dry run).",
+	)
+
+	args = parser.parse_args()
 	#make new output folders
 	# curr_folder = os.getcwd() + '/'
 
@@ -48,8 +60,8 @@ if __name__ == '__main__':
 
 	# runs_at_once = 10
 	# attempts = [10] 
-	# attempts = [i for i in range(0,25)]
-	attempts = [i for i in range(25,30)]
+	attempts = [i for i in range(0,25)]
+	# attempts = [i for i in range(25,30)]
 
 	N = [300] #final size
 	M = [3,5,10,15] #starting sizes
@@ -82,6 +94,8 @@ if __name__ == '__main__':
 					job = job_template.replace('{a}',str(attempt)).replace('{m}',str(m)).replace('{n}',str(n)).replace('{t}',str(Temp))
 					# job = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/fixme/"
 
+					job_name = f"a={attempt},m={m},n={n},t={Temp}"
+
 					# print(rand_int())
 					if not os.path.exists(job):
 						os.makedirs(job)
@@ -92,7 +106,7 @@ if __name__ == '__main__':
 					if os.path.exists(job+"timing.txt"):
 						print(f"Sim already complete: {job}")
 
-					elif u.on_queue(job):
+					elif u.on_queue(job_name):
 						print(f"Sim already on queue: {job}")
 					else:
 						print(f"(Re)Starting job: {job}")
@@ -136,11 +150,11 @@ if __name__ == '__main__':
 						# sbatchfile += "#SBATCH -C gpu\n"
 						# sbatchfile += "#SBATCH -q regular\n"
 						# sbatchfile += "#SBATCH -t 0:10:00\n"
-						sbatchfile += f'#SBATCH --account=lazzati\n'
-						sbatchfile += f'#SBATCH --partition=lazzati.q\n'
+						# sbatchfile += f'#SBATCH --account=lazzati\n'
+						# sbatchfile += f'#SBATCH --partition=lazzati.q\n'
 
 						#NAME ORDER needs to be same as the file path order
-						sbatchfile += f"#SBATCH -J a={attempt},m={m},n={n},t={Temp}\n"
+						sbatchfile += f"#SBATCH -J {job_name}\n"
 						sbatchfile += f"#SBATCH --nodes {totalNodes}\n"
 						sbatchfile += f"#SBATCH --ntasks-per-node {totalMPITasks}\n"
 						sbatchfile += f"#SBATCH --cpus-per-task {threadsPerTask}\n\n"
@@ -195,10 +209,11 @@ if __name__ == '__main__':
 
 
 	print(folders)
-	# cwd = os.getcwd()
-	# for folder in folders:
-	# 	os.chdir(folder)
-	# 	os.system('sbatch sbatchMulti.bash')
-	# os.chdir(cwd)
+	if args.run:
+		cwd = os.getcwd()
+		for folder in folders:
+			os.chdir(folder)
+			os.system('sbatch sbatchMulti.bash')
+		os.chdir(cwd)
 
 	
