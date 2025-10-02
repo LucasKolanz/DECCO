@@ -226,6 +226,7 @@ void runAggregation(std::string path, int num_balls)
     else if (O.attrs.mid_sim_restart && (O.attrs.typeSim == BCCA || O.attrs.typeSim == BPCA))
     {
         O.sim_looper(O.attrs.start_step);
+        O.attrs.start_index = O.attrs.num_particles;
     }
 
 

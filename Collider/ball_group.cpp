@@ -2645,7 +2645,7 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
         MPIsafe_print(std::cerr,"mid_sim_restart\n");
         attrs.mid_sim_restart = true;
         attrs.start_step = attrs.skip*(writes-1)+1;
-        attrs.start_index++;
+        // attrs.start_index++;
     }
     else if(writes == -1) //Works
     {
