@@ -2,6 +2,7 @@ import os
 import json
 import multiprocessing as mp
 import subprocess
+import argparse
 import os
 
 relative_path = "../"
@@ -27,6 +28,17 @@ def run_job(location):
 if __name__ == '__main__':
 	#make new output folders
 	# curr_folder = os.getcwd() + '/'
+	parser = argparse.ArgumentParser(
+		description="Prepare DEM jobs and optionally submit them via Slurm."
+	)
+	parser.add_argument(
+		"-r",
+		"--run",
+		action="store_true",
+		help="Actually submit jobs with sbatch (otherwise do a dry run).",
+	)
+
+	args = parser.parse_args()
 
 	try:
 		# os.chdir("{}ColliderSingleCore".format(curr_folder))
@@ -38,11 +50,11 @@ if __name__ == '__main__':
 	job_set_name = "JKRTest"
 	# folder_name_scheme = "T_"
 
-	runs_at_once = 1
+	runs_at_once = 5
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
-	attempts = [0] 
-	N = [3]
-	Temps = [1]
+	attempts = [0,1,2,3,4,5] 
+	N = [300]
+	Temps = [3]
 	folders = []
 	for attempt in attempts:
 		for n in N:
@@ -53,7 +65,7 @@ if __name__ == '__main__':
 				
 				# job = curr_folder + 'jobs/' + job_set_name + str(attempt) + '/'
 				# job = input_json["data_directory"] + 'jobs/' + job_set_name + str(attempt) + '/'+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
-				job = input_json["data_directory"] + 'jobs/' + job_set_name + '/'
+				job = input_json["data_directory"] + 'jobs/' + job_set_name + '_' +str(attempt) + '/'
 				if not os.path.exists(job):
 					os.makedirs(job)
 				else:
@@ -66,28 +78,29 @@ if __name__ == '__main__':
 				input_json['temp'] = Temp
 				input_json['seed'] = 101
 				input_json['radiiDistribution'] = 'constant'#'lognormal'
-				# input_json['simType'] = 'BPCA'
-				input_json['simType'] = 'custom'
+				input_json['simType'] = 'BPCA'
+				# input_json['simType'] = 'custom'
 				input_json['N'] = n
 				input_json['output_folder'] = job
 				input_json['dataFormat'] = "csv"
 				input_json['impactParameter'] = -1.0
 				# input_json['simTimeSeconds'] = 1e-4
 				# input_json['timeResolution'] = 1e-6
+				# input_json['simTimeSeconds'] = 10e-5
 				input_json['simTimeSeconds'] = 5e-5
 				input_json['timeResolution'] = 1e-7
-				# input_json['material'] = "amorphousCarbon"
-				input_json['material'] = "quartz"
+				input_json['material'] = "amorphousCarbon"
+				# input_json['material'] = "quartz"
 				# input_json['JKR'] = "False"
 				input_json['JKR'] = "True"
 				input_json['density'] = 2.6
-				# input_json['relaxIndex'] = n-3
+				# input_json['relaxIndex'] = n
 				input_json['h_min'] = 0.5
 				# input_json['u_s'] = 0.5
 				# input_json['u_r'] = 0.5
 				# input_json['projectileName'] = "299_2_R4e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_"
 				# input_json['targetName'] = "299_2_R4e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_"
-				input_json['note'] = "testing"
+				# input_json['note'] = "testing"
 				####################################
 
 				with open(job + "input.json",'w') as fp:
@@ -102,17 +115,14 @@ if __name__ == '__main__':
 
 	print(folders)
 
-	# for i in range(0,len(folders),runs_at_once):
-	# 	with mp.Pool(processes=runs_at_once) as pool:
-	# 		pool.starmap(run_job,inputs[i:i+runs_at_once]) 
-	
-	with mp.Pool(processes=runs_at_once) as pool:
-		for folder in folders:
-			# input_data = inputs[i:i+runs_at_once]
-			pool.apply_async(run_job, (folder,))
+	if args.run:
+		with mp.Pool(processes=runs_at_once) as pool:
+			for folder in folders:
+				# input_data = inputs[i:i+runs_at_once]
+				pool.apply_async(run_job, (folder,))
 
-		pool.close()
-		pool.join()
+			pool.close()
+			pool.join()
 
 	# print(folders)
 	# cwd = os.getcwd()

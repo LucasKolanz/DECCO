@@ -447,6 +447,10 @@ def get_h5_energy_data_from_file(file):
 			if md[0] == "row width":
 				width = int(md[1])
 		dat = file['/energy'][:]
+
+		if width > 0:
+			total = len(dat)
+			dat = dat.reshape(int(total/width),width)
 		
 		data = np.array(dat)
 
@@ -573,6 +577,7 @@ def get_energy(data_folder,data_index=-1,relax=False):
 	else:
 		print(f"ERROR: file extension not recognized for file '{energy_file}'")
 
+	print(energy)
 	time = energy[:,0]
 	PE = energy[:,1]
 	KE = energy[:,2]

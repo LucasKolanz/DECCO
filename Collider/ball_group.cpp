@@ -50,7 +50,6 @@ Ball_group::Ball_group(const int nBalls, const bool JKR)
 Ball_group::Ball_group(std::string& path, const int index)
 {
     parse_input_file(path);
-
     
 
     if (attrs.typeSim == BPCA || attrs.typeSim == BCCA || attrs.typeSim == BAPA)
@@ -272,13 +271,27 @@ void Ball_group::aggregationInit(const std::string path,const int index)
         // Hack - Override and creation just 2 balls position and velocity.
         if (attrs.genBalls > 0 && attrs.genBalls <= 2)
         {
-            pos[0] = {0, R[0]+1.01e-6, 0};
-            vel[0] = {0, 0, 0};
-            if (attrs.genBalls > 1)
+            if (attrs.JKR)
             {
-                pos[1] = {0, -(R[1]+1.01e-6), 0};
-                vel[1] = {0, 0, 0};
-        
+                pos[0] = {0, R[0]-1.01e-8, 0};
+                vel[0] = {0, -0.1, 0};
+                if (attrs.genBalls > 1)
+                {
+                    pos[1] = {0, -(R[1]-1.01e-8), 0};
+                    vel[1] = {0, 0.1, 0};
+            
+                }
+            }
+            else
+            {
+                pos[0] = {0, R[0]+1.01e-6, 0};
+                vel[0] = {0, 0, 0};
+                if (attrs.genBalls > 1)
+                {
+                    pos[1] = {0, -(R[1]+1.01e-6), 0};
+                    vel[1] = {0, 0, 0};
+            
+                }
             }
         }
         else
@@ -302,8 +315,8 @@ void Ball_group::aggregationInit(const std::string path,const int index)
         }
         
         // std::cerr<<"INIT VCUSTOM "<<v_custom<<std::endl;
-        calibrate_dt(0, attrs.v_custom);
         simInit_cond_and_center(true);
+        calibrate_dt(0, attrs.v_custom);
         
         
     }
@@ -319,60 +332,83 @@ void Ball_group::aggregationInit(const std::string path,const int index)
 //Initalize custom parameters in here
 void Ball_group::customInit()
 {
-    int nBalls = 2;
+    int nBalls = 4;
     attrs.num_particles = nBalls;
     allocate_group(nBalls);
     if (attrs.JKR)
     {
         allocate_group_JKR(nBalls);
+        JKRpropertiesInit(attrs.material);
+        // JKRreducedInit();
     }
 
 
-    // R[0] = 0.5e-5;
-    // R[0] = 1e-4;
-    // R[1] = 1e-4;
-    // R[2] = 1e-4;
-
     R[0] = 1e-5;
     R[1] = 1e-5;
-    // R[2] = 1e-5;    
+    R[2] = 1e-5;    
+    R[3] = 1e-5;    
+    // R[4] = 1e-5;    
 
-    m[0] = attrs.density*(4.0/3.0)*pi*R[0]*R[0]*R[0];
-    m[1] = attrs.density*(4.0/3.0)*pi*R[1]*R[1]*R[1];
-    // m[2] = attrs.density*(4.0/3.0)*pi*R[2]*R[2]*R[2];
+    m[0] = density[0]*(4.0/3.0)*pi*R[0]*R[0]*R[0];
+    m[1] = density[1]*(4.0/3.0)*pi*R[1]*R[1]*R[1];
+    m[2] = density[2]*(4.0/3.0)*pi*R[2]*R[2]*R[2];
+    m[3] = density[3]*(4.0/3.0)*pi*R[3]*R[3]*R[3];
+    // m[4] = density[4]*(4.0/3.0)*pi*R[4]*R[4]*R[4];
 
     moi[0] = .4 * m[0] * R[0] * R[0];
     moi[1] = .4 * m[1] * R[1] * R[1];
-    // moi[2] = .4 * m[2] * R[2] * R[2];
+    moi[2] = .4 * m[2] * R[2] * R[2];
+    moi[3] = .4 * m[3] * R[3] * R[3];
+    // moi[4] = .4 * m[4] * R[4] * R[4];
     
-    w[0] = {0, 0, 0.0};   
-    w[1] = {0.0, 0.0, 0.0};   
-    // w[2] = {0.0, 0.0, 100000.0};   
-
-    pos[0] = {0, R[0] , 0};
-    // pos[1] = {0,-R[1], 0};
-    pos[1] = {0,-9.98938e-6, 0};
-    // pos[1] = {0,-(R[1]-R[1]*0.1), 0};
-    // pos[2] = {R[2]*std::sqrt(3.0),0, 0};
-
-    // pos[0] = {0, R[0], 0};
-    // pos[1] = {0, -9.98938e-6, 0};
+    w[0] = {-835202.4408731752, -415150.67585201445, -923266.3424160982};   
+    w[1] = {-84982.03011028409, -40378.54861895961, -90906.2970926238};   
+    w[2] = {752265.8421657234, 376018.648718707, 835191.9320559916};   
+    w[3] = {0.0, 0.0, 0.0};   
+    // w[2] = {0.0, 0.0, 0.0};   
+    // w[1] = {0.0, 0.0, 0.0};   
+    // w[0] = {0.0, 0.0, 0.0};   
+    // w[3] = {7554669.291625383, 2093452.4801920392, 1877168.3680082832};   
 
 
-    // pos[1] = {0, -(R[1]), 0};
-    // pos[0] = {0, R[0]+1.01e-6, 0};
-    // pos[1] = {0, -(R[1]+1.01e-6), 0};
+    pos[0] = {-3.861206679998241e-06, 1.4421592075685271e-05, 1.1560139726560676e-06};
+    pos[1] = {1.313380734510933e-06, -4.502693672807688e-06, 4.984365606494073e-06};
+    pos[2] = {-4.183354924010277e-06, -1.968872614076021e-05, 1.6772367295500178e-05};
+    pos[3] = {6.731180869497584e-06, 9.769827737882628e-06, -2.291274687465032e-05};
+ 
+    // pos[0] = {0, R[0] , 0};
+    // // pos[1] = {0,-9.98938e-6, 0};
+    // pos[1] = {0.1*R[2],-R[1], 0};
+    // pos[2] = {0.1*R[2],-(R[1]+2*R[2]), 0};
+    // // pos[3] = {-0.1*R[3],R[0]+2*R[3], 0};
+    // pos[3] = {R[4]*30,R[0]+R[3], 0};
+    // pos[2] = {0,-(R[1]+2*R[2]), 0};
+    // pos[3] = {0,R[0]+2*R[3], 0};
+    // pos[4] = {0,R[0]+4*R[3], 0};
 
     // double bel = 35.0;
     // double bel = 50.0;
     double bel = 20.0;
-    std::cout<<"velocity of impact: "<<bel*2<<std::endl;
-    vel[0] = {-bel,-bel,0};
-    vel[1] = {bel,bel,0};
+    // std::cout<<"velocity of impact: "<<bel*2<<std::endl;
+    vel[0] = {2.4793346092862487, -23.431100181080062, 8.280188037465136};
+    vel[1] = {-8.179908767871174, -4.8689918718098735, 9.577811392897551};
+    vel[2] = {5.852285928812472, 28.358415718031555, -17.98189749746166};
+    vel[3] = {-0.15171177020907464, -0.058323665165048263, 0.12389806710550082};
+    // vel[2] = {0,0,0};
+    // vel[1] = {0,0,0};
+    // vel[0] = {0,0,0};
+    // vel[4] = {0,0,0};
     // vel[0] = {bel*std::sqrt(3.0)/2.0,-bel/2.0,0};
     // vel[2] = {-bel*std::sqrt(3.0)/2.0,-bel/2.0,0};
     // vel[0] = {-bel/std::sqrt(2),-bel/std::sqrt(2),0};
     // vel[1] = {bel/std::sqrt(2),bel/std::sqrt(2),0};
+
+    if (attrs.JKR)
+    {
+        // allocate_group_JKR(nBalls);
+        // JKRpropertiesInit(attrs.material);
+        JKRreducedInit();
+    }
     
     calc_helpfuls(true);
     attrs.m_total = getMass();
@@ -470,15 +506,6 @@ void Ball_group::JKRpropertiesInit(const materials mat_enum)
         gamma[i] = mat.surfaceEnergyperUnitArea;
         density[i] = mat.density;
         G[i] = mat.shearModulus;
-        // density[i] = mat.density;
-
-        
-        // q[i] = rotation();
-        // Eu0[i] = 1;
-        // Eu[i] = {0,0,0};
-
-        // Eu0p[i] = 0;
-        // Eup[i] = {0,0,0};
     }
 }
 
@@ -492,11 +519,10 @@ void Ball_group::JKRreducedInit()
         {
             int e = static_cast<int>(A * (A - 1) * .5) + B;  // a^2-a is always even, so this works.
 
-
-            reducedE[e] = 1/( ((1-nu[A]*nu[A])/E[A]) + ((1-nu[B]*nu[B])/E[B]) );
-            reducedG[e] = 1/(1/G[A] + 1/G[B]);
-            reducedGstar[e] = 1/((2-nu[A])/G[A] + (2-nu[B])/G[B]);
-            reducedR[e] = 1/(1/R[A] + 1/R[B]);
+            reducedE[e] = 1.0/( ((1.0-nu[A]*nu[A])/E[A]) + ((1.0-nu[B]*nu[B])/E[B]) );
+            reducedG[e] = 1.0/(1.0/G[A] + 1.0/G[B]);
+            reducedGstar[e] = 1.0/((2.0-nu[A])/G[A] + (2.0-nu[B])/G[B]);
+            reducedR[e] = 1.0/(1.0/R[A] + 1.0/R[B]);
             reducedGamma[e] = gamma[A] + gamma[B];// - 2*gamma_ab; add this term in for different surface energies. need to find gamma_ab (interface energy) for the different materials
             a0[e] = std::pow(9.0*pi*reducedGamma[e]*reducedR[e]*reducedR[e]/reducedE[e],1.0/3.0);
         }
@@ -955,7 +981,11 @@ void Ball_group::calibrate_dt(int const Step, const double& customSpeed = -1.)
 
 
     std::string message = "";
-    if (customSpeed > 0.) {
+    if (attrs.JKR)
+    {
+        updateDTK(-1.0); //JKR dt isn't set based on velocity.
+    }
+    else if (customSpeed > 0.0) {
         updateDTK(customSpeed);
         message += "CUSTOM SPEED: " + std::to_string(customSpeed) + '\n';
     } else {
@@ -1597,10 +1627,7 @@ vec3 Ball_group::random_offset(
     Ball_group &projectile,
     Ball_group &target)
 {
-
     const auto possible_radius = target.getRadius(target.getCOM()) + projectile.getRadius(projectile.getCOM());
-    // std::cerr<<target.getRadius(target.getCOM())<<std::endl;
-    // std::cerr<<projectile.getRadius(projectile.getCOM())<<std::endl;
     const auto projectile_vcom = projectile.getVCOM();
     // const auto projectile_radius = projectile.getRadius(projectile.getCOM());
     bool intersect = false;
@@ -1736,33 +1763,24 @@ Ball_group Ball_group::BPCA_projectile_init()
     std::string location = "";
 
     Ball_group projectile(1,attrs.JKR);
+    projectile.parse_input_file(attrs.output_folder);
     if (attrs.JKR)
     {
-        JKRpropertiesInit(attrs.material);
-        JKRreducedInit();
-    }
-
-    // Particle random position at twice radius of target:
-    // We want the farthest from origin since we are offsetting form origin. Not com.
-    // const auto cluster_radius = getRadius(vec3(0, 0, 0));
-
-    // const vec3 projectile_direction = rand_unit_vec3();
-    // projectile.pos[0] = projectile_direction * (cluster_radius + attrs.scaleBalls * 4);
-    if (attrs.radiiDistribution == constant)
-    {
-        // std::cout<<"radiiFraction: "<<radiiFraction<<std::endl;
-        projectile.R[0] = attrs.scaleBalls;  //MAKE BOTH VERSIONS SAME
-        // projectile.R[0] = scaleBalls/radiiFraction;  //limit of 1.4// rand_between(1,3)*1e-5;
-        // std::cout<<"(constant) Particle added with radius of "<<projectile.R[0]<<std::endl;
+        projectile.JKRpropertiesInit(attrs.material);
+        projectile.setRadii();
+        projectile.setMass();
+        projectile.JKRreducedInit();
     }
     else
     {
-        projectile.R[0] = lognorm_dist(attrs.scaleBalls*std::exp(-5*std::pow(attrs.lnSigma,2)/2),attrs.lnSigma);
-        // std::cout<<"(lognorm) Particle added with radius of "<<projectile.R[0]<<std::endl;
+        projectile.setRadii();
+        projectile.setMass();
     }
+
     projectile.w[0] = {0, 0, 0};
-    projectile.m[0] = attrs.density * 4. / 3. * pi * std::pow(projectile.R[0], 3);
     projectile.moi[0] = calc_moi(projectile.R[0], projectile.m[0]);
+    
+    // projectile.sphereInit();
     projectile.calc_helpfuls(true);
 
 
@@ -2076,47 +2094,31 @@ Ball_group Ball_group::add_projectile(const simType simtype)
         projectile = BAPA_projectile_init();
     }
 
-    if (attrs.JKR)
-    {
-        projectile.JKRpropertiesInit(attrs.material);
-        projectile.JKRreducedInit();
-    }
+    // if (attrs.JKR)
+    // {
+    //     projectile.JKRpropertiesInit(attrs.material);
+    // }
     
-    // Collision velocity calculation:
-    // const vec3 p_target{calc_momentum("p_target")};
-    // const vec3 p_projectile{projectile.calc_momentum("p_particle")};
-    // const vec3 p_total{p_target + p_projectile};
-    // const double m_target{getMass()};
-    // const double m_projectile{projectile.getMass()};
-    // const double m_total{m_target + m_projectile};
-    // const vec3 v_com = p_total / m_total;
-
-    // // Negate total system momentum:
-    // projectile.kick(-v_com);
-    // kick(-v_com); 
-
-    // std::ostringstream oss;
-    // oss << "\nTarget Velocity: " << std::scientific << vel[0].norm()
-    //     << "\nProjectile Velocity: " << projectile.vel[0].norm() << "\n\n";
-    // MPIsafe_print(std::cerr,oss.str());
 
     projectile.calc_momentum("Projectile");
     calc_momentum("Target");
-    // std::cerr<<"Projectile number of particles: "<<projectile.attrs.num_particles<<std::endl;
-    // std::cerr<<"Target number of particles:     "<<attrs.num_particles<<std::endl;
     Ball_group new_group{projectile.attrs.num_particles + attrs.num_particles,attrs.JKR};
-    if (attrs.JKR)
-    {
-        new_group.JKRpropertiesInit(attrs.material);
-        new_group.JKRreducedInit();
-    }
 
     int new_num_particles = projectile.attrs.num_particles + attrs.num_particles;
 
     new_group.merge_ball_group(*this);
     new_group.merge_ball_group(projectile);
-    new_group.attrs = attrs;
+
+    if (attrs.JKR)
+    {
+        // new_group.attrs.material = this->attrs.material;
+        // new_group.attrs.JKR = this->attrs.JKR;
+        new_group.JKRpropertiesInit(attrs.material);
+        new_group.JKRreducedInit();
+    }
+
     //The next line is important because the previous line overwrites the value of num_particles set in the Ball_group constructor
+    new_group.attrs = attrs;
     new_group.attrs.num_particles = new_num_particles;
 
     // Hack - if v_custom is less than 1 there are problems if dt is calibrated to this
@@ -2286,6 +2288,7 @@ void Ball_group::freeMemory() const
     delete[] distances;
     delete[] loading_flag;
     delete[] a_store;
+    delete[] group;
     delete[] phi;
     delete[] pos;
     delete[] vel;
@@ -2322,14 +2325,14 @@ void Ball_group::freeMemory() const
         // delete[] Eu0p;
         // delete[] Eup;
     }
-    // delete data;
+    delete data;
     
 }
 
 void Ball_group::init_conditions_JKR()
 {
-    JKRpropertiesInit(attrs.material);
-    JKRreducedInit();    //initalize elastic properties for all pairs
+    // JKRpropertiesInit(attrs.material);
+    // JKRreducedInit();    //initalize elastic properties for all pairs
     // SECOND PASS - Check for collisions, apply forces and torques:
 
     for (int i = 0; i < attrs.num_particles; ++i)
@@ -2842,9 +2845,6 @@ void Ball_group::loadConsts(const std::string& path, const std::string& filename
 }
 
 
-
-
-
 double Ball_group::getMass()
 {
     attrs.m_total = 0;
@@ -2854,113 +2854,124 @@ double Ball_group::getMass()
     return attrs.m_total;
 }
 
-void Ball_group::threeSizeSphere(const int nBalls)
-{
-    // Make nBalls of 3 sizes in CGS with ratios such that the mass is distributed evenly among the 3
-    // sizes (less large nBalls than small nBalls).
-    const int smalls = static_cast<int>(std::round(
-        static_cast<double>(nBalls) * 27. /
-        31.375));  // Just here for reference. Whatever nBalls are left will be smalls.
-    const int mediums = static_cast<int>(std::round(static_cast<double>(nBalls) * 27. / (8 * 31.375)));
-    const int larges = static_cast<int>(std::round(static_cast<double>(nBalls) * 1. / 31.375));
+//This function hasn't been used in a long time and needs to be updated to make sure it still works if you want to use it
+// void Ball_group::threeSizeSphere(const int nBalls)
+// {
+//     // Make nBalls of 3 sizes in CGS with ratios such that the mass is distributed evenly among the 3
+//     // sizes (less large nBalls than small nBalls).
+//     const int smalls = static_cast<int>(std::round(
+//         static_cast<double>(nBalls) * 27. /
+//         31.375));  // Just here for reference. Whatever nBalls are left will be smalls.
+//     const int mediums = static_cast<int>(std::round(static_cast<double>(nBalls) * 27. / (8 * 31.375)));
+//     const int larges = static_cast<int>(std::round(static_cast<double>(nBalls) * 1. / 31.375));
 
 
-    for (int Ball = 0; Ball < larges; Ball++) {
-        // Below comment maintains asteroid radius while increasing particle count.
-        // std::pow(1. / (double)nBalls, 1. / 3.) * 3. * scaleBalls;
+//     for (int Ball = 0; Ball < larges; Ball++) {
+//         // Below comment maintains asteroid radius while increasing particle count.
+//         // std::pow(1. / (double)nBalls, 1. / 3.) * 3. * scaleBalls;
 
-        R[Ball] = 3. * attrs.scaleBalls;
-        m[Ball] = attrs.density * 4. / 3. * 3.14159 * std::pow(R[Ball], 3);
-        moi[Ball] = .4 * m[Ball] * R[Ball] * R[Ball];
-        w[Ball] = {0, 0, 0};
-        pos[Ball] = rand_vec3(attrs.spaceRange);
-    }
+//         R[Ball] = 3. * attrs.scaleBalls;
+//         m[Ball] = attrs.density * 4. / 3. * 3.14159 * std::pow(R[Ball], 3);
+//         moi[Ball] = .4 * m[Ball] * R[Ball] * R[Ball];
+//         w[Ball] = {0, 0, 0};
+//         pos[Ball] = rand_vec3(attrs.spaceRange);
+//     }
 
-    for (int Ball = larges; Ball < (larges + mediums); Ball++) {
-        R[Ball] = 2. * attrs.scaleBalls;  // std::pow(1. / (double)nBalls, 1. / 3.) * 2. * scaleBalls;
-        m[Ball] = attrs.density * 4. / 3. * 3.14159 * std::pow(R[Ball], 3);
-        moi[Ball] = .4 * m[Ball] * R[Ball] * R[Ball];
-        w[Ball] = {0, 0, 0};
-        pos[Ball] = rand_vec3(attrs.spaceRange);
-    }
-    for (int Ball = (larges + mediums); Ball < nBalls; Ball++) {
-        R[Ball] = 1. * attrs.scaleBalls;  // std::pow(1. / (double)nBalls, 1. / 3.) * 1. * scaleBalls;
-        m[Ball] = attrs.density * 4. / 3. * 3.14159 * std::pow(R[Ball], 3);
-        moi[Ball] = .4 * m[Ball] * R[Ball] * R[Ball];
-        w[Ball] = {0, 0, 0};
-        pos[Ball] = rand_vec3(attrs.spaceRange);
-    }
+//     for (int Ball = larges; Ball < (larges + mediums); Ball++) {
+//         R[Ball] = 2. * attrs.scaleBalls;  // std::pow(1. / (double)nBalls, 1. / 3.) * 2. * scaleBalls;
+//         m[Ball] = attrs.density * 4. / 3. * 3.14159 * std::pow(R[Ball], 3);
+//         moi[Ball] = .4 * m[Ball] * R[Ball] * R[Ball];
+//         w[Ball] = {0, 0, 0};
+//         pos[Ball] = rand_vec3(attrs.spaceRange);
+//     }
+//     for (int Ball = (larges + mediums); Ball < nBalls; Ball++) {
+//         R[Ball] = 1. * attrs.scaleBalls;  // std::pow(1. / (double)nBalls, 1. / 3.) * 1. * scaleBalls;
+//         m[Ball] = attrs.density * 4. / 3. * 3.14159 * std::pow(R[Ball], 3);
+//         moi[Ball] = .4 * m[Ball] * R[Ball] * R[Ball];
+//         w[Ball] = {0, 0, 0};
+//         pos[Ball] = rand_vec3(attrs.spaceRange);
+//     }
 
-    attrs.m_total = 0;
-    for (int i = 0; i < nBalls; i++)
-    {
-        attrs.m_total += m[i];
-        std::cerr<<"Ball "<<i<<"\tmass is "<<m[i]<<"\t"<<"radius is "<<R[i]<<std::endl;
-    }
+//     attrs.m_total = 0;
+//     for (int i = 0; i < nBalls; i++)
+//     {
+//         attrs.m_total += m[i];
+//         std::cerr<<"Ball "<<i<<"\tmass is "<<m[i]<<"\t"<<"radius is "<<R[i]<<std::endl;
+//     }
 
-    std::cerr << "Smalls: " << smalls << " Mediums: " << mediums << " Larges: " << larges << '\n';
+//     std::cerr << "Smalls: " << smalls << " Mediums: " << mediums << " Larges: " << larges << '\n';
 
-    // Generate non-overlapping spherical particle field:
-    int collisionDetected = 0;
-    int oldCollisions = nBalls;
+//     // Generate non-overlapping spherical particle field:
+//     int collisionDetected = 0;
+//     int oldCollisions = nBalls;
 
-    for (int failed = 0; failed < attrs.attempts; failed++) {
-        for (int A = 0; A < nBalls; A++) {
-            for (int B = A + 1; B < nBalls; B++) {
-                // Check for Ball overlap.
-                const double dist = (pos[A] - pos[B]).norm();
-                const double sumRaRb = R[A] + R[B];
-                const double overlap = dist - sumRaRb;
-                if (overlap < 0) {
-                    collisionDetected += 1;
-                    // Move the other ball:
-                    pos[B] = rand_vec3(attrs.spaceRange);
-                }
-            }
-        }
-        if (collisionDetected < oldCollisions) {
-            oldCollisions = collisionDetected;
-            std::cerr << "Collisions: " << collisionDetected << "                        \r";
-        }
-        if (collisionDetected == 0) {
-            std::cerr << "\nSuccess!\n";
-            break;
-        }
-        if (failed == attrs.attempts - 1 ||
-            collisionDetected >
-                static_cast<int>(
-                    1.5 *
-                    static_cast<double>(
-                        nBalls)))  // Added the second part to speed up spatial constraint increase when
-                                   // there are clearly too many collisions for the space to be feasible.
-        {
-            std::cerr << "Failed " << attrs.spaceRange << ". Increasing range " << attrs.spaceRangeIncrement
-                      << "cm^3.\n";
-            attrs.spaceRange += attrs.spaceRangeIncrement;
-            failed = 0;
-            for (int Ball = 0; Ball < nBalls; Ball++) {
-                pos[Ball] = rand_vec3(
-                    attrs.spaceRange);  // Each time we fail and increase range, redistribute all balls randomly
-                                  // so we don't end up with big balls near mid and small balls outside.
-            }
-        }
-        collisionDetected = 0;
-    }
+//     for (int failed = 0; failed < attrs.attempts; failed++) {
+//         for (int A = 0; A < nBalls; A++) {
+//             for (int B = A + 1; B < nBalls; B++) {
+//                 // Check for Ball overlap.
+//                 const double dist = (pos[A] - pos[B]).norm();
+//                 const double sumRaRb = R[A] + R[B];
+//                 const double overlap = dist - sumRaRb;
+//                 if (overlap < 0) {
+//                     collisionDetected += 1;
+//                     // Move the other ball:
+//                     pos[B] = rand_vec3(attrs.spaceRange);
+//                 }
+//             }
+//         }
+//         if (collisionDetected < oldCollisions) {
+//             oldCollisions = collisionDetected;
+//             std::cerr << "Collisions: " << collisionDetected << "                        \r";
+//         }
+//         if (collisionDetected == 0) {
+//             std::cerr << "\nSuccess!\n";
+//             break;
+//         }
+//         if (failed == attrs.attempts - 1 ||
+//             collisionDetected >
+//                 static_cast<int>(
+//                     1.5 *
+//                     static_cast<double>(
+//                         nBalls)))  // Added the second part to speed up spatial constraint increase when
+//                                    // there are clearly too many collisions for the space to be feasible.
+//         {
+//             std::cerr << "Failed " << attrs.spaceRange << ". Increasing range " << attrs.spaceRangeIncrement
+//                       << "cm^3.\n";
+//             attrs.spaceRange += attrs.spaceRangeIncrement;
+//             failed = 0;
+//             for (int Ball = 0; Ball < nBalls; Ball++) {
+//                 pos[Ball] = rand_vec3(
+//                     attrs.spaceRange);  // Each time we fail and increase range, redistribute all balls randomly
+//                                   // so we don't end up with big balls near mid and small balls outside.
+//             }
+//         }
+//         collisionDetected = 0;
+//     }
 
-    std::cerr << "Final spacerange: " << dToSci(attrs.spaceRange) << '\n';
-    std::cerr << "m_total: " << dToSci(attrs.m_total) << '\n';
-    std::cerr << "Initial Radius: " << dToSci(getRadius(getCOM())) << '\n';
-    std::cerr << "Mass: " << dToSci(getMass()) << '\n';
-}
+//     std::cerr << "Final spacerange: " << dToSci(attrs.spaceRange) << '\n';
+//     std::cerr << "m_total: " << dToSci(attrs.m_total) << '\n';
+//     std::cerr << "Initial Radius: " << dToSci(getRadius(getCOM())) << '\n';
+//     std::cerr << "Mass: " << dToSci(getMass()) << '\n';
+// }
 
 void Ball_group::generate_ball_field(const int nBalls)
 {
     MPIsafe_print(std::cerr,"CLUSTER FORMATION (with "+std::to_string(nBalls)+" balls)\n");
 
+    //Order matters in this block a lot
     allocate_group(nBalls);
     if (attrs.JKR)
     {
         allocate_group_JKR(nBalls);
+        JKRpropertiesInit(attrs.material);
+        setRadii();
+        setMass();
+        JKRreducedInit();
+    }
+    else
+    {
+        setRadii();
+        setMass();
     }
 
     // Create new random number set.
@@ -2968,14 +2979,15 @@ void Ball_group::generate_ball_field(const int nBalls)
          // in parse_input_file
     // const int seedSave = static_cast<int>(time(nullptr));
     // srand(seedSave);
-    if (attrs.radiiDistribution == constant)
-    {
-        oneSizeSphere(nBalls);
-    }
-    else
-    {
-        distSizeSphere(nBalls);
-    }
+    // if (attrs.radiiDistribution == constant)
+    // {
+    //     oneSizeSphere(nBalls);
+    // }
+    // else
+    // {
+    //     distSizeSphere(nBalls);
+    // }
+    sphereInit();
     
     calc_helpfuls();
     // threeSizeSphere(nBalls);
@@ -3036,12 +3048,13 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename)
 
         parseSimData(getLastLine(path, simFile));
         loadConsts(path, constFile);
+        // loadDatafromCSV(path,file);
     }
     else if (file.substr(file.size()-3,file.size()) == ".h5")
     {
         #ifdef HDF5_ENABLE
-            _pos = file.find_first_of("_");
-            file_index = stoi(file.substr(0,_pos));
+            // _pos = file.find_first_of("_");
+            // file_index = stoi(file.substr(0,_pos));
             loadDatafromH5(path,file);
         #else
             MPIsafe_print(std::cerr,"ERROR: HDF5 not enabled, could not open file '"+path+file+"'. Please recompile with -DHDF5_ENABLE and try again.\n");
@@ -3125,6 +3138,147 @@ void Ball_group::parse_meta_data(std::string metadata)
 }
 
 
+void Ball_group::loadDatafromCSV(std::string path,std::string file)
+{
+    //read metadata to determine steps and skip variables
+    std::string meta = "";//CSVHandler::readMetadataFromDataset("constants",path+file,attrs.sim_meta_data_name);
+    size_t _pos = file.find_first_of("_");
+    int file_index = stoi(file.substr(0,_pos));
+    bool has_meta = true;
+    //If this error happens then then we cannot restart from midway through a sim.
+    //This is because the metadata containing the info needed was missing for somereason
+  
+    if (meta == ERR_RET_MET)  
+    {
+        has_meta = false;
+        //If the highest sim is not finished, we need to load up the previous one and delete the partially completed sim
+        if (!HDF5Handler::sim_finished(path,file))
+        {
+            std::string rmfile = file;
+
+            #ifdef MPI_ENABLE
+                MPI_Barrier(MPI_COMM_WORLD);
+                
+                int status;
+                int send_result;
+                //If multiple nodes, we don't want to delete until everyone has loaded
+                if (getRank() == 0)
+                {
+                    status = remove(rmfile.c_str());
+                    if (getSize() > 1)
+                    {
+                        for (int i = 1; i < getSize(); i++)
+                        {
+                            send_result = MPI_Send(&status, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+                            if (send_result != MPI_SUCCESS)
+                            {
+                                std::cerr<<"ERROR: MPI_Send to node "<<i<<" errored with code "<<send_result<<std::endl;   
+                                MPIsafe_exit(-1);
+                            }
+                        }
+
+                    }
+                }
+                else
+                {
+                    MPI_Status mpistat;
+                    MPI_Recv(&status, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &mpistat);
+                    //verify Recv worked
+                    if (mpistat.MPI_ERROR != MPI_SUCCESS)
+                    {
+                        std::cerr<<"ERROR: MPI_Recv for node "<<getRank()<<" errored with code "<<mpistat.MPI_ERROR<<std::endl;   
+                        MPIsafe_exit(-1);
+                    }
+                }
+            #else
+                int status = remove(rmfile.c_str());
+            #endif
+            
+
+            if (status != 0)
+            {
+                std::string message("File: '"+rmfile+"' could not be removed, now exiting with failure.\n");
+                MPIsafe_print(std::cerr,message);
+                MPIsafe_exit(EXIT_FAILURE);
+            }
+            file_index--;
+            file = std::to_string(file_index) + file.substr(_pos,file.size());
+
+        }
+    }
+
+    //This needs to be here because its used in the following function
+    attrs.start_index = file_index;
+    
+    int num_particles = HDF5Handler::get_num_particles(path,file);
+    allocate_group(num_particles);
+    if (get_JKR(path))
+    {
+        allocate_group_JKR(num_particles);
+    }
+    
+    //Load constants because this can be done without an initialized instance of DECCOData
+    HDF5Handler::loadConsts(path,file,R,m,moi);
+
+    int writes;
+    if (attrs.typeSim != relax && has_meta) //Relax jobs should not read in the metadata for dt, steps, etc. That is for restarting jobs.
+    {
+        parse_meta_data(meta);
+
+        //Now we have all info we need to initialze an instance of DECCOData.
+        //However, data_written_so_far needs to be determined and set since this is a restart.
+        //All this happens in the next two functions. 
+        init_data(attrs.start_index);
+        //writes is 0 if there is no writes so far (I don't think this should happen but if it does, more stuff needs to happen).
+        //writes is >0 then that is how many writes there have been.
+        //writes is -1 if there are writes and the sim is already finished. 
+        writes = data->setWrittenSoFar(path,file);
+    }
+    else
+    {
+
+        // init_data(attrs.start_index);
+        writes = -1;
+    }
+    // if (writes == 0)//This should really never happen. If it did then there is an empty h5 file
+    // {
+    //     std::cerr<<"not implimented"<<std::endl;
+    //     exit(-1);
+    // }
+    if(writes > 0) //Works
+    {
+        //This cannot be done without an instance of DECCOData, that is why these are different than loadConsts
+        data -> loadSimData(path,file,pos,w,vel);
+
+
+        //initiate buffers since we won't call sim_init_write on a restart
+        energyBuffer = std::vector<double> (data->getWidth("energy")*bufferlines);
+        ballBuffer = std::vector<double> (data->getWidth("simData")*bufferlines);
+        
+        MPIsafe_print(std::cerr,"mid_sim_restart\n");
+        attrs.mid_sim_restart = true;
+        attrs.start_step = attrs.skip*(writes-1)+1;
+        attrs.start_index++;
+    }
+    else if(writes == -1) //Works
+    {
+        if (attrs.typeSim != relax && has_meta)
+        {
+            data -> loadSimData(path,file,pos,w,vel);
+        }
+        else
+        {
+            HDF5Handler::loadh5SimData(path,file,pos,w,vel);
+        }
+        attrs.start_index++;
+    }
+    else
+    {
+        MPIsafe_print(std::cerr,"ERROR: in setWrittenSoFar() output of value '"+std::to_string(writes)+"'.\n");
+        MPIsafe_exit(EXIT_FAILURE);
+    }
+     
+}
 
 
 #ifdef HDF5_ENABLE
@@ -3271,11 +3425,27 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
 }
 #endif
 
-void Ball_group::distSizeSphere(const int nBalls)
+// void Ball_group::distSizeSphere(const int nBalls)
+// {
+//     for (int Ball = 0; Ball < nBalls; Ball++) {
+//         R[Ball] = lognorm_dist(attrs.scaleBalls*std::exp(-5*std::pow(attrs.lnSigma,2)/2),attrs.lnSigma);
+//         m[Ball] = attrs.density * 4. / 3. * 3.14159 * std::pow(R[Ball], 3);
+//         moi[Ball] = .4 * m[Ball] * R[Ball] * R[Ball];
+//         w[Ball] = {0, 0, 0};
+//         pos[Ball] = rand_vec3(attrs.spaceRange);
+//     }
+
+//     attrs.m_total = getMass();
+
+//     placeBalls(nBalls);
+// }
+
+void Ball_group::sphereInit()
 {
-    for (int Ball = 0; Ball < nBalls; Ball++) {
-        R[Ball] = lognorm_dist(attrs.scaleBalls*std::exp(-5*std::pow(attrs.lnSigma,2)/2),attrs.lnSigma);
-        m[Ball] = attrs.density * 4. / 3. * 3.14159 * std::pow(R[Ball], 3);
+    for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
+        // setRadii(Ball);
+        // setMass(Ball);
+        // m[Ball] = attrs.density * 4. / 3. * 3.14159 * std::pow(R[Ball], 3);
         moi[Ball] = .4 * m[Ball] * R[Ball] * R[Ball];
         w[Ball] = {0, 0, 0};
         pos[Ball] = rand_vec3(attrs.spaceRange);
@@ -3283,7 +3453,38 @@ void Ball_group::distSizeSphere(const int nBalls)
 
     attrs.m_total = getMass();
 
-    placeBalls(nBalls);
+    placeBalls(attrs.num_particles);
+}
+
+inline void Ball_group::setRadii()
+{
+    for (int i = 0; i < attrs.num_particles; ++i)
+    {
+        if (attrs.radiiDistribution == constant)
+        {
+            R[i] = attrs.scaleBalls;
+        }
+        else
+        {
+            R[i] = lognorm_dist(attrs.scaleBalls*std::exp(-5.0*std::pow(attrs.lnSigma,2)/2.0),attrs.lnSigma);
+        }
+    }
+
+}
+
+inline void Ball_group::setMass()
+{
+    for (int i = 0; i < attrs.num_particles; ++i)
+    {
+        if (attrs.JKR)
+        {
+            m[i] = density[i] * 4. / 3. * pi * std::pow(R[i], 3);
+        }
+        else
+        {
+            m[i] = attrs.density * 4. / 3. * pi * std::pow(R[i], 3);
+        }
+    }
 }
 
 //Gives the projectile and target a velocity based on v_custom such that they collide
@@ -3297,6 +3498,7 @@ void Ball_group::pos_and_vel_for_collision(Ball_group &projectile)
 }
 void Ball_group::pos_and_vel_for_collision(Ball_group &projectile,Ball_group &target)
 {
+
     target.attrs.initial_radius = target.getRadius(target.getCOM());
 
     // Collision velocity calculation:
@@ -3307,8 +3509,8 @@ void Ball_group::pos_and_vel_for_collision(Ball_group &projectile,Ball_group &ta
     const double mTot = mBig + mSmall;
     // const double vSmall = -sqrt(2 * KEfactor * fabs(PEsys) * (mBig / (mSmall * mTot))); // Negative
     // because small offsets right.
-    const double vBig = attrs.v_custom*(mSmall)/(mTot);     //-(mSmall / mBig) * vSmall;  // Negative to oppose projectile.
-    const double vSmall = (vBig-attrs.v_custom);  
+    const double vBig = std::fabs(attrs.v_custom)*(mSmall)/(mTot);     //-(mSmall / mBig) * vSmall;  // Negative to oppose projectile.
+    const double vSmall = std::fabs(vBig-attrs.v_custom);  
     // const double vBig = 0; // Dymorphous override.
 
     if (std::isnan(vSmall) || std::isnan(vBig)) {
@@ -3329,42 +3531,22 @@ void Ball_group::pos_and_vel_for_collision(Ball_group &projectile,Ball_group &ta
     MPIsafe_print(std::cerr,"Projectile direction: ("+dToSci(projectile_direction.x)+','+dToSci(projectile_direction.y)+','+dToSci(projectile_direction.z)+")\n");
 
     projectile.kick(vSmall*projectile_direction);
-    target.kick(vBig*projectile_direction);
+    target.kick(vBig*(-projectile_direction));
+
+    std::cerr<<"vSmall*projectile_direction: "<<vSmall*projectile_direction<<std::endl;
+    std::cerr<<"vBig*(-projectile_direction): "<<vBig*(-projectile_direction)<<std::endl;
     
+    // std::cerr<<"vSmall*projectile_direction: "<<vSmall*projectile_direction<<std::endl;
+    // std::cerr<<"vBig*projectile_direction: "<<vBig*projectile_direction<<std::endl;
 
-    //move projectile so it is down the x-axis 
-    // projectile.move(vec3(projectile.attrs.initial_radius + projectile.getRmax()*2 + target.attrs.initial_radius + target.getRmax() * 2, 0, 0));
-
-    //This takes care of offsetting the target and projectile, but still need to move them apart
-    // std::cerr<<"impact parameter: "<<attrs.impactParameter<<std::endl;
 
     if (attrs.impactParameter < 0.0)
     {
-        //move the projectile so it is barely not touching the target
-        // projectile.offset(
-        //     projectile.attrs.initial_radius + projectile.getRmax(), target.attrs.initial_radius + target.getRmax(), 0);
-
-        // std::cerr<<"projectile.init pos: "<<projectile.pos[0]<<std::endl;
-        // std::cerr<<"target.init pos: "<<target.getCOM()<<std::endl;
-        // std::cerr<<"projectile.attrs.initial_radius: "<<projectile.attrs.initial_radius<<std::endl;
-        // std::cerr<<"projectile.R[0]: "<<projectile.R[0]<<std::endl;
-        // std::cerr<<"ptarget.attrs.initial_radius: "<<target.attrs.initial_radius<<std::endl;
-        // std::cerr<<"updated ptarget.attrs.initial_radius: "<<target.getRadius(target.getCOM())<<std::endl;
-
-        // std::cerr<<"direction norm: "<<projectile_direction.norm()<<std::endl;
-
-        // std::cerr<<"projectile target dist pre move: "<<(projectile.getCOM()-target.getCOM()).norm()<<std::endl;
-        
-        projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*projectile_direction);
-
-
-        // std::cerr<<"projectile target dist post move: "<<(projectile.getCOM()-target.getCOM()).norm()<<std::endl;
-
-
+        //move the projectile so it is barely not touching the target        
+        projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*(-projectile_direction));
 
         //give the projectile a random offset such that they still collide
         const auto offset = random_offset(projectile, target); 
-        // std::cerr<<"projectile target dist post offset: "<<(projectile.getCOM()-target.getCOM()).norm()<<std::endl;
         MPIsafe_print(std::cerr,"Applying random offset of "+vToSci(offset)+" cm.\n");
 
     }
@@ -3381,14 +3563,10 @@ void Ball_group::pos_and_vel_for_collision(Ball_group &projectile,Ball_group &ta
             // projectile.attrs.initial_radius, target.attrs.initial_radius + target.getRmax() * 2, attrs.impactParameter);
             // (projectile.attrs.initial_radius + target.attrs.initial_radius)*3, 0.0, attrs.impactParameter);
     }
+
     //Now we can move the aggregates apart a little bit if they are touching
     //If they are touching, move the projectile in projectile_direction
     moveApart(projectile_direction,projectile,target);
-    // std::cerr<<"ptarget.attrs.initial_radius: "<<target.attrs.initial_radius<<std::endl;
-    // std::cerr<<"projectile target dist at end of pos and vel for collision: "<<(projectile.getCOM()-target.getCOM()).norm()<<std::endl;
-    // std::cerr<<"projectile at end of pos and vel for collision: "<<projectile.pos[0]<<std::endl;
-
-    // MPIsafe_exit(-1);
 }
 
 void Ball_group::overwrite_v_custom(Ball_group &projectile)
@@ -3428,33 +3606,7 @@ void Ball_group::overwrite_v_custom(Ball_group &projectile,Ball_group &target)
     }
 }
 
-void Ball_group::oneSizeSphere(const int nBalls)
-{
-    for (int Ball = 0; Ball < nBalls; Ball++) {
-        R[Ball] = attrs.scaleBalls;
-        m[Ball] = attrs.density * 4. / 3. * 3.14159 * std::pow(R[Ball], 3);
-        moi[Ball] = .4 * m[Ball] * R[Ball] * R[Ball];
-        w[Ball] = {0, 0, 0};
-        pos[Ball] = rand_vec3(attrs.spaceRange);
-        ////////////////////////////
-        // if (Ball < nBalls-1)
-        // {
-        //     inout[Ball] = 0.0;
-        //     distB3[Ball] = 0.0;
-        // }
-        // slidDir[Ball] = {0,0,0};
-        // rollDir[Ball] = {0,0,0};
-        // slidB3[Ball] = {0,0,0};
-        // rollB3[Ball] = {0,0,0};
-        // slidFric[Ball] = {0,0,0};
-        // rollFric[Ball] = {0,0,0};
-        ////////////////////////////
-    }
 
-    attrs.m_total = getMass();
-
-    placeBalls(nBalls);
-}
 
 void Ball_group::placeBalls(const int nBalls)
 {
@@ -3522,21 +3674,24 @@ void Ball_group::placeBalls(const int nBalls)
 
 void Ball_group::updateDTK(const double& velocity)
 {
-    std::string initMessage = "Setting dt and k based on a velocity of "+dToSci(velocity)+" cm/s\n";
-    MPIsafe_print(std::cerr,initMessage);
-    calc_helpfuls();
-    attrs.kin = attrs.kConsts * attrs.r_max * velocity * velocity;
-    attrs.kout = attrs.cor * attrs.kin;
-
+    std::string initMessage;
     if (attrs.JKR)
     {
+        initMessage = "Setting dt and k based on critical values for JKR sim.\n";
         double delta0 = a0[0]*a0[0]/(3.0*reducedR[0]);
         double deltac = pow(9.0/16.0,1.0/3.0)*delta0;
         double Fc = 3.0*pi*(reducedGamma[0])*reducedR[0];
         attrs.dt = 0.014*sqrt(m[0]*deltac/Fc);
+        // std::cerr<<"m[0]: "<<m[0]<<std::endl;
+        // std::cerr<<"reducedGamma[0]: "<<reducedGamma[0]<<std::endl;
+        // std::cerr<<"reducedR[0]: "<<reducedR[0]<<std::endl;
+        // std::cerr<<"a0[0]: "<<a0[0]<<std::endl;
     }
     else
     {
+        initMessage = "Setting dt and k based on a velocity of "+dToSci(velocity)+" cm/s\n";
+        attrs.kin = attrs.kConsts * attrs.r_max * velocity * velocity;
+        attrs.kout = attrs.cor * attrs.kin;
         const double h2 = attrs.h_min * attrs.h_min;
         // const double four_R_min = 4 * attrs.r_min * attrs.h_min;
         // const double vdw_force_max = attrs.Ha / 6 * 64 * attrs.r_min * attrs.r_min * attrs.r_min * attrs.r_min * attrs.r_min * attrs.r_min *
@@ -3569,18 +3724,23 @@ void Ball_group::updateDTK(const double& velocity)
         // attrs.dt = .005 * sqrt((attrs.fourThirdsPiRho / regime_adjust) * attrs.r_min * attrs.r_min * attrs.r_min); 
         // attrs.dt = .0005 * sqrt((attrs.fourThirdsPiRho / regime_adjust) * attrs.r_min * attrs.r_min * attrs.r_min);
     }
+    MPIsafe_print(std::cerr,initMessage);
+    calc_helpfuls();
 
 
 
     std::stringstream message;
     message << "==================" << '\n';
     message << "dt set to: " << attrs.dt << '\n';
-    message << "kin set to: " << attrs.kin << '\n';
-    message << "kout set to: " << attrs.kout << '\n';
-    message << "h_min set to: " << attrs.h_min << '\n';
-    message << "Ha set to: " << attrs.Ha << '\n';
-    message << "u_s set to: " << attrs.u_s << '\n';
-    message << "u_r set to: " << attrs.u_r << '\n';
+    if (!attrs.JKR)
+    {
+        message << "kin set to: " << attrs.kin << '\n';
+        message << "kout set to: " << attrs.kout << '\n';
+        message << "h_min set to: " << attrs.h_min << '\n';
+        message << "Ha set to: " << attrs.Ha << '\n';
+        message << "u_s set to: " << attrs.u_s << '\n';
+        message << "u_r set to: " << attrs.u_r << '\n';
+    }
     // if (vdw_force_max > elastic_force_max)
     // {
     //     message << "In the vdw regime.\n";
@@ -4499,87 +4659,23 @@ void Ball_group::sim_one_step_JKR(int step)
     // t.start_event("UpdateKinPar");
     // for (int Ball = 1; Ball < attrs.num_particles; Ball++) {
     for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
-        
-        // if (1)
-        // {
+    
         // Update velocity half step:
         velh[Ball] = vel[Ball] + .5 * acc[Ball] * attrs.dt;
 
         // Update angular velocity half step:
         wh[Ball] = w[Ball] + .5 * aacc[Ball] * attrs.dt;
-        // }
-        // else
-        // {
-        //     // Update velocity half step:
-        //     velh[Ball] = {0,0,0};
-
-        //     // Update angular velocity half step:
-        //     wh[Ball] = {0,0,1000000};            
-        // }
 
         // Update position:
         pos[Ball] += velh[Ball] * attrs.dt;
-        // phi[Ball] += wh[Ball] * attrs.dt;
 
         //Update contact pointers
         ///////////////////2nd order verlet///////////////////
         
         const vec3 w_body = q[Ball].worldToLocal(wh[Ball]);
-        // const double prevEu0 = Eu0[Ball];
-        // const vec3 prevEu = Eu[Ball];
-        // const vec3 w_body = worldToLocal(prevEu0,prevEu,wh[Ball]);
-        // const double prevEu0p = Eu0p[Ball];
-        // const vec3 prevEup = Eup[Ball];
-        // Eu0p[Ball] = 0.5*prevEu.dot(w_body);
-        // Eup[Ball] = 0.5*(prevEu0*w_body - prevEu.cross(w_body));
-
-
         q[Ball].exponential_integrate(w_body,attrs.dt);
 
         
-
-
-
-
-
-
-        // double length;
-        
-        // //////////////////forward eulder update for quaternions//////////////////
-        // // Eu0[Ball] = prevEu0 + Eu0p[Ball]*attrs.dt;
-        // // Eu[Ball] = prevEu + Eup[Ball]*attrs.dt;
-        // /////////////////////////////////////////////////////////////////////////
-
-        // //////////////////trapezoidal update for quaternions//////////////////
-        // vec3 Eustar = prevEu + attrs.dt*Eup[Ball];
-        // double Eu0star = prevEu0 + attrs.dt*Eu0p[Ball];
-
-        // length = sqrt(Eu0star*Eu0star + Eustar.normsquared());
-        // Eu0star /= length;
-        // Eustar /= length;
-
-        // const vec3 w_body_n = worldToLocal(Eu0star,Eustar,wh[Ball]);
-
-        // const double Eu0starp = 0.5*Eustar.dot(w_body_n);
-        // const vec3 Eustarp = 0.5*(Eu0star*w_body_n - Eustar.cross(w_body_n));
-
-        // Eu0[Ball] = prevEu0 + 0.5*(Eu0p[Ball]+Eu0starp)*attrs.dt;
-        // Eu[Ball] = prevEu + 0.5*(Eup[Ball]+Eustarp)*attrs.dt;
-        // //////////////////////////////////////////////////////////////////////
-
-        
-
-        // length = sqrt(Eu0[Ball]*Eu0[Ball] + Eu[Ball].normsquared());
-        // Eu0[Ball] /= length;
-        // Eu[Ball] /= length;
-
-        // if (Ball == 1)
-        // {
-        //     std::cout<<"========================================"<<std::endl;
-        //     std::cout<<"prev Q: "<<prevEu0<<','<<prevEu<<std::endl;
-        //     std::cout<<"new  Q: "<<Eu0[Ball]<<','<<Eu[Ball]<<std::endl;
-        //     std::cout<<"wh    : "<<wh[Ball]<<std::endl;
-        // }
 
         // Reinitialize acceleration to be recalculated:
         acc[Ball] = {0, 0, 0};
@@ -4680,58 +4776,7 @@ void Ball_group::sim_one_step_JKR(int step)
                                 +std::cbrt(0.5*alpha - sqrt(0.25*alpha*alpha + beta*overlap*overlap*overlap));
 
             const double contactRadius = 0.5*sqrt(alpha/lambda) + 0.5*sqrt(2.0*sqrt(alpha*lambda) - lambda*lambda);
-            ///////////////////////Chat GPT hysteresis///////////////////////
-            // --- per contact persistent state ---
-            // bool   &loading = loading_flag[e];   // true = compressing
-            // double &a_prev  = a_store[e];
 
-            // const double delta_prev = R[A] + R[B] - oldDist;
-            // const double delta_now  = overlap;                 // R_A+R_B - dist
-            // const double ddelta     = delta_now - delta_prev;
-
-            // // pick a deadband bigger than FP noise but tiny physically
-            // const double eps_sw = std::max(1e-14*(R[A]+R[B]), 1e-3 * a0[e]);
-
-            // // 1) Update loading flag with a *held* deadband
-            // bool loading_prev = loading;
-            // if      (ddelta >  eps_sw) loading = true;
-            // else if (ddelta < -eps_sw) loading = false;   // else keep previous
-
-            // bool reversed = (loading != loading_prev);
-
-            // // 2) Solve cubic (as you already do) to get a_plus, a_minus
-            // const double S    = 0.5 * alpha;
-            // const double disc = 0.25*alpha*alpha + beta*delta_now*delta_now*delta_now;
-            // // (you detach earlier if delta < deltab; keeping this guard is still good practice)
-            // if (disc < 0.0) { /* unreachable normally because of your earlier check */ }
-            // const double root = std::sqrt(disc);
-            // const double lam  = cbrt(S + root) + cbrt(S - root);
-
-            // const double t1 = alpha/lam;
-            // const double t2 = 2.0*std::sqrt(alpha*lam) - lam*lam;
-            // const double base    = 0.5*std::sqrt(t1);
-            // const double rad     = 0.5*std::sqrt(t2);
-            // const double a_plus  = base + rad;
-            // const double a_minus = base - rad;
-
-            // // 3) Choose branch
-            // double contactRadius;
-            // if (reversed) {
-            //     // only on the actual reversal step do we use continuity in 'a'
-            //     contactRadius = (std::fabs(a_plus - a_prev) <= std::fabs(a_minus - a_prev)) ? a_plus : a_minus;
-            // } else {
-            //     // otherwise, stick to the branch implied by the flag
-            //     contactRadius = loading ? a_plus : a_minus;
-            // }
-            ///////////////////////Chat GPT hysteresis END///////////////////////
-
-            // Save state
-            a_store[e]     = contactRadius;
-            
-
-
-
-            // delta_store[e] = delta_now;
 
             // Now compute Fn from a_now (JKR), and the centroid/lever arm from a_now.
 
@@ -4746,11 +4791,12 @@ void Ball_group::sim_one_step_JKR(int step)
 
 
             const double reduced_mass = (m[A]*m[B])/(m[A]+m[B]);
-            const double kt = 2*reducedE[e]*contactRadius;
-            // const double normViscConst = 0.0132; //normal critical damping ratio. 0 for no damping 1, for critical damping
-            const double normViscConst = 0.0; 
+            const double kn = 2*reducedE[e]*contactRadius;
+            const double normViscConst = 0.0132; //normal critical damping ratio. 0 for no damping 1 for critical damping
+            // const double normViscConst = 1.0-0.0132; //normal critical damping ratio. 0 for no damping 1 for critical damping
+            // const double normViscConst = 0.0; 
             const double relativeVelocity = (vel[B] - vel[A]).dot((rVecab)*dist_reciprocal);
-            const double dampingForceA = -2.0*normViscConst*sqrt(reduced_mass*kt) * relativeVelocity;
+            const double dampingForceA = -2.0*normViscConst*sqrt(reduced_mass*kn) * relativeVelocity;
 
             const vec3 normalForceA = (JKRForce + dampingForceA)*n_c;
 
@@ -4794,8 +4840,8 @@ void Ball_group::sim_one_step_JKR(int step)
             const double effectiveStiffnessB = E[B]/(1.0-nu[B]*nu[B]);
             const double Sab = effectiveStiffnessA/effectiveStiffnessB;
             const double Sba = 1.0/Sab;
-            const double rAeff = (R[A] - overlap/(1+Sab));
-            const double rBeff = (R[B] - overlap/(1+Sba));
+            const double rAeff = R[A];//(R[A] - overlap/(1+Sab));
+            const double rBeff = R[B];//(R[B] - overlap/(1+Sba));
 
 
             //sliding
@@ -4976,17 +5022,17 @@ void Ball_group::sim_one_step_JKR(int step)
     for (int Ball = 0; Ball < attrs.num_particles; Ball++) 
     {
         // if (Ball != 0)
-        if (1)
-        {
-            // Velocity for next step:
-            vel[Ball] = velh[Ball] + .5 * acc[Ball] * attrs.dt;
-            w[Ball] = wh[Ball] + .5 * aacc[Ball] * attrs.dt;
-            
+        // if (1)
+        // {
+        // Velocity for next step:
+        vel[Ball] = velh[Ball] + .5 * acc[Ball] * attrs.dt;
+        w[Ball] = wh[Ball] + .5 * aacc[Ball] * attrs.dt;
+        
 
-            // Eu0[Ball] = 1.0;
-            // Eu[Ball] = {0.0,0.0,0.0};
+        // Eu0[Ball] = 1.0;
+        // Eu[Ball] = {0.0,0.0,0.0};
 
-        }
+        // }
         // else 
         // {
         //     vel[Ball] = {0,0,0};
@@ -5493,7 +5539,7 @@ void Ball_group::sim_one_step()
 }  // one Step end
 #endif
 
-void
+bool
 Ball_group::sim_looper(unsigned long long start_step=1)
 {
 
@@ -5686,9 +5732,17 @@ Ball_group::sim_looper(unsigned long long start_step=1)
     {
         if (!isConnected(pos,R,attrs.num_particles))
         {
-            //For now just stop the sim so I can verify this isConnected works
-            MPIsafe_print(std::cerr,"ERROR: aggregate failed isConnected. Now exiting. . .\n");
-            MPIsafe_exit(-1);
+            attrs.isConnectedFails += 1;
+            if (attrs.isConnectedFails < attrs.maxConnectedFails)
+            {
+                MPIsafe_print(std::cerr,"ERROR: aggregate failed isConnected "+std::to_string(attrs.isConnectedFails)+" times. Restarting sim. . .\n");
+            }
+            else
+            {
+                MPIsafe_print(std::cerr,"ERROR: aggregate failed isConnected a max number of "+std::to_string(attrs.maxConnectedFails)+" times. Exiting sim. . .\n");
+                MPIsafe_exit(-1);
+            }
+            return false;
         }
         else
         {
@@ -5707,10 +5761,10 @@ Ball_group::sim_looper(unsigned long long start_step=1)
         std::cerr << "\n===============================================================\n";
     }
 
-    std::cout<<"MAX_w: "<<max_w<<std::endl;
-    // std::cout<<"MIN_OVERLAP: "<<min_overlap<<std::endl;
 
-    data->write_checkpoint();
+    data->writeCheckpoint();
+    attrs.isConnectedFails = 0;
+    return true;
 }  // end simLooper
 
 

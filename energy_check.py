@@ -66,6 +66,7 @@ def calc_PE(pos,radius,HA,K):
 
 def verify_simData(directory,HA=0):
 	indices = u.get_all_indices(directory,checkpoint=True)
+	indices = [4]
 	relax = ("relax" in directory)
 	for i in indices:
 		time,_,_,_,_,_ = u.get_energy(directory,data_index=i,relax=relax)
@@ -73,6 +74,8 @@ def verify_simData(directory,HA=0):
 		pos,vel,w = u.get_simData(directory,i,relax)
 		timesteps = pos.shape[0]
 
+		start = 100
+		stop = -1
 
 		rotKE = np.zeros((timesteps),dtype=np.float64)
 		transKE = np.zeros((timesteps),dtype=np.float64)
@@ -86,10 +89,11 @@ def verify_simData(directory,HA=0):
 			# PE[step] = calc_PE(pos[step],radius,HA=0.1,K=0.1)
 		plt.figure(figsize=(10, 6))
 		# plt.plot(time, KE, label='Kinetic Energy')
-		plt.plot(time, rotKE, label='Rotational KE')
-		plt.plot(time, transKE, label='Translational KE')
-		plt.plot(time, transKE+rotKE, label='Total KE')
+		plt.plot(time[start:stop], rotKE[start:stop], label='Rotational KE')
+		plt.plot(time[start:stop], transKE[start:stop], label='Translational KE')
+		plt.plot(time[start:stop], transKE[start:stop]+rotKE[start:stop], label='Total KE')
 		# plt.axhline(y=horizontal_line_value, color='red', linestyle='--', label='Reference Value')
+		plt.ylim(0,2.2e-15)
 		plt.xlabel('Time (s)')
 		plt.ylabel('Energy (ergs)')
 		# plt.title('Rotational Kinetic Energy vs. Time (About Center of Mass)')
@@ -99,8 +103,8 @@ def verify_simData(directory,HA=0):
 
 		plt.figure(figsize=(10, 6))
 		# plt.plot(time, KE, label='Kinetic Energy')
-		plt.plot(time, w[:,0,2], label='w0')
-		plt.plot(time, w[:,1,2], label='w1')
+		plt.plot(time[start:stop], w[:,0,2][start:stop], label='w0')
+		plt.plot(time[start:stop], w[:,1,2][start:stop], label='w1')
 		# plt.plot(time, w[:,2,2], label='w2')
 		# plt.plot(time, transKE, label='Translational KE')
 		# plt.plot(time, transKE+rotKE, label='Total KE')
@@ -114,6 +118,7 @@ def verify_simData(directory,HA=0):
 
 def verify_energy(directory):
 	indices = u.get_all_indices(directory,checkpoint=True)
+	indices = [4]
 	relax = ("relax" in directory)
 	for i in indices:
 		time,PE,KE,E,p,L = u.get_energy(directory,data_index=i,relax=relax)
@@ -210,7 +215,8 @@ if __name__ == '__main__':
 	
 	path = input_json["data_directory"]
 
-	directory = "/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/JKRTest/"
+	directory = "/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/JKRBPCA0/N_300/T_3/"
+	directory = "/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/JKRTest_5/"
 	relax = ("relax" in directory)
 
 	verify_energy(directory)

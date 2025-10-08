@@ -232,22 +232,12 @@ void runAggregation(std::string path, int num_balls)
 
     if  (!O.attrs.mid_sim_restart && O.attrs.typeSim != BAPA)
     {
-        // std::cerr<<"starting at step "<<O.attrs.start_step<<" with balls: "<<O.attrs.genBalls<<std::endl;
-        // std::cerr<<O.attrs.num_particles<<std::endl;
-        // exit(0);
-        // O.sim_init_write(O.attrs.genBalls);
-        // O.attrs.start_index = O.attrs.genBalls;
         O.attrs.start_index = O.attrs.num_particles;
-        // O.sim_looper(1);
     }
     else if (O.attrs.mid_sim_restart && (O.attrs.typeSim == BCCA || O.attrs.typeSim == BPCA))
     {
         O.sim_looper(O.attrs.start_step);
     }
-
-    // std::cerr<<O.attrs.start_index<<std::endl;
-    // std::cerr<<"Out: "<<O.data->filename<<std::endl;
-    // exit(0);
 
     int increment = 1; // This should be 1 for BPCA, for BCCA, set in for loop
     if (O.attrs.typeSim == BAPA)
@@ -259,6 +249,7 @@ void runAggregation(std::string path, int num_balls)
     for (int i = O.attrs.start_index; i < num_balls; i+=increment) 
     {
         // t.start_event("add_projectile");
+        // Ball_group old_O = O;
         O = O.add_projectile(O.attrs.typeSim);
 
         if (O.attrs.typeSim == BCCA)
@@ -272,7 +263,17 @@ void runAggregation(std::string path, int num_balls)
             std::cerr<<"Asking for "<<O.get_num_threads()<<" thread(s)."<<std::endl;
         }
 
-        O.sim_looper(1);
+        bool success = O.sim_looper(1);
+        if (!success)
+        {
+            O.data->deleteData();
+            int isConnectedFails = O.attrs.isConnectedFails;
+            O = Ball_group(path);  
+            safetyChecks(O);
+            O.attrs.isConnectedFails = isConnectedFails;
+            i -= increment;
+        }
+
         O.attrs.simTimeElapsed = 0;
 
         if (increment == -1)
@@ -410,12 +411,12 @@ safetyChecks(Ball_group &O) //Should be ready to call sim_looper
         MPIsafe_exit(EXIT_FAILURE);
     } 
 
-    if (O.attrs.kin < 0) {
+    if (!O.attrs.JKR && O.attrs.kin < 0) {
         fprintf(stderr, "\nSPRING CONSTANT IN NOT SET for rank %1d\n",getRank());
         MPIsafe_exit(EXIT_FAILURE);
     }
 
-    if (O.attrs.kout < 0) {
+    if (!O.attrs.JKR && O.attrs.kout < 0) {
         fprintf(stderr, "\nSPRING CONSTANT OUT NOT SET for rank %1d\n",getRank());
         MPIsafe_exit(EXIT_FAILURE);
     }

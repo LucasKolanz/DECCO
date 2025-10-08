@@ -149,6 +149,8 @@ struct Ball_group_attributes
     int properties = -1;  // Number of columns in simData file per ball
     int genBalls = -1;
     int attempts = -1.0;  // How many times to try moving every ball touching another in generator.
+    int isConnectedFails = 0;
+    int maxConnectedFails = 10;
 
 
     double spaceRange = -1.0;  // Rough minimum space required
@@ -286,6 +288,8 @@ struct Ball_group_attributes
             data_type = other.data_type;
             filetype = other.filetype;
             num_writes = other.num_writes;
+            isConnectedFails = other.isConnectedFails;
+            maxConnectedFails = other.maxConnectedFails;
 
             //JKR stuff
             JKR = other.JKR;
@@ -406,7 +410,7 @@ public:
     vec3 random_offset(Ball_group &projectile, Ball_group &target);
     void comSpinner(const double& spinX, const double& spinY, const double& spinZ) const;
     void sim_one_step(int step);
-    void sim_looper(unsigned long long start_step);
+    bool sim_looper(unsigned long long start_step);
     
     //Functions which calculate/set values for Ball_group
     inline double calc_VDW_force_mag(const double Ra, const double Rb, const double h);
@@ -415,6 +419,8 @@ public:
     void calc_v_collapse();
     [[nodiscard]] double getVelMax();
     void calc_helpfuls(const bool includeRadius=true);
+    inline void setMass(int Ball);
+    inline void setRadii(int Ball);
     double get_soc();    
     vec3 calc_momentum(const std::string& of) const;
     [[nodiscard]] double getRadius(const vec3& center) const;
@@ -456,6 +462,7 @@ public:
     #ifdef HDF5_ENABLE
         void loadDatafromH5(std::string path, std::string file);
     #endif
+    void loadDatafromCSV(std::string path, std::string file);
     std::string get_data_info();
     void parse_meta_data(std::string metadata);
     std::string find_file_name(std::string path,int index);
@@ -481,9 +488,11 @@ public:
     void threeSizeSphere(const int nBalls);
     void generate_ball_field(const int nBalls);
     void loadSim(const std::string& path, const std::string& filename);
-    void distSizeSphere(const int nBalls);
-    void oneSizeSphere(const int nBalls);
+    // void distSizeSphere(const int nBalls);
+    void sphereInit();
     void placeBalls(const int nBalls);
+    void setRadii();
+    void setMass();
     void updateDTK(const double& velocity);
     void simInit_cond_and_center(bool add_prefix);
     void sim_continue(const std::string& path);

@@ -95,11 +95,11 @@ public:
 
 
     // void tostr(char str[]) const;
-private:
     double w;
     double x;
     double y;
     double z;
+private:
 
     rotation(const double neww, const double newx, const double newy, const double newz);
     rotation operator/(const double scalar) const;
@@ -110,6 +110,11 @@ private:
 //THIS ONLY WORKS FOR UNIT VEC QUATERNIONS
 vec3 quatRotate(const rotation& q, const vec3& vec);
 
-
+// Output vec3 to console easily.
+inline std::ostream&
+operator<<(std::ostream& s, const rotation& r)
+{
+    return s << r.w << ',' << r.x << ',' << r.y << ',' << r.z;
+}
 
 #endif

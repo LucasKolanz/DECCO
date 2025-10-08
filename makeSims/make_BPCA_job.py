@@ -43,7 +43,7 @@ if __name__ == '__main__':
 		
 
 	# job_set_name = "BPCA"
-	job_set_name = "TESTBPCA"
+	job_set_name = "JKRBPCA"
 
 	# folder_name_scheme = "T_"
 
@@ -52,7 +52,7 @@ if __name__ == '__main__':
 	runs_at_once = 1
 	# attempts = [0,1,2,3,4,5,6,7,8,9]#,11,12,13,14,15,16,17,18,19,20] 
 	attempts = [0] 
-	N = [5]
+	N = [300]
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [3]
@@ -83,30 +83,31 @@ if __name__ == '__main__':
 				####################################
 				######Change input values here######
 				input_json['temp'] = Temp
+				input_json['seed'] = 101
+				input_json['radiiDistribution'] = 'constant'#'lognormal'
+				input_json['simType'] = 'BPCA'
+				# input_json['simType'] = 'custom'
 				input_json['N'] = n
 				input_json['output_folder'] = job
-				input_json['OMPthreads'] = 1
-				input_json['MPInodes'] = 1
+				input_json['dataFormat'] = "h5"
+				# input_json['dataFormat'] = "csv"
 				input_json['impactParameter'] = -1.0
-
-				input_json['seed'] = rand_int()
-				# input_json['seed'] = 101
-
-				input_json['radiiDistribution'] = 'logNormal'
-				input_json['h_min'] = 0.5
-				
+				# input_json['simTimeSeconds'] = 1e-4
 				# input_json['timeResolution'] = 1e-6
-
-				# input_json['simTimeSeconds'] = 1e-6
-				# input_json['simTimeSeconds'] = 5e-4
-
-				input_json['dataFormat'] = "csv"
-				input_json['simType'] = "BPCA"
-				# input_json['random_folder_template'] = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{a}/N_30/T_1000/"
-
+				input_json['simTimeSeconds'] = 0.0005
+				input_json['timeResolution'] = 1e-5
+				# input_json['material'] = "amorphousCarbon"
+				input_json['material'] = "quartz"
+				# input_json['JKR'] = "False"
+				input_json['JKR'] = "True"
+				input_json['density'] = 2.6
+				# input_json['relaxIndex'] = n-3
+				input_json['h_min'] = 0.5
 				# input_json['u_s'] = 0.5
 				# input_json['u_r'] = 0.5
-				# input_json['note'] = "Does this work at all?"
+				# input_json['projectileName'] = "299_2_R4e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_"
+				# input_json['targetName'] = "299_2_R4e-05_v4e-01_cor0.63_mu0.1_rho2.25_k4e+00_Ha5e-12_dt5e-10_"
+				input_json['note'] = "testing"
 				####################################
 
 				with open(job + "input.json",'w') as fp:

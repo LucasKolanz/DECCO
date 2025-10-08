@@ -95,13 +95,17 @@ if __name__ == '__main__':
 					####################################
 					######Change input values here######
 					input_json['temp'] = Temp
-					input_json['seed'] = rand_int()
+					# input_json['seed'] = rand_int()
+					input_json['seed'] = 1503538376#rand_int()
+
 					input_json['radiiDistribution'] = 'constant'
 					input_json['N'] = n
 					input_json['h_min'] = 0.5
 					input_json['dataFormat'] = "h5"
 					input_json['output_folder'] = job
 					input_json['OMPthreads'] = threads
+					input_json['simTimeSeconds'] = 1e-5
+					input_json['timeResolution'] = 2e-7
 					input_json['material'] = "quartz"
 					input_json['simType'] = 'BPCA'
 					input_json['JKR'] = "True"
