@@ -27,8 +27,41 @@ sys.path.append(project_path+"utilities/")
 import utils as u
 
 
+def calc_asymmetry_parameter(data_folder,size,relax=False):
+	data,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
+	if data is None:
+		return np.nan
+	# num_balls = data.shape[0]
+
+	vol = [(4*np.pi/3)*r**3 for r in radius]
+
+	effective_radius = np.power(np.sum(np.power(radius,3)),1/3) 
+
+		
+	principal_moi = u.get_principal_moi(mass,data)[::-1]
+	alphai = principal_moi/(0.4*np.sum(mass)*effective_radius**2)
+
+	# return alphai[0]/np.sqrt(alphai[1]*alphai[2]) #From Draine Sensitivity of Polarization to Grain Shape. I. Convex Shapes
+	return np.sqrt(alphai[0]/(alphai[1]+alphai[2]-alphai[0])) #From Draine Sensitivity of Polarization to Grain Shape. II. Aggregates
 
 
+
+
+def calc_stretch_parameter(data_folder,size,relax=False):
+	data,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
+	if data is None:
+		return np.nan
+	# num_balls = data.shape[0]
+
+	vol = [(4*np.pi/3)*r**3 for r in radius]
+
+	effective_radius = np.power(np.sum(np.power(radius,3)),1/3) 
+
+		
+	principal_moi = u.get_principal_moi(mass,data)[::-1]
+	alphai = principal_moi/(0.4*np.sum(mass)*effective_radius**2)
+
+	return alphai[1]/np.sqrt(alphai[0]*alphai[2])
 
 def calc_porosity_abc(data_folder,size,relax=False):
 	data,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
@@ -42,7 +75,7 @@ def calc_porosity_abc(data_folder,size,relax=False):
 
 		
 	# principal_moi = u.get_principal_moi(vol,data)
-	principal_moi = u.get_principal_moi(mass,data)
+	principal_moi = u.get_principal_moi(mass,data)[::-1]
 	
 	
 	alphai = principal_moi/(0.4*np.sum(mass)*effective_radius**2)
@@ -65,7 +98,7 @@ def calc_porosity_KBM(data_folder,size,relax=False):
 
 	effective_radius = np.power(np.sum(np.power(radius,3)),1/3)   
 		
-	principal_moi = u.get_principal_moi(mass,data)
+	principal_moi = u.get_principal_moi(mass,data)[::-1]
 	# principal_moi = u.get_principal_moi(np.mean(mass),data)
 
 	alphai = principal_moi/(0.4*np.sum(mass)*effective_radius**2)
@@ -125,7 +158,7 @@ def calc_fractal_dimension(data_folder,size,relax=False):
 
 
 
-data_functions = [calc_porosity_abc,calc_porosity_KBM,calc_number_of_contacts,calc_fractal_dimension]
+data_functions = [calc_porosity_abc,calc_porosity_KBM,calc_number_of_contacts,calc_fractal_dimension,calc_asymmetry_parameter,calc_stretch_parameter]
 data_headers = [i.__name__[5:] for i in data_functions]
 
 def calc_from_size(size,directory,existing_headers,existing_values,requested_headers,relax=False,overwrite=False):
@@ -177,6 +210,7 @@ if __name__ == '__main__':
 
 
 
+	N = [30,100,300]
 	N = [300]
 
 	#list of the functions that calculate the data you want
@@ -186,7 +220,7 @@ if __name__ == '__main__':
 	#only take in the directory the data is in and the size of which 
 	#to calculate as an input.
 	#It should return a single data value.
-	bool_headers = [1,1,0,0]
+	bool_headers = [1,1,0,0,1,1]
 	# requested_data_functions = [data_functions[i] for i in range(len(data_functions)) if bool_headers[i]]
 	requested_data_headers = [data_headers[i] for i in range(len(data_headers)) if bool_headers[i]]
 
@@ -196,7 +230,7 @@ if __name__ == '__main__':
 	
 		data_folders = []
 		data_folders = [path + 'jobs/BAPA_*']
-		data_folders = [path + 'jobs/constrollingfric*']
+		# data_folders = [path + 'jobs/constrollingfric*']
 		# data_folders = [path + 'jobs/BAPA_0/M_60/*']
 		# data_folders = [path + 'jobs/SeqStickConst_*/']
 		# data_folders = [path + 'jobsCosine/lognorm_*/N_300/T_*/']
@@ -210,8 +244,10 @@ if __name__ == '__main__':
 		# data_folders.append(path + 'jobs/SeqStickConstrelax*/')
 		
 		# data_folders.append(path + f'jobsNovus/const_*/N_{n}/*')
+		# data_folders.append(path + f'jobsCosine/lognorm_*/N_{n}/*')
 		# data_folders.append(path + f'jobsNovus/constrelax_*/N_{n}/*')
 		# data_folders.append(path + f'jobsCosine/lognormrelax_*/N_{n}/*')
+		# data_folders.append(path + f'jobs/constrollingfricrelax*/N_{n}/*')
 
 		possible_dirs = []
 		for data_folder in data_folders:
@@ -276,6 +312,7 @@ if __name__ == '__main__':
 
 				with open(directory+f"{rel}{data_file}",'w') as fp:
 					fp.writelines(lines)
+
 
 			else:
 				print(f"Job is not finished in {directory}")
