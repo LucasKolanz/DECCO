@@ -143,6 +143,8 @@ void Ball_group::relaxInit(const std::string path)
     }
     else if (restart == 0)
     {
+        //relax should be false because in this case filename is what we want to load
+        //so if this is not a restart, we want to load the final state of the non-relaxed version
         filename = find_file_name(path,attrs.relax_index,/*relax=*/false);
     }
     // If the simulation is complete exit now. Otherwise, the call to 
@@ -212,7 +214,7 @@ void Ball_group::aggregationInit(const std::string path,const int index)
         MPIsafe_print(std::cerr,"Simulation already complete. Now exiting. . .\n");
         MPIsafe_exit(0);
     }
-    std::string filename = find_restart_point(path,index);
+    std::string filename = find_restart_point(path,index/*,relax=false*/);
 
     bool just_restart = false;
 

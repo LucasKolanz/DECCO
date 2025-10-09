@@ -60,12 +60,14 @@ if __name__ == '__main__':
 
 	# runs_at_once = 10
 	# attempts = [10] 
-	attempts = [i for i in range(0,25)]
+	# attempts = [i for i in range(0,25)]
 	# attempts = [i for i in range(25,30)]
+	attempts = [i for i in range(0,30)]
+	# attempts = [10]
 
 	N = [300] #final size
 	M = [3,5,10,15] #starting sizes
-	# M = [5] 
+	# M = [3] 
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [1000]
@@ -74,7 +76,7 @@ if __name__ == '__main__':
 	totalNodes = 1
 	MPITasksPerNode = 1
 	totalMPITasks = totalNodes*MPITasksPerNode
-	threadsPerTask = 1
+	threadsPerTask = 5
 
 	#load default input file
 	with open(project_path+"default_files/default_input.json",'r') as fp:
@@ -116,7 +118,7 @@ if __name__ == '__main__':
 						input_json['N'] = n
 						input_json['M'] = m
 						input_json['output_folder'] = job
-						input_json['OMPthreads'] = 1
+						input_json['OMPthreads'] = threadsPerTask
 						input_json['MPInodes'] = 1
 						input_json['impactParameter'] = -1.0
 
@@ -150,8 +152,8 @@ if __name__ == '__main__':
 						# sbatchfile += "#SBATCH -C gpu\n"
 						# sbatchfile += "#SBATCH -q regular\n"
 						# sbatchfile += "#SBATCH -t 0:10:00\n"
-						# sbatchfile += f'#SBATCH --account=lazzati\n'
-						# sbatchfile += f'#SBATCH --partition=lazzati.q\n'
+						sbatchfile += f'#SBATCH --account=lazzati\n'
+						sbatchfile += f'#SBATCH --partition=lazzati.q\n'
 
 						#NAME ORDER needs to be same as the file path order
 						sbatchfile += f"#SBATCH -J {job_name}\n"
@@ -203,6 +205,7 @@ if __name__ == '__main__':
 							os.system(f"cp {input_json['data_directory']}/localLognormData/lognorm{randint}/N_30/T_3/{m}_constants.csv {job}{m}_constants.csv")
 							os.system(f"cp {input_json['data_directory']}/localLognormData/lognorm{randint}/N_30/T_3/{m}_simData.csv {job}{m}_simData.csv")
 							os.system(f"cp {input_json['data_directory']}/localLognormData/lognorm{randint}/N_30/T_3/{m}_energy.csv {job}{m}_energy.csv")
+						os.system(f"touch  {job}{m}_checkpoint.txt")
 							
 						folders.append(job)
 	# print(folders)

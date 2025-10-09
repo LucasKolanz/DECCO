@@ -1506,21 +1506,25 @@ std::string DECCOData::genTimingMetaData()
 //If index < 0 (default is -1) then it will return the largest (completed) index for csv
 //and returns largest index that passes allConnected for hdf5 
 //If relax is true, it looks for the relax file instead of the regular file.
+//WARNING: this function also deletes unfinished files that cannot be used
+//		   as a restart point, making it a bit dangerous to edit.
 std::string find_restart_point(std::string path, const int index,bool relax/*=false*/)
 {
 	std::string simDatacsv;
 	std::string datah5;
-	std::string relax_string = "RELAX";
+	std::string relax_string;
 
 	if (relax)
     {
     	simDatacsv = "_RELAXsimData.csv";
 	    datah5 = "_RELAXdata.h5";
+		relax_string = "RELAX";
     }
     else
     {
 	    simDatacsv = "_simData.csv";
 	    datah5 = "_data.h5";
+		relax_string = "";
     }
 	std::string largest_file_name;
 	// std::string simDatacsv = "simData.csv";
@@ -1616,14 +1620,15 @@ std::string find_restart_point(std::string path, const int index,bool relax/*=fa
 	    	const auto idx  = it->first;
 			const auto name = it->second;
 			std::string checkpt_file = path+std::to_string(idx)+"_"+relax_string+"checkpoint.txt";
+
 	    	bool checkpoint_exists = fs::exists(checkpt_file);
 
 	    	if (csv == 1 && index < 0 && !checkpoint_exists) 
 		    {
 
 	            std::string file1 = path + name;
-	            std::string file2 = path + name.substr(0,name.size()-simDatacsv.size()) + relax_string + "constants.csv";
-	            std::string file3 = path + name.substr(0,name.size()-simDatacsv.size()) + relax_string + "energy.csv";
+	            std::string file2 = path + name.substr(0,name.size()-simDatacsv.size()) + "_" + relax_string + "constants.csv";
+	            std::string file3 = path + name.substr(0,name.size()-simDatacsv.size()) + "_" + relax_string + "energy.csv";
 
 	            std::cerr<<"Removing the following files: \n\t"<<file1<<"\n\t"<<file2<<"\n\t"<<file3<<std::endl;
 
