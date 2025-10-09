@@ -25,7 +25,7 @@ def unroll(*lists):
 def status(fullpath):
 	if not os.path.exists(fullpath):
 		return -1
-	elif os.path.exists(fullpath+"timing.txt"):
+	elif os.path.exists(fullpath+"timing.txt") and os.path.exists(fullpath+"300_data.h5"):
 		return 2
 	else:
 		# Loop through all files in the directory fullpath
@@ -111,7 +111,7 @@ def main():
 	
 	# job = input_json["data_directory"] + 'jobs/BAPA_$a$/M_$m$/N_$n$/T_$t$/'
 	job = input_json["data_directory"] + 'jobs/constrollingfricrelax$a$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobs/constrollingfric$a$/N_$n$/T_$t$/'
+	# job = input_json["data_directory"] + 'jobs/constrollingfric$a$/N_$n$/T_$t$/'
 	print(job)
 
 

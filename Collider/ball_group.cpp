@@ -716,20 +716,25 @@ void Ball_group::parse_input_file(std::string location)
         attrs.typeSim = custom;
     }
 
-    std::string temp_material = "";
-    set_attribute(inputs,"material",temp_material);
-    if (temp_material == "amorphousCarbon")
+    attrs.JKR = get_JKR(location);
+    std::cerr<<"JKR: "<<attrs.JKR<<std::endl;
+    if (attrs.JKR)
     {
-        attrs.material = amorphousCarbon;
-    }
-    else if (temp_material == "quartz")
-    {
-        attrs.material = quartz;
-    }
-    else
-    {
-        MPIsafe_print(std::cerr,"attribute 'material' with value '"+temp_material+"' is not valid.");
-        MPIsafe_exit(-1);
+        std::string temp_material = "";
+        set_attribute(inputs,"material",temp_material);
+        if (temp_material == "amorphousCarbon")
+        {
+            attrs.material = amorphousCarbon;
+        }
+        else if (temp_material == "quartz")
+        {
+            attrs.material = quartz;
+        }
+        else
+        {
+            MPIsafe_print(std::cerr,"attribute 'material' with value '"+temp_material+"' is not valid.\n");
+            MPIsafe_exit(-1);
+        }
     }
 
     std::string temp_weld = "";
@@ -743,7 +748,6 @@ void Ball_group::parse_input_file(std::string location)
         attrs.weld = false;
     }
 
-    attrs.JKR = get_JKR(location);
 
     std::string temp_dataFormat = "";
     set_attribute(inputs,"dataFormat",temp_dataFormat);
@@ -4202,12 +4206,12 @@ void Ball_group::sim_one_step(int step,bool write_step)
     long long pc;
     long long lllen = attrs.num_particles;
     double t0 = omp_get_wtime();
-    // #pragma omp declare reduction(vec3_sum : vec3 : omp_out += omp_in)
-    // #pragma omp parallel for num_threads(threads)\
-    //         reduction(vec3_sum:acc[:num_parts],aacc[:num_parts]) reduction(+:PE) \
-    //         shared(world_rank,world_size,Ha,write_step,lllen,R,pos,vel,m,w,\
-    //             u_r,u_s,moi,kin,kout,distances,h_min,dt)\
-    //         default(none) private(A,B,pc) 
+    #pragma omp declare reduction(vec3_sum : vec3 : omp_out += omp_in)
+    #pragma omp parallel for num_threads(threads)\
+            reduction(vec3_sum:acc[:num_parts],aacc[:num_parts]) reduction(+:PE) \
+            shared(world_rank,world_size,Ha,write_step,lllen,R,pos,vel,m,w,\
+                u_r,u_s,moi,kin,kout,distances,h_min,dt)\
+            default(none) private(A,B,pc) 
     for (pc = world_rank + 1; pc <= (((lllen*lllen)-lllen)/2); pc += world_size)
     {
         long double pd = (long double)pc;
@@ -4399,29 +4403,16 @@ void Ball_group::sim_one_step(int step,bool write_step)
             totalForceOnA = viscoelaticforceOnA + gravForceOnA + elasticForceOnA + slideForceOnA + vdwForceOnA;
             ////////////////////////////////
 
+            
+
             // Total torque a and b:
             torqueA = r_a.cross(slideForceOnA + rollForceA);
             torqueB = r_b.cross(-slideForceOnA + rollForceA); // original code
 
-            std::cerr<<"Elastic force on a: "<<elasticForceOnA<<std::endl;
-            std::cerr<<"vdw force on a: "<<vdwForceOnA<<std::endl;
-            // totalForceA += slidingForceA;
-            std::cerr<<"Sliding force on a: "<<slideForceOnA<<std::endl;
-            // totalForceB -= slidingForceA;
-            // totalTorqueA += -R[A]*ks*n_hats[2*e].cross(slidingDisp);
-            std::cerr<<"total torque on a: "<<torqueA<<std::endl;
-            std::cerr<<"moi of a: "<<moi[A]<<std::endl;
-            // totalTorqueB += -R[B]*ks*n_hats[2*e+1].cross(-1.0*slidingDisp);
-            if (step == 2601)
-            {
-
-                MPIsafe_exit(-1);
-            }
 
 
             aacc[A] += torqueA / moi[A];
             aacc[B] += torqueB / moi[B];
-            std::cerr<<"aacc a: "<<aacc[A]<<std::endl;
 
             if (write_step) {
                 // No factor of 1/2. Includes both spheres:
@@ -5858,7 +5849,7 @@ bool Ball_group::isAggregation()
 bool get_JKR(const std::string folder)
 {
     json inputs = getJsonFromFolder(folder);
-    bool JKR;
+    bool JKR = false;
     std::string temp_JKR = "";
     set_attribute(inputs,"JKR", temp_JKR);
     if (temp_JKR == "True" || temp_JKR == "true" || temp_JKR == "1")

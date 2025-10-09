@@ -63,7 +63,7 @@ if __name__ == '__main__':
 	# attempts = [i for i in range(0,25)]
 	# attempts = [i for i in range(25,30)]
 	attempts = [i for i in range(0,30)]
-	# attempts = [10]
+	# attempts = [20]
 
 	N = [300] #final size
 	M = [3,5,10,15] #starting sizes
@@ -135,6 +135,7 @@ if __name__ == '__main__':
 
 						input_json['dataFormat'] = "csv"
 						input_json['simType'] = "BAPA"
+						input_json['JKR'] = "false"
 						input_json['random_folder_template'] = input_json['data_directory']+"localLognormData/lognorm{a}/N_30/T_1000/"
 
 						# input_json['u_s'] = 0.5
