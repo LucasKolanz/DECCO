@@ -49,6 +49,7 @@ public:
 
 	std::string genEnergyMetaData();
 	std::string genTimingMetaData();
+	bool deleteData();
 	
 private:
 	std::string filename;
@@ -125,6 +126,7 @@ class HDF5Handler {
 		std::string genConstantsMetaData(int width);
 		std::string genEnergyMetaData(int width);
 		std::string genTimingMetaData(int width);
+		bool deleteData();
 
 
 		// __attribute__((optimize("O0")))
@@ -188,8 +190,8 @@ public:
 	int getSingleWidth(std::string data_type);
 	std::string genMetaData(int data_index);
 	std::string getFileName();
-	bool write_checkpoint();
-
+	bool writeCheckpoint();
+	bool deleteData();
 	
 	
 	std::string filename;

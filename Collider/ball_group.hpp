@@ -33,12 +33,14 @@
 using json = nlohmann::json;
 extern const int bufferlines;
 enum distributions {constant, logNorm};
-enum simType {BPCA, BCCA, BAPA, collider, relax};
+enum simType {BPCA, BCCA, BAPA, collider, relax, custom};
+enum materials {amorphousCarbon,quartz};
 
 constexpr double Kb = 1.380649e-16; //in erg/K
 constexpr double pi = 3.14159265358979311599796346854;
 
-struct Device_attributes
+
+struct Device_attributes //This is a good idea but not implimented yet in the code
 {
     double kout;
     double kin;
@@ -51,6 +53,21 @@ struct Device_attributes
     int num_pairs;
     
 };
+
+
+//struct to keep track of material properties
+struct material_properties
+{
+    double surfaceEnergyperUnitArea; //(ergs/cm^2 and mJ/m^2) gamma
+    double youngsModulus; //(Barye = g/(cm*s^2)) E
+    double shearModulus; //(Barye) G = E/(2*(1+nu))
+    double poissonRatio; //(unitless) nu
+    double density; //(g/cm^3) 
+};
+
+// const material_properties quartz_mat = {25.0,54e1,23.0769e1,0.17,2.6}; //all from Wada 2007 
+const material_properties quartz_mat = {25.0,54e10,23.0769e10,0.17,2.6}; //all from Wada 2007 
+const material_properties aCarbon_mat = {25.0,250e10,1.04167e12,0.2,2.7}; //Properties from page 141 in Properties of Amorphous Carbon by Silva. TAC values used (in the middle of the range used) surface energy from page 149
 
 
 //This struct is meant to encompass all values necessary to carry out a simulation, besides the physical
@@ -74,6 +91,7 @@ struct Ball_group_attributes
 
     // std::string out_folder;
     int num_particles = 0;
+    int num_pairs = -1;
     int num_particles_added = 0;
     int MAXOMPthreads = 1;
     int OMPthreads = 1;
@@ -83,7 +101,7 @@ struct Ball_group_attributes
     int start_step = 1;
     int relax_index = 0;
 
-    int skip=-1;  // Steps thrown away before recording a step to the buffer. 500*.04 is every 20 seconds in sim.
+    unsigned long long skip=-1;  // Steps thrown away before recording a step to the buffer. 500*.04 is every 20 seconds in sim.
     unsigned long long steps=0;
 
     double dt=-1;
@@ -93,7 +111,7 @@ struct Ball_group_attributes
     //Don't copy these during add_particle. These are set at the beginning (or during) of sim_looper
     int world_rank = -1;
     int world_size = -1;
-    int num_pairs = -1;
+    // bool write_step = false;
     // bool write_step = false;
 
     const std::string sim_meta_data_name = "sim_info";
@@ -108,6 +126,7 @@ struct Ball_group_attributes
     //if true, projectile is copy of target, if false, projectile is taken from a 
     //different, random simulation that has already made it to this point.
     bool symmetric = true; 
+    bool weld = false;
 
     // Useful values:
     double r_min = -1;
@@ -148,6 +167,8 @@ struct Ball_group_attributes
     int properties = -1;  // Number of columns in simData file per ball
     int genBalls = -1;
     int attempts = -1.0;  // How many times to try moving every ball touching another in generator.
+    int isConnectedFails = 0;
+    int maxConnectedFails = 10;
 
 
     double spaceRange = -1.0;  // Rough minimum space required
@@ -177,6 +198,12 @@ struct Ball_group_attributes
     int num_writes = 0;
 
     bool allocated = false;
+
+    //JKR stuff
+    bool JKR = false;
+    double critRollingDisp = -1.0;
+    double critSlidingDisp = -1.0;
+    materials material;
 
 
     // Overload the assignment operator
@@ -237,6 +264,7 @@ struct Ball_group_attributes
             dynamicTime = other.dynamicTime;
             G = other.G;
             density = other.density;
+            weld = other.weld;
             u_s = other.u_s;
             u_r = other.u_r;
             sigma = other.sigma;
@@ -281,6 +309,14 @@ struct Ball_group_attributes
             data_type = other.data_type;
             filetype = other.filetype;
             num_writes = other.num_writes;
+            isConnectedFails = other.isConnectedFails;
+            maxConnectedFails = other.maxConnectedFails;
+
+            //JKR stuff
+            JKR = other.JKR;
+            critRollingDisp = other.critRollingDisp;
+            critSlidingDisp = other.critSlidingDisp;
+            material = other.material;
         }
         return *this;
     }
@@ -295,6 +331,11 @@ public:
     // enum distributions {constant, logNorm};
     // enum simType {BPCA, BCCA, collider, relax};
     
+    //Take these out after JKR stuff is figured out
+    double max_w = 0.0;
+    double min_overlap = 0.0;
+    bool touched = false;
+
 
     Ball_group_attributes attrs;
     Device_attributes* d_attrs = nullptr;
@@ -314,9 +355,33 @@ public:
 
     double PE = 0, KE = 0;
 
-    double* distances = nullptr;
+    // JKR stuff (for now I'm going to calculate stuff once so it can be easily looked up since there is pleanty of ram)
+    //           (if everything is the same material, most of this simplifies to a single value rather than pairwise or particlewise)
+    vec3* n_hats = nullptr; //2*pairwise (unit vector pointing from center of ball to contact point) // This will be so sparse, there has to be a better way to hold this information
+    double* nu = nullptr; //poisson ratio(unitless)
+    double* G = nullptr; //sheer modulus(dynes/cm^2)
+    double* E = nullptr; //youngs modulus(dynes/cm^2)
+    double* gamma = nullptr; //surface Energy per unit area (For a single surface!!) (dynes/cm^2)
+    double* density = nullptr; //surface Energy per unit area (For a single surface!!) (dynes/cm^2)
+    double* a0 = nullptr; //equilibrium contact area radius pairwise (cm)
+    double* reducedE = nullptr; //pairwise (dynes/cm^2)
+    double* reducedG = nullptr; //pairwise (dynes/cm^2)
+    double* reducedGstar = nullptr; //pairwise (dynes/cm^2)
+    double* reducedR = nullptr; //pairwise (cm)
+    double* reducedGamma = nullptr; //surface Energy per unit area (reducedGamma=gamma1+gamma2-2*gamma12)(D and T) pairwise (dynes/cm^2)
+    rotation* q = nullptr; //quaternion in form (w,x,y,z)
+    // double* Eu0 = nullptr;//0th eulerian parameter for each particle
+    // double* Eu0p = nullptr;//0th eulerian half step parameter for each particle for integration
+    // vec3* Eu = nullptr;//The rest of the eulerian parameters for each particle
+    // vec3* Eup = nullptr;//The rest of the eulerian half step parameters for each particle for integration
+
+
+    double* distances = nullptr; //pairwise
+    double* a_store = nullptr; //pairwise
+    bool* loading_flag = nullptr; //pairwise
 
     vec3* pos = nullptr;
+    vec3* phi = nullptr;
     vec3* vel = nullptr;
     vec3* velh = nullptr;  ///< Velocity half step for integration purposes.
     vec3* acc = nullptr;
@@ -326,6 +391,7 @@ public:
     double* R = nullptr;    ///< Radius
     double* m = nullptr;    ///< Mass
     double* moi = nullptr;  ///< Moment of inertia
+
     #ifdef GPU_ENABLE
         vec3* d_accsq = nullptr;
         vec3* d_aaccsq = nullptr;
@@ -342,6 +408,10 @@ public:
         double* d_moi = nullptr;  ///< Moment of inertia
         double* d_distances = nullptr;  ///< Moment of inertia
     #endif
+
+    int* group = nullptr;   ///< group a ball belongs to
+    int num_groups = 0;
+
     //////////////////////////////////
 
     //The DECCOData class takes care of reading and writing data in whatever format is specified in the input file 
@@ -353,8 +423,8 @@ public:
 
     //Constructors
     Ball_group() = default;
-    Ball_group(std::string& path,bool test); //Testing constructor
-    explicit Ball_group(const int nBalls);
+    // Ball_group(std::string& path,int test); //Testing constructor
+    explicit Ball_group(const int nBalls,const bool JKR);
     // explicit Ball_group(const std::string& path, const std::string& filename, int start_file_index);
     explicit Ball_group(std::string& path,const int index=-1);
     // explicit Ball_group(const std::string& path,const std::string& projectileName,const std::string& targetName,const double& customVel);
@@ -376,8 +446,9 @@ public:
     // vec3 random_offset(const double3x3 local_coords,vec3 projectile_pos,vec3 projectile_vel,const double projectile_rad);
     vec3 random_offset(Ball_group &projectile, Ball_group &target);
     void comSpinner(const double& spinX, const double& spinY, const double& spinZ) const;
+
     void sim_one_step(int step,bool write_step);
-    void sim_looper(unsigned long long start_step);
+    bool sim_looper(unsigned long long start_step);
     
     //Functions which calculate/set values for Ball_group
     inline double calc_VDW_force_mag(const double Ra, const double Rb, const double h);
@@ -386,6 +457,8 @@ public:
     void calc_v_collapse();
     [[nodiscard]] double getVelMax();
     void calc_helpfuls(const bool includeRadius=true);
+    inline void setMass(int Ball);
+    inline void setRadii(int Ball);
     double get_soc();    
     vec3 calc_momentum(const std::string& of) const;
     [[nodiscard]] double getRadius(const vec3& center) const;
@@ -415,6 +488,7 @@ public:
     void relaxInit(const std::string path);
     void aggregationInit(const std::string path,const int index=-1);
     void colliderInit(const std::string path);
+    void customInit();
     void sim_init_write(int counter=0);
     void parse_input_file(std::string location);
     Ball_group spawn_particles(const int count);
@@ -426,14 +500,19 @@ public:
     #ifdef HDF5_ENABLE
         void loadDatafromH5(std::string path, std::string file);
     #endif
+    void loadDatafromCSV(std::string path, std::string file);
     std::string get_data_info();
     void parse_meta_data(std::string metadata);
 
     int get_num_threads();
 
 
-
-
+    //JKR stuff
+    void JKRpropertiesInit(const materials mat_enum); //initalize elastic properties for all balls ONLY FOR SINGLE MATERIAL AT THE MOMENT
+    void JKRreducedInit();    //initalize elastic properties for all pairs
+    void sim_one_step_JKR(int step,bool write_step);
+    void init_conditions_JKR();
+    void allocate_group_JKR(const int nBalls);
 
     
     bool isAggregation();
@@ -448,19 +527,33 @@ public:
     void loadSim(const std::string& path, const std::string& filename,const bool verbose = true);
     void distSizeSphere(const int nBalls);
     void oneSizeSphere(const int nBalls);
+    void sphereInit();
     void placeBalls(const int nBalls);
+    void setRadii();
+    void setMass();
     void updateDTK(const double& velocity);
     void simInit_cond_and_center(bool add_prefix);
     void sim_continue(const std::string& path);
     void sim_init_two_cluster(const std::string& path,const std::string& projectileName,const std::string& targetName);
     void verify_projectile(const std::string projectile_folder, const int index, const double max_wait_time);
+
+
+
 private:
 
 };
 
 
     
+
 bool is_touching(Ball_group &projectile,Ball_group &target);
 void moveApart(const vec3 &projectile_direction,Ball_group &projectile,Ball_group &target);
+bool get_JKR(const std::string folder);
+// vec3 rotateVec(const double E0,const vec3 E,const vec3 vec);
+vec3 quatRotate(const double s, const vec3& v, const vec3& vec);
+vec3 worldToLocal(const double s, const vec3& v,const vec3& vecWorld);
+vec3 localToWorld(const double s, const vec3& v,const vec3& vecLocal);
+vec3 rotateVecA(const double E0,const vec3 E,const vec3 vec);
+vec3 rotateVecInvA(const double E0,const vec3 E,const vec3 vec);
 
 #endif

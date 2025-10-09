@@ -228,6 +228,69 @@ bool CSVHandler::writeConstants(std::vector<double> data, int width, std::string
 // 	return 1;
 // }
 
+bool CSVHandler::deleteData()
+{
+	bool simData_result = false;
+	bool consts_result = false;
+	bool energy_result = false;
+	std::cerr<<"filename base: "<<filename<<std::endl;
+	try {
+		std::string simData_filename = filename+"simData.csv";
+        if (std::filesystem::remove(simData_filename)) {
+        	std::string message = "File '"+simData_filename+"' deleted successfully.\n";
+        	MPIsafe_print(std::cerr,message);
+        	simData_result = true;
+        } else {
+        	std::string message = "File '"+simData_filename+"' not found or could not be deleted.\n";
+        	MPIsafe_print(std::cerr,message);
+        	MPIsafe_exit(-1);
+        }
+    } catch (const std::filesystem::filesystem_error& ex) {
+    	std::stringstream message;
+    	message <<"Filesystem error: "<<ex.what()<<'\n';
+        MPIsafe_print(std::cerr,message.str());
+        MPIsafe_exit(-1);
+    }
+
+    try {
+		std::string constants_filename = filename+"constants.csv";
+        if (std::filesystem::remove(constants_filename)) {
+        	std::string message = "File '"+constants_filename+"' deleted successfully.\n";
+        	MPIsafe_print(std::cerr,message);
+        	consts_result = true;
+        } else {
+        	std::string message = "File '"+constants_filename+"' not found or could not be deleted.\n";
+        	MPIsafe_print(std::cerr,message);
+        	MPIsafe_exit(-1);
+        }
+    } catch (const std::filesystem::filesystem_error& ex) {
+    	std::stringstream message;
+    	message <<"Filesystem error: "<<ex.what()<<'\n';
+        MPIsafe_print(std::cerr,message.str());
+        MPIsafe_exit(-1);
+    }
+
+    try {
+		std::string energy_filename = filename+"energy.csv";
+        if (std::filesystem::remove(energy_filename)) {
+        	std::string message = "File '"+energy_filename+"' deleted successfully.\n";
+        	MPIsafe_print(std::cerr,message);
+        	energy_result = true;
+        } else {
+        	std::string message = "File '"+energy_filename+"' not found or could not be deleted.\n";
+        	MPIsafe_print(std::cerr,message);
+        	MPIsafe_exit(-1);
+        }
+    } catch (const std::filesystem::filesystem_error& ex) {
+    	std::stringstream message;
+    	message <<"Filesystem error: "<<ex.what()<<'\n';
+        MPIsafe_print(std::cerr,message.str());
+        MPIsafe_exit(-1);
+    }
+
+    return simData_result && consts_result && energy_result;
+}
+
 std::string CSVHandler::genSimDataMetaData(int num_particles)
 {
 	std::ostringstream meta_data;
@@ -997,6 +1060,29 @@ void HDF5Handler::appendDataSet(std::vector<double>& data,const std::string data
     file.close();
 }
 
+bool HDF5Handler::deleteData()
+{
+	bool result = false;
+	try {
+        if (std::filesystem::remove(filename)) {
+        	std::string message = "File '"+filename+"' deleted successfully.\n";
+        	MPIsafe_print(std::cerr,message);
+        	result = true;
+        } else {
+        	std::string message = "File '"+filename+"' not found or could not be deleted.\n";
+        	MPIsafe_print(std::cerr,message);
+        	MPIsafe_exit(-1);
+        }
+    } catch (const std::filesystem::filesystem_error& ex) {
+    	std::stringstream message;
+    	message <<"Filesystem error: "<<ex.what()<<'\n';
+        MPIsafe_print(std::cerr,message.str());
+        MPIsafe_exit(-1);
+    }
+
+    return result;
+}
+
 #endif
 
 
@@ -1266,6 +1352,20 @@ int DECCOData::setWrittenSoFar(const std::string path, const std::string file)
 }
 #endif
 
+bool DECCOData::deleteData()
+{
+	bool result = false;
+	if (h5data)
+	{
+		result = H.deleteData();
+	}
+	else
+	{
+		result = C.deleteData();
+	}
+	return result;
+}
+
 
 void DECCOData::loadSimData(const std::string path, const std::string file,vec3 *pos,vec3 *w,vec3 *vel)
 {
@@ -1332,7 +1432,7 @@ std::string DECCOData::getFileName()
 	return filename;
 }
 
-bool DECCOData::write_checkpoint()
+bool DECCOData::writeCheckpoint()
 {
 	std::string checkpt_file;
 	if (csvdata)
@@ -1635,7 +1735,7 @@ std::string find_restart_point(std::string path, const int index,bool relax/*=fa
 		    }
 			else if (csv == 0 && index < 0 && !checkpoint_exists)
 			{
-		    	Ball_group temp(idx);
+		    	Ball_group temp(idx,/*JKR=*/false);
 		    	temp.loadSim(path,name,/*verbose=*/false);
 		        if (!isConnected(temp.pos,temp.R,temp.attrs.num_particles))
 		        {

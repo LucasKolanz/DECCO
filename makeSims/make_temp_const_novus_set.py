@@ -50,24 +50,22 @@ if __name__ == '__main__':
 		exit(-1)
 
 
-	job_set_name = "TEST"
 	job_set_name = "constrollingfric"
 	# folder_name_scheme = "T_"
 
 	# runs_at_once = 7
+	runs_at_once = 5
 
 	attempts = [i for i in range(30)]
 	# attempts = [19]
 
 
-	#test it out first
-	# attempts = [0]
-	# attempts_300 = [0]
 
 	node = 1
 	N = [300]
 	Temps = [3,10,30,100,300,1000]
 	# Temps = [100]
+
 
 	folders = []
 	for n in N:
@@ -78,6 +76,7 @@ if __name__ == '__main__':
 		# 	threads = 2
 		# else:# n == 300:
 		# 	threads = 16
+
 		for attempt in attempts:
 			for Temp in Temps:
 				with open(project_path+"default_files/default_input.json",'r') as fp:
@@ -135,21 +134,22 @@ if __name__ == '__main__':
 					sbatchfile += f"#SBATCH -c {threads}\n\n"
 					# sbatchfile += "#SBATCH -N {}\n".format(1)#(node)
 
-					# sbatchfile += "#SBATCH -G {}\n".format(node)
-					# sbatchfile += 'module load gpu\n'
 
-					sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(threads)
-					sbatchfile += 'export SLURM_CPU_BIND="cores"\n'
-					# sbatchfile += 'module load hdf5/1.14.3\n'
-					sbatchfile += 'module load hdf5/1.10.8\n'
+					# # sbatchfile += "#SBATCH -G {}\n".format(node)
+					# # sbatchfile += 'module load gpu\n'
+
+					# sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(threads)
+					# sbatchfile += 'export SLURM_CPU_BIND="cores"\n'
+					# # sbatchfile += 'module load hdf5/1.14.3\n'
+					# sbatchfile += 'module load hdf5/1.10.8\n'
 					
+					# # sbatchfile += f"srun -n {node} -c {threads} --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 					# sbatchfile += f"srun -n {node} -c {threads} --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
-					sbatchfile += f"srun -n {node} -c {threads} --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 
 
 					
-					with open(job+"sbatchMulti.bash",'w') as sfp:
-						sfp.write(sbatchfile)
+					# with open(job+"sbatchMulti.bash",'w') as sfp:
+					# 	sfp.write(sbatchfile)
 
 					#add run script and executable to folders
 					# os.system(f"cp {project_path}default_files/run_sim.py {job}run_sim.py")
@@ -168,6 +168,7 @@ if __name__ == '__main__':
 			os.chdir(folder)
 			os.system('sbatch sbatchMulti.bash')
 		os.chdir(cwd)
+
 
 
 
