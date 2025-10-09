@@ -66,14 +66,14 @@ if __name__ == '__main__':
 	# folder_name_scheme = "T_"
 
 
-	runs_at_once = 5
+	runs_at_once = 20
 	# runs_at_once = 1
-	# attempts = [i for i in range(30)] 
-	attempts = [2] 
+	attempts = [i for i in range(30)] 
+	# attempts = [2] 
 	N = [300]
 	# N = [100]
-	# Temps = [3,10,30,100,300,1000]
-	Temps = [1000]
+	Temps = [3,10]#,30,100,300,1000]
+	# Temps = [1000]
 	folders = []
 	# threads = []
 	for attempt in attempts:
@@ -162,13 +162,13 @@ if __name__ == '__main__':
 	# 	with mp.Pool(processes=runs_at_once) as pool:
 	# 		pool.starmap(run_job,inputs[i:i+runs_at_once]) 
 	
-	with mp.Pool(processes=runs_at_once) as pool:
-		for folder in folders:
-			# input_data = inputs[i:i+runs_at_once]
-			pool.apply_async(run_job, (folder,))
+	# with mp.Pool(processes=runs_at_once) as pool:
+	# 	for folder in folders:
+	# 		# input_data = inputs[i:i+runs_at_once]
+	# 		pool.apply_async(run_job, (folder,))
 
-		pool.close()
-		pool.join()
+	# 	pool.close()
+	# 	pool.join()
 
 	# print(folders)
 	# cwd = os.getcwd()

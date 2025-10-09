@@ -400,6 +400,22 @@ def get_energy_file(data_folder,data_index=-1,relax=False):
 		print("Now exiting.")
 		exit(-1)
 
+def get_h5data_from_file(file):
+	width = -1
+	with h5py.File(file, 'r') as file:
+		# data = file['/simData'][:]
+		metadata = file['/simData'].attrs['metadata']
+		for meta in metadata.split("\n"):
+			md = meta.split(": ")
+			# print(meta.split(": "))
+			if md[0] == "row width":
+				width = int(md[1])
+		dat = file['/simData'][:]
+		
+		data = np.array(dat).reshape(-1, width)
+
+	return data
+
 def get_line_h5data_from_file(file,linenum=-1):
 	width = -1
 	with h5py.File(file, 'r') as file:
@@ -421,6 +437,26 @@ def get_line_h5data_from_file(file,linenum=-1):
 		stop = start + width
 
 		data = np.array(dat)[start:stop]
+
+	return data
+
+def get_h5_energy_data_from_file(file):
+	width = -1
+	with h5py.File(file, 'r') as file:
+		# data = file['/simData'][:]
+		metadata = file['/energy'].attrs['metadata']
+		for meta in metadata.split("\n"):
+			md = meta.split(": ")
+			# print(meta.split(": "))
+			if md[0] == "row width":
+				width = int(md[1])
+		dat = file['/energy'][:]
+
+		if width > 0:
+			total = len(dat)
+			dat = dat.reshape(int(total/width),width)
+		
+		data = np.array(dat)
 
 	return data
 
@@ -502,6 +538,58 @@ def get_last_line_data(data_folder,data_index=-1,relax=False): #Works with csv a
 def get_line_data(data_folder,data_index=-1,linenum=-1,relax=False): #Works with csv and h5
 	data = get_all_line_data(data_folder,data_index,linenum,relax=relax)
 	return format_pos(data)
+
+
+#returns all pos,vel,w (from all timesteps) for a given folder and data index
+#as arrays of shape: pos[timestep,ball,xyz]
+def get_simData(data_folder,data_index=-1,relax=False): #Works with csv and h5
+
+	data_file = get_data_file(data_folder,data_index,relax=relax)
+
+	if data_file.endswith(".csv"):
+		data = np.loadtxt(data_folder + data_file,skiprows=1,dtype=float,delimiter=',')
+
+	elif data_file.endswith(".h5"):
+		data = get_h5data_from_file(data_folder+data_file)
+	else:
+		print("ERROR: datatype not recognized by utils.py: {data_file}")
+
+	steps = data.shape[0]
+	balls = int(data.shape[1]/data_columns)
+
+	#shape is pos[timestep,ball,xyz]
+	pos = np.zeros((steps,balls,3),dtype=np.float64)
+	vel = np.zeros((steps,balls,3),dtype=np.float64)
+	w = np.zeros((steps,balls,3),dtype=np.float64)
+
+	for step in range(steps):
+		data_line = data[step,:]
+		pos[step] = format_pos(data_line)
+		vel[step] = format_vel(data_line)
+		w[step] = format_w(data_line)
+
+	return pos,vel,w
+
+#returns all the energy data as seperat arrays from a given folder for a given index
+def get_energy(data_folder,data_index=-1,relax=False):
+	energy = []
+	energy_file = get_energy_file(data_folder,data_index,relax=relax)
+	if energy_file.endswith(".csv"):
+		energy = np.loadtxt(data_folder + energy_file,skiprows=1,dtype=float,delimiter=',')
+	elif energy_file.endswith(".h5"):
+		energy = get_h5_energy_data_from_file(data_folder + energy_file)
+	else:
+		print(f"ERROR: file extension not recognized for file '{energy_file}'")
+
+	print(energy)
+	time = energy[:,0]
+	PE = energy[:,1]
+	KE = energy[:,2]
+	E = energy[:,3]
+	p = energy[:,4]
+	L = energy[:,5]
+
+	return time,PE,KE,E,p,L
 
 def get_last_line_energy(data_folder,data_index=-1,relax=False):
 	energy_file = get_energy_file(data_folder,data_index,relax=relax)

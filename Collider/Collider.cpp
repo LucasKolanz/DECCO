@@ -36,6 +36,8 @@ void
 runRelax(std::string path);
 void 
 runCollider(std::string path);
+void
+runCustom(std::string path);
 timey t;
 
 //////////////////////////////////////////////////////////////
@@ -88,7 +90,7 @@ main(int argc, char* argv[])
 
     //make dummy ball group to read input file
     std::string location;
-    Ball_group dummy(1);
+    Ball_group dummy(1,false);
     if (argc == 2)
     {
         location = std::string(argv[1]);
@@ -164,10 +166,18 @@ main(int argc, char* argv[])
         #endif
         runRelax(dummy.attrs.output_folder);
     }
+    else if (dummy.attrs.typeSim == custom)
+    {
+        #ifdef MPI_ENABLE
+            MPI_Barrier(MPI_COMM_WORLD);
+        #endif
+        runCustom(dummy.attrs.output_folder);
+    }
     else
     {
         MPIsafe_print(std::cerr,"ERROR: input file needs to specify a simulation type (simType).\n");
     }
+    
 
     if (world_rank == 0)
     {
@@ -188,11 +198,21 @@ main(int argc, char* argv[])
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
+//Initializes and carries out custom run
+void runCustom(std::string path)
+{
+    Ball_group O = Ball_group(path,-1);
+    O.sim_init_write(O.attrs.num_particles);
+    O.sim_looper(1);
+    O.freeMemory();
+}
+
 //Initailizes and carries out Ball_group to collide two preexisting aggregates
 void runCollider(std::string path)
 {
     // t.start_event("collider");
     Ball_group O = Ball_group(path);
+    
     // std::cerr<<"Ball_group initiated"<<std::endl;
     safetyChecks(O);
     // std::cerr<<"safety checked"<<std::endl;
@@ -229,7 +249,6 @@ void runAggregation(std::string path, int num_balls)
         O.attrs.start_index = O.attrs.num_particles;
     }
 
-
     int increment = 1; // This should be 1 for BPCA, for BCCA, set in for loop
     if (O.attrs.typeSim == BAPA)
     {
@@ -240,8 +259,9 @@ void runAggregation(std::string path, int num_balls)
     for (int i = O.attrs.start_index; i < num_balls; i+=increment) 
     {
         // t.start_event("add_projectile");
+        // Ball_group old_O = O;
         O = O.add_projectile(O.attrs.typeSim);
-        std::cerr<<"projectile pos after add proj: "<<O.pos[O.attrs.num_particles-1]<<std::endl;
+
         if (O.attrs.typeSim == BCCA)
         {
             increment = O.attrs.num_particles/2;
@@ -253,7 +273,17 @@ void runAggregation(std::string path, int num_balls)
             std::cerr<<"Asking for "<<O.get_num_threads()<<" thread(s)."<<std::endl;
         }
 
-        O.sim_looper(1);
+        bool success = O.sim_looper(1);
+        if (!success)
+        {
+            O.data->deleteData();
+            int isConnectedFails = O.attrs.isConnectedFails;
+            O = Ball_group(path);  
+            safetyChecks(O);
+            O.attrs.isConnectedFails = isConnectedFails;
+            i -= increment;
+        }
+
         O.attrs.simTimeElapsed = 0;
 
         if (increment == -1)
@@ -391,12 +421,12 @@ safetyChecks(Ball_group &O) //Should be ready to call sim_looper
         MPIsafe_exit(EXIT_FAILURE);
     } 
 
-    if (O.attrs.kin < 0) {
+    if (!O.attrs.JKR && O.attrs.kin < 0) {
         fprintf(stderr, "\nSPRING CONSTANT IN NOT SET for rank %1d\n",getRank());
         MPIsafe_exit(EXIT_FAILURE);
     }
 
-    if (O.attrs.kout < 0) {
+    if (!O.attrs.JKR && O.attrs.kout < 0) {
         fprintf(stderr, "\nSPRING CONSTANT OUT NOT SET for rank %1d\n",getRank());
         MPIsafe_exit(EXIT_FAILURE);
     }
@@ -517,7 +547,6 @@ safetyChecks(Ball_group &O) //Should be ready to call sim_looper
     }
 
 
-    // std::cerr<<"num_particlesZ: "<<O.attrs.num_particles<<std::endl;
     for (int Ball = 0; Ball < O.attrs.num_particles; Ball++) {
         if (O.pos[Ball].norm() < vec3(1e-10, 1e-10, 1e-10).norm()) {
             fprintf(stderr, "\nA ball position is [0,0,0]. Possibly didn't initialize positions properly for rank %1d\n",getRank());
@@ -527,7 +556,7 @@ safetyChecks(Ball_group &O) //Should be ready to call sim_looper
 
         if (O.acc[Ball].norm() < vec3(1e-10, 1e-10, 1e-10).norm()) {
             fprintf(stderr, "\nA balls acc is [0,0,0]. Possibly didn't initialize acceleration properly for rank %1d\n",getRank());
-            MPIsafe_exit(EXIT_FAILURE);
+            // MPIsafe_exit(EXIT_FAILURE);
         }
 
         if (O.R[Ball] <= 0) {
