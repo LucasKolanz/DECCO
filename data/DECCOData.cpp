@@ -31,7 +31,24 @@
 // 	#include "mpi.h"
 // #endif
 
+std::string trimFilename(const std::string& file)
+{
 
+    const auto pos = file.find_last_of('_');
+    if (pos == std::string::npos) {
+        MPIsafe_print(std::cerr, "ERROR: filename is not of correct format. Filename is '" + file + "'.\n");
+        MPIsafe_exit(-1);
+    }
+
+    // If the chunk after '_' starts with "RELAX", keep "_RELAX" (exactly),
+    // otherwise keep just up to and including the underscore.
+    static constexpr char RELAX[] = "RELAX";
+    if (file.compare(pos + 1, sizeof(RELAX) - 1, RELAX) == 0) {
+        return file.substr(0, pos + 1 + (sizeof(RELAX) - 1));
+    }
+
+    return file.substr(0, pos + 1);
+}
 std::string getDataStringFromIndex(const int data_index)
 {
 	if (data_index < 0 || data_index > num_data_types-1)
@@ -75,6 +92,144 @@ CSVHandler::~CSVHandler(){};
 CSVHandler::CSVHandler(std::string filename) : filename(filename) 
 {
 	// initialized = true;
+}
+
+std::string CSVHandler::get_last_line(const std::string& path, const std::string& file)
+{
+	std::string filenameBase = trimFilename(file);
+	std::string simDataFile = path + filenameBase + "simData.csv";
+
+    if (auto simDataStream = std::ifstream(simDataFile, std::ifstream::in)) {
+        MPIsafe_print(std::cerr,"\nParsing last line of data.\n");
+
+        simDataStream.seekg(-1, std::ios_base::end);  // go to 
+         // spot before the EOF
+
+        bool keepLooping = true;
+        bool first_run = true;
+        while (keepLooping) {
+            char ch = ' ';
+            simDataStream.get(ch);  // Get current byte's data
+
+            if (static_cast<int>(simDataStream.tellg()) <=
+                1) {                     // If the data was at or before the 0th byte
+                simDataStream.seekg(0);  // The first line is the last line
+                keepLooping = false;     // So stop there
+            } else if (ch == '\n' && not first_run) {     // If the data was a newline
+                keepLooping = false;     // Stop at the current position (if we arent on the first character).
+            } else {                     // If the data was neither a newline nor at the 0 byte
+                simDataStream.seekg(-2, std::ios_base::cur);  // Move to the front of that data, then to
+                                                              // the front of the data before it
+            }
+            first_run = false;
+        }
+        std::string line;
+        std::getline(simDataStream, line);  // Read the current line
+        return line;
+    } else {
+
+        std::string message("Could not open simData file: "+simDataFile+"... Exiting program.\n");
+        MPIsafe_print(std::cerr,message);
+        MPIsafe_exit(EXIT_FAILURE);
+        return "ERROR"; //This shouldn't return but not returning anything is giving a warning
+    }
+}
+
+void CSVHandler::loadCSVSimData(const std::string& path,const std::string& file,vec3 *pos,vec3 *w,vec3 *vel)
+{
+	std::string lineElement;
+    // Get number of balls in file
+    int num_particles = get_num_particles(path,file);
+
+    std::string line = get_last_line(path,file);
+
+    std::stringstream chosenLine(line);  // This is the last line of the read file, containing all data
+                                         // for all balls at last time step
+    
+    int lineWidth = DECCOData::getSingleWidth("simData");
+    // Get position and angular velocity data:
+    for (int A = 0; A < num_particles; A++) 
+    {
+        for (int i = 0; i < 3; i++)  // Position
+        {
+            std::getline(chosenLine, lineElement, ',');
+            pos[A][i] = std::stod(lineElement);
+        }
+        for (int i = 0; i < 3; i++)  // Angular Velocity
+        {
+            std::getline(chosenLine, lineElement, ',');
+            w[A][i] = std::stod(lineElement);
+        }
+        std::getline(chosenLine, lineElement, ',');  // Angular velocity magnitude skipped
+        for (int i = 0; i < 3; i++)                  // velocity
+        {
+            std::getline(chosenLine, lineElement, ',');
+            vel[A][i] = std::stod(lineElement);
+        }
+        for (int i = 0; i < lineWidth - 10; i++)  // We used 10 elements. This skips the rest.
+        {
+            std::getline(chosenLine, lineElement, ',');
+        }
+    }
+}
+
+void CSVHandler::loadConsts(const std::string& path,const std::string& file,double *R,double *m,double *moi)
+{
+	std::string filenameBase = trimFilename(file);
+	int num_particles = CSVHandler::get_num_particles(path,file);
+	if (R != nullptr && m != nullptr && moi != nullptr)
+	{
+    	// Get radius, mass, moi:
+	    std::string constantsFilename = path + filenameBase + "constants.csv";
+	    if (auto ConstStream = std::ifstream(constantsFilename, std::ifstream::in)) {
+	        std::string line, lineElement;
+	        for (int A = 0; A < num_particles; A++) {
+	            std::getline(ConstStream, line);  // Ball line.
+	            std::stringstream chosenLine(line);
+	            std::getline(chosenLine, lineElement, ',');  // Radius.
+	            R[A] = std::stod(lineElement);
+	            std::getline(chosenLine, lineElement, ',');  // Mass.
+	            m[A] = std::stod(lineElement);
+	            std::getline(chosenLine, lineElement, ',');  // Moment of inertia.
+	            moi[A] = std::stod(lineElement);
+	        }
+	    } else {
+	        MPIsafe_print(std::cerr,"Could not open constants file: " + constantsFilename + " ... Exiting program.\n");
+	        MPIsafe_exit(EXIT_FAILURE);
+	    }
+
+	}
+	else
+	{
+		MPIsafe_print(std::cerr,"ERROR: one or more of R, m, and/or moi are nullptr.");
+	}
+}
+
+int CSVHandler::get_num_particles(std::string path, std::string filename)
+{
+	
+	filename = trimFilename(filename);
+
+	std::string constantsFilename = path + filename + "constants.csv";
+    std::ifstream file(constantsFilename);
+    if (!file.is_open()) return 0;
+
+    int linecount = 0;
+    std::string line;
+
+    while (std::getline(file, line)) {
+        // Check if the line has any non-whitespace characters
+        bool nonempty = false;
+        for (char c : line) {
+            if (!std::isspace(static_cast<unsigned char>(c))) {
+                nonempty = true;
+                break;
+            }
+        }
+        if (nonempty) ++linecount;
+    }
+
+    return linecount;
 }
 
 bool CSVHandler::writeSimData(std::vector<double> data, int width, std::string filename)
@@ -636,6 +791,7 @@ bool HDF5Handler::sim_finished(std::string path, std::string file)
     return false;
 }
 
+
 int HDF5Handler::get_num_particles(std::string path, std::string file)
 {
 	hsize_t total_size = get_data_length(path+file,"constants");
@@ -1114,6 +1270,8 @@ DECCOData::DECCOData(std::string fname, int num_particles, int writes, int steps
 		fixed = false;
 	}
 
+
+
 	int dot_index = filename.find_last_of('.');
 	storage_type = filename.substr(dot_index+1,filename.length()-dot_index);
 	//Transform storage_type to be not case sensitive
@@ -1125,9 +1283,10 @@ DECCOData::DECCOData(std::string fname, int num_particles, int writes, int steps
 	}
 	else if (storage_type == "csv")
 	{
+		filename = trimFilename(filename);
 		csvdata = true;
 		h5data = false;
-		filename = filename.substr(0,filename.length()-4);
+		// filename = filename.substr(0,filename.length()-4);
 	}
 	else
 	{
@@ -1138,11 +1297,12 @@ DECCOData::DECCOData(std::string fname, int num_particles, int writes, int steps
 		MPIsafe_print(std::cerr,"HDF5 not enabled. CSV format will be used for data.\n");
 		csvdata = true;
 		h5data = false;
-		if (storage_type != "csv")
-		{
-			filename = filename.substr(0,filename.length()-4);
-		}
+		// if (storage_type != "csv")
+		// {
+		// 	// filename = filename.substr(0,filename.length()-4);
+		// }
 	#endif
+
 
 	//If user specified number of writes but a storage_type other than hdf5 then default to hdf5 and warn user
 	// if (fixed && not h5data)
@@ -1279,8 +1439,6 @@ std::vector<double> DECCOData::Read(std::string data_type, bool all, int line,st
 					start = (line)*widths[data_index];
 					// start = line*widths[data_index];
 				}
-
-	std::cerr<<"writes: "<<writes<<std::endl;
 
 				data_read = H.readFile(data_type,start,widths[data_index]);
 

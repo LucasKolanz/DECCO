@@ -26,6 +26,8 @@ const int single_ball_widths[num_data_types] = {11,6,3,2};
 std::string getDataStringFromIndex(const int data_index);
 int getDataIndexFromString(std::string data_type);
 void printVec(std::vector<double> v);
+std::string trimFilename(const std::string& filename);
+
 
 
 class CSVHandler
@@ -42,6 +44,14 @@ public:
 	bool writeConstants(std::vector<double> data, int width, std::string filename);
 
 	// bool writeTiming(std::vector<double> data, int width, std::string filename);
+
+	static int get_num_particles(std::string path, std::string filename);
+
+	static void loadConsts(const std::string& path,const std::string& file,double *R,double *m,double *moi);
+
+	static void loadCSVSimData(const std::string& path,const std::string& file,vec3 *pos,vec3 *w,vec3 *vel);
+
+	static std::string get_last_line(const std::string& path, const std::string& file);
 
     std::string genSimDataMetaData(int num_particles);
 
@@ -187,7 +197,7 @@ public:
   	void loadSimData(const std::string path, const std::string file,vec3 *pos,vec3 *w,vec3 *vel);
 	int getNumTypes();
 	int getWidth(std::string data_type);
-	int getSingleWidth(std::string data_type);
+	static int getSingleWidth(std::string data_type);
 	std::string genMetaData(int data_index);
 	std::string getFileName();
 	bool writeCheckpoint();

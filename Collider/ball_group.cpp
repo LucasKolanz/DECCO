@@ -582,7 +582,7 @@ void Ball_group::init_data(int counter = 0)
     }
     else if (attrs.data_type == 1) //csv
     {
-        sav_file = attrs.output_folder+std::to_string(counter)+"_"+type+".csv";
+        sav_file = attrs.output_folder+std::to_string(counter)+"_"+type+"simData.csv";
     }
     else
     {
@@ -591,9 +591,14 @@ void Ball_group::init_data(int counter = 0)
         MPIsafe_exit(EXIT_FAILURE);
     }
 
-
-    data = new DECCOData(sav_file,\
-                        attrs.num_particles,attrs.steps/attrs.skip+1,attrs.steps);
+    if(attrs.skip > 0)
+    {
+        data = new DECCOData(sav_file,attrs.num_particles,attrs.steps/attrs.skip+1,attrs.steps);
+    }
+    else
+    {
+        data = new DECCOData(sav_file,attrs.num_particles,0,attrs.steps);
+    }
     
 }
 
@@ -2740,7 +2745,7 @@ void Ball_group::parseSimData(std::string line)
 void Ball_group::loadConsts(const std::string& path, const std::string& filename)
 {
     // Get radius, mass, moi:
-    std::string constantsFilename = path + filename + "constants.csv";
+    std::string constantsFilename = path + filename;// + "constants.csv";
     if (auto ConstStream = std::ifstream(constantsFilename, std::ifstream::in)) {
         std::string line, lineElement;
         for (int A = 0; A < attrs.num_particles; A++) {
@@ -2967,33 +2972,33 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename,co
     if (file.substr(file.size()-4,file.size()) == ".csv")
     {
 
-        _pos = file.find_first_of("_");
-        size_t _lastpos = file.find_last_of("_");
+        // _pos = file.find_first_of("_");
+        // size_t _lastpos = file.find_last_of("_");
         
-        file_index = stoi(file.substr(0,_pos));
+        // file_index = stoi(file.substr(0,_pos));
         
-        //If this is false, then its the old way of naming
-        if (_pos == _lastpos)
-        {
-            file = filename;
-        }
-        else
-        {
-            file = std::to_string(file_index) + file.substr(_pos,_lastpos-(_pos-1));
-        }
-        attrs.start_index = file_index+1;//shouldnt be file_index-1 because that is just the one we read, we will write to the next index
+        // //If this is false, then its the old way of naming
+        // if (_pos == _lastpos)
+        // {
+        //     file = filename;
+        // }
+        // else
+        // {
+        //     file = std::to_string(file_index) + file.substr(_pos,_lastpos-(_pos-1));
+        // }
+        // attrs.start_index = file_index+1;//shouldnt be file_index-1 because that is just the one we read, we will write to the next index
 
-        std::string simFile;
-        if (filename.substr(filename.length()-11,filename.length()) != "simData.csv")
-        {
-            simFile = filename + "simData.csv";
-        }
-        else
-        {
-            simFile = filename;
-        }
+        // std::string simFile;
+        // if (filename.substr(filename.length()-11,filename.length()) != "simData.csv")
+        // {
+        //     simFile = filename + "simData.csv";
+        // }
+        // else
+        // {
+        //     simFile = filename;
+        // }
 
-        std::string constFile = simFile.substr(0,filename.length()-11);
+        // std::string constFile = simFile.substr(0,filename.length()-11);
         // if (filename.substr(filename.length()-11,filename.length()) != "simData.csv")
         // {
         //     constFile = filename + "constants.csv";
@@ -3005,9 +3010,9 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename,co
 
 
 
-        parseSimData(getLastLine(path, simFile));
-        loadConsts(path, constFile);
-        // loadDatafromCSV(path,file);
+        // parseSimData(getLastLine(path, simFile));
+        // loadConsts(path, constFile);
+        loadDatafromCSV(path,file);
     }
     else if (file.substr(file.size()-3,file.size()) == ".h5")
     {
@@ -3106,73 +3111,77 @@ void Ball_group::loadDatafromCSV(std::string path,std::string file)
     std::string meta = "";//CSVHandler::readMetadataFromDataset("constants",path+file,attrs.sim_meta_data_name);
     size_t _pos = file.find_first_of("_");
     int file_index = stoi(file.substr(0,_pos));
-    bool has_meta = true;
+    //Need to make metadata for csv before we can read it
+    bool has_meta = false;
     //If this error happens then then we cannot restart from midway through a sim.
     //This is because the metadata containing the info needed was missing for somereason
   
-    if (meta == ERR_RET_MET)  
+    //CSV cannot restart from midway through a sim at the moment. 
+    //At the moment this code is copied from loadDatafromH5
+    // if (meta == ERR_RET_MET)  
+    if (false)  
     {
-        has_meta = false;
-        //If the highest sim is not finished, we need to load up the previous one and delete the partially completed sim
-        if (!HDF5Handler::sim_finished(path,file))
-        {
-            std::string rmfile = file;
+        // has_meta = false;
+        // //If the highest sim is not finished, we need to load up the previous one and delete the partially completed sim
+        // if (!HDF5Handler::sim_finished(path,file))
+        // {
+        //     std::string rmfile = file;
 
-            #ifdef MPI_ENABLE
-                MPI_Barrier(MPI_COMM_WORLD);
+        //     #ifdef MPI_ENABLE
+        //         MPI_Barrier(MPI_COMM_WORLD);
                 
-                int status;
-                int send_result;
-                //If multiple nodes, we don't want to delete until everyone has loaded
-                if (getRank() == 0)
-                {
-                    status = remove(rmfile.c_str());
-                    if (getSize() > 1)
-                    {
-                        for (int i = 1; i < getSize(); i++)
-                        {
-                            send_result = MPI_Send(&status, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
-                            if (send_result != MPI_SUCCESS)
-                            {
-                                std::cerr<<"ERROR: MPI_Send to node "<<i<<" errored with code "<<send_result<<std::endl;   
-                                MPIsafe_exit(-1);
-                            }
-                        }
+        //         int status;
+        //         int send_result;
+        //         //If multiple nodes, we don't want to delete until everyone has loaded
+        //         if (getRank() == 0)
+        //         {
+        //             status = remove(rmfile.c_str());
+        //             if (getSize() > 1)
+        //             {
+        //                 for (int i = 1; i < getSize(); i++)
+        //                 {
+        //                     send_result = MPI_Send(&status, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+        //                     if (send_result != MPI_SUCCESS)
+        //                     {
+        //                         std::cerr<<"ERROR: MPI_Send to node "<<i<<" errored with code "<<send_result<<std::endl;   
+        //                         MPIsafe_exit(-1);
+        //                     }
+        //                 }
 
-                    }
-                }
-                else
-                {
-                    MPI_Status mpistat;
-                    MPI_Recv(&status, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &mpistat);
-                    //verify Recv worked
-                    if (mpistat.MPI_ERROR != MPI_SUCCESS)
-                    {
-                        std::cerr<<"ERROR: MPI_Recv for node "<<getRank()<<" errored with code "<<mpistat.MPI_ERROR<<std::endl;   
-                        MPIsafe_exit(-1);
-                    }
-                }
-            #else
-                int status = remove(rmfile.c_str());
-            #endif
+        //             }
+        //         }
+        //         else
+        //         {
+        //             MPI_Status mpistat;
+        //             MPI_Recv(&status, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &mpistat);
+        //             //verify Recv worked
+        //             if (mpistat.MPI_ERROR != MPI_SUCCESS)
+        //             {
+        //                 std::cerr<<"ERROR: MPI_Recv for node "<<getRank()<<" errored with code "<<mpistat.MPI_ERROR<<std::endl;   
+        //                 MPIsafe_exit(-1);
+        //             }
+        //         }
+        //     #else
+        //         int status = remove(rmfile.c_str());
+        //     #endif
             
 
-            if (status != 0)
-            {
-                std::string message("File: '"+rmfile+"' could not be removed, now exiting with failure.\n");
-                MPIsafe_print(std::cerr,message);
-                MPIsafe_exit(EXIT_FAILURE);
-            }
-            file_index--;
-            file = std::to_string(file_index) + file.substr(_pos,file.size());
+        //     if (status != 0)
+        //     {
+        //         std::string message("File: '"+rmfile+"' could not be removed, now exiting with failure.\n");
+        //         MPIsafe_print(std::cerr,message);
+        //         MPIsafe_exit(EXIT_FAILURE);
+        //     }
+        //     file_index--;
+        //     file = std::to_string(file_index) + file.substr(_pos,file.size());
 
-        }
+        // }
     }
 
     //This needs to be here because its used in the following function
     attrs.start_index = file_index;
     
-    int num_particles = HDF5Handler::get_num_particles(path,file);
+    int num_particles = CSVHandler::get_num_particles(path,file);
     allocate_group(num_particles);
     if (get_JKR(path))
     {
@@ -3180,10 +3189,13 @@ void Ball_group::loadDatafromCSV(std::string path,std::string file)
     }
     
     //Load constants because this can be done without an initialized instance of DECCOData
-    HDF5Handler::loadConsts(path,file,R,m,moi);
+    CSVHandler::loadConsts(path,file,R,m,moi);
+    getMass();
+
 
     int writes;
-    if (attrs.typeSim != relax && has_meta) //Relax jobs should not read in the metadata for dt, steps, etc. That is for restarting jobs.
+    // if (attrs.typeSim != relax && has_meta) //Relax jobs should not read in the metadata for dt, steps, etc. That is for restarting jobs.
+    if (false) //Relax jobs should not read in the metadata for dt, steps, etc. That is for restarting jobs.
     {
         parse_meta_data(meta);
 
@@ -3198,7 +3210,6 @@ void Ball_group::loadDatafromCSV(std::string path,std::string file)
     }
     else
     {
-
         // init_data(attrs.start_index);
         writes = -1;
     }
@@ -3209,18 +3220,22 @@ void Ball_group::loadDatafromCSV(std::string path,std::string file)
     // }
     if(writes > 0) //Works
     {
-        //This cannot be done without an instance of DECCOData, that is why these are different than loadConsts
-        data -> loadSimData(path,file,pos,w,vel);
-
-
-        //initiate buffers since we won't call sim_init_write on a restart
-        energyBuffer = std::vector<double> (data->getWidth("energy")*bufferlines);
-        ballBuffer = std::vector<double> (data->getWidth("simData")*bufferlines);
+        //SHOULD NOT RUN UNTIL MID SIM RESTART FOR CSV IS FIGURED OUT
+        MPIsafe_print(std::cerr,"ERROR: mid sim restart not initialized for csv files yet.\n");
+        MPIsafe_exit(-1);
         
-        MPIsafe_print(std::cerr,"mid_sim_restart\n");
-        attrs.mid_sim_restart = true;
-        attrs.start_step = attrs.skip*(writes-1)+1;
-        attrs.start_index++;
+        // //This cannot be done without an instance of DECCOData, that is why these are different than loadConsts
+        // data -> loadSimData(path,file,pos,w,vel);
+
+
+        // //initiate buffers since we won't call sim_init_write on a restart
+        // energyBuffer = std::vector<double> (data->getWidth("energy")*bufferlines);
+        // ballBuffer = std::vector<double> (data->getWidth("simData")*bufferlines);
+        
+        // MPIsafe_print(std::cerr,"mid_sim_restart\n");
+        // attrs.mid_sim_restart = true;
+        // attrs.start_step = attrs.skip*(writes-1)+1;
+        // attrs.start_index++;
     }
     else if(writes == -1) //Works
     {
@@ -3230,7 +3245,7 @@ void Ball_group::loadDatafromCSV(std::string path,std::string file)
         }
         else
         {
-            HDF5Handler::loadh5SimData(path,file,pos,w,vel);
+            CSVHandler::loadCSVSimData(path,file,pos,w,vel);
         }
         attrs.start_index++;
     }
@@ -3239,7 +3254,8 @@ void Ball_group::loadDatafromCSV(std::string path,std::string file)
         MPIsafe_print(std::cerr,"ERROR: in setWrittenSoFar() output of value '"+std::to_string(writes)+"'.\n");
         MPIsafe_exit(EXIT_FAILURE);
     }
-     
+    
+
 }
 
 
@@ -3325,6 +3341,7 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
     
     //Load constants because this can be done without an initialized instance of DECCOData
     HDF5Handler::loadConsts(path,file,R,m,moi);
+    getMass();
 
     int writes;
     if (attrs.typeSim != relax && has_meta) //Relax jobs should not read in the metadata for dt, steps, etc. That is for restarting jobs.
