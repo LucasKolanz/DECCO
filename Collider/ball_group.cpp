@@ -267,21 +267,14 @@ void Ball_group::aggregationInit(const std::string path,const int index)
         MPIsafe_print(std::cerr,"Simulation already complete. Now exiting. . .\n");
         MPIsafe_exit(0);
     }
+
     std::string filename = find_restart_point(path,index/*,relax=false*/);
 
     bool just_restart = false;
 
-    if (filename != "")
+    if (filename == "")
     {
-        if (filename.substr(filename.size()-4,filename.size()) == ".csv")
-        {
-            size_t _pos = filename.find_first_of("_");
-            // int file_index = stoi(filename.substr(0,filename.find_first_of("_")));
-            if (filename[_pos+1] == 'R')
-            {
-                just_restart = true;
-            }
-        }
+        just_restart = true;
     }
 
     
@@ -3270,64 +3263,64 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
     //If this error happens then then we cannot restart from midway through a sim.
     //This is because the metadata containing the info needed was missing for somereason
   
-    if (meta == ERR_RET_MET)  
-    {
-        has_meta = false;
-        //If the highest sim is not finished, we need to load up the previous one and delete the partially completed sim
-        if (!HDF5Handler::sim_finished(path,file))
-        {
-            std::string rmfile = file;
+    // if (meta == ERR_RET_MET)  
+    // {
+    //     has_meta = false;
+    //     //If the highest sim is not finished, we need to load up the previous one and delete the partially completed sim
+    //     if (!HDF5Handler::sim_finished(path,file))
+    //     {
+    //         std::string rmfile = file;
 
-            #ifdef MPI_ENABLE
-                MPI_Barrier(MPI_COMM_WORLD);
+    //         #ifdef MPI_ENABLE
+    //             MPI_Barrier(MPI_COMM_WORLD);
                 
-                int status;
-                int send_result;
-                //If multiple nodes, we don't want to delete until everyone has loaded
-                if (getRank() == 0)
-                {
-                    status = remove(rmfile.c_str());
-                    if (getSize() > 1)
-                    {
-                        for (int i = 1; i < getSize(); i++)
-                        {
-                            send_result = MPI_Send(&status, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
-                            if (send_result != MPI_SUCCESS)
-                            {
-                                std::cerr<<"ERROR: MPI_Send to node "<<i<<" errored with code "<<send_result<<std::endl;   
-                                MPIsafe_exit(-1);
-                            }
-                        }
+    //             int status;
+    //             int send_result;
+    //             //If multiple nodes, we don't want to delete until everyone has loaded
+    //             if (getRank() == 0)
+    //             {
+    //                 status = remove(rmfile.c_str());
+    //                 if (getSize() > 1)
+    //                 {
+    //                     for (int i = 1; i < getSize(); i++)
+    //                     {
+    //                         send_result = MPI_Send(&status, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+    //                         if (send_result != MPI_SUCCESS)
+    //                         {
+    //                             std::cerr<<"ERROR: MPI_Send to node "<<i<<" errored with code "<<send_result<<std::endl;   
+    //                             MPIsafe_exit(-1);
+    //                         }
+    //                     }
 
-                    }
-                }
-                else
-                {
-                    MPI_Status mpistat;
-                    MPI_Recv(&status, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &mpistat);
-                    //verify Recv worked
-                    if (mpistat.MPI_ERROR != MPI_SUCCESS)
-                    {
-                        std::cerr<<"ERROR: MPI_Recv for node "<<getRank()<<" errored with code "<<mpistat.MPI_ERROR<<std::endl;   
-                        MPIsafe_exit(-1);
-                    }
-                }
-            #else
-                int status = remove(rmfile.c_str());
-            #endif
+    //                 }
+    //             }
+    //             else
+    //             {
+    //                 MPI_Status mpistat;
+    //                 MPI_Recv(&status, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &mpistat);
+    //                 //verify Recv worked
+    //                 if (mpistat.MPI_ERROR != MPI_SUCCESS)
+    //                 {
+    //                     std::cerr<<"ERROR: MPI_Recv for node "<<getRank()<<" errored with code "<<mpistat.MPI_ERROR<<std::endl;   
+    //                     MPIsafe_exit(-1);
+    //                 }
+    //             }
+    //         #else
+    //             int status = remove(rmfile.c_str());
+    //         #endif
             
 
-            if (status != 0)
-            {
-                std::string message("File: '"+rmfile+"' could not be removed, now exiting with failure.\n");
-                MPIsafe_print(std::cerr,message);
-                MPIsafe_exit(EXIT_FAILURE);
-            }
-            file_index--;
-            file = std::to_string(file_index) + file.substr(_pos,file.size());
+    //         if (status != 0)
+    //         {
+    //             std::string message("File: '"+rmfile+"' could not be removed, now exiting with failure.\n");
+    //             MPIsafe_print(std::cerr,message);
+    //             MPIsafe_exit(EXIT_FAILURE);
+    //         }
+    //         file_index--;
+    //         file = std::to_string(file_index) + file.substr(_pos,file.size());
 
-        }
-    }
+    //     }
+    // }
 
     //This needs to be here because its used in the following function
     attrs.start_index = file_index;

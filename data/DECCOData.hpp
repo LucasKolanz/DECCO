@@ -60,9 +60,12 @@ public:
 	std::string genEnergyMetaData();
 	std::string genTimingMetaData();
 	bool deleteData();
+	bool isInitialized();
+
 	
 private:
 	std::string filename;
+	bool initialized = false;
 };
 
 

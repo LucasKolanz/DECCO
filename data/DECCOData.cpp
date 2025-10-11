@@ -91,7 +91,12 @@ CSVHandler::CSVHandler()=default;
 CSVHandler::~CSVHandler(){};
 CSVHandler::CSVHandler(std::string filename) : filename(filename) 
 {
-	// initialized = true;
+	initialized = true;
+}
+
+bool CSVHandler::isInitialized()
+{
+	return initialized;
 }
 
 std::string CSVHandler::get_last_line(const std::string& path, const std::string& file)
@@ -1280,12 +1285,14 @@ DECCOData::DECCOData(std::string fname, int num_particles, int writes, int steps
 	{
 		h5data = true;
 		csvdata = false;
+		H = HDF5Handler(filename,fixed);
 	}
 	else if (storage_type == "csv")
 	{
 		filename = trimFilename(filename);
 		csvdata = true;
 		h5data = false;
+		C = CSVHandler(filename);
 		// filename = filename.substr(0,filename.length()-4);
 	}
 	else
@@ -1405,7 +1412,6 @@ std::vector<double> DECCOData::Read(std::string data_type, bool all, int line,st
 		file = filename;
 	}
 	
-
 	std::vector<double> data_read;
 	if (file.substr(file.size()-3,file.size()) == ".h5")
 	{
@@ -1899,6 +1905,7 @@ std::string find_restart_point(std::string path, const int index,bool relax/*=fa
 			else if (csv == 0 && index < 0 && !checkpoint_exists)
 			{
 		    	Ball_group temp(idx,/*JKR=*/false);
+		    	temp.parse_input_file(path);
 		    	temp.loadSim(path,name,/*verbose=*/false);
 		        if (!isConnected(temp.pos,temp.R,temp.attrs.num_particles))
 		        {
@@ -1930,6 +1937,10 @@ std::string find_restart_point(std::string path, const int index,bool relax/*=fa
 
 	MPIsafe_bcast_string(largest_file_name, /*root=*/0);
 
+	if (largest_file_name == "")
+	{
+		return "";
+	}
     return path + largest_file_name;
 }
 
