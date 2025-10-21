@@ -354,7 +354,7 @@ void Ball_group::aggregationInit(const std::string path,const int index)
 //Initalize custom parameters in here
 void Ball_group::customInit()
 {
-    int nBalls = 4;
+    int nBalls = 2;
     attrs.num_particles = nBalls;
     allocate_group(nBalls);
     if (attrs.JKR)
@@ -367,26 +367,26 @@ void Ball_group::customInit()
 
     R[0] = 1e-5;
     R[1] = 1e-5;
-    R[2] = 1e-5;    
-    R[3] = 1e-5;    
+    // R[2] = 1e-5;    
+    // R[3] = 1e-5;    
     // R[4] = 1e-5;    
 
     m[0] = density[0]*(4.0/3.0)*pi*R[0]*R[0]*R[0];
     m[1] = density[1]*(4.0/3.0)*pi*R[1]*R[1]*R[1];
-    m[2] = density[2]*(4.0/3.0)*pi*R[2]*R[2]*R[2];
-    m[3] = density[3]*(4.0/3.0)*pi*R[3]*R[3]*R[3];
+    // m[2] = density[2]*(4.0/3.0)*pi*R[2]*R[2]*R[2];
+    // m[3] = density[3]*(4.0/3.0)*pi*R[3]*R[3]*R[3];
     // m[4] = density[4]*(4.0/3.0)*pi*R[4]*R[4]*R[4];
 
     moi[0] = .4 * m[0] * R[0] * R[0];
     moi[1] = .4 * m[1] * R[1] * R[1];
-    moi[2] = .4 * m[2] * R[2] * R[2];
-    moi[3] = .4 * m[3] * R[3] * R[3];
+    // moi[2] = .4 * m[2] * R[2] * R[2];
+    // moi[3] = .4 * m[3] * R[3] * R[3];
     // moi[4] = .4 * m[4] * R[4] * R[4];
     
-    w[0] = {-835202.4408731752, -415150.67585201445, -923266.3424160982};   
-    w[1] = {-84982.03011028409, -40378.54861895961, -90906.2970926238};   
-    w[2] = {752265.8421657234, 376018.648718707, 835191.9320559916};   
-    w[3] = {0.0, 0.0, 0.0};   
+    w[0] = {0,0,0};   
+    w[1] = {100000,0,0};   
+    // w[2] = {752265.8421657234, 376018.648718707, 835191.9320559916};   
+    // w[3] = {0.0, 0.0, 0.0};   
     // w[2] = {0.0, 0.0, 0.0};   
     // w[1] = {0.0, 0.0, 0.0};   
     // w[0] = {0.0, 0.0, 0.0};   
@@ -395,8 +395,8 @@ void Ball_group::customInit()
 
     pos[0] = {-3.861206679998241e-06, 1.4421592075685271e-05, 1.1560139726560676e-06};
     pos[1] = {1.313380734510933e-06, -4.502693672807688e-06, 4.984365606494073e-06};
-    pos[2] = {-4.183354924010277e-06, -1.968872614076021e-05, 1.6772367295500178e-05};
-    pos[3] = {6.731180869497584e-06, 9.769827737882628e-06, -2.291274687465032e-05};
+    // pos[2] = {-4.183354924010277e-06, -1.968872614076021e-05, 1.6772367295500178e-05};
+    // pos[3] = {6.731180869497584e-06, 9.769827737882628e-06, -2.291274687465032e-05};
  
     // pos[0] = {0, R[0] , 0};
     // // pos[1] = {0,-9.98938e-6, 0};
@@ -412,10 +412,10 @@ void Ball_group::customInit()
     // double bel = 50.0;
     double bel = 20.0;
     // std::cout<<"velocity of impact: "<<bel*2<<std::endl;
-    vel[0] = {2.4793346092862487, -23.431100181080062, 8.280188037465136};
-    vel[1] = {-8.179908767871174, -4.8689918718098735, 9.577811392897551};
-    vel[2] = {5.852285928812472, 28.358415718031555, -17.98189749746166};
-    vel[3] = {-0.15171177020907464, -0.058323665165048263, 0.12389806710550082};
+    vel[0] = {0,0,0};
+    vel[1] = {0,0,-100};
+    // vel[2] = {5.852285928812472, 28.358415718031555, -17.98189749746166};
+    // vel[3] = {-0.15171177020907464, -0.058323665165048263, 0.12389806710550082};
     // vel[2] = {0,0,0};
     // vel[1] = {0,0,0};
     // vel[0] = {0,0,0};
@@ -1811,7 +1811,9 @@ Ball_group Ball_group::BPCA_projectile_init()
     //Update v_custom if temp or eta are greater than zero
     overwrite_v_custom(projectile);
 
-    pos_and_vel_for_collision(projectile);
+    if (attrs.JKR){pos_and_vel_for_collision_JKR(projectile);}
+    else{pos_and_vel_for_collision(projectile);}
+    
 
     // std::cerr<<"projectile at end of BPCA proj init: "<<projectile.pos[0]<<std::endl;
     // projectile.vel[0] = -attrs.v_custom * projectile_direction;
@@ -1902,7 +1904,8 @@ Ball_group Ball_group::BCCA_projectile_init(const bool symmetric=true)
     //Update v_custom if temp or eta are greater than zero
     overwrite_v_custom(projectile);
 
-    pos_and_vel_for_collision(projectile);
+    if (attrs.JKR){pos_and_vel_for_collision_JKR(projectile);}
+    else{pos_and_vel_for_collision(projectile);}
 
     // // projectile random position at twice radius of target + projectile:
     // // We want the farthest from origin since we are offsetting form origin. Not com.
@@ -1981,7 +1984,8 @@ Ball_group Ball_group::BAPA_projectile_init()
     // //Update v_custom if temp or eta are greater than zero
     overwrite_v_custom(projectile);
 
-    pos_and_vel_for_collision(projectile);
+    if (attrs.JKR){pos_and_vel_for_collision_JKR(projectile);}
+    else{pos_and_vel_for_collision(projectile);}
 
     // // projectile random position at twice radius of target + projectile:
     // // We want the farthest from origin since we are offsetting form origin. Not com.
@@ -3463,6 +3467,90 @@ inline void Ball_group::setMass()
 //at a speed of v_custom but the velocity of the center of mass is zero. The direction
 //of the velocities is both down the x-axis at eachother. Also positions
 //the projectile such that any offsets are taken into account and the projectile is 
+//placed down the x-axis a bit. FOR JKR SIMULATIONS
+void Ball_group::pos_and_vel_for_collision_JKR(Ball_group &projectile)
+{
+    pos_and_vel_for_collision_JKR(projectile,*this);
+}
+void Ball_group::pos_and_vel_for_collision_JKR(Ball_group &projectile,Ball_group &target)
+{
+
+    target.attrs.initial_radius = target.getRadius(target.getCOM());
+
+    // Collision velocity calculation:
+    // Make it so collision velocity is v_custom and 
+    // the velocity of the center of mass is zero
+    const double mSmall = projectile.attrs.m_total;
+    const double mBig = target.attrs.m_total;
+    const double mTot = mBig + mSmall;
+    // const double vSmall = -sqrt(2 * KEfactor * fabs(PEsys) * (mBig / (mSmall * mTot))); // Negative
+    // because small offsets right.
+    const double vBig = std::fabs(attrs.v_custom)*(mSmall)/(mTot);     //-(mSmall / mBig) * vSmall;  // Negative to oppose projectile.
+    const double vSmall = std::fabs(vBig-attrs.v_custom);  
+    // const double vBig = 0; // Dymorphous override.
+
+    if (std::isnan(vSmall) || std::isnan(vBig)) {
+        MPIsafe_print(std::cerr,"A VELOCITY WAS NAN!!!!!!!!!!!!!!!!!!!!!!\n\n");
+        MPIsafe_exit(EXIT_FAILURE);
+    }
+
+    vec3 projectile_direction;
+    if (attrs.typeSim == BCCA || attrs.typeSim == BPCA || attrs.typeSim == BAPA)
+    {
+        projectile_direction = rand_unit_vec3();
+        // projectile_direction = vec3(-1,0,0);
+    }
+    else
+    {
+        projectile_direction = vec3(-1,0,0);
+    }
+
+    MPIsafe_print(std::cerr,"Projectile direction: ("+dToSci(projectile_direction.x)+','+dToSci(projectile_direction.y)+','+dToSci(projectile_direction.z)+")\n");
+
+    projectile.kick(vSmall*projectile_direction);
+    target.kick(vBig*(-projectile_direction));
+
+    std::cerr<<"vSmall*projectile_direction: "<<vSmall*projectile_direction<<std::endl;
+    std::cerr<<"vBig*(-projectile_direction): "<<vBig*(-projectile_direction)<<std::endl;
+    
+    // std::cerr<<"vSmall*projectile_direction: "<<vSmall*projectile_direction<<std::endl;
+    // std::cerr<<"vBig*projectile_direction: "<<vBig*projectile_direction<<std::endl;
+
+
+    if (attrs.impactParameter < 0.0)
+    {
+        //move the projectile so it is barely not touching the target        
+        projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*(-projectile_direction));
+
+        //give the projectile a random offset such that they still collide
+        const auto offset = random_offset(projectile, target); 
+        MPIsafe_print(std::cerr,"Applying random offset of "+vToSci(offset)+" cm.\n");
+
+    }
+    else
+    {
+        // TODO::MAke this work in any direction, not just xy plane  
+        MPIsafe_print(std::cerr,"ERROR::if you made it here, you need to finish this code before this can run.");
+        MPIsafe_exit(-1);
+        // projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*projectile_direction);
+        projectile.offset(
+            projectile.attrs.initial_radius + projectile.getRmax(), target.attrs.initial_radius + target.getRmax(), attrs.impactParameter);
+        MPIsafe_print(std::cerr,"Applying impact parameter of "+std::to_string(attrs.impactParameter)+" cm.\n");
+            // //Next line was the original
+            // projectile.attrs.initial_radius, target.attrs.initial_radius + target.getRmax() * 2, attrs.impactParameter);
+            // (projectile.attrs.initial_radius + target.attrs.initial_radius)*3, 0.0, attrs.impactParameter);
+    }
+
+    //Now we can move the aggregates apart a little bit if they are touching
+    //If they are touching, move the projectile in projectile_direction
+    moveApart(projectile_direction,projectile,target);
+
+}
+
+//Gives the projectile and target a velocity based on v_custom such that they collide
+//at a speed of v_custom but the velocity of the center of mass is zero. The direction
+//of the velocities is both down the x-axis at eachother. Also positions
+//the projectile such that any offsets are taken into account and the projectile is 
 //placed down the x-axis a bit. 
 void Ball_group::pos_and_vel_for_collision(Ball_group &projectile)
 {
@@ -3819,7 +3907,8 @@ void Ball_group::sim_init_two_cluster(
     target.zeroAngVel();
     target.zeroVel();
 
-    pos_and_vel_for_collision(projectile,target);
+    if (attrs.JKR){pos_and_vel_for_collision_JKR(projectile);}
+    else{pos_and_vel_for_collision(projectile);}
 
     // //move projectile so it is down the x-axis 
     // projectile.move(vec3(projectile.attrs.initial_radius + projectile.getRmax()*2 + target.attrs.initial_radius + target.getRmax() * 2, 0, 0));
@@ -4861,20 +4950,6 @@ void Ball_group::sim_one_step_JKR(int step,bool write_step)
             // const vec3 rollingTorqueB = -reducedReff*kr*nB.cross(rollingDisp);
             const vec3 rollingTorqueA = -reducedR[e]*kr*nA.cross(rollingDisp);
             const vec3 rollingTorqueB = -reducedR[e]*kr*nB.cross(rollingDisp);
- 
-           // -----------------This is the sliding and rolling force/torque adding stuff--------------------------
-            totalForceA += slidingForceA;
-            totalForceB += slidingForceB;
-            
-            totalTorqueA += slidingTorqueA;
-            totalTorqueB += slidingTorqueB;
-
-            totalTorqueA += rollingTorqueA;
-            totalTorqueB += rollingTorqueB; //(SHOULD ROLLINGDISP BE NEGATIVE??)
-           // ----------------------------------------------------------------------------------------------------
-            // std::ofstream outfile;
-            // outfile.open("/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/JKRTest/out.txt", std::ios_base::app);
-            // outfile<<scientific(slidingDisp.norm())<<','<<scientific(rollingDisp.norm())<<','<<scientific(overlap)<<std::endl;
 
             //////////////////////////////////////////////////////////////////////////////////////////
             //Verify this conserves conserved quantities
@@ -4888,6 +4963,40 @@ void Ball_group::sim_one_step_JKR(int step,bool write_step)
             }
             ////////////////////////////////////////////////////////////////////////////////////////
             
+            //////////////////////////////////////////////////////////////////////////////////////////
+            //twisting
+            // const vec3 w_diff = w[A] - w[B];
+            vec3 twistingAngularVector = (w[A] - w[B]).dot(n_c) * attrs.dt * n_c; //Is this good enough?
+            const double kt = (16.0/3.0)*reducedG[e]*a0[e]*a0[e]*a0[e];
+            const double critTwistingDisp = 1.0/(16.0*pi);
+            if (critTwistingDisp < twistingAngularVector.norm())
+            {
+
+                std::cout<<"CRITICAL twisting DISPLACEMENT REACHED AT STEP "<<step<<std::endl;
+                twistingAngularVector = critTwistingDisp*twistingAngularVector/twistingAngularVector.norm();
+            }
+
+            const vec3 twistingTorqueA = -kt*twistingAngularVector;
+            const vec3 twistingTorqueB = -twistingTorqueA;
+ 
+            // std::ofstream outfile;
+            // outfile.open("/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/JKRTest/out.txt", std::ios_base::app);
+            // outfile<<scientific(slidingDisp.norm())<<','<<scientific(rollingDisp.norm())<<','<<scientific(overlap)<<std::endl;
+
+            // -----------------This is the sliding and rolling force/torque adding stuff--------------------------
+            totalForceA += slidingForceA;
+            totalForceB += slidingForceB;
+            
+            totalTorqueA += slidingTorqueA;
+            totalTorqueB += slidingTorqueB;
+
+            totalTorqueA += rollingTorqueA;
+            totalTorqueB += rollingTorqueB; //(SHOULD ROLLINGDISP BE NEGATIVE??)
+
+            totalTorqueA += twistingTorqueA;
+            totalTorqueB += twistingTorqueB;
+            // ----------------------------------------------------------------------------------------------------
+            
             aacc[A] += totalTorqueA / moi[A];
             aacc[B] += totalTorqueB / moi[B];
 
@@ -4900,6 +5009,9 @@ void Ball_group::sim_one_step_JKR(int step,bool write_step)
 
                 //JKR rolling PE
                 PE += 0.5*kr*rollingDisp.dot(rollingDisp);
+
+                //JKR twisting PE
+                PE += 0.5*kt*twistingAngularVector.dot(twistingAngularVector);
 
                 //JKR normal PE
                 PE += 8.0*reducedE[e]*std::pow(contactRadius,5)/(15.0*reducedR[e]*reducedR[e]) \
@@ -4933,17 +5045,13 @@ void Ball_group::sim_one_step_JKR(int step,bool write_step)
     // t.start_event("CalcVelocityforNextStep");
     for (int Ball = 0; Ball < attrs.num_particles; Ball++) 
     {
-        // if (Ball != 0)
+        if (Ball != 0)
         // if (1)
         // {
-        // Velocity for next step:
-        vel[Ball] = velh[Ball] + .5 * acc[Ball] * attrs.dt;
-        w[Ball] = wh[Ball] + .5 * aacc[Ball] * attrs.dt;
-        
-
-        // Eu0[Ball] = 1.0;
-        // Eu[Ball] = {0.0,0.0,0.0};
-
+            // Velocity for next step:
+            vel[Ball] = velh[Ball] + .5 * acc[Ball] * attrs.dt;
+            w[Ball] = wh[Ball] + .5 * aacc[Ball] * attrs.dt;
+            
         // }
         // else 
         // {

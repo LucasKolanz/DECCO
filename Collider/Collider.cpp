@@ -274,15 +274,18 @@ void runAggregation(std::string path, int num_balls)
         }
 
         bool success = O.sim_looper(1);
+        // if (true)
         if (!success)
         {
             O.data->deleteData();
             int isConnectedFails = O.attrs.isConnectedFails;
-            O = Ball_group(path);  
+            O = Ball_group(path); 
             safetyChecks(O);
             O.attrs.isConnectedFails = isConnectedFails;
             i -= increment;
+            // exit(0);
         }
+
 
         O.attrs.simTimeElapsed = 0;
 

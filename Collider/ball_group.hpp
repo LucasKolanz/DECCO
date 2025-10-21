@@ -439,6 +439,8 @@ public:
     void updatePE();
     void pos_and_vel_for_collision(Ball_group &projectile,Ball_group &target);
     void pos_and_vel_for_collision(Ball_group &projectile);
+    void pos_and_vel_for_collision_JKR(Ball_group &projectile,Ball_group &target);
+    void pos_and_vel_for_collision_JKR(Ball_group &projectile);
     void overwrite_v_custom(Ball_group &projectile,Ball_group &target);
     void overwrite_v_custom(Ball_group &projectile);
     void to_origin() const;
