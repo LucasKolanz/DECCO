@@ -66,7 +66,7 @@ def calc_PE(pos,radius,HA,K):
 
 def verify_simData(directory,HA=0):
 	indices = u.get_all_indices(directory,checkpoint=True)
-	indices = [4]
+	indices = [8]
 	relax = ("relax" in directory)
 	for i in indices:
 		time,_,_,_,_,_ = u.get_energy(directory,data_index=i,relax=relax)
@@ -74,7 +74,7 @@ def verify_simData(directory,HA=0):
 		pos,vel,w = u.get_simData(directory,i,relax)
 		timesteps = pos.shape[0]
 
-		start = 100
+		start = 0
 		stop = -1
 
 		rotKE = np.zeros((timesteps),dtype=np.float64)
@@ -118,7 +118,7 @@ def verify_simData(directory,HA=0):
 
 def verify_energy(directory):
 	indices = u.get_all_indices(directory,checkpoint=True)
-	indices = [4]
+	indices = [8]
 	relax = ("relax" in directory)
 	for i in indices:
 		time,PE,KE,E,p,L = u.get_energy(directory,data_index=i,relax=relax)
@@ -166,7 +166,7 @@ def verify_contactRadius(directory):
 	# print(a)
 
 	start = 1
-	stop = 1000
+	stop = -1
 
 	# Plot rotational kinetic energy versus time
 	plt.figure(figsize=(10, 6))
@@ -191,7 +191,7 @@ def verify_displacements(directory):
 	# print(a)
 
 	start = 0
-	stop = 10000
+	stop = -1
 
 	# Plot rotational kinetic energy versus time
 	plt.figure(figsize=(10, 6))
@@ -216,7 +216,7 @@ if __name__ == '__main__':
 	path = input_json["data_directory"]
 
 	directory = "/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/JKRBPCA0/N_300/T_3/"
-	directory = "/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/JKRTest_5/"
+	directory = "/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/testest_0/"
 	relax = ("relax" in directory)
 
 	verify_energy(directory)

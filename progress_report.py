@@ -25,7 +25,7 @@ def unroll(*lists):
 def status(fullpath):
 	if not os.path.exists(fullpath):
 		return -1
-	elif os.path.exists(fullpath+"timing.txt") and os.path.exists(fullpath+"300_data.h5"):
+	elif os.path.exists(fullpath+"timing.txt") and (os.path.exists(fullpath+"300_data.h5") or os.path.exists(fullpath+"300_simData.csv")):
 		return 2
 	else:
 		# Loop through all files in the directory fullpath
@@ -109,8 +109,8 @@ def main():
 	# job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
 	# job = input_json["data_directory"] + 'jobsNovus/constantX_relax$a$/N_$n$/T_$t$/'
 	
-	# job = input_json["data_directory"] + 'jobs/BAPA_$a$/M_$m$/N_$n$/T_$t$/'
-	job = input_json["data_directory"] + 'jobs/constrollingfricrelax$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobs/BAPA_$a$/M_$m$/N_$n$/T_$t$/'
+	# job = input_json["data_directory"] + 'jobs/constrollingfricrelax$a$/N_$n$/T_$t$/'
 	# job = input_json["data_directory"] + 'jobs/constrollingfric$a$/N_$n$/T_$t$/'
 	print(job)
 
@@ -120,10 +120,10 @@ def main():
 
 	# N = [30,100,300]
 	N = [300]
-	# M = [3,5,10,15]
-	M=[]
-	Temps = [3,10,30,100,300,1000]
-	# Temps = [1000]
+	M = [1,3,5,10,15,20,30,50,60,100]
+	# M=[]
+	# Temps = [3,10,30,100,300,1000]
+	Temps = [1000]
 
 
 
