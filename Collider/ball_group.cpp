@@ -294,36 +294,38 @@ void Ball_group::aggregationInit(const std::string path,const int index)
     else if (restart == 0 || just_restart)
     {
         generate_ball_field(attrs.genBalls);
+        placeBalls(attrs.genBalls);
         // Hack - Override and creation just 2 balls position and velocity.
-        if (attrs.genBalls > 0 && attrs.genBalls <= 2)
-        {
-            if (attrs.JKR)
-            {
-                pos[0] = {0, R[0]-1.01e-8, 0};
-                vel[0] = {0, -0.1, 0};
-                if (attrs.genBalls > 1)
-                {
-                    pos[1] = {0, -(R[1]-1.01e-8), 0};
-                    vel[1] = {0, 0.1, 0};
+        // if (attrs.genBalls > 0 && attrs.genBalls <= 2)
+        // {
+        //     if (attrs.JKR)
+        //     {
+        //         pos[0] = {0, R[0]-1.01e-8, 0};
+        //         vel[0] = {0, -0.1, 0};
+        //         if (attrs.genBalls > 1)
+        //         {
+        //             pos[1] = {0, -(R[1]-1.01e-8), 0};
+        //             vel[1] = {0, 0.1, 0};
             
-                }
-            }
-            else
-            {
-                pos[0] = {0, R[0]+1.01e-6, 0};
-                vel[0] = {0, 0, 0};
-                if (attrs.genBalls > 1)
-                {
-                    pos[1] = {0, -(R[1]+1.01e-6), 0};
-                    vel[1] = {0, 0, 0};
+        //         }
+        //     }
+        //     else
+        //     {
+        //         pos[0] = {0, R[0]+1.01e-6, 0};
+        //         vel[0] = {0, 0, 0};
+        //         if (attrs.genBalls > 1)
+        //         {
+        //             pos[1] = {0, -(R[1]+1.01e-6), 0};
+        //             vel[1] = {0, 0, 0};
             
-                }
-            }
-        }
-        else
-        {
-            MPIsafe_print(std::cerr,"ERROR: genBalls > 2 not yet implimented (right)?\n");
-        }
+        //         }
+        //         // std::cerr<<"HEREREERERREERERERERERERER"<<std::endl;
+        //     }
+        // }
+        // else
+        // {
+        //     MPIsafe_print(std::cerr,"ERROR: genBalls > 2 not yet implimented (right)?\n");
+        // }
 
 
         attrs.m_total = getMass();
@@ -782,12 +784,31 @@ void Ball_group::parse_input_file(std::string location)
     }
 
     set_attribute(inputs,"N",attrs.N);
-    // attrs.N = inputs["N"];
     set_attribute(inputs,"M",attrs.M);
-    // if (inputs.contains("M"))
-    // {
-    //     attrs.M = inputs["M"];
-    // }
+    if (attrs.M < 0)
+    {
+        std::string temp_m_range;
+        set_attribute(inputs,"M_range",temp_m_range);
+        if (temp_m_range != "")
+        {
+            char colon;
+            std::stringstream ss(temp_m_range);
+            ss >> attrs.M_min >> colon >> attrs.M_max;
+
+            if (!(ss && colon == ':'))
+            {
+                MPIsafe_print(std::cerr, "ERROR: Format error in M_range. Should be two integers separated by a colon.\n");
+                MPIsafe_exit(-1);
+            }
+        }
+        // else
+        // {
+        //     MPIsafe_print(std::cerr,"ERROR: attribute M < 0 but M_range not specified in input file.\n");
+        //     MPIsafe_exit(-1);
+        // }
+    }
+
+
     set_attribute(inputs,"dynamicTime",attrs.dynamicTime);
     // attrs.dynamicTime = inputs["dynamicTime"];
     set_attribute(inputs,"G",attrs.G);
@@ -1245,8 +1266,7 @@ void Ball_group::calc_v_collapse()
         // This shouldn't apply to extremely destructive collisions because it is possible that no
         // particles are considered, so it will keep pausing.
         if (attrs.v_max < 1e-10) {
-            MPIsafe_print(std::cerr,"\nMax velocity in system is less than 1e-10.\n");
-            system("pause");
+            MPIsafe_print(std::cerr,"\nWARNING: Max velocity in system is less than 1e-10.\n");
         }
     }
 
@@ -1644,12 +1664,11 @@ Ball_group Ball_group::spawn_particles(const int count)
 //@param projectile is projectile's position before offset is applied
 //@param projectile_vel is projectile's velocity
 //@returns the vector from the original particle position to the new position
-
-//TODO:: Test if this works for BPCA before using it
 vec3 Ball_group::random_offset(
     Ball_group &projectile,
     Ball_group &target)
 {
+
     const auto possible_radius = target.getRadius(target.getCOM()) + projectile.getRadius(projectile.getCOM());
     const auto projectile_vcom = projectile.getVCOM();
     // const auto projectile_radius = projectile.getRadius(projectile.getCOM());
@@ -1777,6 +1796,40 @@ double Ball_group::calc_max_bolt_velocity(double temp, double mass)
     return max_bolt_dist(a); 
 }
 
+//make sure projectile file with this index exists and is in a state to use.
+//If it is not, wait for a while and check again, up to max wait time (in seconds). Default is 24 hours
+void Ball_group::verify_projectile(const std::string projectile_folder,const int index, const double max_wait_time=86400)
+{
+
+    std::string file_base = projectile_folder+std::to_string(index);
+
+    //check that file exists, if not wait until it exists or max wait time reached
+    std::ifstream f;
+    int time_slept = 0;
+    int interval = 10; //seconds
+    while (time_slept<=max_wait_time)
+    {
+        f.open(file_base+"_checkpoint.txt");
+        if (f.good())
+        {
+            f.close();
+            break;
+        }
+        f.close();
+        std::this_thread::sleep_for(std::chrono::seconds(interval));
+        time_slept += interval;
+        MPIsafe_print(std::cerr,"Waited "+std::to_string(interval)+" seconds for the projectile to checkpoint.\n");
+    }
+
+    if (time_slept>=max_wait_time)
+    {
+        MPIsafe_print(std::cerr,"ERROR: verify_projectile waited the max time of "+std::to_string(max_wait_time)+" seconds for projectile to checkpoint but it didn't :(. Now exiting.");
+        MPIsafe_exit(-1);
+    }
+
+    MPIsafe_print(std::cerr,"Waited a total of "+std::to_string(time_slept)+" second(s) for the projectile to checkpoint.\n");
+}
+
 // @brief returns new ball group consisting of one particle
 //        where particle is given initial conditions
 //        including an random offset linearly dependant on radius 
@@ -1829,41 +1882,6 @@ Ball_group Ball_group::BPCA_projectile_init()
     return projectile;
 }
 
-//make sure projectile file with this index exists and is in a state to use.
-//If it is not, wait for a while and check again, up to max wait time (in seconds). Default is 24 hours
-void Ball_group::verify_projectile(const std::string projectile_folder,const int index, const double max_wait_time=86400)
-{
-
-    std::string file_base = projectile_folder+std::to_string(index);
-
-    //check that file exists, if not wait until it exists or max wait time reached
-    std::ifstream f;
-    int time_slept = 0;
-    int interval = 10; //seconds
-    while (time_slept<=max_wait_time)
-    {
-        f.open(file_base+"_checkpoint.txt");
-        if (f.good())
-        {
-            f.close();
-            break;
-        }
-        f.close();
-        std::this_thread::sleep_for(std::chrono::seconds(interval));
-        time_slept += interval;
-        MPIsafe_print(std::cerr,"Waited "+std::to_string(interval)+" seconds for the projectile to checkpoint.\n");
-    }
-
-    if (time_slept>=max_wait_time)
-    {
-        MPIsafe_print(std::cerr,"ERROR: verify_projectile waited the max time of "+std::to_string(max_wait_time)+" seconds for projectile to checkpoint but it didn't :(. Now exiting.");
-        MPIsafe_exit(-1);
-    }
-
-    MPIsafe_print(std::cerr,"Waited a total of "+std::to_string(time_slept)+" second(s) for the projectile to checkpoint.\n");
-}
-
-
 
 // @brief returns new ball group consisting of one particle
 //        where particle is given initial conditions
@@ -1887,8 +1905,10 @@ Ball_group Ball_group::BCCA_projectile_init(const bool symmetric=true)
         // strip off the "{index}_" at the end of the file name because this constructor
         // doesnt need it
         // rand_projectile_folder = data->getFileName().substr(0,data->getFileName().length()-1-std::to_string(attrs.num_particles).length());
+        
         std::string rand_projectile_folder = get_rand_projectile_folder(attrs.random_folder_template);
-        std::cerr<<"Getting random projectile from: "<<rand_projectile_folder<<std::endl;
+
+        MPIsafe_print(std::cerr,"Getting random projectile from: "+rand_projectile_folder+'\n');
         
         verify_projectile(rand_projectile_folder,attrs.num_particles);
 
@@ -1907,39 +1927,6 @@ Ball_group Ball_group::BCCA_projectile_init(const bool symmetric=true)
     if (attrs.JKR){pos_and_vel_for_collision_JKR(projectile);}
     else{pos_and_vel_for_collision(projectile);}
 
-    // // projectile random position at twice radius of target + projectile:
-    // // We want the farthest from origin since we are offsetting form origin. Not com.
-    // const auto cluster_radius = getRadius(vec3(0, 0, 0)) + projectile.getRadius(vec3(0, 0, 0));
-
-
-    // const vec3 projectile_direction = rand_unit_vec3();
-
-    // for (int i = 0; i < projectile.attrs.num_particles; ++i)
-    // {
-
-    //     projectile.pos[i] += projectile_direction * (cluster_radius + attrs.scaleBalls * 4);
-
-    //     // Velocity toward origin:
-    //     projectile.vel[i] = -attrs.v_custom * projectile_direction;
-        
-    //     // projectile.R[0] = 1e-5;  // rand_between(1,3)*1e-5;
-    //     // projectile.moi[0] = calc_moi(projectile.R[0], projectile.m[0]);
-    // }
-
-    
-
-  
-    // //TODO:: make random_offset work with two aggregates
-    // //TODO:: The collision seems to happen about a random spot, not at the center of the simulation
-    // // const double3x3 local_coords = local_coordinates(to_double3(projectile_direction));
-    
-    // // const vec3 offset = random_offset(local_coords,projectile.getCOM(),projectile.vel[0],projectile.R[0]); 
-
-    // // for (int i = 0; i < projectile.attrs.num_particles; ++i)
-    // // {
-    // //     projectile.pos[i] -= offset;
-    // // }
-
     
     return projectile;
 }
@@ -1950,74 +1937,43 @@ Ball_group Ball_group::BCCA_projectile_init(const bool symmetric=true)
 Ball_group Ball_group::BAPA_projectile_init()
 {
 
+    int projectile_size;
+    projectile_size = attrs.M;
+    if (attrs.M < 0)
+    {
+        projectile_size = rand_int_between(attrs.M_min,attrs.M_max);
+    }
 
-    std::string rand_projectile_folder = get_rand_projectile_folder(attrs.random_folder_template);
+    Ball_group projectile;
+    if (projectile_size >= 3)
+    {
+        std::string rand_projectile_folder = get_rand_projectile_folder(attrs.random_folder_template);
+        MPIsafe_print(std::cerr,"Getting projectile of index "+std::to_string(projectile_size)+" from: "+rand_projectile_folder+'\n');
+        projectile = Ball_group(rand_projectile_folder,projectile_size);
+    }
+    else if (projectile_size == 2)
+    {
+        projectile = Ball_group(projectile_size,attrs.JKR);
+        projectile.parse_input_file(attrs.output_folder);
+        projectile.generate_ball_field(projectile_size);
+        projectile.placeBalls(projectile_size);
+    }
+    else if (projectile_size == 1)
+    {
+        projectile = BPCA_projectile_init();
+    }
+    else
+    {
+        MPIsafe_print(std::cerr,"ERROR: projectile size in BAPA_projectile_init is '"+std::to_string(projectile_size)+"' <= 0\n");
+        MPIsafe_exit(-1);
+    }
 
-    MPIsafe_print(std::cerr,"Getting projectile of index "+std::to_string(attrs.M)+" from: "+rand_projectile_folder+'\n');
-    Ball_group projectile(rand_projectile_folder,attrs.M);
-    // if (attrs.typeSim == BAPA && attrs.weld)
-    // {
-    //     attrs.group = 
-    // }
-    // projectile.zeroVel();
-    // projectile.zeroAngVel();
-    
-    // Ball_group projectile(attrs.M);
-    // std::string filename = find_whole_file_name(rand_projectile_folder,attrs.M);
-    // projectile.loadSim(rand_projectile_folder,filename.substr(filename.find_last_of('/')+1,filename.size()));
-    // std::cerr<<"loaded projectile sim"<<std::flush<<std::endl;
-    // projectile.calc_v_collapse(); 
-    // std::cerr<<"calculated v collapse projectile"<<std::endl;
-    // // getMass();
-    // if (attrs.dt < 0)
-    //     projectile.calibrate_dt(0, attrs.v_custom);
-    // std::cerr<<"calibrate dt projectile"<<std::endl;
-    // projectile.simInit_cond_and_center(false);
-    // std::cerr<<"simInit_cond_and_center projectile"<<std::endl;
-    // projectile.to_origin();
-    // std::cerr<<"to_origin projectile"<<std::endl;
-    // projectile.calc_helpfuls();
-    // std::cerr<<"calc_helpfuls projectile"<<std::endl;
-    
-    // //find velocity of projectile
-    // // Velocity toward origin:
-    // //Update v_custom if temp or eta are greater than zero
+
+
     overwrite_v_custom(projectile);
 
     if (attrs.JKR){pos_and_vel_for_collision_JKR(projectile);}
     else{pos_and_vel_for_collision(projectile);}
-
-    // // projectile random position at twice radius of target + projectile:
-    // // We want the farthest from origin since we are offsetting form origin. Not com.
-    // const auto cluster_radius = getRadius(vec3(0, 0, 0)) + projectile.getRadius(vec3(0, 0, 0));
-
-
-    // const vec3 projectile_direction = rand_unit_vec3();
-
-    // for (int i = 0; i < projectile.attrs.num_particles; ++i)
-    // {
-
-    //     projectile.pos[i] += projectile_direction * (cluster_radius + attrs.scaleBalls * 4);
-
-    //     // Velocity toward origin:
-    //     projectile.vel[i] = -attrs.v_custom * projectile_direction;
-        
-    //     // projectile.R[0] = 1e-5;  // rand_between(1,3)*1e-5;
-    //     // projectile.moi[0] = calc_moi(projectile.R[0], projectile.m[0]);
-    // }
-
-    
-
-  
-
-    // const double3x3 local_coords = local_coordinates(to_double3(projectile_direction));
-    
-    // const vec3 offset = random_offset(local_coords,projectile.getCOM(),projectile.vel[0],projectile.R[0]); 
-
-    // for (int i = 0; i < projectile.attrs.num_particles; ++i)
-    // {
-    //     projectile.pos[i] -= offset;
-    // }
 
     
     return projectile;
@@ -2935,27 +2891,16 @@ void Ball_group::generate_ball_field(const int nBalls)
         setMass();
     }
 
-    // Create new random number set.
-        //This should be d
-         // in parse_input_file
-    // const int seedSave = static_cast<int>(time(nullptr));
-    // srand(seedSave);
-    // if (attrs.radiiDistribution == constant)
-    // {
-    //     oneSizeSphere(nBalls);
-    // }
-    // else
-    // {
-    //     distSizeSphere(nBalls);
-    // }
+
     sphereInit();
     
     calc_helpfuls();
-    // threeSizeSphere(nBalls);
 
     attrs.output_prefix = std::to_string(nBalls) + "_R" + scientific(getRadius(getCOM())) + "_v" +
                     scientific(attrs.v_custom) + "_cor" + rounder(sqrtf(attrs.cor), 4) + "_mu" + rounder(attrs.u_s, 3) +
                     "_rho" + rounder(attrs.density, 4);
+
+
 }
 
 /// Make ballGroup from file data.
@@ -3523,14 +3468,15 @@ void Ball_group::pos_and_vel_for_collision_JKR(Ball_group &projectile,Ball_group
         projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*(-projectile_direction));
 
         //give the projectile a random offset such that they still collide
-        const auto offset = random_offset(projectile, target); 
+        vec3 offset = random_offset(projectile, target);
+        
         MPIsafe_print(std::cerr,"Applying random offset of "+vToSci(offset)+" cm.\n");
 
     }
     else
     {
         // TODO::MAke this work in any direction, not just xy plane  
-        MPIsafe_print(std::cerr,"ERROR::if you made it here, you need to finish this code before this can run.");
+        MPIsafe_print(std::cerr,"ERROR::if you made it here, you need to finish this code before this can run.\n");
         MPIsafe_exit(-1);
         // projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*projectile_direction);
         projectile.offset(
@@ -3680,55 +3626,82 @@ void Ball_group::placeBalls(const int nBalls)
     {
         pos[0] = {0,1e-5,0};
     }
-
-    for (int failed = 0; failed < attrs.attempts; failed++) {
-        for (int A = 0; A < nBalls; A++) {
-            for (int B = A + 1; B < nBalls; B++) {
-                // Check for Ball overlap.
-                const double dist = (pos[A] - pos[B]).norm();
-                const double sumRaRb = R[A] + R[B];
-                const double overlap = dist - sumRaRb;
-                if (overlap < 0) {
-                    collisionDetected += 1;
-                    // Move the other ball:
-                    pos[B] = rand_vec3(attrs.spaceRange);
+    else if (nBalls == 2)
+    {
+        if (attrs.JKR)
+        {
+            pos[0] = {0, R[0]-1.01e-8, 0};
+            vel[0] = {0, -0.1, 0};
+            if (attrs.genBalls > 1)
+            {
+                pos[1] = {0, -(R[1]-1.01e-8), 0};
+                vel[1] = {0, 0.1, 0};
+        
+            }
+        }
+        else
+        {
+            pos[0] = {0, R[0]+1.01e-6, 0};
+            vel[0] = {0, 0, 0};
+            if (attrs.genBalls > 1)
+            {
+                pos[1] = {0, -(R[1]+1.01e-6), 0};
+                vel[1] = {0, 0, 0};
+        
+            }
+        }
+    }
+    else if (nBalls > 2)
+    {
+        for (int failed = 0; failed < attrs.attempts; failed++) {
+            for (int A = 0; A < nBalls; A++) {
+                for (int B = A + 1; B < nBalls; B++) {
+                    // Check for Ball overlap.
+                    const double dist = (pos[A] - pos[B]).norm();
+                    const double sumRaRb = R[A] + R[B];
+                    const double overlap = dist - sumRaRb;
+                    if (overlap < 0) {
+                        collisionDetected += 1;
+                        // Move the other ball:
+                        pos[B] = rand_vec3(attrs.spaceRange);
+                    }
                 }
             }
-        }
-        if (collisionDetected < oldCollisions) {
-            oldCollisions = collisionDetected;
-            MPIsafe_print(std::cerr,"Collisions: "+std::to_string(collisionDetected)+'\n');
-        }
-        if (collisionDetected == 0) {
-            MPIsafe_print(std::cerr,"Success!\n");
-            break;
-        }
-        if (failed == attrs.attempts - 1 ||
-            collisionDetected >
-                static_cast<int>(
-                    1.5 *
-                    static_cast<double>(
-                        nBalls)))  // Added the second part to speed up spatial constraint increase when
-                                   // there are clearly too many collisions for the space to be feasible.
-        {
-
-            std::string message("Failed "+std::to_string(attrs.spaceRange)+". Increasing range "+std::to_string(attrs.spaceRangeIncrement)+"cm^3.\n");
-            MPIsafe_print(std::cerr,message);
-            attrs.spaceRange += attrs.spaceRangeIncrement;
-            failed = 0;
-            for (int Ball = 0; Ball < nBalls; Ball++) {
-                pos[Ball] = rand_vec3(
-                    attrs.spaceRange);  // Each time we fail and increase range, redistribute all balls randomly
-                                  // so we don't end up with big balls near mid and small balls outside.
+            if (collisionDetected < oldCollisions) {
+                oldCollisions = collisionDetected;
+                MPIsafe_print(std::cerr,"Collisions: "+std::to_string(collisionDetected)+'\n');
             }
-        }
-        collisionDetected = 0;
-    }
+            if (collisionDetected == 0) {
+                MPIsafe_print(std::cerr,"Success!\n");
+                break;
+            }
+            if (failed == attrs.attempts - 1 ||
+                collisionDetected >
+                    static_cast<int>(
+                        1.5 *
+                        static_cast<double>(
+                            nBalls)))  // Added the second part to speed up spatial constraint increase when
+                                       // there are clearly too many collisions for the space to be feasible.
+            {
 
-    std::string message("Final spacerange: " + dToSci(attrs.spaceRange)+'\n' +
-                        "Initial Radius: "+dToSci(getRadius(getCOM()))+'\n' +
-                        "Mass: "+dToSci(attrs.m_total)+'\n');
-    MPIsafe_print(std::cerr,message);
+                std::string message("Failed "+std::to_string(attrs.spaceRange)+". Increasing range "+std::to_string(attrs.spaceRangeIncrement)+"cm^3.\n");
+                MPIsafe_print(std::cerr,message);
+                attrs.spaceRange += attrs.spaceRangeIncrement;
+                failed = 0;
+                for (int Ball = 0; Ball < nBalls; Ball++) {
+                    pos[Ball] = rand_vec3(
+                        attrs.spaceRange);  // Each time we fail and increase range, redistribute all balls randomly
+                                      // so we don't end up with big balls near mid and small balls outside.
+                }
+            }
+            collisionDetected = 0;
+        }
+
+        std::string message("Final spacerange: " + dToSci(attrs.spaceRange)+'\n' +
+                            "Initial Radius: "+dToSci(getRadius(getCOM()))+'\n' +
+                            "Mass: "+dToSci(attrs.m_total)+'\n');
+        MPIsafe_print(std::cerr,message);
+    }
 }
 
 
@@ -6012,97 +5985,3 @@ void moveApart(const vec3 &projectile_direction,Ball_group &projectile,Ball_grou
         touching = is_touching(projectile,target);
     }
 }
-
-// // // n_new = A^{-1}*n_old
-// vec3 rotateVecInvA(const double E0,const vec3 E,const vec3 vec)
-// {
-//     const double E1 = E[0];
-//     const double E2 = E[1];
-//     const double E3 = E[2];
-
-//     const double A00 = E0*E0 + E1*E1 - E2*E2 - E3*E3;
-//     const double A01 = 2*(E1*E2 + E0*E3);
-//     const double A02 = 2*(E1*E3 - E0*E2);
-//     const double A10 = 2*(E1*E2 - E0*E3);
-//     const double A11 = E0*E0 - E1*E1 + E2*E2 - E3*E3;
-//     const double A12 = 2*(E2*E3 + E0*E1);
-//     const double A20 = 2*(E1*E3 + E0*E2);
-//     const double A21 = 2*(E2*E3 - E0*E1);
-//     const double A22 = E0*E0 - E1*E1 - E2*E2 + E3*E3;
-
-//     vec3 new_vec{
-//         vec[0]*A00 + vec[1]*A10 + vec[2]*A20,
-//         vec[0]*A01 + vec[1]*A11 + vec[2]*A21,
-//         vec[0]*A02 + vec[1]*A12 + vec[2]*A22
-//     };
-
-//     // std::cerr<<"UNNORMED NEWVEC: "<<new_vec<<std::endl;
-//     // std::cerr<<"NEWVEC NORM: "<<scientific(new_vec.norm())<<std::endl;
-//     // std::cerr<<"OTHER NEWVEC NORM: "<<new_vec.normalized()<<std::endl;
-//     // std::cerr<<"TEST: "<<sqrt(std::pow(1.0,2.0)+std::pow(-0.000356613,2.0))<<std::endl;
-//     new_vec = new_vec/new_vec.norm();
-//     // std::cerr<<"NORMED NEWVEC: "<<new_vec<<std::endl;
-
-//     return new_vec;
-// }
-
-// // // n_new = A^{-1}*n_old
-// vec3 rotateVecA(const double E0,const vec3 E,const vec3 vec)
-// {
-//     const double E1 = E[0];
-//     const double E2 = E[1];
-//     const double E3 = E[2];
-
-//     const double A00 = E0*E0 + E1*E1 - E2*E2 - E3*E3;
-//     const double A01 = 2*(E1*E2 + E0*E3);
-//     const double A02 = 2*(E1*E3 - E0*E2);
-//     const double A10 = 2*(E1*E2 - E0*E3);
-//     const double A11 = E0*E0 - E1*E1 + E2*E2 - E3*E3;
-//     const double A12 = 2*(E2*E3 + E0*E1);
-//     const double A20 = 2*(E1*E3 + E0*E2);
-//     const double A21 = 2*(E2*E3 - E0*E1);
-//     const double A22 = E0*E0 - E1*E1 - E2*E2 + E3*E3;
-
-//     vec3 new_vec{
-//         vec[0]*A00 + vec[1]*A01 + vec[2]*A02,
-//         vec[0]*A10 + vec[1]*A11 + vec[2]*A12,
-//         vec[0]*A20 + vec[1]*A21 + vec[2]*A22
-//     };
-
-//     // std::cerr<<"UNNORMED NEWVEC: "<<new_vec<<std::endl;
-//     // std::cerr<<"NEWVEC NORM: "<<scientific(new_vec.norm())<<std::endl;
-//     // std::cerr<<"OTHER NEWVEC NORM: "<<new_vec.normalized()<<std::endl;
-//     // std::cerr<<"TEST: "<<sqrt(std::pow(1.0,2.0)+std::pow(-0.000356613,2.0))<<std::endl;
-//     new_vec = new_vec/new_vec.norm();
-//     // std::cerr<<"NORMED NEWVEC: "<<new_vec<<std::endl;
-
-//     return new_vec;
-// }
-
-
-// // q = (s, v) where s is scalar part, v is vec3 THIS ONLY WORKS FOR UNIT VEC QUATERNIONS
-// vec3 quatRotate(const double s, const vec3& v, const vec3& vec)
-// {
-//     // t = 2 q_vec × vec
-//     vec3 t = 2.0 * v.cross(vec);
-
-//     // return vec + s t + q_vec × t
-//     return vec + s * t + v.cross(t);
-// }
-
-// // -------------------------------
-// // World  → Local (use conjugate)
-// // -------------------------------
-// vec3 worldToLocal(const double s, const vec3& v,const vec3& vecWorld)
-// {
-//     // conjugate is (s, -v)
-//     return quatRotate(s, -v, vecWorld);
-// }
-
-// // -------------------------------
-// // Local → World
-// // -------------------------------
-// vec3 localToWorld(const double s, const vec3& v,const vec3& vecLocal)
-// {
-//     return quatRotate(s,  v, vecLocal);
-// }

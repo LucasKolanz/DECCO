@@ -66,3 +66,31 @@ void MPIsafe_bcast_string(std::string& s, int root)
         }
     #endif
 }
+
+void MPIsafe_bcast_int(int& value, int root)
+{
+    #ifdef MPI_ENABLE
+        MPI_Bcast(&value, 1, MPI_INT, root, MPI_COMM_WORLD);
+    #endif
+}
+
+void MPIsafe_bcast_double(double& value, int root)
+{
+    #ifdef MPI_ENABLE
+        MPI_Bcast(&value, 1, MPI_DOUBLE, root, MPI_COMM_WORLD);
+    #endif
+}
+
+// void MPIsafe_bcast_vec3(vec3& v, int root)
+// {
+//     #ifdef MPI_ENABLE
+//         double tmp[3];
+//         if (rank == root) {
+//             tmp[0] = v.x; tmp[1] = v.y; tmp[2] = v.z;
+//         }
+//         MPI_Bcast(tmp, 3, MPI_DOUBLE, root, MPI_COMM_WORLD);
+//         if (rank != root) {
+//             v.x = tmp[0]; v.y = tmp[1]; v.z = tmp[2];
+//         }
+//     #endif
+// }

@@ -4,6 +4,7 @@
 
 
 #include <iostream>
+#include "vec3.hpp"
 
 
 int getSize();
@@ -20,5 +21,9 @@ void MPIsafe_barrier();
 // inline void MPIsafe_barrier();
 
 void MPIsafe_bcast_string(std::string& s, int root);
+void MPIsafe_bcast_int(int& value, int root);
+void MPIsafe_bcast_double(double& value, int root);
+// void MPIsafe_bcast_vec3(vec3& v, int root);
+
 
 #endif
