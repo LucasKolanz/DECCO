@@ -69,7 +69,7 @@ if __name__ == '__main__':
 
 	folders = []
 	for n in N:
-		threads = 1
+		threads = 8
 		# if n == 30:
 		# 	threads = 1
 		# elif n == 100:

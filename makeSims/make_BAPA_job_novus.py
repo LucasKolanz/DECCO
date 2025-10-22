@@ -76,7 +76,7 @@ if __name__ == '__main__':
 	totalNodes = 1
 	MPITasksPerNode = 1
 	totalMPITasks = totalNodes*MPITasksPerNode
-	threadsPerTask = 5
+	threadsPerTask = 32
 
 	#load default input file
 	with open(project_path+"default_files/default_input.json",'r') as fp:
