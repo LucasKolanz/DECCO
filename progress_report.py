@@ -25,8 +25,7 @@ def unroll(*lists):
 def status(fullpath):
 	if not os.path.exists(fullpath):
 		return -1
-	# elif os.path.exists(fullpath+"timing.txt") and os.path.exists(fullpath+"300_data.h5"):
-	elif os.path.exists(fullpath+"timing.txt") and os.path.exists(fullpath+"300_simData.csv"):
+	elif os.path.exists(fullpath+"timing.txt") and (os.path.exists(fullpath+"300_data.h5") or os.path.exists(fullpath+"300_simData.csv")):
 		return 2
 	else:
 		# Loop through all files in the directory fullpath
@@ -121,7 +120,9 @@ def main():
 
 	# N = [30,100,300]
 	N = [300]
-	M = [3,5,10,15]
+
+	M = [1,3,5,10,15,20,30,50,60,100]
+
 	# M=[]
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [1000]

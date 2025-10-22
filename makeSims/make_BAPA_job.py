@@ -2,7 +2,9 @@ import os
 import json
 import multiprocessing as mp
 import subprocess
+import argparse
 import random
+import sys
 
 relative_path = "../"
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
@@ -26,6 +28,18 @@ def run_job(location):
 		subprocess.run(cmd,stdout=out,stderr=err)
 
 if __name__ == '__main__':
+	parser = argparse.ArgumentParser(
+	description="Prepare DEM jobs and optionally submit them via Slurm."
+	)
+	parser.add_argument(
+		"-r",
+		"--run",
+		action="store_true",
+		help="Actually submit jobs with sbatch (otherwise do a dry run).",
+	)
+
+	args = parser.parse_args()
+
 	#make new output folders
 	# curr_folder = os.getcwd() + '/'
 
@@ -45,12 +59,13 @@ if __name__ == '__main__':
 
 	SPECIAL_FOLDER = ""#"/home/lucas/Desktop/SpaceLab_data/largejob/"
 
-	runs_at_once = 10
+	runs_at_once = 13
 	# attempts = [2] 
 	attempts = [i for i in range(0,30)]#[0,1,2,3,4,5,6,7,8,9]#,11,12,13,14,15,16,17,18,19,20] 
-	# attempts = [0]
+	# attempts = [17]
 	N = [300] #final size
 	M = [20,30,50,60,100] #starting sizes
+	# M = [20] #starting sizes
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [1000]
@@ -86,6 +101,7 @@ if __name__ == '__main__':
 
 						####################################
 						######Change input values here######
+						input_json['JKR'] = 'false'
 						input_json['temp'] = Temp
 						input_json['N'] = n
 						input_json['M'] = m
@@ -145,14 +161,14 @@ if __name__ == '__main__':
 	# for i in range(0,len(folders),runs_at_once):
 	# 	with mp.Pool(processes=runs_at_once) as pool:
 	# 		pool.starmap(run_job,inputs[i:i+runs_at_once]) 
-	
-	with mp.Pool(processes=runs_at_once) as pool:
-		for folder in folders:
-			# input_data = inputs[i:i+runs_at_once]
-			pool.apply_async(run_job, (folder,))
+	if args.run:
+		with mp.Pool(processes=runs_at_once) as pool:
+			for folder in folders:
+				# input_data = inputs[i:i+runs_at_once]
+				pool.apply_async(run_job, (folder,))
 
-		pool.close()
-		pool.join()
+			pool.close()
+			pool.join()
 
 	# print(folders)
 	# cwd = os.getcwd()

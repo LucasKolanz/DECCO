@@ -4,11 +4,14 @@ import multiprocessing as mp
 import subprocess
 import argparse
 import os
+import sys
 
 relative_path = "../"
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
 
+sys.path.append(project_path+"utilities/")
+import utils as u
 
 # def rand_int():
 # 	# Generating a random integer from 0 to the maximum unsigned integer in C++
@@ -47,16 +50,16 @@ if __name__ == '__main__':
 		print('compilation failed')
 		exit(-1)
 		
-	job_set_name = "JKRTest"
+	job_set_name = "JKRTestest"
 	job_set_name = "testest"
 	# folder_name_scheme = "T_"
 
 	runs_at_once = 5
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
-	attempts = [0,1,2,3,4,5] 
+	# attempts = [0,1,2,3,4,5] 
 	attempts = [0] 
-	N = [300]
-	Temps = [3]
+	N = [30]
+	Temps = [1000]
 	folders = []
 	for attempt in attempts:
 		for n in N:
@@ -78,7 +81,8 @@ if __name__ == '__main__':
 				####################################
 				######Change input values here######
 				input_json['temp'] = Temp
-				input_json['seed'] = 101
+				input_json['seed'] = u.rand_int()
+				# input_json['seed'] = 1781997834
 				input_json['radiiDistribution'] = 'constant'#'lognormal'
 				input_json['simType'] = 'BPCA'
 				# input_json['simType'] = 'custom'
@@ -91,10 +95,10 @@ if __name__ == '__main__':
 				# input_json['timeResolution'] = 1e-6
 				# input_json['simTimeSeconds'] = 10e-5
 				# input_json['simTimeSeconds'] = 2e-5
-				input_json['simTimeSeconds'] = 1e-6
+				input_json['simTimeSeconds'] = 1e-5
 				input_json['timeResolution'] = 1e-7
-				input_json['material'] = "amorphousCarbon"
-				# input_json['material'] = "quartz"
+				# input_json['material'] = "amorphousCarbon"
+				input_json['material'] = "quartz"
 				# input_json['JKR'] = "False"
 				input_json['JKR'] = "True"
 				input_json['density'] = 2.6

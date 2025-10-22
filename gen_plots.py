@@ -315,14 +315,13 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 	M = [1,3,5,10,15,20,30,50,60,100]
 	
 	
-	attempts = [i for i in range(20)]
+	attempts = [i for i in range(30)]
 
-
-	# data_shape = (len(M),len(Nums),len(temps))
+	requested_data_headers = gd.data_headers[:2] + [gd.data_headers[3]] + [gd.data_headers[4]]
 	
 
 
-	raw_data = np.full(shape=(len(gd.data_headers),len(attempts),len(M),len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
+	raw_data = np.full(shape=(len(requested_data_headers),len(attempts),len(M),len(Nums),len(temps)),fill_value=np.nan,dtype=np.float64)
 	for a_i,a in enumerate(attempts):
 		for m_i,m in enumerate(M):
 			for n_i,n in enumerate(Nums):
@@ -342,7 +341,7 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 						existing_headers_for_size = existing_data[index+1].strip("\n\t ").split(",")
 						existing_values_for_size = existing_data[index+2].strip("\n\t ").split(",")
 						
-						for h_i,header in enumerate(gd.data_headers):
+						for h_i,header in enumerate(requested_data_headers):
 							if header in existing_headers_for_size:
 								raw_data[h_i,a_i,m_i,n_i,t_i] = existing_values_for_size[existing_headers_for_size.index(header)]
 
@@ -369,7 +368,7 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 	})
 
 	#Plot metric vs M for all metrics and all N and temps
-	for h_i,header in enumerate(gd.data_headers):
+	for h_i,header in enumerate(requested_data_headers):
 		for n_i,n in enumerate(Nums):
 			for t_i,t in enumerate(temps):
 
@@ -386,14 +385,14 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 
 				bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
 				ax.set_xlabel('Fragment size')
-				ax.set_ylabel(header)
+				ax.set_ylabel(label_from_header(header))
 				# ax.set_title('{} {} vs Temp'.format(dataset_name,method))
 				# ax.set_xscale('log')
 				# if i == 1:
-				fig.legend(loc='upper right',bbox_to_anchor=(0.97, 0.96))
+				# fig.legend(loc='upper right',bbox_to_anchor=(0.97, 0.96))
 				plt.tight_layout()
 				if save_plots:
-					plt.savefig("{}{}_{}_avgPlot.png".format(figure_folder,dataset_name,header))
+					plt.savefig("{}{}_{}_metric_vs_frag_size.png".format(figure_folder,dataset_name,header))
 				if show_plots:
 					plt.show() 
 
@@ -2242,15 +2241,15 @@ if __name__ == '__main__':
 	#Do you want to see plots of the data as they are made?
 	show_plots = True
 	#Do you want to save the plots once they are made?
-	save_plots = False
+	save_plots = True
 	#Do you want the number of runs next to each point on the plots
 	#so you know how many more runs need to finish
-	include_totals = False
+	include_totals = True
 
 
 
 
-	# gen_BAPA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
+	gen_BAPA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_vs_time_avg_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_vs_time_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
@@ -2270,7 +2269,7 @@ if __name__ == '__main__':
 	# gen_BPCA_rolling_fric_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 
 	# gen_BPCA_porosity_vs_asymmetry(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
-	gen_BAPA_porosity_vs_asymmetry(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
+	# gen_BAPA_porosity_vs_asymmetry(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 
 
 	# T3 = 0.43736817467052647

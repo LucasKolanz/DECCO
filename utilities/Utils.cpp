@@ -142,7 +142,6 @@ std::string get_rand_projectile_folder(std::string folder)
                     }
                 }
 
-                std::cerr<<"rand num between: 0 and " <<app_folders.size()-1<<std::endl;
                 rand_folder = app_folders[rand_int_between(0,app_folders.size()-1)];
 
                 while (folder[i] != '}' && i < folder.length())
@@ -159,6 +158,10 @@ std::string get_rand_projectile_folder(std::string folder)
         if (fs::exists(rand_folder))
         {
             exists = true;
+        }
+        else
+        {
+            MPIsafe_print(std::cerr,"Random folder '"+rand_folder+"' does not exist. Trying again. . .\n");
         }
         tries++;
     }
@@ -261,12 +264,6 @@ to_vec3(const double3& vec)
     return {vec.x, vec.y, vec.z};
 }
 
-double
-random_gaussian(const double mean, const double standard_deviation)
-{
-    std::normal_distribution<double> d(mean, standard_deviation);
-    return d(random_generator);
-}
 
 // I got this from https://en.wikipedia.org/wiki/Line%E2%80%93sphere_intersection
 bool
@@ -392,19 +389,37 @@ input(const std::string& question)
 // inline double
 // lin_rand()
 
+
+double
+random_gaussian(const double mean, const double standard_deviation)
+{
+    std::normal_distribution<double> d(mean, standard_deviation);
+
+    double rand_double = d(random_generator);
+    MPIsafe_bcast_double(rand_double,/*rank=*/0);
+
+    return rand_double;
+}
+
 double
 rand_between(const double min, const double max)
 {
     double f = (double)rand() / RAND_MAX;
     // double f = (double)get_rand() / RAND_MAX;
-    return min + f * (max - min);
+    double rand_double = min + f * (max - min);
+    MPIsafe_bcast_double(rand_double,/*rank=*/0);
+
+    return rand_double;
 }
 
 int
 rand_int_between(const int min, const int max)
 {
     std::uniform_int_distribution<> dist(min, max);
+
     int rand = dist(random_generator);
+    MPIsafe_bcast_int(rand, /*rank=*/0);
+
     // std::cerr<<"Chose value of "<<rand<<" between "<<min<<" and "<<max<<std::endl;
     return rand;
 }
@@ -418,6 +433,7 @@ rand_int_between(const int min, const int max)
 vec3
 rand_unit_vec3()
 {
+    //random_gaussian is MPIsafe so no need to send stuff here
     double x = random_gaussian();
     double y = random_gaussian();
     double z = random_gaussian();
@@ -425,9 +441,11 @@ rand_unit_vec3()
 }
 
 // // Returns a vector within the desired radius, and optionally outside an inner radius (shell).
+//MPIsafe
 vec3
 rand_vec3(double outer_radius, double inner_radius)
 {
+    //rand_between and rand_unit_vec3 are MPIsafe
     double r3 = outer_radius * outer_radius * outer_radius;
     double r = cbrt(rand_between(inner_radius, r3));
     return rand_unit_vec3() * r;
@@ -469,7 +487,7 @@ double lndpdf(double a,double sigma,double a_max)
 }
 
 
-
+//MPIsafe
 double lognorm_dist(double a_max,double sigma)
 {
     double Fa0,a0,test,maxVal;

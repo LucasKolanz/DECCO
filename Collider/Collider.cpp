@@ -50,6 +50,8 @@ main(int argc, char* argv[])
     int world_rank, world_size;
 
     #ifdef MPI_ENABLE
+        MPIsafe_print(std::cerr,"WAIT: MPI version needs testing. Make sure MPI version gives same results as non-MPI version before continuing.\n");
+        MPIsafe_exit(-1);
         MPI_Init(&argc, &argv);
         MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
         MPI_Comm_size(MPI_COMM_WORLD, &world_size);
@@ -249,23 +251,28 @@ void runAggregation(std::string path, int num_balls)
         O.attrs.start_index = O.attrs.num_particles;
     }
 
-    int increment = 1; // This should be 1 for BPCA, for BCCA, set in for loop
-    if (O.attrs.typeSim == BAPA)
-    {
-        increment = O.attrs.M;
-    }
+    // int increment = 1; // This should be 1 for BPCA, for BCCA, set in for loop
+    // if (O.attrs.typeSim == BAPA)
+    // {
+    //     increment = O.attrs.M;
+    // }
+
+    int loop_counter = 0;
+    const int max_loops = num_balls;
 
     // Add projectile: For dust formation BPCA or BCCA
-    for (int i = O.attrs.start_index; i < num_balls; i+=increment) 
+    // for (int i = O.attrs.start_index; i < num_balls; i+=increment) 
+    while (O.attrs.num_particles < num_balls || loop_counter >= max_loops)
     {
         // t.start_event("add_projectile");
         // Ball_group old_O = O;
         O = O.add_projectile(O.attrs.typeSim);
 
-        if (O.attrs.typeSim == BCCA)
-        {
-            increment = O.attrs.num_particles/2;
-        }
+        // if (O.attrs.typeSim == BCCA)
+        // {
+        //     increment = O.attrs.num_particles/2;
+        // }
+
         // t.end_event("add_projectile");
         if (world_rank == 0)
         {
@@ -274,24 +281,38 @@ void runAggregation(std::string path, int num_balls)
         }
 
         bool success = O.sim_looper(1);
+        // Check if we hit the target, if not, delete unfinished data file and restart
         if (!success)
         {
             O.data->deleteData();
             int isConnectedFails = O.attrs.isConnectedFails;
-            O = Ball_group(path);  
+            O = Ball_group(path); 
             safetyChecks(O);
             O.attrs.isConnectedFails = isConnectedFails;
-            i -= increment;
+            // i -= increment;
+            // exit(0);
         }
+        else
+        {
+            loop_counter++;
+        }
+
 
         O.attrs.simTimeElapsed = 0;
 
-        if (increment == -1)
-        {
-            MPIsafe_print(std::cerr,"ERROR: increment is -1");
-            MPIsafe_exit(EXIT_FAILURE);
-        }
+        // if (increment == -1)
+        // {
+        //     MPIsafe_print(std::cerr,"ERROR: increment is -1");
+        //     MPIsafe_exit(EXIT_FAILURE);
+        // }
     }
+
+    if (loop_counter >= max_loops)
+    {
+        MPIsafe_print(std::cerr,"ERROR: Simulation hit maximum number of loops in runAggregation.");
+        MPIsafe_exit(0);
+    }
+
     // O.freeMemory();
     return;
 }
@@ -496,10 +517,15 @@ safetyChecks(Ball_group &O) //Should be ready to call sim_looper
         MPIsafe_exit(EXIT_FAILURE);
     }
 
-    if (O.attrs.typeSim == BPCA && O.attrs.N < 0) {
+    if ((O.attrs.typeSim == BPCA) && O.attrs.N < 0) {
         fprintf(stderr, "\nN NOT SET for rank %1d\n",getRank());
         MPIsafe_exit(EXIT_FAILURE);
     }
+
+    // if (O.attrs.typeSim == BAPA && O.attrs.M < 0 && O.attrs.M_max < 0 && O.attrs.M_min < 0) {
+    //     fprintf(stderr, "\nM or M_min/M_max NOT SET for rank %1d\n",getRank());
+    //     MPIsafe_exit(EXIT_FAILURE);
+    // }
 
     if (O.attrs.typeSim == relax && O.attrs.relax_index < 0) {
         fprintf(stderr, "\nrestart_index NOT SET and in relax mode\n");

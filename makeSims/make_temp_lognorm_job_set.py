@@ -3,17 +3,16 @@ import json
 import multiprocessing as mp
 import subprocess
 import random
+import argparse
+import sys
+
 
 relative_path = "../"
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
 
-def rand_int():
-	# Generating a random integer from 0 to the maximum unsigned integer in C++
-	# In C++, the maximum value for an unsigned int is typically 2^32 - 1
-	max_unsigned_int_cpp = 2**32 - 1
-	random_unsigned_int = random.randint(0, max_unsigned_int_cpp)
-	return random_unsigned_int
+sys.path.append(project_path+"utilities/")
+import utils as u
 
 def run_job(location):
 	output_file = location + "sim_output.txt"
@@ -24,6 +23,18 @@ def run_job(location):
 		subprocess.run(cmd,stdout=out,stderr=err)
 
 if __name__ == '__main__':
+	parser = argparse.ArgumentParser(
+	description="Prepare DEM jobs and optionally submit them via Slurm."
+	)
+	parser.add_argument(
+		"-r",
+		"--run",
+		action="store_true",
+		help="Actually submit jobs with sbatch (otherwise do a dry run).",
+	)
+
+	args = parser.parse_args()
+
 	#make new output folders
 	curr_folder = os.getcwd() + '/'
 
@@ -40,7 +51,7 @@ if __name__ == '__main__':
 	job_set_name = "lognorm_"
 	# folder_name_scheme = "T_"
 
-	runs_at_once = 3
+	runs_at_once = 1
 	# attempts = [21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40]
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
 	# attempts = [i for i in range(10)]
@@ -88,9 +99,10 @@ if __name__ == '__main__':
 
 					####################################
 					######Change input values here######
+					input_json['JKR'] = "false"
 					input_json['temp'] = Temp
 					input_json['N'] = n
-					input_json['seed'] = rand_int()
+					input_json['seed'] = u.rand_int()
 					input_json['radiiDistribution'] = 'logNormal'
 					input_json['impactParameter'] = -1.0
 					input_json['OMPthreads'] = 2
@@ -108,9 +120,9 @@ if __name__ == '__main__':
 					
 					#####################3#add run script and executable to folders
 					os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
-					os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
-					os.system(f"cp {project_path}Collider/ball_group.cpp {job}ball_group.cpp")
-					os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
+					# os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
+					# os.system(f"cp {project_path}Collider/ball_group.cpp {job}ball_group.cpp")
+					# os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
 
 					folders.append(job)
 					######################################################
@@ -118,12 +130,13 @@ if __name__ == '__main__':
 
 	print(folders)
 
-	with mp.Pool(processes=runs_at_once) as pool:
-		for folder in folders:
-			pool.apply_async(run_job,(folder,)) 
+	if args.run:
+		with mp.Pool(processes=runs_at_once) as pool:
+			for folder in folders:
+				pool.apply_async(run_job,(folder,)) 
 
-		pool.close()
-		pool.join()
+			pool.close()
+			pool.join()
 
 
 
