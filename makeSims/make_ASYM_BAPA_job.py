@@ -70,7 +70,7 @@ if __name__ == '__main__':
 	Temps = [1000]
 	folders = []
 
-	m_range = [1,1]
+	m_range = [10,15]
 
 	#load default input file
 	with open(project_path+"default_files/default_input.json",'r') as fp:
