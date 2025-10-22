@@ -181,6 +181,8 @@ struct Ball_group_attributes
 
     int N=-1; //Number of balls to grow (if BPCA or BAPA)
     int M=-1; //BAPA size (fragment size of intermediate growth steps)
+    int M_min=-1; //Min size of a fragment for asymetric BAPA
+    int M_max=-1; //Max size of a fragment for asymetric BAPA
 
     const time_t start = time(nullptr);  // For end of program analysis
     time_t startProgress = 0;                // For progress reporting (gets reset)
@@ -260,6 +262,8 @@ struct Ball_group_attributes
             soc = other.soc;
             N = other.N;
             M = other.M;
+            M_min = other.M_min;
+            M_max = other.M_max;
 
             dynamicTime = other.dynamicTime;
             G = other.G;
