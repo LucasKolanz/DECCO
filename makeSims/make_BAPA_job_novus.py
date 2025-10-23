@@ -129,9 +129,11 @@ if __name__ == '__main__':
 						# input_json['h_min'] = 0.5
 						
 						# input_json['timeResolution'] = 1e-6
-
 						# input_json['simTimeSeconds'] = 1e-6
+
+						input_json['timeResolution'] = 1e-5
 						input_json['simTimeSeconds'] = 5e-4
+
 
 						input_json['dataFormat'] = "csv"
 						input_json['simType'] = "BAPA"

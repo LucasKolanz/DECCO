@@ -1491,7 +1491,7 @@ def get_squeue_output():
     try:
         # Run the squeue command and capture its output
 
-        result = subprocess.run(['squeue', '-o', '"%.20u %.25j"'], capture_output=True, text=True)
+        result = subprocess.run(['squeue', '-o', '%u %j'], capture_output=True, text=True)
         output = result.stdout
         return output
     except subprocess.CalledProcessError as e:

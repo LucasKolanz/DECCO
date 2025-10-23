@@ -4,6 +4,7 @@ import multiprocessing as mp
 import subprocess
 import argparse
 import random
+import glob
 import sys
 
 relative_path = "../"
@@ -58,11 +59,11 @@ if __name__ == '__main__':
 	# folder_name_scheme = "T_"
 
 
-	runs_at_once = 1
+	# runs_at_once = 1
 	# attempts = [2] 
-	# attempts = [i for i in range(0,30)]#[0,1,2,3,4,5,6,7,8,9]#,11,12,13,14,15,16,17,18,19,20] 
-	attempts = [0]
-	N = [20] #minimum final size
+	attempts = [i for i in range(0,10)]
+	# attempts = [0]
+	N = [300] #minimum final size
 	# M = [20,30,50,60,100] #starting sizes
 	M = [-1] #starting sizes
 	threads = []
@@ -78,6 +79,11 @@ if __name__ == '__main__':
 
 	job_template = input_json["data_directory"] + 'jobs/' + job_set_name + '_{a}/N_{n}/T_{t}/'
 
+	totalNodes = 1
+	MPITasksPerNode = 1
+	totalMPITasks = totalNodes*MPITasksPerNode
+	threadsPerTask = 5
+
 	for attempt in attempts:
 		for m in M:
 			for n in N:
@@ -89,14 +95,18 @@ if __name__ == '__main__':
 					# job = curr_folder + 'jobs/' + job_set_name + str(attempt) + '/'
 					job = job_template.replace('{a}',str(attempt)).replace('{n}',str(n)).replace('{t}',str(Temp))
 
+					job_name = f"ASBA=1,a={attempt},m={m},n={n},t={Temp}"
 					
 					if not os.path.exists(job):
 						os.makedirs(job)
 					else:
 						print("Job '{}' already exists.".format(job))
 
-					if os.path.exists(job+'timing.txt'):
-						print("Job already finished.")
+					if os.path.exists(job+"timing.txt"):
+						print(f"Sim already complete: {job}")
+
+					elif u.on_queue(job_name):
+						print(f"Sim already on queue: {job}")
 					else:
 						
 
@@ -108,7 +118,7 @@ if __name__ == '__main__':
 						input_json['M'] = m
 						input_json['M_range'] = f"{m_range[0]}:{m_range[1]}"
 						input_json['output_folder'] = job
-						input_json['OMPthreads'] = 1
+						input_json['OMPthreads'] = threadsPerTask
 						input_json['MPInodes'] = 1
 						input_json['impactParameter'] = -1.0
 
@@ -119,14 +129,14 @@ if __name__ == '__main__':
 						input_json['radiiDistribution'] = 'logNormal'
 						# input_json['h_min'] = 0.5
 						
-						# input_json['timeResolution'] = 1e-6
-
-						# input_json['simTimeSeconds'] = 1e-6
+						input_json['timeResolution'] = 1e-5
 						input_json['simTimeSeconds'] = 5e-4
+
+						# input_json['simTimeSeconds'] = 5e-4
 
 						input_json['dataFormat'] = "csv"
 						input_json['simType'] = "BAPA"
-						input_json['random_folder_template'] = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{a}/N_300/T_1000/"
+						input_json['random_folder_template'] = input_json['data_directory']+"localLognormData/lognorm{a}/N_30/T_1000/"
 
 						# input_json['u_s'] = 0.5
 						# input_json['u_r'] = 0.5
@@ -159,9 +169,9 @@ if __name__ == '__main__':
 						sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(threadsPerTask)
 						# sbatchfile += 'export SLURM_CPU_BIND="socket"\n'
 						# sbatchfile += 'module load hdf5/1.14.3\n'
-						sbatchfile += 'module load gnu12/12.3.0\n'
+						sbatchfile += 'module load gnu12/12.4.0\n'
 						sbatchfile += 'module load hdf5/1.10.8\n'
-						sbatchfile += 'module load openmpi4/4.1.6\n'
+						# sbatchfile += 'module load openmpi4/4.1.6\n'
 						# sbatchfile += 'module swap openmpi4/4.1.6 mpich\n'
 
 						
@@ -187,11 +197,18 @@ if __name__ == '__main__':
 						# os.system(f"cp {project_path}Collider/ball_group.cpp {job}ball_group.cpp")
 						# os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
 
-						randm = random.randint(m_range[0],m_range[1])
-						if randm >= 3: 
+						# randm = random.randint(m_range[0],m_range[1])
+						randm = 3
+						if randm >= 3 and not os.path.exists(f"{job}/{randm}_checkpoint.txt"): 
 							print("getting random source")
-							randint = random.randint(0, 29)
-							source = f"{input_json['data_directory']}/localLognormData/lognorm{randint}/N_300/T_{Temp}/{randm}_*"
+
+							for _ in range(100):
+								randint = random.randint(0, 29)
+								source = f"{input_json['data_directory']}/localLognormData/lognorm{randint}/N_300/T_{Temp}/{randm}_*"
+								if any(glob.iglob(source)):
+									break
+							else:
+								raise FileNotFoundError("No matching file found after many attempts.")
 
 							os.system(f"cp {source} {job}")
 							os.system(f"touch {source} {job}/{randm}_checkpoint.txt")
