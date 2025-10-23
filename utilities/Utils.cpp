@@ -486,7 +486,8 @@ double lndpdf(double a,double sigma,double a_max)
             std::exp(-std::pow(log(a/a_max)-std::pow(sigma,2),2)/(2*std::pow(sigma,2)));
 }
 
-
+//a_max is the value with the max probability (the mode)
+//sigma is the standard deviation
 //MPIsafe
 double lognorm_dist(double a_max,double sigma)
 {
@@ -503,4 +504,3 @@ double lognorm_dist(double a_max,double sigma)
     
     return a0;
 }
-

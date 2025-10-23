@@ -70,7 +70,7 @@ if __name__ == '__main__':
 	Temps = [1000]
 	folders = []
 
-	m_range = [10,15]
+	m_range = [1,100]
 
 	#load default input file
 	with open(project_path+"default_files/default_input.json",'r') as fp:
@@ -146,7 +146,8 @@ if __name__ == '__main__':
 						# os.system(f"cp {project_path}Collider/ball_group.cpp {job}ball_group.cpp")
 						# os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
 
-						randm = random.randint(m_range[0],m_range[1])
+						# randm = random.randint(m_range[0],m_range[1])
+						randm = 3
 						if randm >= 3: 
 							print("getting random source")
 							randint = random.randint(0, 29)
@@ -156,7 +157,7 @@ if __name__ == '__main__':
 							# os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{randint}/N_30/T_3/27_RELAXconstants.csv {job}{m}_constants.csv")
 							# os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{randint}/N_30/T_3/27_RELAXsimData.csv {job}{m}_simData.csv")
 							# os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{randint}/N_30/T_3/27_RELAXenergy.csv {job}{m}_energy.csv")
-							source = f"/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_{Temps[randT_ind]}/{randm}_*"
+							source = f"/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_300/T_{Temps[randT_ind]}/{randm}_*"
 							# if M == 3:
 								# source = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_3/2_R*"
 							# if not os.path.exists(f"{job}*_simData.csv"):

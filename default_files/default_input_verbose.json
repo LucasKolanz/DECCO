@@ -30,8 +30,7 @@
 	"M": -1,
 	//If BAPA simulation and M<0, then an asymmetric BAPA job is selected.
 	//This is the range of acceptable projectile sizes. 
-	//The value will be chosen as a lognormal random variable with the same standard deviation as the particle size distribution.
-	//The mean is also set based on the particle size distribution, but mapped onto the range given
+	//The value will be chosen as a lognormal random variable with a mode of 5 and std deviation of 10
     "M_range":"-1:-1",
 	//for constant distribution, added balls will have ri/radiiFraction sized 
 	//radii where ri is the radius of the inital balls (scaleBalls)

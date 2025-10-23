@@ -1937,11 +1937,34 @@ Ball_group Ball_group::BCCA_projectile_init(const bool symmetric=true)
 Ball_group Ball_group::BAPA_projectile_init()
 {
 
-    int projectile_size;
-    projectile_size = attrs.M;
+    int projectile_size = attrs.M;
+
+    double max_bound = attrs.M_max*1.0;
+    double min_bound = attrs.M_min*1.0;
     if (attrs.M < 0)
     {
-        projectile_size = rand_int_between(attrs.M_min,attrs.M_max);
+        projectile_size = -1;
+        //Get a lognormally distributed whole number
+        double dist_size = -1.0;
+        int test_int;
+        //for loop so we don't accidently get infinite loop
+        for (int i = 0; i < 10000; ++i)
+        {
+            dist_size = lognorm_dist(2.0,0.75);
+            if (!std::isfinite(dist_size)) continue;
+            if (dist_size < min_bound || dist_size > max_bound) continue;
+
+            test_int = static_cast<int>(std::round(dist_size));
+            if (test_int < attrs.M_min || test_int > attrs.M_max) continue;
+
+            projectile_size = test_int;
+            break;
+        }
+        if (projectile_size < 0)
+        {
+            MPIsafe_print(std::cerr,"ERROR: Max iterations hit in BAPA_projectile_init.\n");
+            MPIsafe_exit(-1);
+        }
     }
 
     Ball_group projectile;
