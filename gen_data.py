@@ -26,6 +26,48 @@ sys.path.append(project_path+"utilities/")
 # sys.path.append("/home/kolanzl/Desktop/SpaceLab/")
 import utils as u
 
+def calc_porosity_ch(data_folder,size,relax=False):
+	pos,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
+	if pos is None:
+		return np.nan
+	
+	effective_radius_cubed = np.sum(np.power(radius,3))
+
+	hull_vol = u.calc_hull_volume(pos,radius)
+
+	print(hull_vol)
+	exit(0)
+
+	porosity = 1-effective_radius_cubed/(hull_vol)
+
+	return porosity
+
+def calc_porosity_fee(data_folder,size,relax=False):
+	pos,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
+	if pos is None:
+		return np.nan
+	
+	effective_radius_cubed = np.sum(np.power(radius,3))
+
+	_,_,axes = u.calc_fully_enclosed_ellipsoid(pos,radius)
+
+	porosity = 1-effective_radius_cubed/(axes[0]*axes[1]*axes[2])
+
+	return porosity
+
+
+def calc_porosity_fes(data_folder,size,relax=False):
+	pos,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
+	if pos is None:
+		return np.nan
+		
+	effective_radius_cubed = np.sum(np.power(radius,3))
+
+	_,full_sphere_radius = u.calc_fully_enclosed_spehre(pos,radius)
+
+	porosity = 1-effective_radius_cubed/np.power(full_sphere_radius,3)
+
+	return porosity
 
 def calc_asymmetry_parameter(data_folder,size,relax=False):
 	data,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
@@ -158,7 +200,10 @@ def calc_fractal_dimension(data_folder,size,relax=False):
 
 
 
-data_functions = [calc_porosity_abc,calc_porosity_KBM,calc_number_of_contacts,calc_fractal_dimension,calc_asymmetry_parameter,calc_stretch_parameter]
+data_functions = [calc_porosity_abc,calc_porosity_KBM,calc_number_of_contacts, \
+					calc_fractal_dimension,calc_asymmetry_parameter, \
+					calc_stretch_parameter,calc_porosity_fee, \
+					calc_porosity_fes,calc_porosity_ch]
 data_headers = [i.__name__[5:] for i in data_functions]
 
 def calc_from_size(size,directory,existing_headers,existing_values,requested_headers,relax=False,overwrite=False):
@@ -220,16 +265,19 @@ if __name__ == '__main__':
 	#only take in the directory the data is in and the size of which 
 	#to calculate as an input.
 	#It should return a single data value.
-	bool_headers = [1,1,0,0,1,0]
+	# bool_headers = [1,1,0,0,1,0,0,0]
+	bool_headers = [1,1,0,1,1,0,0,0,0]
+	bool_headers = [0,0,0,0,0,0,0,0,1]
 	# requested_data_functions = [data_functions[i] for i in range(len(data_functions)) if bool_headers[i]]
 	requested_data_headers = [data_headers[i] for i in range(len(data_headers)) if bool_headers[i]]
 
-	overwritedata = False
+	overwritedata = True
 
 	for n_i,n in enumerate(N):
 	
 		data_folders = []
-		data_folders = [path + 'jobs/BAPA_*']
+		# data_folders = [path + 'jobs/AsymBAPA_*']
+		# data_folders = [path + 'jobs/BAPA_*']
 		# data_folders = [path + 'jobs/BAPA_*/M_1/*']
 		# data_folders = [path + 'jobs/constrollingfric*']
 		# data_folders = [path + 'jobs/BAPA_0/M_60/*']
@@ -249,19 +297,19 @@ if __name__ == '__main__':
 		# data_folders.append(path + f'jobsNovus/constrelax_*/N_{n}/*')
 		# data_folders.append(path + f'jobsCosine/lognormrelax_*/N_{n}/*')
 		# data_folders.append(path + f'jobs/constrollingfricrelax*/N_{n}/*')
+		data_folders.append('/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobsCosine/lognorm_10/N_300/T_3/')
 
 		possible_dirs = []
 		for data_folder in data_folders:
 			possible_dirs.extend(u.get_directores_containing(data_folder,["timing.txt"]))
 
-
 		#list of intermediate sizes to calculate data for.
 
 		# requested_sizes = list(range(30,301))
-		requested_sizes = [n]
+		# requested_sizes = [[u.find_max_index(directory)] for directory in possible_dirs]
+		requested_sizes = [[n] for directory in possible_dirs]
 
-
-		for directory in possible_dirs:
+		for d_i,directory in enumerate(possible_dirs):
 			relax = ("relax" in directory)
 			# relax = False
 			# print(f"relax: {relax}")
@@ -282,8 +330,9 @@ if __name__ == '__main__':
 				lines = []
 				
 				#contains both the sizes we want and the sizes we already have
-				all_sizes = sorted(set(existing_sizes+requested_sizes))
-
+				all_sizes = sorted(set(existing_sizes+requested_sizes[d_i]))
+				all_sizes = [300]
+				print(all_sizes)
 				for size in all_sizes:
 
 					existing_headers_for_size = []
@@ -296,7 +345,7 @@ if __name__ == '__main__':
 
 					#If this size wasn't requested then we don't want to overwrite it
 					#Or if overwrite is true then overwrite anyway
-					if overwritedata or size in requested_sizes:
+					if overwritedata or size in requested_sizes[d_i]:
 						headers,values = calc_from_size(size,directory,existing_headers_for_size,existing_values_for_size,requested_data_headers,relax,overwritedata)
 						print(headers)
 						print(values)
@@ -313,7 +362,7 @@ if __name__ == '__main__':
 
 				with open(directory+f"{rel}{data_file}",'w') as fp:
 					fp.writelines(lines)
-
+				print(lines)
 
 			else:
 				print(f"Job is not finished in {directory}")
