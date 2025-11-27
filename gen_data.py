@@ -16,6 +16,7 @@ import sys
 import glob
 import os
 import json
+import csv
 import numpy as np
 
 relative_path = ""
@@ -26,6 +27,24 @@ sys.path.append(project_path+"utilities/")
 # sys.path.append("/home/kolanzl/Desktop/SpaceLab/")
 import utils as u
 
+# Path for the single global log file
+GLOBAL_LOG = f"{project_path}../SpaceLab_data/logs/"
+
+def calc_geometric_cross_section(data_folder,size,relax=False):
+	pos,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
+	if pos is None:
+		return np.nan
+
+	orientations = 30
+	gcs = 0
+	for _ in range(orientations):
+		direction = (0,0,1)
+		gcs += u.calc_geometric_cross_section(pos,radius,direction=direction)
+	gcs /= orientations
+
+	return gcs
+
+
 def calc_porosity_ch(data_folder,size,relax=False):
 	pos,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
 	if pos is None:
@@ -35,25 +54,50 @@ def calc_porosity_ch(data_folder,size,relax=False):
 
 	hull_vol = u.calc_hull_volume(pos,radius)
 
-	print(hull_vol)
-	exit(0)
+	#if the MVEE failed, return NAN
+	if np.isnan(hull_vol):
+		return np.nan
 
 	porosity = 1-effective_radius_cubed/(hull_vol)
 
 	return porosity
 
-def calc_porosity_fee(data_folder,size,relax=False):
-	pos,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
-	if pos is None:
-		return np.nan
-	
-	effective_radius_cubed = np.sum(np.power(radius,3))
+def calc_porosity_fee(data_folder, size, relax=False):
+    # Load particle data
+    pos, radius, mass, moi = u.get_data(data_folder, data_index=size, relax=relax)
+    if pos is None:
+        return np.nan
 
-	_,_,axes = u.calc_fully_enclosed_ellipsoid(pos,radius)
+    # Compute reference volume
+    effective_radius_cubed = np.sum(radius**3)
 
-	porosity = 1-effective_radius_cubed/(axes[0]*axes[1]*axes[2])
+    # Compute ellipsoid + QC
+    status, max_q, c, R, axes = u.calc_fully_enclosed_ellipsoid(pos, radius)
 
-	return porosity
+    # --- Logging ---
+    logfile = GLOBAL_LOG+"ellipsoid_log.csv"
+    log_exists = os.path.isfile(logfile)
+
+    row = {
+        "data_folder": data_folder,
+        "size": size,
+        "status": status,
+        "max_q": max_q
+    }
+
+    with open(logfile, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=row.keys())
+        if not log_exists:
+            writer.writeheader()
+        writer.writerow(row)
+
+    if status != "ok":
+    	return np.nan
+
+    # Compute porosity
+    porosity = 1 - effective_radius_cubed / (axes[0] * axes[1] * axes[2])
+
+    return porosity
 
 
 def calc_porosity_fes(data_folder,size,relax=False):
@@ -63,7 +107,7 @@ def calc_porosity_fes(data_folder,size,relax=False):
 		
 	effective_radius_cubed = np.sum(np.power(radius,3))
 
-	_,full_sphere_radius = u.calc_fully_enclosed_spehre(pos,radius)
+	_,full_sphere_radius = u.calc_fully_enclosed_sphere(pos,radius)
 
 	porosity = 1-effective_radius_cubed/np.power(full_sphere_radius,3)
 
@@ -78,15 +122,12 @@ def calc_asymmetry_parameter(data_folder,size,relax=False):
 	vol = [(4*np.pi/3)*r**3 for r in radius]
 
 	effective_radius = np.power(np.sum(np.power(radius,3)),1/3) 
-
 		
 	principal_moi = u.get_principal_moi(mass,data)[::-1]
 	alphai = principal_moi/(0.4*np.sum(mass)*effective_radius**2)
 
 	# return alphai[0]/np.sqrt(alphai[1]*alphai[2]) #From Draine Sensitivity of Polarization to Grain Shape. I. Convex Shapes
 	return np.sqrt(alphai[0]/(alphai[1]+alphai[2]-alphai[0])) #From Draine Sensitivity of Polarization to Grain Shape. II. Aggregates
-
-
 
 
 def calc_stretch_parameter(data_folder,size,relax=False):
@@ -200,10 +241,11 @@ def calc_fractal_dimension(data_folder,size,relax=False):
 
 
 
-data_functions = [calc_porosity_abc,calc_porosity_KBM,calc_number_of_contacts, \
-					calc_fractal_dimension,calc_asymmetry_parameter, \
-					calc_stretch_parameter,calc_porosity_fee, \
-					calc_porosity_fes,calc_porosity_ch]
+data_functions = [calc_porosity_abc,calc_porosity_KBM, \
+					calc_number_of_contacts,calc_fractal_dimension, \
+					calc_asymmetry_parameter,calc_stretch_parameter, \
+					calc_porosity_fee,calc_porosity_fes, \
+					calc_porosity_ch,calc_geometric_cross_section]
 data_headers = [i.__name__[5:] for i in data_functions]
 
 def calc_from_size(size,directory,existing_headers,existing_values,requested_headers,relax=False,overwrite=False):
@@ -216,6 +258,9 @@ def calc_from_size(size,directory,existing_headers,existing_values,requested_hea
 			if header in existing_headers:
 				index = existing_headers.index(header)
 				headers.append(header)
+				#if the value is nan then we need to recalculate
+				if existing_values[index] == "nan":
+					existing_values[index] = str(data_functions[h](directory,size,relax))
 				values.append(existing_values[index])
 			#we dont have this header and we want it, so calculate
 			elif (header not in existing_headers and header in requested_headers):
@@ -266,12 +311,12 @@ if __name__ == '__main__':
 	#to calculate as an input.
 	#It should return a single data value.
 	# bool_headers = [1,1,0,0,1,0,0,0]
-	bool_headers = [1,1,0,1,1,0,0,0,0]
-	bool_headers = [0,0,0,0,0,0,0,0,1]
+	bool_headers = [1,1,0,1,1,0,0,0,0,0]
+	bool_headers = [0,0,0,0,0,0,1,1,1,0]
 	# requested_data_functions = [data_functions[i] for i in range(len(data_functions)) if bool_headers[i]]
 	requested_data_headers = [data_headers[i] for i in range(len(data_headers)) if bool_headers[i]]
 
-	overwritedata = True
+	overwritedata = False
 
 	for n_i,n in enumerate(N):
 	
@@ -297,7 +342,7 @@ if __name__ == '__main__':
 		# data_folders.append(path + f'jobsNovus/constrelax_*/N_{n}/*')
 		# data_folders.append(path + f'jobsCosine/lognormrelax_*/N_{n}/*')
 		# data_folders.append(path + f'jobs/constrollingfricrelax*/N_{n}/*')
-		data_folders.append('/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobsCosine/lognorm_10/N_300/T_3/')
+		data_folders.append('/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobsCosine/lognormrelax_22/N_300/T_3/')
 
 		possible_dirs = []
 		for data_folder in data_folders:
@@ -331,8 +376,8 @@ if __name__ == '__main__':
 				
 				#contains both the sizes we want and the sizes we already have
 				all_sizes = sorted(set(existing_sizes+requested_sizes[d_i]))
-				all_sizes = [300]
-				print(all_sizes)
+				# all_sizes = [300]
+				# print(all_sizes)
 				for size in all_sizes:
 
 					existing_headers_for_size = []
@@ -362,7 +407,7 @@ if __name__ == '__main__':
 
 				with open(directory+f"{rel}{data_file}",'w') as fp:
 					fp.writelines(lines)
-				print(lines)
+				# print(lines)
 
 			else:
 				print(f"Job is not finished in {directory}")

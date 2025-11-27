@@ -769,7 +769,7 @@ def write_bounding_sphere_to_tmp(center, radius):
 
 #finds smallest needed sphere to enclose the aggregate 
 #returns that center and the radius of the enclosing sphere
-def calc_fully_enclosed_spehre(pos,radii):
+def calc_fully_enclosed_sphere(pos,radii,write=False):
 	"""
 	pos   : (N,3) array of centers
 	radii : (N,)  array of radii (can all be different)
@@ -805,7 +805,8 @@ def calc_fully_enclosed_spehre(pos,radii):
 	# Optional debug print:
 	# print(f"R_opt: {R_opt}\nmax(dist+ri): {d.max()}\nslack:{R_opt - d.max()}", R_opt - d.max())
 
-	write_bounding_sphere_to_tmp(c_opt, R_opt)
+	if write:
+		write_bounding_sphere_to_tmp(c_opt, R_opt)
 
 	return c_opt, R_opt
 
@@ -912,98 +913,132 @@ def fibonacci_sphere(n_points):
 
 def ellipse_from_mvee2_output(retvals):
 	"""
-	Extract center, rotation R, and axes of the ellipsoid from mvee2 output.
+	Extract center, rotation R, axes, and canonical A from mvee2() output.
 
-	Important:
-	mvee2 returns 'mat' = H, where the ellipsoid satisfies:
-		(x - c)^T H (x - c) <= n_dim
+	mvee2 returns:
+		retvals["mat"] = B = H^{-1}
 
-	To convert to the standard ellipsoid form:
+	The ellipsoid in normalized coordinates is:
+		x^T B x <= n_dim
+
+	We convert to the standard form:
 		(x - c)^T A (x - c) <= 1
-	we must use:
-		A = H / n_dim
-
-	Radii are then:
-		axes_i = 1 / sqrt(lambda_i(A))
+	with:
+		A = B / n_dim
+		axes_i = sqrt(n_dim / mu_i)
+	where mu_i are eigenvalues of B.
 	"""
-
-	# -------------------- Center --------------------
+	# ---- center ----
 	if "c" in retvals:
-		c = np.asarray(retvals["c"]).flatten()
+		c = np.asarray(retvals["c"], float).flatten()
 	else:
-		# centered MVEE (rare case)
-		Htmp = retvals["mat"]
-		c = np.zeros(Htmp.shape[0])
+		c = np.zeros(retvals["mat"].shape[0], float)
 
-	# -------------------- Dual Matrix H --------------------
-	# H is what mvee2 returns:
-	#    (x - c)^T H (x - c) ≈ n_dim
-	H = retvals["mat"]
-	H = 0.5 * (H + H.T)   # ensure symmetry
+	# ---- B = H^{-1} ----
+	B = np.asarray(retvals["mat"], float)
+	B = 0.5 * (B + B.T)      # symmetrize for safety
 
-	# Dimension
-	n_dim = H.shape[0]    # 3 for 3D
+	n_dim = B.shape[0]
 
-	# -------------------- Convert to primal A --------------------
-	# Standard ellipsoid: (x-c)^T A (x-c) <= 1
-	A = H / n_dim
+	# ---- eigendecomposition of B ----
+	mu, R = np.linalg.eigh(B)   # B = R diag(mu) R^T
+	mu = np.maximum(mu, 1e-15)  # avoid divide by zero
 
-	# -------------------- Eigen-decomposition --------------------
-	lam, R = np.linalg.eigh(A)
-	lam = np.maximum(lam, 1e-15)
+	# ---- canonical A and axes ----
+	# A = B / n_dim
+	# axes_i^2 = n_dim / mu_i => axes_i = sqrt(n_dim / mu_i)
+	axes = np.sqrt(n_dim / mu)
 
-	# -------------------- Axes lengths --------------------
-	# Semi-axis lengths:
-	#    axes_i = 1/sqrt(lambda_i(A))
-	axes = 1.0 / np.sqrt(lam)
+	A = R @ np.diag(mu / n_dim) @ R.T
 
 	return c, R, axes, A
 
+def check_ellipsoid_encloses_samples(samples, center, A, verbose=False,
+									 tol_ok=1e-3, tol_warn=1e-2):
+	"""
+	samples : (N, d) in the SAME normalized space as center, A
+	center  : (d,)
+	A       : (d, d) canonical ellipsoid matrix (x-c)^T A (x-c) <= 1
+	"""
+	samples = np.asarray(samples, float)
+	center  = np.asarray(center, float)
 
-def calc_fully_enclosed_ellipsoid(pos, radii, samples_per_sphere=8192, verbose=False):
+	Xc = samples - center  # (N, d)
+
+	# Correct quadratic form:
+	q = np.sum((Xc @ A) * Xc, axis=1)
+	max_q = float(np.max(q))
+
+	if verbose:
+		print(f"check: max_q = {max_q:.6e}")
+
+	if max_q <= 1.0 + tol_ok:
+		status = "ok"
+	elif max_q <= 1.0 + tol_warn:
+		status = "warn"
+	else:
+		status = "fail"
+
+	return status, max_q
+
+
+def calc_fully_enclosed_ellipsoid(pos, radii, samples_per_sphere=8192,write=False, verbose=False):
 	"""
 	Minimum-volume enclosing ellipsoid of a union of spheres in R^3,
-	solved by CVXPY via MVEE of sampled surface points.
-
-	pos    : (m,3) centers of spheres
-	radii  : (m,) radii of spheres
-	samples_per_sphere : number of directions sampled on each sphere surface
-
-	Returns:
-		center : (3,) ellipsoid center
-		R      : (3,3) rotation matrix (columns = principal axes)
-		axes   : (3,) semi-axis lengths
-		A_val  : (3,3) matrix A in (x-c)^T A (x-c) <= 1
+	approximated by sampling sphere surfaces and running MVEE.
 	"""
-	relative_path = "../"
-	relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
+
+	relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + "../"
 	project_path = os.path.abspath(relative_path) + '/'
-	sys.path.append(project_path+"utilities/mvee/")
-	# sys.path.append("/home/kolanzl/Desktop/SpaceLab/")
+	sys.path.append(project_path + "utilities/mvee/")
 	from mvee import mvee2
-	# from mvee import mvee
 
 	pos = np.asarray(pos, dtype=float)
 	radii = np.asarray(radii, dtype=float)
 	m, d = pos.shape
 	assert d == 3, "This helper is for 3D only."
 
+	# ---- sample surfaces ----
 	dirs = fibonacci_sphere(samples_per_sphere)  # (S, 3)
 
 	samples_list = []
 	for c, r in zip(pos, radii):
-		c = np.asarray(c, dtype=float).reshape(3)
-		pts = c + r * dirs  # (S, 3)
+		pts = c + r * dirs
 		samples_list.append(pts)
 
-	samples = np.vstack(samples_list).astype(float).T  # (m*S, 3)
+	samples = np.vstack(samples_list).astype(float)  # (m*S, 3)
 
-	center, R, axes, A_val = ellipse_from_mvee2_output(mvee2(samples,hybrid={},full_output=True))
+	# ---- normalize for MVEE ----
+	mean = samples.mean(axis=0)
+	samples_centered = samples - mean
+	scale = np.max(np.linalg.norm(samples_centered, axis=1))
+	if scale < 1e-12:
+		scale = 1.0
 
-	# Your existing helper:
-	write_bounding_ellipsoid_to_tmp(center, axes, R)
+	samples_norm = samples_centered / scale
+	X = samples_norm.T
 
-	return center, R, axes
+	# ---- run MVEE ----
+	# ret = mvee2(X, full_output=True, epsilon=1e-6)
+	ret = mvee2(X, hybrid={}, full_output=True, epsilon=1e-6)
+
+	center_n, R_n, axes_n, A_n = ellipse_from_mvee2_output(ret)
+
+	status, max_q = check_ellipsoid_encloses_samples(samples_norm, center_n, A_n, verbose=verbose)
+
+	# ---- undo normalization ----
+	center = center_n * scale + mean
+	axes   = axes_n * scale
+	R      = R_n
+	A      = A_n / (scale**2)   # optional: A in original coords if you want it
+
+	# ---- validate numerically ----
+	if verbose:
+		print(f"Ellipsoid check: status={status}, max_q={max_q:.6e}")
+
+	if write:
+		write_bounding_ellipsoid_to_tmp(center, axes, R)
+	return status, max_q, center, R, axes
 
 def analyze_enclosing_ellipsoid_for_balls(pos, radii, center, A,
 										  n_dirs_check=64,
@@ -1114,6 +1149,9 @@ def analyze_enclosing_ellipsoid_for_balls(pos, radii, center, A,
 	}
 
 
+
+
+
 def write_convex_hull_to_tmp(points, hull, radii=None):
 	import tempfile
 
@@ -1147,62 +1185,62 @@ def write_convex_hull_to_tmp(points, hull, radii=None):
 
 
 def ellipsoid_eval(x, C, axes, R):
-    y = R.T @ (x - C)
-    return (y[0]/axes[0])**2 + (y[1]/axes[1])**2 + (y[2]/axes[2])**2
+	y = R.T @ (x - C)
+	return (y[0]/axes[0])**2 + (y[1]/axes[1])**2 + (y[2]/axes[2])**2
 
 def sphere_point_relative_to_ellipsoid(c, r, C, axes, R):
-    """
-    If sphere is fully inside ellipsoid → return closest sphere point to ellipsoid.
-    If any part of sphere sticks outside → return the sphere point farthest outside.
-    """
+	"""
+	If sphere is fully inside ellipsoid → return closest sphere point to ellipsoid.
+	If any part of sphere sticks outside → return the sphere point farthest outside.
+	"""
 
-    x_ell = project_point_onto_ellipsoid(c, C, axes, R)
-    d = x_ell - c
-    n = np.linalg.norm(d)
-    if n == 0:
-        # sphere centered at ellipsoid center → choose arbitrary direction
-        d_unit = np.array([1,0,0])
-    else:
-        d_unit = d / n
+	x_ell = project_point_onto_ellipsoid(c, C, axes, R)
+	d = x_ell - c
+	n = np.linalg.norm(d)
+	if n == 0:
+		# sphere centered at ellipsoid center → choose arbitrary direction
+		d_unit = np.array([1,0,0])
+	else:
+		d_unit = d / n
 
-    # Candidate points
-    p_near = c + r * d_unit     # closest sphere point to ellipsoid
-    p_far  = c - r * d_unit     # farthest sphere point from ellipsoid
+	# Candidate points
+	p_near = c + r * d_unit     # closest sphere point to ellipsoid
+	p_far  = c - r * d_unit     # farthest sphere point from ellipsoid
 
-    # Determine if sphere is fully inside
-    if ellipsoid_eval(p_far, C, axes, R) <= 1.0:
-        # whole sphere inside ellipsoid
-        return p_near
-    else:
-        # sphere pokes out
-        return p_far
+	# Determine if sphere is fully inside
+	if ellipsoid_eval(p_far, C, axes, R) <= 1.0:
+		# whole sphere inside ellipsoid
+		return p_near
+	else:
+		# sphere pokes out
+		return p_far
 
 def project_point_onto_ellipsoid(p, C, axes, R):
-    from scipy.optimize import root_scalar
-    import numpy as np
+	from scipy.optimize import root_scalar
+	import numpy as np
 
-    p = np.asarray(p, float)
-    C = np.asarray(C, float)
-    axes = np.asarray(axes, float)
-    R = np.asarray(R, float)
+	p = np.asarray(p, float)
+	C = np.asarray(C, float)
+	axes = np.asarray(axes, float)
+	R = np.asarray(R, float)
 
-    u = R.T @ (p - C)
-    a2 = axes**2
+	u = R.T @ (p - C)
+	a2 = axes**2
 
-    def F(lam):
-        return np.sum((u*u)*a2 / (a2 + lam)**2) - 1.0
+	def F(lam):
+		return np.sum((u*u)*a2 / (a2 + lam)**2) - 1.0
 
-    def Fprime(lam):
-        return np.sum(-2*(u*u)*a2 / (a2 + lam)**3)
+	def Fprime(lam):
+		return np.sum(-2*(u*u)*a2 / (a2 + lam)**3)
 
-    # Newton always converges if p is not exactly the ellipsoid center.
-    sol = root_scalar(F, fprime=Fprime, x0=0.0, method='newton')
-    lam = sol.root
+	# Newton always converges if p is not exactly the ellipsoid center.
+	sol = root_scalar(F, fprime=Fprime, x0=0.0, method='newton')
+	lam = sol.root
 
-    x_local = u * a2 / (a2 + lam)
-    return C + R @ x_local
+	x_local = u * a2 / (a2 + lam)
+	return C + R @ x_local
 
-def calc_hull_volume(pos,radii):
+def calc_hull_volume(pos,radii,write=False):
 	"""
 	makes a convec hull around the aggregate and calculates it's volume
 
@@ -1220,7 +1258,11 @@ def calc_hull_volume(pos,radii):
 	assert d == 3, "This helper is for 3D only."
 
 	#Get points on spheres closest to MVEE
-	center,R,axes = calc_fully_enclosed_ellipsoid(pos,radii)
+	status,max_q,center,R,axes = calc_fully_enclosed_ellipsoid(pos,radii)
+
+	#If the MVEE failed return nan so we can try again later
+	if status != "ok":
+		return np.nan
 
 	support_points = np.vstack([
 		sphere_point_relative_to_ellipsoid(pos[i], radii[i], center, axes, R)
@@ -1236,10 +1278,184 @@ def calc_hull_volume(pos,radii):
 	if hull.simplices.size == 0:
 		raise RuntimeError("Convex hull is degenerate (no faces). Cannot export.")
 
-	write_convex_hull_to_tmp(support_points, hull)
+	if write:
+		write_convex_hull_to_tmp(support_points, hull)
 
 	return hull.volume
 
+def write_shadow_grid_to_tmp(xs, ys, shadow, k=None, delta=None,
+                             proj_points=None, radii=None):
+    """
+    Write the 2D projected grid + shadow mask to a temporary JSON file
+    so Blender can visualize it.
+
+    Parameters
+    ----------
+    xs : (Nx,)  array of x-coordinates of grid cell centers
+    ys : (Ny,)  array of y-coordinates of grid cell centers
+    shadow : (Ny, Nx) boolean array (True = cell is shadowed)
+    k : (3,) projection/view direction (optional)
+    delta : float, grid spacing (optional)
+    proj_points : (N,2) projected monomer centers (optional)
+    radii : (N,) monomer radii (optional)
+
+    Returns
+    -------
+    path : str
+        Path to the JSON file.
+    """
+    import numpy as np
+    import json, os, tempfile
+
+    xs = np.asarray(xs, float)
+    ys = np.asarray(ys, float)
+    shadow = np.asarray(shadow, bool)
+
+    Ny, Nx = shadow.shape
+    assert xs.shape[0] == Nx
+    assert ys.shape[0] == Ny
+
+    tmp_dir = tempfile.gettempdir()
+    path = os.path.join(tmp_dir, "shadow_grid.json")
+
+    data = {
+        "xs": xs.tolist(),         # x grid centers
+        "ys": ys.tolist(),         # y grid centers
+        "shadow": shadow.tolist(), # 2D boolean mask
+    }
+
+    if k is not None:
+        data["k"] = np.asarray(k, float).tolist()
+
+    if delta is not None:
+        data["delta"] = float(delta)
+
+    if proj_points is not None:
+        data["proj_points"] = np.asarray(proj_points, float).tolist()
+
+    if radii is not None:
+        data["radii"] = np.asarray(radii, float).tolist()
+
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+
+    print(f"[INFO] Shadow grid written to {path}")
+    return path
+
+def _orthonormal_basis_from_k(k):
+	"""Given a unit vector k, return two unit vectors u, v that span the plane ⟂ k."""
+	k = np.asarray(k, dtype=float)
+	k /= np.linalg.norm(k)
+
+	# Pick a reference vector not parallel to k
+	if abs(k[2]) < 0.9:
+		a = np.array([0.0, 0.0, 1.0])
+	else:
+		a = np.array([0.0, 1.0, 0.0])
+
+	u = np.cross(k, a)
+	u /= np.linalg.norm(u)
+	v = np.cross(k, u)
+	# v should already be unit if k, u are unit and orthogonal
+	return u, v
+
+def calc_geometric_cross_section(
+	pos,
+	radii,
+	direction=(0.0, 0.0, 1.0),
+	r1=None,
+	mesh_factor=0.0055,
+	write = False
+):
+	"""
+	Compute geometric cross section of an aggregate by mesh-counting the projected shadow.
+
+	Parameters
+	----------
+	pos : (N, 3) array
+		Monomer centers.
+	radii : (N,) array or float
+		Monomer radii. If float, same radius for all.
+	r1 : float, optional
+		Reference monomer radius used for mesh size. If None and radii is array,
+		uses min(radii).
+	k : (3,) array-like, optional
+		Viewing direction (will be normalized).
+	mesh_factor : float, optional
+		Grid spacing as fraction of r1 (Suyama uses 0.0055).
+
+	Returns
+	-------
+	sigma : float
+		Geometric cross section for this viewing direction.
+	"""
+
+	pos = np.asarray(pos, dtype=float)
+	N = pos.shape[0]
+	if np.isscalar(radii):
+		radii = np.full(N, float(radii))
+	else:
+		radii = np.asarray(radii, dtype=float)
+
+	if r1 is None:
+		r1 = float(np.min(radii))
+	delta = mesh_factor * r1
+
+	# Orthonormal basis (u, v) spanning plane ⟂ k
+	k = np.asarray(direction, dtype=float)
+	k /= np.linalg.norm(k)
+	u, v = _orthonormal_basis_from_k(k)
+
+	# Project centers into (X, Y) plane
+	X = pos @ u   # shape (N,)
+	Y = pos @ v   # shape (N,)
+
+	r_max = np.max(radii)
+
+	X_min = X.min() - r_max
+	X_max = X.max() + r_max
+	Y_min = Y.min() - r_max
+	Y_max = Y.max() + r_max
+
+	Nx = int(np.ceil((X_max - X_min) / delta))
+	Ny = int(np.ceil((Y_max - Y_min) / delta))
+
+	# Centers of grid cells
+	xs = X_min + (np.arange(Nx) + 0.5) * delta
+	ys = Y_min + (np.arange(Ny) + 0.5) * delta
+
+	shadow = np.zeros((Ny, Nx), dtype=bool)
+
+	# For each monomer, mark cells whose centers fall inside its projected circle
+	for Xi, Yi, ri in zip(X, Y, radii):
+		if ri <= 0:
+			continue
+
+		# Find index ranges potentially affected by this sphere
+		ix_min = max(0, int(np.floor((Xi - ri - X_min) / delta)))
+		ix_max = min(Nx - 1, int(np.floor((Xi + ri - X_min) / delta)))
+		iy_min = max(0, int(np.floor((Yi - ri - Y_min) / delta)))
+		iy_max = min(Ny - 1, int(np.floor((Yi + ri - Y_min) / delta)))
+
+		if ix_min > ix_max or iy_min > iy_max:
+			continue
+
+		local_x = xs[ix_min:ix_max+1]
+		local_y = ys[iy_min:iy_max+1]
+
+		dx2 = (local_x[None, :] - Xi)**2   # shape (1, n_x_local)
+		dy2 = (local_y[:, None] - Yi)**2   # shape (n_y_local, 1)
+
+		mask_local = dx2 + dy2 <= ri**2
+		shadow[iy_min:iy_max+1, ix_min:ix_max+1] |= mask_local
+
+	N_shadow = np.count_nonzero(shadow)
+	sigma = N_shadow * (delta**2)
+
+	if write:
+		write_shadow_grid_to_tmp(xs, ys, shadow, k=k, delta=delta,
+                             proj_points=None, radii=None)
+	return sigma
 
 def get_data(data_folder,data_index=-1,linenum=-1,relax=False): #Works with both csv and h5
 	if data_folder == '/home/kolanzl/Desktop/bin/merger.csv':

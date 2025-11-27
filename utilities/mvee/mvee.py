@@ -3140,6 +3140,7 @@ def mvee2(X, **kwargs):
             print('Optimal: ', optimal)
         if pr.converged:
             retvals['converged'] = eps_worst < epsilon
+        print('Converged: ', retvals['converged'])
 
     if iter_count >= pr.max_iter and not pr.silent:
         print("Maximum number of iterations reached. (%s)" % pr.method)

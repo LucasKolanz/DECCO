@@ -1131,7 +1131,7 @@ def gen_BPCA_vs_temp_plots(show_plots=True,save_plots=False,include_totals=False
 
 
 
-		bool_headers = [0,0,0,0,0,0,0,1]
+		bool_headers = [0,0,0,0,0,0,1,1,1]
 		# requested_data_functions = [data_functions[i] for i in range(len(data_functions)) if bool_headers[i]]
 		requested_data_headers = [gd.data_headers[i] for i in range(len(gd.data_headers)) if bool_headers[i]]
 
@@ -2489,7 +2489,7 @@ if __name__ == '__main__':
 	save_plots = True
 	#Do you want the number of runs next to each point on the plots
 	#so you know how many more runs need to finish
-	include_totals = False
+	include_totals = True
 
 
 	# gen_Asym_BAPA_numbers()
