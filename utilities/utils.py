@@ -1,9 +1,9 @@
 #TODO: move the getting data stuff into the other python helper file and keep this one for calculations
 #	   and such
 
-import scipy as sp
 import numpy as np
-import cvxpy as cp
+# import scipy as sp
+# import cvxpy as cp
 import random
 # from scipy.spatial.transform import Rotation as R
 import os,glob
@@ -720,15 +720,18 @@ def format_vel(data):
 	data = data[:,7:10] #vel is after 3x pos, 3x w, 1x w mag, and is 3 long
 	return data
 
-def calcCOM(pos,mass):
-	com = np.array([0,0,0],dtype=np.float64)
-	mtot = 0
+def calcCOM(mass, pos):
+	mass = np.asarray(mass, dtype=np.float64)
+	pos  = np.asarray(pos,  dtype=np.float64)
 
-	for ball in range(pos.shape[0]):
-		com += mass[ball]*pos[ball]
-		mtot += mass[ball]
+	if pos.shape[0] != mass.shape[0]:
+		raise ValueError("mass and pos must have same length")
+	if pos.shape[1] != 3:
+		raise ValueError("pos must be an (N,3) array")
 
-	return com/mtot
+	mtot = mass.sum()
+	com = np.sum(pos * mass[:, None], axis=0)
+	return com / mtot
 
 def COM(data_folder,data_index=-1,relax=False):
 	data = get_last_line_data(data_folder,data_index,relax=relax)
@@ -743,17 +746,22 @@ def COM(data_folder,data_index=-1,relax=False):
 
 	return com/mtot
 
+
+#########################################################################
+#Start functions for writing metric visualizations to file
+#########################################################################
 #writes bounding sphere to temp file for blender to read later
-def write_bounding_sphere_to_tmp(center, radius):
+def write_gyration_radius_sphere(center,radius,directory=""):
 	"""
 	center : np.array shape (3,)
 	radius : float
 	"""
-	import tempfile
 
-	# Use system temp directory, e.g. /tmp on Linux
-	tmp_dir = tempfile.gettempdir()
-	path = os.path.join(tmp_dir, "bounding_sphere.json")
+	if directory == "":
+		import tempfile
+		# Use system temp directory, e.g. /tmp on Linux
+		directory = tempfile.gettempdir()
+	path = os.path.join(directory, "gyration_radius_sphere.json")
 
 	data = {
 		"center": center.tolist(),
@@ -764,16 +772,279 @@ def write_bounding_sphere_to_tmp(center, radius):
 	with open(path, "w") as f:
 		json.dump(data, f, indent=2)
 
-	print(f"[INFO] Bounding sphere written to {path}")
+	print(f"[INFO] Gyration Radius sphere written to {path}")
 	return path
+
+#writes bounding sphere to temp file for blender to read later
+def write_enclosing_sphere(center,radius,directory=""):
+	"""
+	center : np.array shape (3,)
+	radius : float
+	"""
+
+	if directory == "":
+		import tempfile
+		# Use system temp directory, e.g. /tmp on Linux
+		directory = tempfile.gettempdir()
+	path = os.path.join(directory, "enclosing_sphere.json")
+
+	data = {
+		"center": center.tolist(),
+		"radius": float(radius)
+	}
+
+	# Write with high precision so Blender gets the exact geometry
+	with open(path, "w") as f:
+		json.dump(data, f, indent=2)
+
+	print(f"[INFO] Enclosing sphere written to {path}")
+	return path
+
+def write_convex_hull(points, hull, radii=None, directory=""):
+	import tempfile
+
+	points = np.asarray(points, float)
+
+	# Map global indices -> compact local indices
+	vmap = {idx: i for i, idx in enumerate(hull.vertices)}
+	simplices_mapped = [
+		[vmap[a], vmap[b], vmap[c]]
+		for (a, b, c) in hull.simplices
+	]
+
+	if directory == "":
+		import tempfile
+		# Use system temp directory, e.g. /tmp on Linux
+		directory = tempfile.gettempdir()
+	path = os.path.join(directory, "convex_hull.json")
+
+	data = {
+		"points": points[hull.vertices].tolist(),   # only hull vertices
+		"simplices": simplices_mapped,              # remapped faces
+		"hull_vertices": hull.vertices.tolist()
+	}
+
+	if radii is not None:
+		data["radii"] = np.asarray(radii, float).tolist()
+
+
+	with open(path, "w") as f:
+		json.dump(data, f, indent=2)
+
+	print(f"[INFO] Convex hull written to {path}")
+	return path
+
+def write_equivalent_ellipsoid(center, axes, R,directory=""):
+	"""
+	Write the bounding ellipsoid parameters to a JSON file in directory.
+
+	Parameters
+	----------
+	center : (3,) array-like
+		Ellipsoid center.
+	axes   : (3,) array-like
+		Ellipsoid semi-axis lengths (a, b, c).
+	R      : (3,3) array-like
+		Rotation matrix whose columns are the principal axis directions.
+
+	Creates /tmp/bounding_ellipsoid.json with high precision.
+	"""
+
+	center = np.asarray(center, dtype=float)
+	axes   = np.asarray(axes,   dtype=float)
+	R      = np.asarray(R,      dtype=float)
+
+	if directory == "":
+		import tempfile
+		# Use system temp directory, e.g. /tmp on Linux
+		directory = tempfile.gettempdir()
+	path = os.path.join(directory, "equivalent_ellipsoid.json")
+
+	data = {
+		"center": center.tolist(),
+		"axes": axes.tolist(),
+		"R": R.tolist(),        # full 3×3 rotation matrix
+	}
+
+	with open(path, "w") as f:
+		json.dump(data, f, indent=2)
+
+	print(f"[INFO] Equivalent ellipsoid written to {path}")
+	return path
+
+def write_enclosing_ellipsoid(center, axes, R,directory=""):
+	"""
+	Write the bounding ellipsoid parameters to a JSON file in /tmp.
+
+	Parameters
+	----------
+	center : (3,) array-like
+		Ellipsoid center.
+	axes   : (3,) array-like
+		Ellipsoid semi-axis lengths (a, b, c).
+	R      : (3,3) array-like
+		Rotation matrix whose columns are the principal axis directions.
+
+	Creates /tmp/bounding_ellipsoid.json with high precision.
+	"""
+
+	center = np.asarray(center, dtype=float)
+	axes   = np.asarray(axes,   dtype=float)
+	R      = np.asarray(R,      dtype=float)
+
+	if directory == "":
+		import tempfile
+		# Use system temp directory, e.g. /tmp on Linux
+		directory = tempfile.gettempdir()
+	path = os.path.join(directory, "enclosing_ellipsoid.json")
+
+	data = {
+		"center": center.tolist(),
+		"axes": axes.tolist(),
+		"R": R.tolist(),        # full 3×3 rotation matrix
+	}
+
+	with open(path, "w") as f:
+		json.dump(data, f, indent=2)
+
+	print(f"[INFO] Bounding ellipsoid written to {path}")
+	return path
+
+def write_shadow_grid(xs, ys, shadow, k=None, delta=None,
+							 proj_points=None, radii=None, directory=""):
+	"""
+	Write the 2D projected grid + shadow mask to a temporary JSON file
+	so Blender can visualize it.
+
+	Parameters
+	----------
+	xs : (Nx,)  array of x-coordinates of grid cell centers
+	ys : (Ny,)  array of y-coordinates of grid cell centers
+	shadow : (Ny, Nx) boolean array (True = cell is shadowed)
+	k : (3,) projection/view direction (optional)
+	delta : float, grid spacing (optional)
+	proj_points : (N,2) projected monomer centers (optional)
+	radii : (N,) monomer radii (optional)
+
+	Returns
+	-------
+	path : str
+		Path to the JSON file.
+	"""
+
+	xs = np.asarray(xs, float)
+	ys = np.asarray(ys, float)
+	shadow = np.asarray(shadow, bool)
+
+	Ny, Nx = shadow.shape
+	assert xs.shape[0] == Nx
+	assert ys.shape[0] == Ny
+
+	if directory == "":
+		import tempfile
+		# Use system temp directory, e.g. /tmp on Linux
+		directory = tempfile.gettempdir()
+	path = os.path.join(directory, "shadow_grid.json")
+
+	data = {
+		"xs": xs.tolist(),         # x grid centers
+		"ys": ys.tolist(),         # y grid centers
+		"shadow": shadow.tolist(), # 2D boolean mask
+	}
+
+	if k is not None:
+		data["k"] = np.asarray(k, float).tolist()
+
+	if delta is not None:
+		data["delta"] = float(delta)
+
+	if proj_points is not None:
+		data["proj_points"] = np.asarray(proj_points, float).tolist()
+
+	if radii is not None:
+		data["radii"] = np.asarray(radii, float).tolist()
+
+	with open(path, "w") as f:
+		json.dump(data, f, indent=2)
+
+	print(f"[INFO] Shadow grid written to {path}")
+	return path
+
+#########################################################################
+#END functions for writing metric visualizations to file
+#########################################################################
+
+def number_of_contacts(pos,radii):
+	# pos,radii,mass,moi = u.get_data(data_folder,data_index=size,linenum=line,relax=relax)
+
+	if pos is None:
+		return np.nan
+	pos = np.array(pos)
+
+	contacts = u.calc_contacts(pos,radii)
+
+	# contacts = np.zeros((num_balls,num_balls),dtype=int)
+	# dist = lambda i,j: np.sqrt((data[i][0]-data[j][0])**2 + (data[i][1]-data[j][1])**2 + \
+	# 		(data[i][2]-data[j][2])**2)
+
+	# ##IT FEELS LIKE THIS IS OVERCOUNTING BUT IT ISN'T.
+	# ##EACH BALL FELLS ITS OWN CONTACTS.
+	# for i in range(num_balls):
+	# 	for j in range(num_balls):
+	# 		if i != j:
+	# 			contacts[i,j] = (dist(i,j) <= (radius[i]+radius[j]))
+
+	return np.mean(np.sum(contacts,axis=1))
+
+def calc_contacts(pos,radii):
+	num_balls = pos.shape[0]
+	contacts = np.zeros((num_balls,num_balls),dtype=int)
+	dist = lambda i,j: np.sqrt((pos[i][0]-pos[j][0])**2 + (pos[i][1]-pos[j][1])**2 + \
+			(pos[i][2]-pos[j][2])**2)
+
+	##IT FEELS LIKE THIS IS OVERCOUNTING BUT IT ISN'T.
+	##EACH BALL FELLS ITS OWN CONTACTS.
+	for i in range(num_balls):
+		for j in range(num_balls):
+			if i != j:
+				contacts[i,j] = (dist(i,j) <= (radii[i]+radii[j]))
+	return contacts
+
+#########################################################################
+#Start functions for calculating metrics
+#########################################################################
+
+def calc_max_number_of_contacts(data_folder,data_index=-1,relax=False,makeVisual=False):
+
+	line = 0
+	max_nc = -1
+	max_line = -1
+	pos,radii,mass,moi = u.get_data(data_folder,data_index=data_index,linenum=line,relax=relax)
+	nc = number_of_contacts(pos,radii)
+	while not np.isnan(nc):
+		# max_nc = max(max_nc,nc)
+		line += 1 
+		pos,radii,mass,moi = u.get_data(data_folder,data_index=data_index,linenum=line,relax=relax)
+		nc = number_of_contacts(pos,radii)
+		if max_nc < nc:
+			max_nc = nc
+			max_line = line
+
+	if makeVisual:
+		pos,radii,mass,moi = u.get_data(data_folder,data_index=data_index,linenum=max_line,relax=relax)
+
+	return max_nc
 
 #finds smallest needed sphere to enclose the aggregate 
 #returns that center and the radius of the enclosing sphere
-def calc_fully_enclosed_sphere(pos,radii,write=False):
+def calc_fully_enclosed_sphere(pos,radii,write=False,directory=""):
+	
 	"""
 	pos   : (N,3) array of centers
 	radii : (N,)  array of radii (can all be different)
 	"""
+	import cvxpy as cp
+
 	pos = np.asarray(pos, dtype=float)
 	radii = np.asarray(radii, dtype=float)
 	assert pos.shape[0] == radii.shape[0]
@@ -806,50 +1077,273 @@ def calc_fully_enclosed_sphere(pos,radii,write=False):
 	# print(f"R_opt: {R_opt}\nmax(dist+ri): {d.max()}\nslack:{R_opt - d.max()}", R_opt - d.max())
 
 	if write:
-		write_bounding_sphere_to_tmp(c_opt, R_opt)
+		write_enclosing_sphere(c_opt, R_opt, directory)
 
 	return c_opt, R_opt
 
-def write_bounding_ellipsoid_to_tmp(center, axes, R):
+
+def calc_fully_enclosed_ellipsoid(pos, radii, samples_per_sphere=8192,write=False, directory="", verbose=False):
 	"""
-	Write the bounding ellipsoid parameters to a JSON file in /tmp.
+	Minimum-volume enclosing ellipsoid of a union of spheres in R^3,
+	approximated by sampling sphere surfaces and running MVEE.
+	"""
+
+	relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + "../"
+	project_path = os.path.abspath(relative_path) + '/'
+	sys.path.append(project_path + "utilities/mvee/")
+	from mvee import mvee2
+
+	pos = np.asarray(pos, dtype=float)
+	radii = np.asarray(radii, dtype=float)
+	m, d = pos.shape
+	assert d == 3, "This helper is for 3D only."
+
+	# ---- sample surfaces ----
+	dirs = fibonacci_sphere(samples_per_sphere)  # (S, 3)
+
+	samples_list = []
+	for c, r in zip(pos, radii):
+		pts = c + r * dirs
+		samples_list.append(pts)
+
+	samples = np.vstack(samples_list).astype(float)  # (m*S, 3)
+
+	# ---- normalize for MVEE ----
+	mean = samples.mean(axis=0)
+	samples_centered = samples - mean
+	scale = np.max(np.linalg.norm(samples_centered, axis=1))
+	if scale < 1e-12:
+		scale = 1.0
+
+	samples_norm = samples_centered / scale
+	X = samples_norm.T
+
+	# ---- run MVEE ----
+	# ret = mvee2(X, full_output=True, epsilon=1e-6)
+	ret = mvee2(X, hybrid={}, full_output=True, epsilon=1e-6)
+
+	center_n, R_n, axes_n, A_n = ellipse_from_mvee2_output(ret)
+
+	status, max_q = check_ellipsoid_encloses_samples(samples_norm, center_n, A_n, verbose=verbose)
+
+	# ---- undo normalization ----
+	center = center_n * scale + mean
+	axes   = axes_n * scale
+	R      = R_n
+	A      = A_n / (scale**2)   # optional: A in original coords if you want it
+
+	# ---- validate numerically ----
+	if verbose:
+		print(f"Ellipsoid check: status={status}, max_q={max_q:.6e}")
+
+	if write:
+		write_enclosing_ellipsoid(center, axes, R, directory)
+	return status, max_q, center, R, axes
+
+def calc_gyration_radius(effective_radius,pos,mass,directory,write=False):
+	principal_moi = u.get_principal_moi(mass,pos)[::-1]
+
+	alphai = principal_moi/(0.4*np.sum(mass)*effective_radius**2)
+
+	RKBM = np.sqrt(np.sum(alphai)/3) * effective_radius
+
+	if makeVisual:
+		COM = u.calcCOM(mass,pos)
+		write_gyration_radius_sphere(COM,RKBM,data_folder)
+
+	return RKBM
+
+def calc_equivalent_ellipsoid_principal_axes(effective_radius,pos,mass,directory,write=False):
+	principal_moi = get_principal_moi(mass,pos)[::-1]
+
+	total_mass = np.sum(mass)
+	alphai = principal_moi/(0.4*total_mass*effective_radius**2)
+	
+	a = effective_radius * np.sqrt(alphai[1] + alphai[2] - alphai[0])
+	b = effective_radius * np.sqrt(alphai[2] + alphai[0] - alphai[1])
+	c = effective_radius * np.sqrt(alphai[0] + alphai[1] - alphai[2])
+
+	if write:
+		center = calcCOM(mass,pos)
+		moi_world = get_inertia_matrix(mass,pos)
+		
+		#parallel axis theorem incase COM isnt origin
+		moi_com = moi_world-total_mass*(np.dot(center,center)*np.eye(3)-np.outer(center,center))
+
+		#enforce symmetry in case of numeric noise
+		moi_com = 0.5 * (moi_com + moi_com.T)
+		
+		#Eigendecomposition: principal moments and axes
+		vals, vecs = np.linalg.eigh(moi_com)
+		# vals = principal moments (I1, I2, I3)
+		# vecs[:, i] = eigenvector for vals[i]
+		
+		#Sort for consistent axis order (e.g. ascending inertia)
+		idx = np.argsort(vals)
+		vals = vals[idx]
+		vecs = vecs[:, idx]
+
+		R = vecs
+		# Ensure right-handed coordinate system (det = +1)
+		if np.linalg.det(R) < 0:
+			R[:, 0] *= -1  # flip one axis
+
+		axes = [c,b,a]
+		write_equivalent_ellipsoid(center, axes, R, directory)
+
+	return a,b,c
+
+def calc_hull_volume(pos,radii,samples_per_sphere=64,write=False,directory=""):
+	"""
+	makes a convec hull around the aggregate and calculates it's volume
+
+	pos    : (m,3) centers of spheres
+	radii  : (m,) radii of spheres
+	samples_per_sphere : number of directions sampled on each sphere surface
+
+	Returns:
+		volume : volume enclosed by the convex hull
+	"""
+	import scipy as sp
+
+	pos = np.asarray(pos, dtype=float)
+	radii = np.asarray(radii, dtype=float)
+	m, d = pos.shape
+	assert d == 3, "This helper is for 3D only."
+
+	# #Get points on spheres closest to MVEE
+	# status,max_q,center,R,axes = calc_fully_enclosed_ellipsoid(pos,radii)
+	# # exit(0)
+
+	# # If the MVEE failed return nan so we can try again later
+	# if status != "ok":
+	# 	return np.nan
+
+	# support_points = np.vstack([
+	# 	sphere_point_relative_to_ellipsoid(pos[i], radii[i], center, axes, R)
+	# 	for i in range(len(pos))
+	# ])
+	
+
+	dirs = fibonacci_sphere(samples_per_sphere)  # (S, 3)
+	samples_list = []
+	for c, r in zip(pos, radii):
+		pts = c + r * dirs
+		samples_list.append(pts)
+
+	support_points = np.vstack(samples_list).astype(float)  # (m*S, 3)
+
+	# --- Build convex hull ---
+	# print("calcing hull")
+	hull = sp.spatial.ConvexHull(support_points)
+
+	# sanity check for Blender
+	if hull.simplices.size == 0:
+		raise RuntimeError("Convex hull is degenerate (no faces). Cannot export.")
+
+	if write:
+		write_convex_hull(support_points, hull, directory=directory)
+
+	return hull.volume
+
+def calc_geometric_cross_section(
+	pos,
+	radii,
+	direction=(0.0, 0.0, 1.0),
+	r1=None,
+	mesh_factor=0.0055,
+	write = False,
+	directory = ""
+):
+	"""
+	Compute geometric cross section of an aggregate by mesh-counting the projected shadow.
 
 	Parameters
 	----------
-	center : (3,) array-like
-		Ellipsoid center.
-	axes   : (3,) array-like
-		Ellipsoid semi-axis lengths (a, b, c).
-	R      : (3,3) array-like
-		Rotation matrix whose columns are the principal axis directions.
+	pos : (N, 3) array
+		Monomer centers.
+	radii : (N,) array or float
+		Monomer radii. If float, same radius for all.
+	r1 : float, optional
+		Reference monomer radius used for mesh size. If None and radii is array,
+		uses min(radii).
+	k : (3,) array-like, optional
+		Viewing direction (will be normalized).
+	mesh_factor : float, optional
+		Grid spacing as fraction of r1 (Suyama uses 0.0055).
 
-	Creates /tmp/bounding_ellipsoid.json with high precision.
+	Returns
+	-------
+	sigma : float
+		Geometric cross section for this viewing direction.
 	"""
-	import os
-	import json
-	import numpy as np
-	import tempfile
 
-	center = np.asarray(center, dtype=float)
-	axes   = np.asarray(axes,   dtype=float)
-	R      = np.asarray(R,      dtype=float)
+	pos = np.asarray(pos, dtype=float)
+	N = pos.shape[0]
+	if np.isscalar(radii):
+		radii = np.full(N, float(radii))
+	else:
+		radii = np.asarray(radii, dtype=float)
 
-	# Path in temp directory
-	tmp_dir = tempfile.gettempdir()
-	path = os.path.join(tmp_dir, "bounding_ellipsoid.json")
+	if r1 is None:
+		r1 = float(np.min(radii))
+	delta = mesh_factor * r1
 
-	data = {
-		"center": center.tolist(),
-		"axes": axes.tolist(),
-		"R": R.tolist(),        # full 3×3 rotation matrix
-	}
+	# Orthonormal basis (u, v) spanning plane ⟂ k
+	k = np.asarray(direction, dtype=float)
+	k /= np.linalg.norm(k)
+	u, v = _orthonormal_basis_from_k(k)
 
-	with open(path, "w") as f:
-		json.dump(data, f, indent=2)
+	# Project centers into (X, Y) plane
+	X = pos @ u   # shape (N,)
+	Y = pos @ v   # shape (N,)
 
-	print(f"[INFO] Bounding ellipsoid written to {path}")
-	return path
+	r_max = np.max(radii)
 
+	X_min = X.min() - r_max
+	X_max = X.max() + r_max
+	Y_min = Y.min() - r_max
+	Y_max = Y.max() + r_max
+
+	Nx = int(np.ceil((X_max - X_min) / delta))
+	Ny = int(np.ceil((Y_max - Y_min) / delta))
+
+	# Centers of grid cells
+	xs = X_min + (np.arange(Nx) + 0.5) * delta
+	ys = Y_min + (np.arange(Ny) + 0.5) * delta
+
+	shadow = np.zeros((Ny, Nx), dtype=bool)
+
+	# For each monomer, mark cells whose centers fall inside its projected circle
+	for Xi, Yi, ri in zip(X, Y, radii):
+		if ri <= 0:
+			continue
+
+		# Find index ranges potentially affected by this sphere
+		ix_min = max(0, int(np.floor((Xi - ri - X_min) / delta)))
+		ix_max = min(Nx - 1, int(np.floor((Xi + ri - X_min) / delta)))
+		iy_min = max(0, int(np.floor((Yi - ri - Y_min) / delta)))
+		iy_max = min(Ny - 1, int(np.floor((Yi + ri - Y_min) / delta)))
+
+		if ix_min > ix_max or iy_min > iy_max:
+			continue
+
+		local_x = xs[ix_min:ix_max+1]
+		local_y = ys[iy_min:iy_max+1]
+
+		dx2 = (local_x[None, :] - Xi)**2   # shape (1, n_x_local)
+		dy2 = (local_y[:, None] - Yi)**2   # shape (n_y_local, 1)
+
+		mask_local = dx2 + dy2 <= ri**2
+		shadow[iy_min:iy_max+1, ix_min:ix_max+1] |= mask_local
+
+	N_shadow = np.count_nonzero(shadow)
+	sigma = N_shadow * (delta**2)
+
+	if write:
+		write_shadow_grid(xs, ys, shadow, k=k, delta=delta,
+								 proj_points=None, radii=None, directory=directory)
+	return sigma
 
 # def mvee_points(points, tol=0.0001):
 # 	"""
@@ -982,63 +1476,7 @@ def check_ellipsoid_encloses_samples(samples, center, A, verbose=False,
 	return status, max_q
 
 
-def calc_fully_enclosed_ellipsoid(pos, radii, samples_per_sphere=8192,write=False, verbose=False):
-	"""
-	Minimum-volume enclosing ellipsoid of a union of spheres in R^3,
-	approximated by sampling sphere surfaces and running MVEE.
-	"""
 
-	relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + "../"
-	project_path = os.path.abspath(relative_path) + '/'
-	sys.path.append(project_path + "utilities/mvee/")
-	from mvee import mvee2
-
-	pos = np.asarray(pos, dtype=float)
-	radii = np.asarray(radii, dtype=float)
-	m, d = pos.shape
-	assert d == 3, "This helper is for 3D only."
-
-	# ---- sample surfaces ----
-	dirs = fibonacci_sphere(samples_per_sphere)  # (S, 3)
-
-	samples_list = []
-	for c, r in zip(pos, radii):
-		pts = c + r * dirs
-		samples_list.append(pts)
-
-	samples = np.vstack(samples_list).astype(float)  # (m*S, 3)
-
-	# ---- normalize for MVEE ----
-	mean = samples.mean(axis=0)
-	samples_centered = samples - mean
-	scale = np.max(np.linalg.norm(samples_centered, axis=1))
-	if scale < 1e-12:
-		scale = 1.0
-
-	samples_norm = samples_centered / scale
-	X = samples_norm.T
-
-	# ---- run MVEE ----
-	# ret = mvee2(X, full_output=True, epsilon=1e-6)
-	ret = mvee2(X, hybrid={}, full_output=True, epsilon=1e-6)
-
-	center_n, R_n, axes_n, A_n = ellipse_from_mvee2_output(ret)
-
-	status, max_q = check_ellipsoid_encloses_samples(samples_norm, center_n, A_n, verbose=verbose)
-
-	# ---- undo normalization ----
-	center = center_n * scale + mean
-	axes   = axes_n * scale
-	R      = R_n
-	A      = A_n / (scale**2)   # optional: A in original coords if you want it
-
-	# ---- validate numerically ----
-	if verbose:
-		print(f"Ellipsoid check: status={status}, max_q={max_q:.6e}")
-
-	if write:
-		write_bounding_ellipsoid_to_tmp(center, axes, R)
-	return status, max_q, center, R, axes
 
 def analyze_enclosing_ellipsoid_for_balls(pos, radii, center, A,
 										  n_dirs_check=64,
@@ -1152,42 +1590,18 @@ def analyze_enclosing_ellipsoid_for_balls(pos, radii, center, A,
 
 
 
-def write_convex_hull_to_tmp(points, hull, radii=None):
-	import tempfile
 
-	points = np.asarray(points, float)
-
-	# Map global indices -> compact local indices
-	vmap = {idx: i for i, idx in enumerate(hull.vertices)}
-	simplices_mapped = [
-		[vmap[a], vmap[b], vmap[c]]
-		for (a, b, c) in hull.simplices
-	]
-
-	tmp_dir = tempfile.gettempdir()
-	path = os.path.join(tmp_dir, "convex_hull.json")
-
-	data = {
-		"points": points[hull.vertices].tolist(),   # only hull vertices
-		"simplices": simplices_mapped,              # remapped faces
-		"hull_vertices": hull.vertices.tolist()
-	}
-
-	if radii is not None:
-		data["radii"] = np.asarray(radii, float).tolist()
-
-
-	with open(path, "w") as f:
-		json.dump(data, f, indent=2)
-
-	print(f"[INFO] Convex hull written to {path}")
-	return path
 
 
 def ellipsoid_eval(x, C, axes, R):
 	y = R.T @ (x - C)
 	return (y[0]/axes[0])**2 + (y[1]/axes[1])**2 + (y[2]/axes[2])**2
 
+#c is center of sphere
+#r is radius of sphere
+#C is center of ellipsoid
+#axes is pricipal axes of ellipsoid
+#R is rotation matirx of ellipsoid
 def sphere_point_relative_to_ellipsoid(c, r, C, axes, R):
 	"""
 	If sphere is fully inside ellipsoid → return closest sphere point to ellipsoid.
@@ -1215,6 +1629,47 @@ def sphere_point_relative_to_ellipsoid(c, r, C, axes, R):
 		# sphere pokes out
 		return p_far
 
+#find the point on the ellipsoid closest to p (the center of a grain)
+#C is the center of the ellipsoid, axes are the three semi-axes lengths of the ellipsoid, R is the rotation matrix of the ellipsoid
+# def project_point_onto_ellipsoid(p, C, axes, R):
+# 	from scipy.optimize import root_scalar
+# 	import numpy as np
+
+# 	p = np.asarray(p, float)
+# 	C = np.asarray(C, float)
+# 	axes = np.asarray(axes, float)
+# 	R = np.asarray(R, float)
+
+# 	#Transform into ellipsoid coordinates.
+# 	#u is point p in these coordinates
+# 	u = R.T @ (p - C)
+
+# 	#now a2[0] = a^2, a2[1] = b^2, a2[2] = c^2
+# 	a2 = axes**2
+
+# 	# print(f"point: {p}")
+# 	# print(f"center: {C}")
+
+# 	#use newtons method to solve for lam, the lagrange multiplier
+# 	def F(lam):
+# 		return np.sum((u*u)*a2 / (a2 + lam)**2) - 1.0
+
+# 	def Fprime(lam):
+# 		return np.sum(-2*(u*u)*a2 / (a2 + lam)**3)
+
+# 	# Newton always converges if p is not exactly the ellipsoid center.
+# 	sol = root_scalar(F, fprime=Fprime, x0=0.0, method='newton')
+# 	lam = sol.root
+
+# 	#use lam to find the point we want
+# 	x_local = u * a2 / (a2 + lam)
+
+# 	# print(f"returning: {C + R @ x_local}")
+
+# 	return C + R @ x_local
+
+#find the point on the ellipsoid closest to p (the center of a grain)
+#C is the center of the ellipsoid, axes are the three semi-axes lengths of the ellipsoid, R is the rotation matrix of the ellipsoid
 def project_point_onto_ellipsoid(p, C, axes, R):
 	from scipy.optimize import root_scalar
 	import numpy as np
@@ -1224,123 +1679,31 @@ def project_point_onto_ellipsoid(p, C, axes, R):
 	axes = np.asarray(axes, float)
 	R = np.asarray(R, float)
 
+	# Transform to ellipsoid coordinates
 	u = R.T @ (p - C)
 	a2 = axes**2
 
+	# Function
 	def F(lam):
 		return np.sum((u*u)*a2 / (a2 + lam)**2) - 1.0
 
-	def Fprime(lam):
-		return np.sum(-2*(u*u)*a2 / (a2 + lam)**3)
+	# Safe bracket
+	#This choice guarantees F(lam_lo) < 0 and F(lam_high) > 0
+	#Thus the solution has to be inside this range.
+	lam_lo = -np.min(a2) * 0.9999999  # stays just inside valid region
+	lam_hi =  np.max(a2) * 100       # safely positive
 
-	# Newton always converges if p is not exactly the ellipsoid center.
-	sol = root_scalar(F, fprime=Fprime, x0=0.0, method='newton')
+	# Use Brent's method (fast + guaranteed convergence)
+	sol = root_scalar(F, bracket=(lam_lo, lam_hi), method='brentq')
+
 	lam = sol.root
 
+	# Closest point in ellipsoid local coords
 	x_local = u * a2 / (a2 + lam)
+
+	# Back to world
 	return C + R @ x_local
 
-def calc_hull_volume(pos,radii,write=False):
-	"""
-	makes a convec hull around the aggregate and calculates it's volume
-
-	pos    : (m,3) centers of spheres
-	radii  : (m,) radii of spheres
-	samples_per_sphere : number of directions sampled on each sphere surface
-
-	Returns:
-		volume : volume enclosed by the convex hull
-	"""
-
-	pos = np.asarray(pos, dtype=float)
-	radii = np.asarray(radii, dtype=float)
-	m, d = pos.shape
-	assert d == 3, "This helper is for 3D only."
-
-	#Get points on spheres closest to MVEE
-	status,max_q,center,R,axes = calc_fully_enclosed_ellipsoid(pos,radii)
-
-	#If the MVEE failed return nan so we can try again later
-	if status != "ok":
-		return np.nan
-
-	support_points = np.vstack([
-		sphere_point_relative_to_ellipsoid(pos[i], radii[i], center, axes, R)
-		for i in range(len(pos))
-	])
-	# support_points = pos
-
-	# --- Build convex hull ---
-	print("calcing hull")
-	hull = sp.spatial.ConvexHull(support_points)
-
-	# sanity check for Blender
-	if hull.simplices.size == 0:
-		raise RuntimeError("Convex hull is degenerate (no faces). Cannot export.")
-
-	if write:
-		write_convex_hull_to_tmp(support_points, hull)
-
-	return hull.volume
-
-def write_shadow_grid_to_tmp(xs, ys, shadow, k=None, delta=None,
-                             proj_points=None, radii=None):
-    """
-    Write the 2D projected grid + shadow mask to a temporary JSON file
-    so Blender can visualize it.
-
-    Parameters
-    ----------
-    xs : (Nx,)  array of x-coordinates of grid cell centers
-    ys : (Ny,)  array of y-coordinates of grid cell centers
-    shadow : (Ny, Nx) boolean array (True = cell is shadowed)
-    k : (3,) projection/view direction (optional)
-    delta : float, grid spacing (optional)
-    proj_points : (N,2) projected monomer centers (optional)
-    radii : (N,) monomer radii (optional)
-
-    Returns
-    -------
-    path : str
-        Path to the JSON file.
-    """
-    import numpy as np
-    import json, os, tempfile
-
-    xs = np.asarray(xs, float)
-    ys = np.asarray(ys, float)
-    shadow = np.asarray(shadow, bool)
-
-    Ny, Nx = shadow.shape
-    assert xs.shape[0] == Nx
-    assert ys.shape[0] == Ny
-
-    tmp_dir = tempfile.gettempdir()
-    path = os.path.join(tmp_dir, "shadow_grid.json")
-
-    data = {
-        "xs": xs.tolist(),         # x grid centers
-        "ys": ys.tolist(),         # y grid centers
-        "shadow": shadow.tolist(), # 2D boolean mask
-    }
-
-    if k is not None:
-        data["k"] = np.asarray(k, float).tolist()
-
-    if delta is not None:
-        data["delta"] = float(delta)
-
-    if proj_points is not None:
-        data["proj_points"] = np.asarray(proj_points, float).tolist()
-
-    if radii is not None:
-        data["radii"] = np.asarray(radii, float).tolist()
-
-    with open(path, "w") as f:
-        json.dump(data, f, indent=2)
-
-    print(f"[INFO] Shadow grid written to {path}")
-    return path
 
 def _orthonormal_basis_from_k(k):
 	"""Given a unit vector k, return two unit vectors u, v that span the plane ⟂ k."""
@@ -1359,103 +1722,7 @@ def _orthonormal_basis_from_k(k):
 	# v should already be unit if k, u are unit and orthogonal
 	return u, v
 
-def calc_geometric_cross_section(
-	pos,
-	radii,
-	direction=(0.0, 0.0, 1.0),
-	r1=None,
-	mesh_factor=0.0055,
-	write = False
-):
-	"""
-	Compute geometric cross section of an aggregate by mesh-counting the projected shadow.
 
-	Parameters
-	----------
-	pos : (N, 3) array
-		Monomer centers.
-	radii : (N,) array or float
-		Monomer radii. If float, same radius for all.
-	r1 : float, optional
-		Reference monomer radius used for mesh size. If None and radii is array,
-		uses min(radii).
-	k : (3,) array-like, optional
-		Viewing direction (will be normalized).
-	mesh_factor : float, optional
-		Grid spacing as fraction of r1 (Suyama uses 0.0055).
-
-	Returns
-	-------
-	sigma : float
-		Geometric cross section for this viewing direction.
-	"""
-
-	pos = np.asarray(pos, dtype=float)
-	N = pos.shape[0]
-	if np.isscalar(radii):
-		radii = np.full(N, float(radii))
-	else:
-		radii = np.asarray(radii, dtype=float)
-
-	if r1 is None:
-		r1 = float(np.min(radii))
-	delta = mesh_factor * r1
-
-	# Orthonormal basis (u, v) spanning plane ⟂ k
-	k = np.asarray(direction, dtype=float)
-	k /= np.linalg.norm(k)
-	u, v = _orthonormal_basis_from_k(k)
-
-	# Project centers into (X, Y) plane
-	X = pos @ u   # shape (N,)
-	Y = pos @ v   # shape (N,)
-
-	r_max = np.max(radii)
-
-	X_min = X.min() - r_max
-	X_max = X.max() + r_max
-	Y_min = Y.min() - r_max
-	Y_max = Y.max() + r_max
-
-	Nx = int(np.ceil((X_max - X_min) / delta))
-	Ny = int(np.ceil((Y_max - Y_min) / delta))
-
-	# Centers of grid cells
-	xs = X_min + (np.arange(Nx) + 0.5) * delta
-	ys = Y_min + (np.arange(Ny) + 0.5) * delta
-
-	shadow = np.zeros((Ny, Nx), dtype=bool)
-
-	# For each monomer, mark cells whose centers fall inside its projected circle
-	for Xi, Yi, ri in zip(X, Y, radii):
-		if ri <= 0:
-			continue
-
-		# Find index ranges potentially affected by this sphere
-		ix_min = max(0, int(np.floor((Xi - ri - X_min) / delta)))
-		ix_max = min(Nx - 1, int(np.floor((Xi + ri - X_min) / delta)))
-		iy_min = max(0, int(np.floor((Yi - ri - Y_min) / delta)))
-		iy_max = min(Ny - 1, int(np.floor((Yi + ri - Y_min) / delta)))
-
-		if ix_min > ix_max or iy_min > iy_max:
-			continue
-
-		local_x = xs[ix_min:ix_max+1]
-		local_y = ys[iy_min:iy_max+1]
-
-		dx2 = (local_x[None, :] - Xi)**2   # shape (1, n_x_local)
-		dy2 = (local_y[:, None] - Yi)**2   # shape (n_y_local, 1)
-
-		mask_local = dx2 + dy2 <= ri**2
-		shadow[iy_min:iy_max+1, ix_min:ix_max+1] |= mask_local
-
-	N_shadow = np.count_nonzero(shadow)
-	sigma = N_shadow * (delta**2)
-
-	if write:
-		write_shadow_grid_to_tmp(xs, ys, shadow, k=k, delta=delta,
-                             proj_points=None, radii=None)
-	return sigma
 
 def get_data(data_folder,data_index=-1,linenum=-1,relax=False): #Works with both csv and h5
 	if data_folder == '/home/kolanzl/Desktop/bin/merger.csv':
@@ -2257,7 +2524,7 @@ def on_queue(job_name):
 	return False
 
 
-def rand_int():
+def rand_seed():
 	import datetime
 
 	random.seed(datetime.datetime.now().timestamp())
@@ -2266,3 +2533,10 @@ def rand_int():
 	max_unsigned_int_cpp = 2**32 - 1
 	random_unsigned_int = random.randint(0, max_unsigned_int_cpp)
 	return random_unsigned_int
+
+
+
+def make_rand_vector(dims):
+	vec = [random.gauss(0, 1) for i in range(dims)]
+	mag = sum(x**2 for x in vec) ** .5
+	return [x/mag for x in vec]

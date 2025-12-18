@@ -30,90 +30,110 @@ import utils as u
 # Path for the single global log file
 GLOBAL_LOG = f"{project_path}../SpaceLab_data/logs/"
 
-def calc_geometric_cross_section(data_folder,size,relax=False):
+#from Suyama 2012
+def calc_geometric_cross_section(data_folder,size,relax=False,**kwargs):
+	makeVisual = kwargs.get("makeVisual", False)
+
 	pos,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
 	if pos is None:
 		return np.nan
 
-	orientations = 30
+	if makeVisual:
+		orientations = 1
+	else:
+		orientations = 30
+	
 	gcs = 0
+	direction = (0,0,1)
 	for _ in range(orientations):
-		direction = (0,0,1)
-		gcs += u.calc_geometric_cross_section(pos,radius,direction=direction)
+		if not makeVisual:
+			direction = u.make_rand_vector(3)
+			gcs += u.calc_geometric_cross_section(pos,radius,direction=direction,write=makeVisual,directory=data_folder)
+		else:
+			gcs += u.calc_geometric_cross_section(pos,radius,direction=direction,mesh_factor=1.0,write=makeVisual,directory=data_folder)
 	gcs /= orientations
 
-	return gcs
+
+	normalization = np.pi*np.sum(np.power(radius,2))
+
+	return (gcs/normalization)
 
 
-def calc_porosity_ch(data_folder,size,relax=False):
+def calc_porosity_ch(data_folder,size,relax=False,**kwargs):
+	makeVisual = kwargs.get("makeVisual", False)
+
 	pos,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
 	if pos is None:
 		return np.nan
 	
 	effective_radius_cubed = np.sum(np.power(radius,3))
 
-	hull_vol = u.calc_hull_volume(pos,radius)
+	hull_vol = u.calc_hull_volume(pos,radius,write=makeVisual,directory=data_folder)
 
 	#if the MVEE failed, return NAN
 	if np.isnan(hull_vol):
 		return np.nan
 
-	porosity = 1-effective_radius_cubed/(hull_vol)
+	porosity = 1-((4.0/3.0)*np.pi*effective_radius_cubed)/(hull_vol)
 
 	return porosity
 
-def calc_porosity_fee(data_folder, size, relax=False):
-    # Load particle data
-    pos, radius, mass, moi = u.get_data(data_folder, data_index=size, relax=relax)
-    if pos is None:
-        return np.nan
+def calc_porosity_fee(data_folder, size, relax=False,**kwargs):
+	makeVisual = kwargs.get("makeVisual", False)
 
-    # Compute reference volume
-    effective_radius_cubed = np.sum(radius**3)
+	# Load particle data
+	pos, radius, mass, moi = u.get_data(data_folder, data_index=size, relax=relax)
+	if pos is None:
+		return np.nan
 
-    # Compute ellipsoid + QC
-    status, max_q, c, R, axes = u.calc_fully_enclosed_ellipsoid(pos, radius)
+	# Compute reference volume
+	effective_radius_cubed = np.sum(radius**3)
 
-    # --- Logging ---
-    logfile = GLOBAL_LOG+"ellipsoid_log.csv"
-    log_exists = os.path.isfile(logfile)
+	# Compute ellipsoid + QC
+	status, max_q, c, R, axes = u.calc_fully_enclosed_ellipsoid(pos, radius, write=makeVisual,directory=data_folder)
 
-    row = {
-        "data_folder": data_folder,
-        "size": size,
-        "status": status,
-        "max_q": max_q
-    }
+	# --- Logging ---
+	logfile = GLOBAL_LOG+"ellipsoid_log.csv"
+	log_exists = os.path.isfile(logfile)
 
-    with open(logfile, "a", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=row.keys())
-        if not log_exists:
-            writer.writeheader()
-        writer.writerow(row)
+	row = {
+		"data_folder": data_folder,
+		"size": size,
+		"status": status,
+		"max_q": max_q
+	}
 
-    if status != "ok":
-    	return np.nan
+	with open(logfile, "a", newline="") as f:
+		writer = csv.DictWriter(f, fieldnames=row.keys())
+		if not log_exists:
+			writer.writeheader()
+		writer.writerow(row)
 
-    # Compute porosity
-    porosity = 1 - effective_radius_cubed / (axes[0] * axes[1] * axes[2])
+	if status != "ok":
+		return np.nan
 
-    return porosity
+	# Compute porosity
+	porosity = 1 - effective_radius_cubed / (axes[0] * axes[1] * axes[2])
+
+	return porosity
 
 
-def calc_porosity_fes(data_folder,size,relax=False):
+def calc_porosity_fes(data_folder,size,relax=False,**kwargs):
+	makeVisual = kwargs.get("makeVisual", False)
+
 	pos,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
 	if pos is None:
 		return np.nan
 		
 	effective_radius_cubed = np.sum(np.power(radius,3))
 
-	_,full_sphere_radius = u.calc_fully_enclosed_sphere(pos,radius)
+	_,full_sphere_radius = u.calc_fully_enclosed_sphere(pos,radius,write=makeVisual,directory=data_folder)
 
 	porosity = 1-effective_radius_cubed/np.power(full_sphere_radius,3)
 
 	return porosity
 
-def calc_asymmetry_parameter(data_folder,size,relax=False):
+def calc_asymmetry_parameter(data_folder,size,relax=False,**kwargs):
 	data,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
 	if data is None:
 		return np.nan
@@ -130,7 +150,7 @@ def calc_asymmetry_parameter(data_folder,size,relax=False):
 	return np.sqrt(alphai[0]/(alphai[1]+alphai[2]-alphai[0])) #From Draine Sensitivity of Polarization to Grain Shape. II. Aggregates
 
 
-def calc_stretch_parameter(data_folder,size,relax=False):
+def calc_stretch_parameter(data_folder,size,relax=False,**kwargs):
 	data,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
 	if data is None:
 		return np.nan
@@ -146,92 +166,48 @@ def calc_stretch_parameter(data_folder,size,relax=False):
 
 	return alphai[1]/np.sqrt(alphai[0]*alphai[2])
 
-def calc_porosity_abc(data_folder,size,relax=False):
-	data,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
-	if data is None:
-		return np.nan
-	# num_balls = data.shape[0]
+def calc_porosity_abc(data_folder,size,relax=False, **kwargs):
+	makeVisual = kwargs.get("makeVisual", False)
 
-	vol = [(4*np.pi/3)*r**3 for r in radius]
+	pos,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
+	if pos is None:
+		return np.nan
 
 	effective_radius = np.power(np.sum(np.power(radius,3)),1/3) 
 
+	a,b,c = u.calc_equivalent_ellipsoid_principal_axes(effective_radius,pos,mass,data_folder,write=makeVisual)
 		
-	# principal_moi = u.get_principal_moi(vol,data)
-	principal_moi = u.get_principal_moi(mass,data)[::-1]
-	
-	
-	alphai = principal_moi/(0.4*np.sum(mass)*effective_radius**2)
-	# alphai = principal_moi/(0.4*np.sum(vol)*effective_radius**2)
-	
-	a = effective_radius * np.sqrt(alphai[1] + alphai[2] - alphai[0])
-	b = effective_radius * np.sqrt(alphai[2] + alphai[0] - alphai[1])
-	c = effective_radius * np.sqrt(alphai[0] + alphai[1] - alphai[2])
-	
-	# Rabc = np.power(a*b*c,1/3)
 	porosity = 1-(effective_radius**3/(a*b*c))
 
 	return porosity
 
-def calc_porosity_KBM(data_folder,size,relax=False):
-	data,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
-	if data is None:
+def calc_porosity_KBM(data_folder,size,relax=False,**kwargs):
+	makeVisual = kwargs.get("makeVisual", False)
+
+	pos,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
+	if pos is None:
 		return np.nan
-	# num_balls = data.shape[0]
 
 	effective_radius = np.power(np.sum(np.power(radius,3)),1/3)   
-		
-	principal_moi = u.get_principal_moi(mass,data)[::-1]
-	# principal_moi = u.get_principal_moi(np.mean(mass),data)
 
-	alphai = principal_moi/(0.4*np.sum(mass)*effective_radius**2)
-
-	RKBM = np.sqrt(np.sum(alphai)/3) * effective_radius
-
-	# total_mass = np.sum(mass)
-	# cofm = np.einsum('i,ij->j', mass, data) / total_mass
-
-	# Rgyr = np.sqrt(np.sum(mass*(np.linalg.norm(data,axis=1)-np.linalg.norm(cofm))**2)/total_mass)
+	RKBM = u.calc_gyration_radius(effective_radius,pos,mass,data_folder,write=makeVisual)
 
 	porosity = 1-np.power((effective_radius/RKBM),3)
-	# print(f"Rgyr way: {1-np.power((effective_radius/((5/3)**(1/2)*Rgyr)),3)}")
-	# print(f"other way: {porosity}")
 
 	return porosity
 
-def calc_number_of_contacts(data_folder,data_index=-1,relax=False):
-	print(data_folder)
-	line = 0
-	max_nc = -1
-	nc = number_of_contacts(data_folder,data_index,line,relax)
-	while not np.isnan(nc):
-		max_nc = max(max_nc,nc)
-		line += 1 
-		nc = number_of_contacts(data_folder,data_index,line,relax)
-	return max_nc
+def calc_number_of_contacts(data_folder,data_index=-1,relax=False,**kwargs):
+	makeVisual = kwargs.get("makeVisual", False)
 
-def number_of_contacts(data_folder,size,line,relax=False):
-	data,radius,mass,moi = u.get_data(data_folder,data_index=size,linenum=line,relax=relax)
+	return u.calc_max_number_of_contacts(data_folder,data_index,relax,makeVisual)
 
-	if data is None:
-		return np.nan
-	data = np.array(data)
-	num_balls = data.shape[0]
+	
 
-	contacts = np.zeros((num_balls,num_balls),dtype=int)
-	dist = lambda i,j: np.sqrt((data[i][0]-data[j][0])**2 + (data[i][1]-data[j][1])**2 + \
-			(data[i][2]-data[j][2])**2)
 
-	##IT FEELS LIKE THIS IS OVERCOUNTING BUT IT ISN'T.
-	##EACH BALL FELLS ITS OWN CONTACTS.
-	for i in range(num_balls):
-		for j in range(num_balls):
-			if i != j:
-				contacts[i,j] = (dist(i,j) <= (radius[i]+radius[j]))
 
-	return np.mean(np.sum(contacts,axis=1))
+def calc_fractal_dimension(data_folder,size,relax=False,**kwargs):
+	makeVisual = kwargs.get("makeVisual", False)
 
-def calc_fractal_dimension(data_folder,size,relax=False):
 	overwrite_octree_data = True
 	show_FD_plots = False
 	o3dv = u.o3doctree(data_folder,overwrite_data=overwrite_octree_data,index=size,Temp=-1,relax=relax)
@@ -248,7 +224,7 @@ data_functions = [calc_porosity_abc,calc_porosity_KBM, \
 					calc_porosity_ch,calc_geometric_cross_section]
 data_headers = [i.__name__[5:] for i in data_functions]
 
-def calc_from_size(size,directory,existing_headers,existing_values,requested_headers,relax=False,overwrite=False):
+def calc_from_size(size,directory,existing_headers,existing_values,requested_headers,relax=False,overwrite=False,makeVisual=False):
 	headers = []
 	values = []
 
@@ -260,12 +236,19 @@ def calc_from_size(size,directory,existing_headers,existing_values,requested_hea
 				headers.append(header)
 				#if the value is nan then we need to recalculate
 				if existing_values[index] == "nan":
-					existing_values[index] = str(data_functions[h](directory,size,relax))
+					existing_values[index] = str(data_functions[h](directory,size,relax,makeVisual=makeVisual))
 				values.append(existing_values[index])
 			#we dont have this header and we want it, so calculate
 			elif (header not in existing_headers and header in requested_headers):
 				headers.append(header)
-				values.append(str(data_functions[h](directory,size,relax)))
+				val = np.nan
+				for _ in range(10):
+					val = data_functions[h](directory,size,relax,makeVisual=makeVisual)
+					if not np.isnan(val):
+						break
+				else:
+					print(f"Non nan value not calculated for directory: {directory}")
+				values.append(str(val))
 		else:
 			#we already have this header and didn't ask for it, so just include it
 			if header in existing_headers and header not in requested_headers:
@@ -275,7 +258,14 @@ def calc_from_size(size,directory,existing_headers,existing_values,requested_hea
 			#if overwrite, we want to calculate reguardless, if header is requested
 			elif header in requested_headers:
 				headers.append(header)
-				values.append(str(data_functions[h](directory,size,relax)))
+				val = np.nan
+				for _ in range(10):
+					val = data_functions[h](directory,size,relax,makeVisual=makeVisual)
+					if not np.isnan(val):
+						break
+				else:
+					print(f"Non nan value not calculated for directory: {directory}")
+				values.append(str(val))
 
 	return headers,values
 
@@ -287,21 +277,16 @@ if __name__ == '__main__':
 	
 	path = input_json["data_directory"]
 
-	# data_prefolder = path + 'jobsNovus/const_relax'
-	# data_prefolder = path + 'jobsCosine/lognormrelax_*'
 
-	# data_file = "test_job_data.csv" #without centering #mean mass
-	# data_file = "test_RKBMs_job_data.csv" #print both ways of RKBM
-	# data_file = "test_maxnc_job_data.csv" #max nc
-	# data_file = "DELETE_job_data.csv" #with centering 
-	# data_file = "nonrelax_job_data.csv" #This nonrelax data follows the Df figure in paper
-	data_file = "job_data.csv" #with centering
+
+
+	data_file = "job_data.csv" 
 
 
 
 
-	N = [30,100,300]
 	N = [300]
+	# N = [30,100,300]
 
 	#list of the functions that calculate the data you want
 	#if adding to this list, name your function calc_*header_name*
@@ -311,12 +296,13 @@ if __name__ == '__main__':
 	#to calculate as an input.
 	#It should return a single data value.
 	# bool_headers = [1,1,0,0,1,0,0,0]
-	bool_headers = [1,1,0,1,1,0,0,0,0,0]
-	bool_headers = [0,0,0,0,0,0,1,1,1,0]
+	bool_headers = [1,0,0,0,0,0,0,0,0,0]
+	bool_headers = [0,0,0,0,0,0,0,0,0,1]
 	# requested_data_functions = [data_functions[i] for i in range(len(data_functions)) if bool_headers[i]]
 	requested_data_headers = [data_headers[i] for i in range(len(data_headers)) if bool_headers[i]]
 
-	overwritedata = False
+	overwritedata = True
+	makeVisual = False
 
 	for n_i,n in enumerate(N):
 	
@@ -336,13 +322,14 @@ if __name__ == '__main__':
 
 		# data_folders.append(path + 'jobs/SeqStickLognormrelax*/')
 		# data_folders.append(path + 'jobs/SeqStickConstrelax*/')
+		# data_folders.append(path + f'jobs/constrollingfricrelax*/N_{n}/*')
 		
 		# data_folders.append(path + f'jobsNovus/const_*/N_{n}/*')
 		# data_folders.append(path + f'jobsCosine/lognorm_*/N_{n}/*')
 		# data_folders.append(path + f'jobsNovus/constrelax_*/N_{n}/*')
 		# data_folders.append(path + f'jobsCosine/lognormrelax_*/N_{n}/*')
-		# data_folders.append(path + f'jobs/constrollingfricrelax*/N_{n}/*')
-		data_folders.append('/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobsCosine/lognormrelax_22/N_300/T_3/')
+		data_folders.append('/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobsNovus/constrelax_4/N_300/T_30/')
+		# data_folders.append('/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobsCosine/lognormrelax_12/N_300/T_3/')
 
 		possible_dirs = []
 		for data_folder in data_folders:
@@ -391,7 +378,7 @@ if __name__ == '__main__':
 					#If this size wasn't requested then we don't want to overwrite it
 					#Or if overwrite is true then overwrite anyway
 					if overwritedata or size in requested_sizes[d_i]:
-						headers,values = calc_from_size(size,directory,existing_headers_for_size,existing_values_for_size,requested_data_headers,relax,overwritedata)
+						headers,values = calc_from_size(size,directory,existing_headers_for_size,existing_values_for_size,requested_data_headers,relax,overwritedata,makeVisual)
 						print(headers)
 						print(values)
 					else:
