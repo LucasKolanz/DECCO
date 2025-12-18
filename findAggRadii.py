@@ -21,8 +21,18 @@ sys.path.append(project_path+"utilities/")
 import utils as u
 import dataUtils as du
 
+def findMonomerRadii(data_folder,relax=False):
+	size = int(data_folder.split('/')[-3].split('_')[-1])
+	try:
+		pos,radii,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
+	except:
+		print(f"no data in {data_folder}")
+		return np.nan,np.nan
+	if pos is None:
+		return np.nan,np.nan
 
 
+	return np.min(radii),np.max(radii)
 
 def calcAggRadii(folder,relax=False):
 	pos = du.getPos(folder,relax)
@@ -44,11 +54,11 @@ def main():
 	jobs = []
 
 	# job = input_json["data_directory"] + job_folder + 'constant$a$/N_$n$/T_$t$/'
-	job_folder = 'jobsNovus/'
-	job = input_json["data_directory"] + job_folder + 'const_relax$a$/N_$n$/T_$t$/'
-	jobs.append(job)
+	# job_folder = 'jobsNovus/'
+	# job = input_json["data_directory"] + job_folder + 'constrelax_$a$/N_$n$/T_$t$/'
+	# jobs.append(job)
 	job_folder = 'jobsCosine/'
-	job = input_json["data_directory"] + job_folder + 'lognorm_relax$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + job_folder + 'lognormrelax_$a$/N_$n$/T_$t$/'
 	jobs.append(job)
 
 	# print(job)
@@ -65,17 +75,26 @@ def main():
 	# Temps = [3]
 
 	aggRadii = []
+	minmonomerRadii = []
+	maxmonomerRadii = []
 	for job in jobs:
 		relax = False
-		if job.split("/")[-4].split("_")[-1].strip("$a$") == "relax":
+		if "relax" in job:
 			relax = True
+		print(f"relax: {relax}")
 		for attempt in attempts:
 			for n in N:
 				for Temp in Temps:
 					folder = job.replace("$a$",str(attempt)).replace("$n$",str(n)).replace("$t$",str(Temp))
 					aggRadii.append(calcAggRadii(folder,relax))
-	print(f"Max radii: {max(aggRadii)}")
-	print(f"Min radii: {min(aggRadii)}")
+					minradii,maxradii = findMonomerRadii(folder,relax)
+					minmonomerRadii.append(minradii)
+					maxmonomerRadii.append(maxradii)
+	print(f"Max Agg radii: {np.nanmax(aggRadii)}")
+	print(f"Min Agg radii: {np.nanmin(aggRadii)}")
+
+	print(f"Max mono radii: {np.nanmax(maxmonomerRadii)}")
+	print(f"Min mono radii: {np.nanmin(minmonomerRadii)}")
 
 if __name__ == '__main__':
 	main()
