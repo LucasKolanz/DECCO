@@ -31,6 +31,7 @@ import utils as u
 GLOBAL_LOG = f"{project_path}../SpaceLab_data/logs/"
 
 #from Suyama 2012
+#Just geometric cross section, no normalization or nothing. 
 def calc_geometric_cross_section(data_folder,size,relax=False,**kwargs):
 	makeVisual = kwargs.get("makeVisual", False)
 
@@ -52,11 +53,10 @@ def calc_geometric_cross_section(data_folder,size,relax=False,**kwargs):
 		else:
 			gcs += u.calc_geometric_cross_section(pos,radius,direction=direction,mesh_factor=1.0,write=makeVisual,directory=data_folder)
 	gcs /= orientations
+	
+	# normalization = np.pi*np.sum(np.power(radius,2))
 
-
-	normalization = np.pi*np.sum(np.power(radius,2))
-
-	return (gcs/normalization)
+	return gcs
 
 
 def calc_porosity_ch(data_folder,size,relax=False,**kwargs):
@@ -285,8 +285,8 @@ if __name__ == '__main__':
 
 
 
-	N = [300]
-	# N = [30,100,300]
+	# N = [300]
+	N = [30,100,300]
 
 	#list of the functions that calculate the data you want
 	#if adding to this list, name your function calc_*header_name*
@@ -326,9 +326,9 @@ if __name__ == '__main__':
 		
 		# data_folders.append(path + f'jobsNovus/const_*/N_{n}/*')
 		# data_folders.append(path + f'jobsCosine/lognorm_*/N_{n}/*')
-		# data_folders.append(path + f'jobsNovus/constrelax_*/N_{n}/*')
-		# data_folders.append(path + f'jobsCosine/lognormrelax_*/N_{n}/*')
-		data_folders.append('/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobsNovus/constrelax_4/N_300/T_30/')
+		data_folders.append(path + f'jobsNovus/constrelax_*/N_{n}/*')
+		data_folders.append(path + f'jobsCosine/lognormrelax_*/N_{n}/*')
+		# data_folders.append('/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobsNovus/constrelax_4/N_300/T_30/')
 		# data_folders.append('/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobsCosine/lognormrelax_12/N_300/T_3/')
 
 		possible_dirs = []
