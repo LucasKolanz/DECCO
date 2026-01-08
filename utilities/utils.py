@@ -28,29 +28,33 @@ import re
 
 data_columns = 11
 
-#next three functions translated from matlab code from
-#https://blogs.mathworks.com/cleve/files/menger.m
-# def menger(level):
-# 	V = [[-3,-3,-3],[-3,-3,3],[-3,3,-3],[-3,3,3],[3,-3,-3],[3,-3,3],[3,3,-3],[3,3,3]]
-# 	V = np.array(V) 
-# 	V = sponge(V,level)
-# 	return V
 
-# def sponge(V,level):
-
-# 	if level > 0:
-# 		V = V/3
-# 		for x in [-2,0,2]:
-# 			for y in [-2,0,2]:
-# 				for z in [-2,0,2]:
-# 					if np.sum(np.array([x,y,z])) > 0:
-# 						sponge(V)
-# 	# else:
-# 		# cube(V)			
-# 	return V	
-
-# def cube(V):
-	# return
+#This function does final data analysis before plotting on a value. 
+#For instance, if you want to plot a porosity based on the geometric cross section
+#but only the raw geometric cross section is saved, this function does that final step.
+#Most headers will just pass right through. This is more for special cases
+def get_plottable_value_from_saved_value(value,header,folder,data_index,relax):
+	if header == "porosity_abc":
+		return value
+	elif header == "porosity_KBM":
+		return value 
+	elif header == "number_of_contacts":
+		return value
+	elif header == "fractal_dimension":
+		return value
+	elif header == "porosity_fee":
+		return value 
+	elif header == "porosity_fes":
+		return value 
+	elif header == "porosity_ch":
+		return value
+	elif header == "geometric_cross_section":
+		pos,radius,mass,moi = get_data(folder,data_index=data_index,relax=relax)
+		S = float(value)
+		r = np.sqrt(S/np.pi)
+		r_ef_cubed = np.sum(np.power(radius,3))
+		data = 1-(r_ef_cubed/r**3)
+		return data
 
 
 
