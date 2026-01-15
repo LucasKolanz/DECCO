@@ -143,6 +143,14 @@ def addEllipsoid(json_file, blender_ellipsoid_name="ellipsoid",color=(1,0,0,1)):
 
 	print("[INFO] Ellipsoid added successfully.")
 
+def addGCSSphere(directory=""):
+	# default to temp directory
+	if directory == "":
+		directory = tempfile.gettempdir()
+	json_file = os.path.join(directory, "GCS_sphere.json")
+	blender_sphere_name = "GCSSphere"
+
+	addSphere(json_file,blender_sphere_name,color=(140.0/256.0,86.0/256.0,75.0/256.0,1))
 
 
 def addEnclosingSphere(directory=""):
@@ -398,7 +406,9 @@ def addShadowGrid(directory="", blender_shadow_grid_name="shadowGrid", grid_offs
     # ------------------------------------------------------------------
     # Single unlit material for all shadow quads
     # ------------------------------------------------------------------
-    color = (140.0/256.0, 86.0/256.0, 75.0/256.0, 1.0)  # your brownish color
+    # color = (140.0/256.0, 86.0/256.0, 75.0/256.0, 1.0)  # brownish color
+    color = (160.0/256.0, 106.0/256.0, 95.0/256.0, 1.0)  # darker brownish color
+    # color = (180.0/256.0, 126.0/256.0, 115.0/256.0, 1.0)  # even darker brownish color
     grid_mat = make_simple_unlit_material("GridShadowUnlit", color)
 
     mesh.materials.clear()
