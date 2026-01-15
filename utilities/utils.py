@@ -1,8 +1,9 @@
 #TODO: move the getting data stuff into the other python helper file and keep this one for calculations
 #	   and such
 
-
 import numpy as np
+# import scipy as sp
+# import cvxpy as cp
 import random
 # from scipy.spatial.transform import Rotation as R
 import os,glob
@@ -21,35 +22,39 @@ import re
 # cwd = os.getcwd()
 # os.system("cd /home/kolanzl/Open3D/build")
 # sys.path.append("/home/kolanzl/Open3D/build/lib/python_package/open3d")
-import open3d as o3d
+# import open3d as o3d
 ##include <pybind11/stl.h>`? Or <pybind11/complex.h>,
 # <pybind11/functional.h>, <pybind11/chrono.h>
 
 data_columns = 11
 
-#next three functions translated from matlab code from
-#https://blogs.mathworks.com/cleve/files/menger.m
-# def menger(level):
-# 	V = [[-3,-3,-3],[-3,-3,3],[-3,3,-3],[-3,3,3],[3,-3,-3],[3,-3,3],[3,3,-3],[3,3,3]]
-# 	V = np.array(V) 
-# 	V = sponge(V,level)
-# 	return V
 
-# def sponge(V,level):
-
-# 	if level > 0:
-# 		V = V/3
-# 		for x in [-2,0,2]:
-# 			for y in [-2,0,2]:
-# 				for z in [-2,0,2]:
-# 					if np.sum(np.array([x,y,z])) > 0:
-# 						sponge(V)
-# 	# else:
-# 		# cube(V)			
-# 	return V	
-
-# def cube(V):
-	# return
+#This function does final data analysis before plotting on a value. 
+#For instance, if you want to plot a porosity based on the geometric cross section
+#but only the raw geometric cross section is saved, this function does that final step.
+#Most headers will just pass right through. This is more for special cases
+def get_plottable_value_from_saved_value(value,header,folder,data_index,relax):
+	if header == "porosity_abc":
+		return value
+	elif header == "porosity_KBM":
+		return value 
+	elif header == "number_of_contacts":
+		return value
+	elif header == "fractal_dimension":
+		return value
+	elif header == "porosity_fee":
+		return value 
+	elif header == "porosity_fes":
+		return value 
+	elif header == "porosity_ch":
+		return value
+	elif header == "geometric_cross_section":
+		pos,radius,mass,moi = get_data(folder,data_index=data_index,relax=relax)
+		S = float(value)
+		r = np.sqrt(S/np.pi)
+		r_ef_cubed = np.sum(np.power(radius,3))
+		data = 1-(r_ef_cubed/r**3)
+		return data
 
 
 
@@ -702,7 +707,7 @@ def get_all_constants(data_folder,data_index=-1,relax=False): #Works with csv an
 	return data_constants
 
 #a line of data is in the following format
-#x0,y0,z0,wx0,wy0,wz0,wmag0,vx0,vy0,vz0,bound0
+#x0,y0,z0,wx0,wy0,wz0,wmag0,vx0,vy0,vz0,bound0, ... ,xN,yN,zN,wxN,wyN,wzN,wmagN,vxN,vyN,vzN,boundN
 def format_pos(data):
 	if data is not None and not np.isscalar(data):
 		data = np.reshape(data,(int(data.size/data_columns),data_columns))
@@ -719,15 +724,18 @@ def format_vel(data):
 	data = data[:,7:10] #vel is after 3x pos, 3x w, 1x w mag, and is 3 long
 	return data
 
-def calcCOM(pos,mass):
-	com = np.array([0,0,0],dtype=np.float64)
-	mtot = 0
+def calcCOM(mass, pos):
+	mass = np.asarray(mass, dtype=np.float64)
+	pos  = np.asarray(pos,  dtype=np.float64)
 
-	for ball in range(pos.shape[0]):
-		com += mass[ball]*pos[ball]
-		mtot += mass[ball]
+	if pos.shape[0] != mass.shape[0]:
+		raise ValueError("mass and pos must have same length")
+	if pos.shape[1] != 3:
+		raise ValueError("pos must be an (N,3) array")
 
-	return com/mtot
+	mtot = mass.sum()
+	com = np.sum(pos * mass[:, None], axis=0)
+	return com / mtot
 
 def COM(data_folder,data_index=-1,relax=False):
 	data = get_last_line_data(data_folder,data_index,relax=relax)
@@ -741,6 +749,1014 @@ def COM(data_folder,data_index=-1,relax=False):
 		mtot += consts[ball][0]
 
 	return com/mtot
+
+
+#########################################################################
+#Start functions for writing metric visualizations to file
+#########################################################################
+#writes bounding sphere to temp file for blender to read later
+def write_gyration_radius_sphere(center,radius,directory=""):
+	"""
+	center : np.array shape (3,)
+	radius : float
+	"""
+
+	if directory == "":
+		import tempfile
+		# Use system temp directory, e.g. /tmp on Linux
+		directory = tempfile.gettempdir()
+	path = os.path.join(directory, "gyration_radius_sphere.json")
+
+	data = {
+		"center": center.tolist(),
+		"radius": float(radius)
+	}
+
+	# Write with high precision so Blender gets the exact geometry
+	with open(path, "w") as f:
+		json.dump(data, f, indent=2)
+
+	print(f"[INFO] Gyration Radius sphere written to {path}")
+	return path
+
+#writes bounding sphere to temp file for blender to read later
+def write_enclosing_sphere(center,radius,directory=""):
+	"""
+	center : np.array shape (3,)
+	radius : float
+	"""
+
+	if directory == "":
+		import tempfile
+		# Use system temp directory, e.g. /tmp on Linux
+		directory = tempfile.gettempdir()
+	path = os.path.join(directory, "enclosing_sphere.json")
+
+	data = {
+		"center": center.tolist(),
+		"radius": float(radius)
+	}
+
+	# Write with high precision so Blender gets the exact geometry
+	with open(path, "w") as f:
+		json.dump(data, f, indent=2)
+
+	print(f"[INFO] Enclosing sphere written to {path}")
+	return path
+
+def write_convex_hull(points, hull, radii=None, directory=""):
+	import tempfile
+
+	points = np.asarray(points, float)
+
+	# Map global indices -> compact local indices
+	vmap = {idx: i for i, idx in enumerate(hull.vertices)}
+	simplices_mapped = [
+		[vmap[a], vmap[b], vmap[c]]
+		for (a, b, c) in hull.simplices
+	]
+
+	if directory == "":
+		import tempfile
+		# Use system temp directory, e.g. /tmp on Linux
+		directory = tempfile.gettempdir()
+	path = os.path.join(directory, "convex_hull.json")
+
+	data = {
+		"points": points[hull.vertices].tolist(),   # only hull vertices
+		"simplices": simplices_mapped,              # remapped faces
+		"hull_vertices": hull.vertices.tolist()
+	}
+
+	if radii is not None:
+		data["radii"] = np.asarray(radii, float).tolist()
+
+
+	with open(path, "w") as f:
+		json.dump(data, f, indent=2)
+
+	print(f"[INFO] Convex hull written to {path}")
+	return path
+
+def write_equivalent_ellipsoid(center, axes, R,directory=""):
+	"""
+	Write the bounding ellipsoid parameters to a JSON file in directory.
+
+	Parameters
+	----------
+	center : (3,) array-like
+		Ellipsoid center.
+	axes   : (3,) array-like
+		Ellipsoid semi-axis lengths (a, b, c).
+	R      : (3,3) array-like
+		Rotation matrix whose columns are the principal axis directions.
+
+	Creates /tmp/bounding_ellipsoid.json with high precision.
+	"""
+
+	center = np.asarray(center, dtype=float)
+	axes   = np.asarray(axes,   dtype=float)
+	R      = np.asarray(R,      dtype=float)
+
+	if directory == "":
+		import tempfile
+		# Use system temp directory, e.g. /tmp on Linux
+		directory = tempfile.gettempdir()
+	path = os.path.join(directory, "equivalent_ellipsoid.json")
+
+	data = {
+		"center": center.tolist(),
+		"axes": axes.tolist(),
+		"R": R.tolist(),        # full 3×3 rotation matrix
+	}
+
+	with open(path, "w") as f:
+		json.dump(data, f, indent=2)
+
+	print(f"[INFO] Equivalent ellipsoid written to {path}")
+	return path
+
+def write_enclosing_ellipsoid(center, axes, R,directory=""):
+	"""
+	Write the bounding ellipsoid parameters to a JSON file in /tmp.
+
+	Parameters
+	----------
+	center : (3,) array-like
+		Ellipsoid center.
+	axes   : (3,) array-like
+		Ellipsoid semi-axis lengths (a, b, c).
+	R      : (3,3) array-like
+		Rotation matrix whose columns are the principal axis directions.
+
+	Creates /tmp/bounding_ellipsoid.json with high precision.
+	"""
+
+	center = np.asarray(center, dtype=float)
+	axes   = np.asarray(axes,   dtype=float)
+	R      = np.asarray(R,      dtype=float)
+
+	if directory == "":
+		import tempfile
+		# Use system temp directory, e.g. /tmp on Linux
+		directory = tempfile.gettempdir()
+	path = os.path.join(directory, "enclosing_ellipsoid.json")
+
+	data = {
+		"center": center.tolist(),
+		"axes": axes.tolist(),
+		"R": R.tolist(),        # full 3×3 rotation matrix
+	}
+
+	with open(path, "w") as f:
+		json.dump(data, f, indent=2)
+
+	print(f"[INFO] Bounding ellipsoid written to {path}")
+	return path
+
+def writeGCSRadius(R,COM,directory=""):
+	"""
+	Writes the radius and center of mass of a circle with the
+	same area as the GCS to the given directory.
+	"""
+
+	if directory == "":
+		import tempfile
+		# Use system temp directory, e.g. /tmp on Linux
+		directory = tempfile.gettempdir()
+	path = os.path.join(directory, "GCS_sphere.json")
+
+	data = {
+		"radius": R,
+		"center": COM.tolist(),
+	}
+
+	with open(path, "w") as f:
+		json.dump(data, f, indent=2)
+
+	print(f"[INFO] GCS radius written to {path}")
+	return path
+
+def write_shadow_grid(xs, ys, shadow, k=None, delta=None,
+							 proj_points=None, radii=None, directory=""):
+	"""
+	Write the 2D projected grid + shadow mask to a temporary JSON file
+	so Blender can visualize it.
+
+	Parameters
+	----------
+	xs : (Nx,)  array of x-coordinates of grid cell centers
+	ys : (Ny,)  array of y-coordinates of grid cell centers
+	shadow : (Ny, Nx) boolean array (True = cell is shadowed)
+	k : (3,) projection/view direction (optional)
+	delta : float, grid spacing (optional)
+	proj_points : (N,2) projected monomer centers (optional)
+	radii : (N,) monomer radii (optional)
+
+	Returns
+	-------
+	path : str
+		Path to the JSON file.
+	"""
+
+	xs = np.asarray(xs, float)
+	ys = np.asarray(ys, float)
+	shadow = np.asarray(shadow, bool)
+
+	Ny, Nx = shadow.shape
+	assert xs.shape[0] == Nx
+	assert ys.shape[0] == Ny
+
+	if directory == "":
+		import tempfile
+		# Use system temp directory, e.g. /tmp on Linux
+		directory = tempfile.gettempdir()
+	path = os.path.join(directory, "shadow_grid.json")
+
+	data = {
+		"xs": xs.tolist(),         # x grid centers
+		"ys": ys.tolist(),         # y grid centers
+		"shadow": shadow.tolist(), # 2D boolean mask
+	}
+
+	if k is not None:
+		data["k"] = np.asarray(k, float).tolist()
+
+	if delta is not None:
+		data["delta"] = float(delta)
+
+	if proj_points is not None:
+		data["proj_points"] = np.asarray(proj_points, float).tolist()
+
+	if radii is not None:
+		data["radii"] = np.asarray(radii, float).tolist()
+
+	with open(path, "w") as f:
+		json.dump(data, f, indent=2)
+
+	print(f"[INFO] Shadow grid written to {path}")
+	return path
+
+#########################################################################
+#END functions for writing metric visualizations to file
+#########################################################################
+
+def number_of_contacts(pos,radii):
+	# pos,radii,mass,moi = u.get_data(data_folder,data_index=size,linenum=line,relax=relax)
+
+	if pos is None:
+		return np.nan
+	pos = np.array(pos)
+
+	contacts = calc_contacts(pos,radii)
+
+	# contacts = np.zeros((num_balls,num_balls),dtype=int)
+	# dist = lambda i,j: np.sqrt((data[i][0]-data[j][0])**2 + (data[i][1]-data[j][1])**2 + \
+	# 		(data[i][2]-data[j][2])**2)
+
+	# ##IT FEELS LIKE THIS IS OVERCOUNTING BUT IT ISN'T.
+	# ##EACH BALL FELLS ITS OWN CONTACTS.
+	# for i in range(num_balls):
+	# 	for j in range(num_balls):
+	# 		if i != j:
+	# 			contacts[i,j] = (dist(i,j) <= (radius[i]+radius[j]))
+
+	return np.mean(np.sum(contacts,axis=1))
+
+def calc_contacts(pos,radii):
+	num_balls = pos.shape[0]
+	contacts = np.zeros((num_balls,num_balls),dtype=int)
+	dist = lambda i,j: np.sqrt((pos[i][0]-pos[j][0])**2 + (pos[i][1]-pos[j][1])**2 + \
+			(pos[i][2]-pos[j][2])**2)
+
+	##IT FEELS LIKE THIS IS OVERCOUNTING BUT IT ISN'T.
+	##EACH BALL FELLS ITS OWN CONTACTS.
+	for i in range(num_balls):
+		for j in range(num_balls):
+			if i != j:
+				contacts[i,j] = (dist(i,j) <= (radii[i]+radii[j]))
+	return contacts
+
+#########################################################################
+#Start functions for calculating metrics
+#########################################################################
+
+def calc_max_number_of_contacts(data_folder,data_index=-1,relax=False,makeVisual=False):
+	import time
+	line = 0
+	max_nc = -1
+	max_line = -1
+	pos,radii,mass,moi = get_data(data_folder,data_index=data_index,linenum=line,relax=relax)
+	nc = number_of_contacts(pos,radii)
+	while not np.isnan(nc):
+		# max_nc = max(max_nc,nc)
+		line += 1 
+		print(line)
+		time0 = time.perf_counter()
+		pos,radii,mass,moi = get_data(data_folder,data_index=data_index,linenum=line,relax=relax)
+		time1 = time.perf_counter()
+		nc = number_of_contacts(pos,radii)
+		time2 = time.perf_counter()
+		print(f"get data: {time1-time0}")
+		print(f"number_of_contacts: {time2-time1}")
+		if max_nc < nc:
+			max_nc = nc
+			max_line = line
+
+	if makeVisual:
+		pos,radii,mass,moi = u.get_data(data_folder,data_index=data_index,linenum=max_line,relax=relax)
+
+	return max_nc
+
+#finds smallest needed sphere to enclose the aggregate 
+#returns that center and the radius of the enclosing sphere
+def calc_fully_enclosed_sphere(pos,radii,write=False,directory=""):
+	
+	"""
+	pos   : (N,3) array of centers
+	radii : (N,)  array of radii (can all be different)
+	"""
+	import cvxpy as cp
+
+	pos = np.asarray(pos, dtype=float)
+	radii = np.asarray(radii, dtype=float)
+	assert pos.shape[0] == radii.shape[0]
+	assert pos.shape[1] == 3
+
+	N = pos.shape[0]
+
+	# Optimization variables: center c and radius R
+	c = cp.Variable(3)
+	R = cp.Variable()
+
+	constraints = [R >= 0]
+	for i in range(N):
+		# ||c - p_i||_2 + r_i <= R
+		constraints.append(cp.norm(c - pos[i, :], 2) + radii[i] <= R)
+
+	prob = cp.Problem(cp.Minimize(R), constraints)
+	prob.solve(solver=cp.ECOS, verbose=False)
+
+	if prob.status not in ("optimal", "optimal_inaccurate"):
+		raise RuntimeError(f"ECOS failed: {prob.status}")
+
+	c_opt = np.array(c.value, dtype=float)
+
+	# Recompute R from c_opt to guarantee containment
+	d = np.linalg.norm(pos - c_opt, axis=1) + radii
+	R_opt = float(d.max())
+
+	# Optional debug print:
+	# print(f"R_opt: {R_opt}\nmax(dist+ri): {d.max()}\nslack:{R_opt - d.max()}", R_opt - d.max())
+
+	if write:
+		write_enclosing_sphere(c_opt, R_opt, directory)
+
+	return c_opt, R_opt
+
+
+def calc_fully_enclosed_ellipsoid(pos, radii, samples_per_sphere=8192,write=False, directory="", verbose=False):
+	"""
+	Minimum-volume enclosing ellipsoid of a union of spheres in R^3,
+	approximated by sampling sphere surfaces and running MVEE.
+	"""
+
+	relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + "../"
+	project_path = os.path.abspath(relative_path) + '/'
+	sys.path.append(project_path + "utilities/mvee/")
+	from mvee import mvee2
+
+	pos = np.asarray(pos, dtype=float)
+	radii = np.asarray(radii, dtype=float)
+	m, d = pos.shape
+	assert d == 3, "This helper is for 3D only."
+
+	# ---- sample surfaces ----
+	dirs = fibonacci_sphere(samples_per_sphere)  # (S, 3)
+
+	samples_list = []
+	for c, r in zip(pos, radii):
+		pts = c + r * dirs
+		samples_list.append(pts)
+
+	samples = np.vstack(samples_list).astype(float)  # (m*S, 3)
+
+	# ---- normalize for MVEE ----
+	mean = samples.mean(axis=0)
+	samples_centered = samples - mean
+	scale = np.max(np.linalg.norm(samples_centered, axis=1))
+	if scale < 1e-12:
+		scale = 1.0
+
+	samples_norm = samples_centered / scale
+	X = samples_norm.T
+
+	# ---- run MVEE ----
+	# ret = mvee2(X, full_output=True, epsilon=1e-6)
+	ret = mvee2(X, hybrid={}, full_output=True, epsilon=1e-6)
+
+	center_n, R_n, axes_n, A_n = ellipse_from_mvee2_output(ret)
+
+	status, max_q = check_ellipsoid_encloses_samples(samples_norm, center_n, A_n, verbose=verbose)
+
+	# ---- undo normalization ----
+	center = center_n * scale + mean
+	axes   = axes_n * scale
+	R      = R_n
+	A      = A_n / (scale**2)   # optional: A in original coords if you want it
+
+	# ---- validate numerically ----
+	if verbose:
+		print(f"Ellipsoid check: status={status}, max_q={max_q:.6e}")
+
+	if write:
+		write_enclosing_ellipsoid(center, axes, R, directory)
+	return status, max_q, center, R, axes
+
+def calc_gyration_radius(effective_radius,pos,mass,directory,write=False):
+	principal_moi = get_principal_moi(mass,pos)[::-1]
+
+	alphai = principal_moi/(0.4*np.sum(mass)*effective_radius**2)
+
+	RKBM = np.sqrt(np.sum(alphai)/3) * effective_radius
+
+	if write:
+		COM = u.calcCOM(mass,pos)
+
+		write_gyration_radius_sphere(COM,RKBM,data_folder)
+
+	return RKBM
+
+def calc_equivalent_ellipsoid_principal_axes(effective_radius,pos,mass,directory,write=False):
+	principal_moi = get_principal_moi(mass,pos)[::-1]
+
+	total_mass = np.sum(mass)
+	alphai = principal_moi/(0.4*total_mass*effective_radius**2)
+	
+	a = effective_radius * np.sqrt(alphai[1] + alphai[2] - alphai[0])
+	b = effective_radius * np.sqrt(alphai[2] + alphai[0] - alphai[1])
+	c = effective_radius * np.sqrt(alphai[0] + alphai[1] - alphai[2])
+
+	if write:
+		center = calcCOM(mass,pos)
+		moi_world = get_inertia_matrix(mass,pos)
+		
+		#parallel axis theorem incase COM isnt origin
+		moi_com = moi_world-total_mass*(np.dot(center,center)*np.eye(3)-np.outer(center,center))
+
+		#enforce symmetry in case of numeric noise
+		moi_com = 0.5 * (moi_com + moi_com.T)
+		
+		#Eigendecomposition: principal moments and axes
+		vals, vecs = np.linalg.eigh(moi_com)
+		# vals = principal moments (I1, I2, I3)
+		# vecs[:, i] = eigenvector for vals[i]
+		
+		#Sort for consistent axis order (e.g. ascending inertia)
+		idx = np.argsort(vals)
+		vals = vals[idx]
+		vecs = vecs[:, idx]
+
+		R = vecs
+		# Ensure right-handed coordinate system (det = +1)
+		if np.linalg.det(R) < 0:
+			R[:, 0] *= -1  # flip one axis
+
+		axes = [c,b,a]
+		write_equivalent_ellipsoid(center, axes, R, directory)
+
+	return a,b,c
+
+def calc_hull_volume(pos,radii,samples_per_sphere=64,write=False,directory=""):
+	"""
+	makes a convec hull around the aggregate and calculates it's volume
+
+	pos    : (m,3) centers of spheres
+	radii  : (m,) radii of spheres
+	samples_per_sphere : number of directions sampled on each sphere surface
+
+	Returns:
+		volume : volume enclosed by the convex hull
+	"""
+	import scipy as sp
+
+	pos = np.asarray(pos, dtype=float)
+	radii = np.asarray(radii, dtype=float)
+	m, d = pos.shape
+	assert d == 3, "This helper is for 3D only."
+
+	# #Get points on spheres closest to MVEE
+	# status,max_q,center,R,axes = calc_fully_enclosed_ellipsoid(pos,radii)
+	# # exit(0)
+
+	# # If the MVEE failed return nan so we can try again later
+	# if status != "ok":
+	# 	return np.nan
+
+	# support_points = np.vstack([
+	# 	sphere_point_relative_to_ellipsoid(pos[i], radii[i], center, axes, R)
+	# 	for i in range(len(pos))
+	# ])
+	
+
+	dirs = fibonacci_sphere(samples_per_sphere)  # (S, 3)
+	samples_list = []
+	for c, r in zip(pos, radii):
+		pts = c + r * dirs
+		samples_list.append(pts)
+
+	support_points = np.vstack(samples_list).astype(float)  # (m*S, 3)
+
+	# --- Build convex hull ---
+	# print("calcing hull")
+	hull = sp.spatial.ConvexHull(support_points)
+
+	# sanity check for Blender
+	if hull.simplices.size == 0:
+		raise RuntimeError("Convex hull is degenerate (no faces). Cannot export.")
+
+	if write:
+		write_convex_hull(support_points, hull, directory=directory)
+
+	return hull.volume
+
+def calc_geometric_cross_section(
+	pos,
+	radii,
+	direction=(0.0, 0.0, 1.0),
+	r1=None,
+	mesh_factor=0.0055,
+	write = False,
+	directory = ""
+):
+	"""
+	Compute geometric cross section of an aggregate by mesh-counting the projected shadow.
+
+	Parameters
+	----------
+	pos : (N, 3) array
+		Monomer centers.
+	radii : (N,) array or float
+		Monomer radii. If float, same radius for all.
+	r1 : float, optional
+		Reference monomer radius used for mesh size. If None and radii is array,
+		uses min(radii).
+	k : (3,) array-like, optional
+		Viewing direction (will be normalized).
+	mesh_factor : float, optional
+		Grid spacing as fraction of r1 (Suyama uses 0.0055).
+
+	Returns
+	-------
+	sigma : float
+		Geometric cross section for this viewing direction.
+	"""
+
+	pos = np.asarray(pos, dtype=float)
+	N = pos.shape[0]
+	if np.isscalar(radii):
+		radii = np.full(N, float(radii))
+	else:
+		radii = np.asarray(radii, dtype=float)
+
+	if r1 is None:
+		r1 = float(np.min(radii))
+	delta = mesh_factor * r1
+
+	# Orthonormal basis (u, v) spanning plane ⟂ k
+	k = np.asarray(direction, dtype=float)
+	k /= np.linalg.norm(k)
+	u, v = _orthonormal_basis_from_k(k)
+
+	# Project centers into (X, Y) plane
+	X = pos @ u   # shape (N,)
+	Y = pos @ v   # shape (N,)
+
+	r_max = np.max(radii)
+
+	X_min = X.min() - r_max
+	X_max = X.max() + r_max
+	Y_min = Y.min() - r_max
+	Y_max = Y.max() + r_max
+
+	Nx = int(np.ceil((X_max - X_min) / delta))
+	Ny = int(np.ceil((Y_max - Y_min) / delta))
+
+	# Centers of grid cells
+	xs = X_min + (np.arange(Nx) + 0.5) * delta
+	ys = Y_min + (np.arange(Ny) + 0.5) * delta
+
+	shadow = np.zeros((Ny, Nx), dtype=bool)
+
+	# For each monomer, mark cells whose centers fall inside its projected circle
+	for Xi, Yi, ri in zip(X, Y, radii):
+		if ri <= 0:
+			continue
+
+		# Find index ranges potentially affected by this sphere
+		ix_min = max(0, int(np.floor((Xi - ri - X_min) / delta)))
+		ix_max = min(Nx - 1, int(np.floor((Xi + ri - X_min) / delta)))
+		iy_min = max(0, int(np.floor((Yi - ri - Y_min) / delta)))
+		iy_max = min(Ny - 1, int(np.floor((Yi + ri - Y_min) / delta)))
+
+		if ix_min > ix_max or iy_min > iy_max:
+			continue
+
+		local_x = xs[ix_min:ix_max+1]
+		local_y = ys[iy_min:iy_max+1]
+
+		dx2 = (local_x[None, :] - Xi)**2   # shape (1, n_x_local)
+		dy2 = (local_y[:, None] - Yi)**2   # shape (n_y_local, 1)
+
+		mask_local = dx2 + dy2 <= ri**2
+		shadow[iy_min:iy_max+1, ix_min:ix_max+1] |= mask_local
+
+	N_shadow = np.count_nonzero(shadow)
+	sigma = N_shadow * (delta**2)
+
+	if write:
+		write_shadow_grid(xs, ys, shadow, k=k, delta=delta,
+								 proj_points=None, radii=None, directory=directory)
+	return sigma
+
+# def mvee_points(points, tol=0.0001):
+# 	"""
+# 	Finds the ellipse equation in "center form"
+# 	(x-c).T * A * (x-c) = 1
+# 	"""
+# 	import numpy.linalg as la
+
+# 	N, d = points.shape
+# 	Q = np.column_stack((points, np.ones(N))).T
+# 	err = tol+1.0
+# 	u = np.ones(N)/N
+# 	while err > tol:
+# 		# assert u.sum() == 1 # invariant
+# 		X = np.dot(np.dot(Q, np.diag(u)), Q.T)
+# 		M = np.diag(np.dot(np.dot(Q.T, la.inv(X)), Q))
+# 		jdx = np.argmax(M)
+# 		step_size = (M[jdx]-d-1.0)/((d+1)*(M[jdx]-1.0))
+# 		new_u = (1-step_size)*u
+# 		new_u[jdx] += step_size
+# 		err = la.norm(new_u-u)
+# 		u = new_u
+# 	c = np.dot(u, points)
+# 	A = la.inv(np.dot(np.dot(points.T, np.diag(u)), points)
+# 			   - np.multiply.outer(c, c))/d
+
+# 	# Ensure A is symmetric (numerical noise)
+# 	A = 0.5 * (A + A.T)
+
+# 	# Eigen-decomposition
+# 	lam, R = np.linalg.eigh(A)
+
+# 	# Safety: remove tiny negative eigenvals due to numerical noise
+# 	lam = np.maximum(lam, 1e-15)
+
+# 	# Semi-axes
+# 	axes = 1.0 / np.sqrt(lam)    # (a1, a2, a3)
+
+# 	center = c                   # center of ellipsoid
+# 	return center,R,axes,0.0
+
+
+
+def fibonacci_sphere(n_points):
+	"""
+	Fibonacci sphere directions, roughly uniform on S^2.
+	Returns (n_points, 3) unit vectors.
+	"""
+	n_points = int(n_points)
+	k = np.arange(n_points, dtype=float)
+	phi = np.pi * (1.0 + np.sqrt(5.0))  # golden angle
+
+	z = 1.0 - 2.0 * (k + 0.5) / n_points
+	r = np.sqrt(np.maximum(0.0, 1.0 - z*z))
+	theta = phi * k
+
+	x = r * np.cos(theta)
+	y = r * np.sin(theta)
+
+	return np.stack([x, y, z], axis=1)  # (n_points, 3)
+
+def ellipse_from_mvee2_output(retvals):
+	"""
+	Extract center, rotation R, axes, and canonical A from mvee2() output.
+
+	mvee2 returns:
+		retvals["mat"] = B = H^{-1}
+
+	The ellipsoid in normalized coordinates is:
+		x^T B x <= n_dim
+
+	We convert to the standard form:
+		(x - c)^T A (x - c) <= 1
+	with:
+		A = B / n_dim
+		axes_i = sqrt(n_dim / mu_i)
+	where mu_i are eigenvalues of B.
+	"""
+	# ---- center ----
+	if "c" in retvals:
+		c = np.asarray(retvals["c"], float).flatten()
+	else:
+		c = np.zeros(retvals["mat"].shape[0], float)
+
+	# ---- B = H^{-1} ----
+	B = np.asarray(retvals["mat"], float)
+	B = 0.5 * (B + B.T)      # symmetrize for safety
+
+	n_dim = B.shape[0]
+
+	# ---- eigendecomposition of B ----
+	mu, R = np.linalg.eigh(B)   # B = R diag(mu) R^T
+	mu = np.maximum(mu, 1e-15)  # avoid divide by zero
+
+	# ---- canonical A and axes ----
+	# A = B / n_dim
+	# axes_i^2 = n_dim / mu_i => axes_i = sqrt(n_dim / mu_i)
+	axes = np.sqrt(n_dim / mu)
+
+	A = R @ np.diag(mu / n_dim) @ R.T
+
+	return c, R, axes, A
+
+def check_ellipsoid_encloses_samples(samples, center, A, verbose=False,
+									 tol_ok=1e-3, tol_warn=1e-2):
+	"""
+	samples : (N, d) in the SAME normalized space as center, A
+	center  : (d,)
+	A       : (d, d) canonical ellipsoid matrix (x-c)^T A (x-c) <= 1
+	"""
+	samples = np.asarray(samples, float)
+	center  = np.asarray(center, float)
+
+	Xc = samples - center  # (N, d)
+
+	# Correct quadratic form:
+	q = np.sum((Xc @ A) * Xc, axis=1)
+	max_q = float(np.max(q))
+
+	if verbose:
+		print(f"check: max_q = {max_q:.6e}")
+
+	if max_q <= 1.0 + tol_ok:
+		status = "ok"
+	elif max_q <= 1.0 + tol_warn:
+		status = "warn"
+	else:
+		status = "fail"
+
+	return status, max_q
+
+
+
+
+def analyze_enclosing_ellipsoid_for_balls(pos, radii, center, A,
+										  n_dirs_check=64,
+										  eps_list=(1e-6, 1e-5, 1e-4)):
+	"""
+	Perform a numerical error analysis for an enclosing ellipsoid of balls.
+
+	Ellipsoid is given as:
+		E = { x | (x - center)^T A (x - center) <= 1 }
+
+	We:
+	  1) Sample points on each ball surface and check max violation:
+		   v = max_j ( (x_j - center)^T A (x_j - center) - 1 )
+		 If v <= 0 (or very small +), the ellipsoid encloses all sampled points.
+
+	  2) Define F(c) = max_j (x_j - c)^T A (x_j - c) over the same samples.
+		 For small perturbations c' = c + eps * e_k, we check
+			 F(c') - F(c).
+		 If these are >= 0 for all small eps and coordinate directions,
+		 that’s analogous to your sphere test and suggests c is locally optimal
+		 for the sampled points.
+
+	Parameters
+	----------
+	pos : (N,3) array of centers of balls
+	radii : (N,) array of radii
+	center : (3,) ellipsoid center
+	A : (3,3) positive-definite matrix
+	n_dirs_check : int, number of directions per sphere to sample
+	eps_list : iterable of epsilons for the perturbation test
+
+	Prints diagnostics and returns a dict with key metrics.
+	"""
+	pos = np.asarray(pos, dtype=float)
+	radii = np.asarray(radii, dtype=float)
+	center = np.asarray(center, dtype=float)
+	A = np.asarray(A, dtype=float)
+
+	assert pos.shape[0] == radii.shape[0]
+	assert pos.shape[1] == 3
+	assert center.shape == (3,)
+	assert A.shape == (3, 3)
+
+	N = pos.shape[0]
+
+	# 1. Build a denser sample of surface points on all balls
+	dirs = _fibonacci_sphere(n_dirs_check)  # (n_dirs, 3)
+
+	pts = []
+	ball_idx = []  # which ball each point comes from
+	for i in range(N):
+		p = pos[i]
+		r = radii[i]
+		pts_i = p[None, :] + r * dirs  # (n_dirs_check, 3)
+		pts.append(pts_i)
+		ball_idx.extend([i] * n_dirs_check)
+	pts = np.vstack(pts)                 # (N * n_dirs_check, 3)
+	ball_idx = np.array(ball_idx, dtype=int)
+
+	# 2. Evaluate the quadratic form (x - c)^T A (x - c) on these points
+	diff = pts - center[None, :]          # (M,3)
+	# q_j = (x_j - c)^T A (x_j - c)
+	q = np.einsum("ij,ij->i", diff @ A, diff)  # (M,)
+
+	max_q = float(q.max())
+	worst_idx = int(q.argmax())
+	worst_ball = int(ball_idx[worst_idx])
+
+	violation = max_q - 1.0  # >0 means outside if we treat ==1 as boundary
+
+	print("=== Ellipsoid containment check (sampled points) ===")
+	print(f"Max q = (x-c)^T A (x-c) over sampled points: {max_q:.6e}")
+	print(f"Max violation max(q - 1): {violation:.6e}")
+	print(f"Worst sample index: {worst_idx}, from ball index: {worst_ball}")
+	print(f"Worst sample point: {pts[worst_idx]}")
+
+	# 3. Define F(c) = max_j (x_j - c)^T A (x_j - c) on these sampled points
+	def F(c_vec):
+		c_vec = np.asarray(c_vec, dtype=float)
+		d = pts - c_vec[None, :]
+		q_local = np.einsum("ij,ij->i", d @ A, d)
+		return float(q_local.max())
+
+	F_c = F(center)
+	print("\n=== Center optimality (perturbation) check ===")
+	print(f"F(c_opt) = max_j (x_j - c_opt)^T A (x_j - c_opt) = {F_c:.6e}")
+
+	# 4. Check F(c + eps * e_k) - F(c) for coordinate directions
+	directions = np.eye(3)  # e_x, e_y, e_z
+	results = {}
+	for eps in eps_list:
+		for k in range(3):
+			d = directions[k]
+			c_pert = center + eps * d
+			F_pert = F(c_pert)
+			delta = F_pert - F_c
+			print(f"eps={eps:g}, dir=e_{k}:  F(c+eps*e_{k}) - F(c) = {delta:.6e}")
+			results[(eps, k)] = delta
+
+	return {
+		"max_q": max_q,
+		"violation": violation,
+		"worst_sample_index": worst_idx,
+		"worst_ball_index": worst_ball,
+		"worst_point": pts[worst_idx],
+		"F_c": F_c,
+		"perturbation_deltas": results,
+	}
+
+
+
+
+
+
+
+
+def ellipsoid_eval(x, C, axes, R):
+	y = R.T @ (x - C)
+	return (y[0]/axes[0])**2 + (y[1]/axes[1])**2 + (y[2]/axes[2])**2
+
+#c is center of sphere
+#r is radius of sphere
+#C is center of ellipsoid
+#axes is pricipal axes of ellipsoid
+#R is rotation matirx of ellipsoid
+def sphere_point_relative_to_ellipsoid(c, r, C, axes, R):
+	"""
+	If sphere is fully inside ellipsoid → return closest sphere point to ellipsoid.
+	If any part of sphere sticks outside → return the sphere point farthest outside.
+	"""
+
+	x_ell = project_point_onto_ellipsoid(c, C, axes, R)
+	d = x_ell - c
+	n = np.linalg.norm(d)
+	if n == 0:
+		# sphere centered at ellipsoid center → choose arbitrary direction
+		d_unit = np.array([1,0,0])
+	else:
+		d_unit = d / n
+
+	# Candidate points
+	p_near = c + r * d_unit     # closest sphere point to ellipsoid
+	p_far  = c - r * d_unit     # farthest sphere point from ellipsoid
+
+	# Determine if sphere is fully inside
+	if ellipsoid_eval(p_far, C, axes, R) <= 1.0:
+		# whole sphere inside ellipsoid
+		return p_near
+	else:
+		# sphere pokes out
+		return p_far
+
+#find the point on the ellipsoid closest to p (the center of a grain)
+#C is the center of the ellipsoid, axes are the three semi-axes lengths of the ellipsoid, R is the rotation matrix of the ellipsoid
+# def project_point_onto_ellipsoid(p, C, axes, R):
+# 	from scipy.optimize import root_scalar
+# 	import numpy as np
+
+# 	p = np.asarray(p, float)
+# 	C = np.asarray(C, float)
+# 	axes = np.asarray(axes, float)
+# 	R = np.asarray(R, float)
+
+# 	#Transform into ellipsoid coordinates.
+# 	#u is point p in these coordinates
+# 	u = R.T @ (p - C)
+
+# 	#now a2[0] = a^2, a2[1] = b^2, a2[2] = c^2
+# 	a2 = axes**2
+
+# 	# print(f"point: {p}")
+# 	# print(f"center: {C}")
+
+# 	#use newtons method to solve for lam, the lagrange multiplier
+# 	def F(lam):
+# 		return np.sum((u*u)*a2 / (a2 + lam)**2) - 1.0
+
+# 	def Fprime(lam):
+# 		return np.sum(-2*(u*u)*a2 / (a2 + lam)**3)
+
+# 	# Newton always converges if p is not exactly the ellipsoid center.
+# 	sol = root_scalar(F, fprime=Fprime, x0=0.0, method='newton')
+# 	lam = sol.root
+
+# 	#use lam to find the point we want
+# 	x_local = u * a2 / (a2 + lam)
+
+# 	# print(f"returning: {C + R @ x_local}")
+
+# 	return C + R @ x_local
+
+#find the point on the ellipsoid closest to p (the center of a grain)
+#C is the center of the ellipsoid, axes are the three semi-axes lengths of the ellipsoid, R is the rotation matrix of the ellipsoid
+def project_point_onto_ellipsoid(p, C, axes, R):
+	from scipy.optimize import root_scalar
+	import numpy as np
+
+	p = np.asarray(p, float)
+	C = np.asarray(C, float)
+	axes = np.asarray(axes, float)
+	R = np.asarray(R, float)
+
+	# Transform to ellipsoid coordinates
+	u = R.T @ (p - C)
+	a2 = axes**2
+
+	# Function
+	def F(lam):
+		return np.sum((u*u)*a2 / (a2 + lam)**2) - 1.0
+
+	# Safe bracket
+	#This choice guarantees F(lam_lo) < 0 and F(lam_high) > 0
+	#Thus the solution has to be inside this range.
+	lam_lo = -np.min(a2) * 0.9999999  # stays just inside valid region
+	lam_hi =  np.max(a2) * 100       # safely positive
+
+	# Use Brent's method (fast + guaranteed convergence)
+	sol = root_scalar(F, bracket=(lam_lo, lam_hi), method='brentq')
+
+	lam = sol.root
+
+	# Closest point in ellipsoid local coords
+	x_local = u * a2 / (a2 + lam)
+
+	# Back to world
+	return C + R @ x_local
+
+
+def _orthonormal_basis_from_k(k):
+	"""Given a unit vector k, return two unit vectors u, v that span the plane ⟂ k."""
+	k = np.asarray(k, dtype=float)
+	k /= np.linalg.norm(k)
+
+	# Pick a reference vector not parallel to k
+	if abs(k[2]) < 0.9:
+		a = np.array([0.0, 0.0, 1.0])
+	else:
+		a = np.array([0.0, 1.0, 0.0])
+
+	u = np.cross(k, a)
+	u /= np.linalg.norm(u)
+	v = np.cross(k, u)
+	# v should already be unit if k, u are unit and orthogonal
+	return u, v
+
+
 
 def get_data(data_folder,data_index=-1,linenum=-1,relax=False): #Works with both csv and h5
 	if data_folder == '/home/kolanzl/Desktop/bin/merger.csv':
@@ -1152,7 +2168,7 @@ class o3doctree(object):
 
 
 	def make_tree(self):
-
+		import open3d as o3d
 		self.dm = datamgr(self.data_folder,self.index,self.ppb,Temp=self.Temp,relax=self.relax)
 
 		bounds = [self.dm.data_range[0]-self.dm.data_range[1],self.dm.data_range[2]-self.dm.data_range[3],self.dm.data_range[4]-self.dm.data_range[5]]
@@ -1324,6 +2340,7 @@ class o3doctree(object):
 	# 	exit(0)
 
 	def test_menger_sponge(self):
+		import open3d as o3d
 		self.data_folder = '.'
 		merger_file = '/home/kolanzl/Desktop/bin/merger.csv'
 		self.dm = datamgr(merger_file,self.ppb)
@@ -1357,6 +2374,7 @@ class o3doctree(object):
 
 
 	def show_octree(self,octree,verbose):
+		import open3d as o3d
 		if verbose:
 			start = time.process_time()
 		o3d.visualization.draw_geometries([octree])
@@ -1365,6 +2383,7 @@ class o3doctree(object):
 			print("Visualizing octree took {}".format(end-start))
 
 	def show_pcd(self,pcd,verbose):
+		import open3d as o3d
 		if verbose:
 			start = time.process_time()
 		o3d.visualization.draw_geometries([pcd])
@@ -1468,7 +2487,7 @@ class o3doctree(object):
 	#function adapted from:
 	#http://www.open3d.org/docs/release/python_example/geometry/octree/index.html
 	def f_traverse(self,node, node_info):
-
+		import open3d as o3d
 		if isinstance(node, o3d.geometry.OctreePointColorLeafNode):
 			self.tree_info[node_info.depth-1] += 1
 		if isinstance(node, o3d.geometry.OctreeInternalPointNode):
@@ -1483,21 +2502,21 @@ class o3doctree(object):
 
 ############################Helpful Functions############################
 def unroll(*lists):
-    normalized = [lst if len(lst) > 0 else [None] for lst in lists]
-    return list(product(*normalized))
+	normalized = [lst if len(lst) > 0 else [None] for lst in lists]
+	return list(product(*normalized))
 
 #############################Novus Functions#############################
 def get_squeue_output():
-    try:
-        # Run the squeue command and capture its output
+	try:
+		# Run the squeue command and capture its output
 
-        result = subprocess.run(['squeue', '-o', '%u %j'], capture_output=True, text=True)
-        output = result.stdout
-        return output
-    except subprocess.CalledProcessError as e:
-        # Handle any errors that occur during the command execution
-        print(f"Error executing squeue: {e}")
-        return None
+		result = subprocess.run(['squeue', '-o', '%u %j'], capture_output=True, text=True)
+		output = result.stdout
+		return output
+	except subprocess.CalledProcessError as e:
+		# Handle any errors that occur during the command execution
+		print(f"Error executing squeue: {e}")
+		return None
 
 
 # def same_job(fullpath, job_name):
@@ -1539,7 +2558,7 @@ def on_queue(job_name):
 	return False
 
 
-def rand_int():
+def rand_seed():
 	import datetime
 
 	random.seed(datetime.datetime.now().timestamp())
@@ -1548,3 +2567,10 @@ def rand_int():
 	max_unsigned_int_cpp = 2**32 - 1
 	random_unsigned_int = random.randint(0, max_unsigned_int_cpp)
 	return random_unsigned_int
+
+
+
+def make_rand_vector(dims):
+	vec = [random.gauss(0, 1) for i in range(dims)]
+	mag = sum(x**2 for x in vec) ** .5
+	return [x/mag for x in vec]

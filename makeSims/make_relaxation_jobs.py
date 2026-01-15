@@ -55,10 +55,13 @@ if __name__ == '__main__':
 	# relax_job_set_name = "SeqStickLognormrelax_"
 	# copy_job_set_name = "SeqStickConst_"
 	# relax_job_set_name = "SeqStickConstrelax_"
-	copy_job_set_name = "constrollingfric"
-	relax_job_set_name = "constrollingfricrelax"
+	# copy_job_set_name = "constrollingfric"
+	# relax_job_set_name = "constrollingfricrelax"
+	copy_job_set_name = "lognorm"
+	relax_job_set_name = "lognormrelax"
 
 	job_group = "jobs"
+	job_group = "jobsCosine"
 
 	
 	# rsize = job_set_name.split("_")[0]
@@ -66,14 +69,14 @@ if __name__ == '__main__':
 	# folder_name_scheme = "T_"
 
 
-	runs_at_once = 20
+	runs_at_once = 1
 	# runs_at_once = 1
-	attempts = [i for i in range(30)] 
-	# attempts = [2] 
+	# attempts = [i for i in range(30)] 
+	attempts = [7] 
 	N = [300]
 	# N = [100]
-	Temps = [3,10]#,30,100,300,1000]
-	# Temps = [1000]
+	# Temps = [3,10]#,30,100,300,1000]
+	Temps = [1000]
 	folders = []
 	# threads = []
 	for attempt in attempts:
@@ -89,9 +92,9 @@ if __name__ == '__main__':
 				# copyjob = default_input_json["data_directory"] + f'{job_group}/' + rsize + str(attempt) + '/'\
 				# 			+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
 
-				job = default_input_json["data_directory"] + f'{job_group}/' + relax_job_set_name + str(attempt) + '/'\
+				job = default_input_json["data_directory"] + f'{job_group}/' + relax_job_set_name + '_' + str(attempt) + '/'\
 							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
-				copyjob = default_input_json["data_directory"] + f'{job_group}/' + copy_job_set_name + str(attempt) + '/'\
+				copyjob = default_input_json["data_directory"] + f'{job_group}/' + copy_job_set_name + '_' + str(attempt) + '/'\
 							+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
 
 				# print(job)
@@ -111,7 +114,7 @@ if __name__ == '__main__':
 						######Change input values here######
 						input_json['temp'] = Temp
 						input_json['N'] = n
-						input_json['OMPthreads'] = 1
+						input_json['OMPthreads'] = 20
 						input_json['MPInodes'] = 1
 						input_json['simType'] = "relax"
 
@@ -162,13 +165,13 @@ if __name__ == '__main__':
 	# 	with mp.Pool(processes=runs_at_once) as pool:
 	# 		pool.starmap(run_job,inputs[i:i+runs_at_once]) 
 	
-	# with mp.Pool(processes=runs_at_once) as pool:
-	# 	for folder in folders:
-	# 		# input_data = inputs[i:i+runs_at_once]
-	# 		pool.apply_async(run_job, (folder,))
+	with mp.Pool(processes=runs_at_once) as pool:
+		for folder in folders:
+			# input_data = inputs[i:i+runs_at_once]
+			pool.apply_async(run_job, (folder,))
 
-	# 	pool.close()
-	# 	pool.join()
+		pool.close()
+		pool.join()
 
 	# print(folders)
 	# cwd = os.getcwd()

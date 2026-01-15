@@ -3,7 +3,7 @@ from PIL import Image
 import os
 import json
 
-relative_path = ""
+relative_path = "../"
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
 
@@ -12,27 +12,28 @@ def main():
 		input_json = json.load(fp)
 	
 	data_directory = input_json["data_directory"]
-	job_group = "const_rel"
-	job_group = "lognormrelax"
-	job_group = "BAPA"
+	job_group = "constrelax"
+	# job_group = "lognormrelax"
+	# job_group = "BAPA"
 
 	image_path = data_directory + "data/figures/aggRenders/"
 	save_path = image_path+"edited/"
 	
-	Nums = [300]
+	Nums = [30,100,300]
 	# Nums = [30,100]
 	Mums = [20,60,100]
 	temps = [3,10,30,100,300,1000]
-	temps = [1000]
+	# temps = [1000]
 
-	# for N in Nums:
-	for M in Mums:
+	for N in Nums:
+	# for M in Mums:
 		for t in temps:
 			# N=300
 			# t=3
-			# glob_me = image_path+f'Coloredagg-{job_group}*_a-*_N-{N}_T-{t}.png'
+			glob_me = image_path+f'Coloredagg-{job_group}*_a-*_N-{N}_T-{t}.png'
 			# glob_me = image_path+f'ColoredFragg-{job_group}*_a-*_N-{N}_T-{t}.png'
-			glob_me = image_path+f'ColoredFragg-{job_group}*_a-*_M-{M}_T-{t}.png'
+			# print(image_path+f'ColoredFragg-{job_group}*_a-*_M-{M}_T-{t}.png')
+			# glob_me = image_path+f'ColoredFragg-{job_group}*_a-*_M-{M}_T-{t}.png'
 			print(g.glob(glob_me))
 			image = g.glob(glob_me)[0]
 			

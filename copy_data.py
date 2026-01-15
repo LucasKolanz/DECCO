@@ -22,7 +22,7 @@ def main():
 	
 	path = input_json["data_directory"]
 
-	source_prefolder = path + 'jobsCosine/lognorm_relax'
+	source_prefolder = path + 'jobsCosine/lognormrelax_'
 	dest_prefolder = path + 'jobs/BAPA_'
 
 	# dataset_name = data_prefolder.split("/")[-1]
@@ -39,35 +39,39 @@ def main():
 	# M = [1]
 	
 	
-	attempts = [i for i in range(20)]
+	# attempts = [i for i in range(20)]
+	attempts = [i for i in range(20,30)]
+	print(attempts)
+	# exit(0)
 
 	source_dir_pattern = source_prefolder+"$a$/N_300/T_1000/"
 	dest_dir_pattern = dest_prefolder+"$a$/M_1/N_300/T_1000/"
 
-	# for a,attempt in enumerate(attempts):
 
-	# 	source_dir = source_dir_pattern.replace("$a$",f"{attempt}")
-	# 	dest_dir = dest_dir_pattern.replace("$a$",f"{attempt}")
-	# 	os.system(f"cp {source_dir}* {dest_dir}.")
-	# 	# os.makedirs(dest_dir)
-	# 	# print(source_dir)
-	# 	# print(dest_dir) 
+	for a,attempt in enumerate(attempts):
+		source_dir = source_dir_pattern.replace("$a$",f"{attempt}")
+		dest_dir = dest_dir_pattern.replace("$a$",f"{attempt}")
+		if not os.path.isdir(dest_dir): 
+			os.makedirs(dest_dir)
+		os.system(f"cp {source_dir}* {dest_dir}.")
+		print(source_dir)
+		print(dest_dir) 
 
 	# 	os
 
 
 				
-	for a,attempt in enumerate(attempts):
-		# print(a)
-		directory = dest_dir_pattern.replace("$a$",f"{attempt}")
-		for file in glob.glob(directory+"297_*"):
-			file_dir = "/".join(file.split('/')[:-1])
-			file_name = file.split('/')[-1]
-			# print(f"{file_dir}")
-			os.system(f"mv {file} {file_dir}/{file_name.replace('297_','300_')}")
-			# print(f"mv {file} {file_dir}/{file_name.replace("297","300")}")
-			# print(file_name)
-		# exit(0)
+	# for a,attempt in enumerate(attempts):
+	# 	# print(a)
+	# 	directory = dest_dir_pattern.replace("$a$",f"{attempt}")
+	# 	for file in glob.glob(directory+"297_*"):
+	# 		file_dir = "/".join(file.split('/')[:-1])
+	# 		file_name = file.split('/')[-1]
+	# 		# print(f"{file_dir}")
+	# 		os.system(f"mv {file} {file_dir}/{file_name.replace('297_','300_')}")
+	# 		# print(f"mv {file} {file_dir}/{file_name.replace("297","300")}")
+	# 		# print(file_name)
+	# 	# exit(0)
 
 
 

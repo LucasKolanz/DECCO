@@ -127,7 +127,8 @@ def main():
 	job_set_names = ["const"]
 	job_set_names = ["lognorm"]
 	job_set_names = ["BAPA"]
-	job_set_names = ["constrollingfric","constrollingfricrelax"]
+	job_set_names = ["AsymBAPA_"]
+	# job_set_names = ["constrollingfric","constrollingfricrelax"]
 	
 
 	attempts = [i for i in range(30)]
@@ -138,11 +139,11 @@ def main():
 
 
 	N = [300]
-	Temps = [3,10,30,100,300,1000]
-	# Temps = [1000]
+	# Temps = [3,10,30,100,300,1000]
+	Temps = [1000]
 
 	# M = [3,5,10,15]
-	# M = []
+	M = []
 
 	# Temps = [3]
 	for j_i,job_set_name in enumerate(job_set_names):
@@ -157,8 +158,7 @@ def main():
 		elif job_set_name == "constrollingfricrelax":
 			jobfolder = "jobs"
 		else:
-			print("ERROR: unrecognized job_set_name.")
-			exit(0)
+			jobfolder = "jobs"
 		for n in N:
 			# for m in M:
 			for Temp in Temps:
@@ -173,12 +173,13 @@ def main():
 					remote_job_folder = remote_base_folder + 'jobs/' + job_set_name + '' + str(attempt)\
 								+ '/N_' + str(n) + '/T_' + str(Temp) + '/'
 
+
 					if local_job_folder == remote_job_folder:
 						print("ERROR: remote and local folders are the same thing.")
 						exit(0)
 
 
-					if os.path.exists(local_job_folder+"timing.txt") and u.find_max_index(local_job_folder) == n: #Have we already copied this job over?
+					if os.path.exists(local_job_folder+"timing.txt") and u.find_max_index(local_job_folder) >= n: #Have we already copied this job over?
 						print(f"Job already copied: {remote_job_folder}")
 						continue
 

@@ -3,20 +3,21 @@ import glob as g
 import numpy as np
 import os
 import json
-from PIL import Image
-from mpl_toolkits.axes_grid1 import ImageGrid
-import matplotlib.ticker as plticker
-from matplotlib.patches import FancyArrowPatch
 
-
-relative_path = ""
-relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
-project_path = os.path.abspath(relative_path) + '/'
-
-plt.rcdefaults()
-plt.rcParams['font.size'] = 30
 
 def main():
+	from PIL import Image
+	from mpl_toolkits.axes_grid1 import ImageGrid
+	import matplotlib.ticker as plticker
+	from matplotlib.patches import FancyArrowPatch
+
+	relative_path = ""
+	relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
+	project_path = os.path.abspath(relative_path) + '/'
+
+	plt.rcdefaults()
+	plt.rcParams['font.size'] = 30
+	
 	constant = 1.5
 	fig,ax = plt.subplots(figsize=(constant*1152*6/500 - .10, constant*1080*3/500 ))
 
