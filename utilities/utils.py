@@ -914,6 +914,29 @@ def write_enclosing_ellipsoid(center, axes, R,directory=""):
 	print(f"[INFO] Bounding ellipsoid written to {path}")
 	return path
 
+def writeGCSRadius(R,COM,directory=""):
+	"""
+	Writes the radius and center of mass of a circle with the
+	same area as the GCS to the given directory.
+	"""
+
+	if directory == "":
+		import tempfile
+		# Use system temp directory, e.g. /tmp on Linux
+		directory = tempfile.gettempdir()
+	path = os.path.join(directory, "GCS_sphere.json")
+
+	data = {
+		"radius": R,
+		"center": COM.tolist(),
+	}
+
+	with open(path, "w") as f:
+		json.dump(data, f, indent=2)
+
+	print(f"[INFO] GCS radius written to {path}")
+	return path
+
 def write_shadow_grid(xs, ys, shadow, k=None, delta=None,
 							 proj_points=None, radii=None, directory=""):
 	"""
@@ -985,7 +1008,7 @@ def number_of_contacts(pos,radii):
 		return np.nan
 	pos = np.array(pos)
 
-	contacts = u.calc_contacts(pos,radii)
+	contacts = calc_contacts(pos,radii)
 
 	# contacts = np.zeros((num_balls,num_balls),dtype=int)
 	# dist = lambda i,j: np.sqrt((data[i][0]-data[j][0])**2 + (data[i][1]-data[j][1])**2 + \
@@ -1019,17 +1042,23 @@ def calc_contacts(pos,radii):
 #########################################################################
 
 def calc_max_number_of_contacts(data_folder,data_index=-1,relax=False,makeVisual=False):
-
+	import time
 	line = 0
 	max_nc = -1
 	max_line = -1
-	pos,radii,mass,moi = u.get_data(data_folder,data_index=data_index,linenum=line,relax=relax)
+	pos,radii,mass,moi = get_data(data_folder,data_index=data_index,linenum=line,relax=relax)
 	nc = number_of_contacts(pos,radii)
 	while not np.isnan(nc):
 		# max_nc = max(max_nc,nc)
 		line += 1 
-		pos,radii,mass,moi = u.get_data(data_folder,data_index=data_index,linenum=line,relax=relax)
+		print(line)
+		time0 = time.perf_counter()
+		pos,radii,mass,moi = get_data(data_folder,data_index=data_index,linenum=line,relax=relax)
+		time1 = time.perf_counter()
 		nc = number_of_contacts(pos,radii)
+		time2 = time.perf_counter()
+		print(f"get data: {time1-time0}")
+		print(f"number_of_contacts: {time2-time1}")
 		if max_nc < nc:
 			max_nc = nc
 			max_line = line
@@ -1145,14 +1174,15 @@ def calc_fully_enclosed_ellipsoid(pos, radii, samples_per_sphere=8192,write=Fals
 	return status, max_q, center, R, axes
 
 def calc_gyration_radius(effective_radius,pos,mass,directory,write=False):
-	principal_moi = u.get_principal_moi(mass,pos)[::-1]
+	principal_moi = get_principal_moi(mass,pos)[::-1]
 
 	alphai = principal_moi/(0.4*np.sum(mass)*effective_radius**2)
 
 	RKBM = np.sqrt(np.sum(alphai)/3) * effective_radius
 
-	if makeVisual:
+	if write:
 		COM = u.calcCOM(mass,pos)
+
 		write_gyration_radius_sphere(COM,RKBM,data_folder)
 
 	return RKBM

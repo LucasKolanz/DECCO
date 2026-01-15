@@ -56,6 +56,11 @@ def calc_geometric_cross_section(data_folder,size,relax=False,**kwargs):
 	
 	# normalization = np.pi*np.sum(np.power(radius,2))
 
+	if makeVisual:
+		R = np.sqrt(gcs/np.pi)
+		COM = u.calcCOM(mass,pos)
+		u.writeGCSRadius(R,COM,data_folder)
+
 	return gcs
 
 
@@ -285,8 +290,8 @@ if __name__ == '__main__':
 
 
 
-	# N = [300]
-	N = [30,100,300]
+	N = [300]
+	# N = [30,100,300]
 
 	#list of the functions that calculate the data you want
 	#if adding to this list, name your function calc_*header_name*
@@ -296,12 +301,12 @@ if __name__ == '__main__':
 	#to calculate as an input.
 	#It should return a single data value.
 	# bool_headers = [1,1,0,0,1,0,0,0]
-	bool_headers = [1,0,0,0,0,0,0,0,0,0]
-	bool_headers = [0,0,0,0,0,0,0,0,0,1]
+	bool_headers = [0,0,1,0,0,0,0,0,0,0]
+	bool_headers = [1,1,0,0,0,0,1,1,1,1]
 	# requested_data_functions = [data_functions[i] for i in range(len(data_functions)) if bool_headers[i]]
 	requested_data_headers = [data_headers[i] for i in range(len(data_headers)) if bool_headers[i]]
 
-	overwritedata = True
+	overwritedata = False
 	makeVisual = False
 
 	for n_i,n in enumerate(N):
@@ -312,7 +317,8 @@ if __name__ == '__main__':
 		# data_folders = [path + 'jobs/BAPA_*/M_1/*']
 		# data_folders = [path + 'jobs/constrollingfric*']
 		# data_folders = [path + 'jobs/BAPA_0/M_60/*']
-		# data_folders = [path + 'jobs/SeqStickConst_*/']
+		data_folders = [path + 'jobs/SeqStickConst_*/']
+		data_folders = [path + 'jobs/SeqStickLognorm_*/']
 		# data_folders = [path + 'jobsCosine/lognorm_*/N_300/T_*/']
 		# data_folders = [path + 'jobsCosine/lognorm_*/N_300/T_*/']
 		# data_folders = [path + 'jobsNovus/const_*/N_300/T_1000/']
@@ -326,10 +332,13 @@ if __name__ == '__main__':
 		
 		# data_folders.append(path + f'jobsNovus/const_*/N_{n}/*')
 		# data_folders.append(path + f'jobsCosine/lognorm_*/N_{n}/*')
-		data_folders.append(path + f'jobsNovus/constrelax_*/N_{n}/*')
-		data_folders.append(path + f'jobsCosine/lognormrelax_*/N_{n}/*')
+		# data_folders.append(path + f'jobsNovus/constrelax_*/N_{n}/*')
+		# data_folders.append(path + f'jobsCosine/lognormrelax_*/N_{n}/*')
 		# data_folders.append('/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobsNovus/constrelax_4/N_300/T_30/')
 		# data_folders.append('/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobsCosine/lognormrelax_12/N_300/T_3/')
+		# data_folders.append('/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobsCosine/lognormrelax_7/N_300/T_1000/')
+		# data_folders.append('/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobsCosine/lognormrelax_19/N_300/T_1000/')
+		# data_folders.append('/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobsCosine/lognormrelax_20/N_300/T_1000/')
 
 		possible_dirs = []
 		for data_folder in data_folders:

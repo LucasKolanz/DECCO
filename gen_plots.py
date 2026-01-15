@@ -28,6 +28,33 @@ import gen_data as gd
 styles = ['-','--','-.',':']
 colors = ['g','b','orange','r','deeppink','m','y','tab:brown']
 
+def label_from_header(header):
+
+	if header == gd.data_headers[0]:
+		return r'$\bm{\mathcal{P}_{abc}}$'
+	elif header == gd.data_headers[1]:
+		return r'$\bm{\mathcal{P}_{KBM}}$'
+	elif header == gd.data_headers[2]:
+		return r'$\bm{\mathcal{ANC}}$'
+	elif header == gd.data_headers[3]:
+		return r'$\bm{\mathcal{D}_{f}}$'
+	elif header == gd.data_headers[4]:
+		return r'$\bm{\mathcal{A}}$'
+	elif header == gd.data_headers[5]:
+		return r'$\bm{\mathcal{S}}$'
+	elif header == gd.data_headers[6]:
+		return r'$\bm{\mathcal{P}_{fee}}$'
+	elif header == gd.data_headers[7]:
+		return r'$\bm{\mathcal{P}_{fes}}$'
+	elif header == gd.data_headers[8]:
+		return r'$\bm{\mathcal{P}_{ch}}$'
+	elif header == gd.data_headers[9]:
+		return r'$\bm{\mathcal{P}_{gcs}}$'
+		# return r'$\bm{N^{1/3}\left( \frac{S}{\pi \sum_i r_{i}^{2}}} \right)$'
+		# return r'$\bm{\langle \sigma \rangle}$'
+	else:
+		return ""
+
 def plot_with_sigma_bands(ax, x, mean, sigma, label=None, line_kwargs=None, band_labels=True):
 	"""
 	Plot mean and shaded ±1σ (darker) and ±2σ (lighter) bands.
@@ -103,34 +130,117 @@ def Tanaka(sizes,initRg,temp):
 
 	return 1-np.array(sizes)*(m/rho0)/np.array(Vols)
 
+def gen_agg_im_plot(show_plots=True,save_plots=False):
+	import glob as g
+	from PIL import Image
+	from mpl_toolkits.axes_grid1 import ImageGrid
+	import matplotlib.ticker as plticker
+	from matplotlib.patches import FancyArrowPatch
 
-def label_from_header(header):
+	relative_path = ""
+	relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
+	project_path = os.path.abspath(relative_path) + '/'
 
-	if header == gd.data_headers[0]:
-		return r'$\bm{\mathcal{P}_{abc}}$'
-	elif header == gd.data_headers[1]:
-		return r'$\bm{\mathcal{P}_{KBM}}$'
-	elif header == gd.data_headers[2]:
-		return r'$\bm{\mathcal{ANC}}$'
-	elif header == gd.data_headers[3]:
-		return r'$\bm{\mathcal{D}_{f}}$'
-	elif header == gd.data_headers[4]:
-		return r'$\bm{\mathcal{A}}$'
-	elif header == gd.data_headers[5]:
-		return r'$\bm{\mathcal{S}}$'
-	elif header == gd.data_headers[6]:
-		return r'$\bm{\mathcal{P}_{fee}}$'
-	elif header == gd.data_headers[7]:
-		return r'$\bm{\mathcal{P}_{fes}}$'
-	elif header == gd.data_headers[8]:
-		return r'$\bm{\mathcal{P}_{ch}}$'
-	elif header == gd.data_headers[9]:
-		return r'$\bm{\mathcal{P}_{gcs}}$'
-		# return r'$\bm{N^{1/3}\left( \frac{S}{\pi \sum_i r_{i}^{2}}} \right)$'
-		# return r'$\bm{\langle \sigma \rangle}$'
-	else:
-		return ""
+	plt.rcdefaults()
+	plt.rcParams['font.size'] = 30
+	
+	constant = 1.5
+	fig,ax = plt.subplots(figsize=(constant*1152*6/500 - .10, constant*1080*3/500 ))
 
+	grid = ImageGrid(fig,111,nrows_ncols=(3,6),axes_pad=0,share_all=True)
+
+	with open(project_path+"default_files/default_input.json",'r') as fp:
+		input_json = json.load(fp)
+	
+	path = input_json["data_directory"]
+
+	# job_group = "constrelax"
+	# Title = "Constant"
+	job_group = "lognormrelax"
+	Title = "Lognormal"
+
+	image_path = path + "data/figures/aggRenders/"
+	Nums = [30,100,300]
+	# Nums = [30,100]
+	temps = [3,10,30,100,300,1000]
+
+	cmaps = []
+
+	images = []
+	for N in Nums:
+		for t in temps:
+			# image = g.glob(image_path+'edited/N{}T{}A*'.format(N,t))[0]
+			glob_me = image_path+f'edited/Coloredagg-{job_group}*_a-*_N-{N}_T-{t}_cropped.png'
+			# glob_me = image_path+f'/agg-{job_group}*_a-*_N-{N}_T-{t}.png'
+			# print(glob_me)
+			image = g.glob(glob_me)[0]
+			im = Image.open(image)
+
+			# Convert the image to a NumPy array
+			image_array = np.array(im)
+
+			# Check if the image is grayscale
+			if image_array.ndim == 2:
+				cmaps.append('gray')
+			else:
+				cmaps.append(None)
+
+			images.append(im)
+
+	# print(images)
+	# grid[0].imshow(images[0])
+	# plt.xticks(np.arange(0,1,step=1/6))
+	ax.xaxis.set(ticks=[5,15,25,35,45,55,60],
+				ticklabels=['3','10','30','100','300','1000',''],
+				# label="x"
+				)
+	# loc = plticker.MultipleLocator(base=1.0) # this locator puts ticks at regular intervals
+	# ax.xaxis.set_major_locator(loc)
+	ax.yaxis.set(ticks=[5,15,25,30],ticklabels=['300','100','30',''])
+	ax.spines['top'].set_visible(False)
+	ax.spines['right'].set_visible(False)
+	index = 0
+	for axe,im in zip(grid,images):
+		axe.axis('off')
+		# axe.imshow(im, cmap=cmaps[index])
+		axe.imshow(im, cmap=cmaps[index], zorder=0)
+
+		# index
+
+		# axe.imshow(im,cmap=None)
+	# axe.imshow(im, cmap=None)
+	ax.set_xlabel('Temp (K)')
+	ax.set_ylabel('Number of Particles')
+
+
+	h = 0.61
+	start = (0.35, h)    # figure-fraction coords
+	end   = (0.68, h)
+
+	# arrow = FancyArrowPatch(
+	#     start, end,
+	#     transform=fig.transFigure,
+	#     arrowstyle='-|>',
+	#     mutation_scale=25,
+	#     lw=5, color='black',
+	#     zorder=200
+	# )
+	# fig.add_artist(arrow)
+
+	fig.text(
+	    0.515, end[1]+0.03,       # slightly above the head
+	    Title,
+	    transform=fig.transFigure,
+	    color='black',
+	    fontsize=30,
+	    ha='center'
+	)
+
+	if save_plots:
+		# plt.savefig(path + f'data/figures/ColoredAggComp_{job_group}.png',dpi=1500)
+		plt.savefig(path + f'data/figures/ColoredAggComp_{job_group}.png',dpi=600)
+	if show_plots:
+		plt.show()
 
 def gen_relax_vs_tense_seqstick_plots(distribution,show_plots=True,save_plots=False,include_totals=False):
 	with open(project_path+"default_files/default_input.json",'r') as fp:
@@ -1099,25 +1209,25 @@ def gen_seqstick_plots(distribution):
 	for h_i,header in enumerate(requested_data_headers):
 		print(f"{distribution} {header}: {avg_data[h_i]} +- {err_data[h_i]} for {num_data[h_i]} data points.")
 
-def gen_BPCA_gcs_csv_tables(save_plots=save_plots):
+def gen_BPCA_gcs_csv_tables(save_plots):
 	with open(project_path+"default_files/default_input.json",'r') as fp:
 		input_json = json.load(fp)
 	
 	path = input_json["data_directory"]
 
 	data_prefolders = []
-	data_prefolders.append(path + 'jobsCosine/lognormrelax_')
 	data_prefolders.append(path + 'jobsNovus/constrelax_')
+	data_prefolders.append(path + 'jobsCosine/lognormrelax_')
 
 	for data_prefolder in data_prefolders:
 		dataset_name = data_prefolder.split("/")[-1].strip("_")
-		figure_folder = path+f'data/figures/{dataset_name}/'
+		table_folder = path+f'data/tables/{dataset_name}/'
 
-		if save_plots and not os.path.exists(figure_folder):
-			os.makedirs(figure_folder)
+		if save_plots and not os.path.exists(table_folder):
+			os.makedirs(table_folder)
 
 		temps = [3,10,30,100,300,1000]
-		N = [300]
+		N = [30,100,300]
 		attempts = [i for i in range(30)]
 
 		data_file = "job_data.csv" #with centering 
@@ -1126,7 +1236,7 @@ def gen_BPCA_gcs_csv_tables(save_plots=save_plots):
 
 		bool_headers = [0,0,0,0,0,0,0,0,0,1]
 		requested_data_headers = [gd.data_headers[i] for i in range(len(gd.data_headers)) if bool_headers[i]]
-
+		header = requested_data_headers[0]
 		relax = not ("nonrelax" in data_file)
 		print(f"relax: {relax}")
 		rel = ""
@@ -1159,6 +1269,33 @@ def gen_BPCA_gcs_csv_tables(save_plots=save_plots):
 					else:
 						print(f"DNE: {full_path_data_file}")
 
+		#convert cm^2 to micrometers^2
+		raw_data*=1e8
+		avg_data = np.nanmean(raw_data, axis=0)
+		std_data = np.nanstd(raw_data, axis=0)
+
+		csv_headers = ["N"]+[f"T{int(T)}K" if float(T).is_integer() else f"T{T}K" for T in temps]
+		csv_header_line = ",".join(csv_headers)
+
+		def avg_fmt(x):
+			return f"{x:.{3}f}"
+		def std_fmt(x):
+			return f"{x:.{3}f}"
+
+		filename = os.path.join(table_folder, f"gcsTable-{dataset_name}.csv")
+		row = []
+		for n_i, n in enumerate(N):
+			row.append([f"{n}"]+[f"{avg_fmt(avg_data[n_i, j])} ± {std_fmt(std_data[n_i, j])}" for j in range(len(temps))])
+
+		with open(filename, "w") as f:
+			for n_i, n in enumerate(N):
+				if n_i == 0:
+					f.write(csv_header_line + "\n")
+				f.write(",".join(row[n_i]) + "\n")
+
+		print("Wrote", filename)
+
+
 def gen_BPCA_porosity_vs_temp_plots(show_plots=True,save_plots=False,include_totals=False):
 	with open(project_path+"default_files/default_input.json",'r') as fp:
 		input_json = json.load(fp)
@@ -1171,6 +1308,13 @@ def gen_BPCA_porosity_vs_temp_plots(show_plots=True,save_plots=False,include_tot
 
 	for data_prefolder in data_prefolders:
 		dataset_name = data_prefolder.split("/")[-1].strip("_")
+		if dataset_name == "constrelax":
+			Title = "Constant"
+		elif dataset_name == "lognormrelax":
+			Title = "Lognormal"
+		else:
+			Title = ""
+
 		figure_folder = path+f'data/figures/{dataset_name}/'
 
 		if save_plots and not os.path.exists(figure_folder):
@@ -1233,32 +1377,6 @@ def gen_BPCA_porosity_vs_temp_plots(show_plots=True,save_plots=False,include_tot
 						for h_i,header in enumerate(requested_data_headers):
 							if header in existing_headers_for_size:
 								raw_data[h_i,a_i,n_i,t_i] = u.get_plottable_value_from_saved_value(existing_values_for_size[existing_headers_for_size.index(header)],header,folder,size,relax)
-
-								# raw_data[h_i,a_i,n_i,t_i] = existing_values_for_size[existing_headers_for_size.index(header)]
-
-								# print("HERE")
-								# print(existing_values_for_size[existing_headers_for_size.index(header)])
-								# print(size**(1.0/3.0))
-								# raw_data[h_i,a_i,n_i,t_i] = float(existing_values_for_size[existing_headers_for_size.index(header)])*(size**(1.0/3.0))
-								
-								# pos,radius,mass,moi = u.get_data(folder,data_index=n,relax=relax)
-								# # r = np.power((1/size)*np.sum(radius**3),1.0/3.0)
-								# S = float(existing_values_for_size[existing_headers_for_size.index(header)])*((np.pi*np.sum(np.power(radius,2))))
-								# r = np.sqrt(S/np.pi)
-								# # print(f"r: {r}")
-								# r_ef_cubed = np.sum(np.power(radius,3))
-								# # print(f"r_ef: {r_ef_cubed**(1.0/3.0)}")
-								# data = 1-(r_ef_cubed/r**3)
-								# raw_data[h_i,a_i,n_i,t_i] = data
-								
-
-								# pos,radius,mass,moi = u.get_data(folder,data_index=n,relax=relax)
-								# S = float(existing_values_for_size[existing_headers_for_size.index(header)])*((np.pi*np.sum(np.power(radius,2))))
-								# r = np.power((1/size)*np.sum(radius**3),1.0/3.0)
-								# data = S*size**(1.0/3.0)/(size*np.pi*r**2)
-								# raw_data[h_i,a_i,n_i,t_i] = data
-
-								# raw_data[h_i,a_i,n_i,t_i] = float(existing_values_for_size[existing_headers_for_size.index(header)])
 					else:
 						print(f"DNE: {full_path_data_file}")
 
@@ -1318,10 +1436,23 @@ def gen_BPCA_porosity_vs_temp_plots(show_plots=True,save_plots=False,include_tot
 		ax.legend(
 			ordered_handles,
 			ordered_labels,
-		    loc='center left',
-		    bbox_to_anchor=(1.02, 0.5),  # 1.02 is just to the right of the axes
-		    frameon=True,
-		    borderaxespad=0.0
+			loc='center left',
+			bbox_to_anchor=(1.02, 0.5),  # 1.02 is just to the right of the axes
+			frameon=True,
+			borderaxespad=0.0
+		)
+
+		h = 0.55
+		# start = (0.35, h)    # figure-fraction coords
+		end   = (0.68, h)
+
+		fig.text(
+		    0.45, end[1]+0.03,       # slightly above the head
+		    Title,
+		    transform=fig.transFigure,
+		    color='black',
+		    fontsize=30,
+		    ha='center'
 		)
 
 
@@ -2438,6 +2569,13 @@ def gen_BPCA_temp_sensitivity_plots(show_plots=True,save_plots=False,include_tot
 	
 	for data_prefolder in data_prefolders:
 		dataset_name = data_prefolder.split("/")[-1].strip("_")
+		if dataset_name == "constrelax":
+			Title = "Constant"
+		elif dataset_name == "lognormrelax":
+			Title = "Lognormal"
+		else:
+			Title = ""
+
 		figure_folder = path+f'data/figures/{dataset_name}/'
 
 		if save_plots and not os.path.exists(figure_folder):
@@ -2459,7 +2597,7 @@ def gen_BPCA_temp_sensitivity_plots(show_plots=True,save_plots=False,include_tot
 					folder = f"{data_prefolder}{a}/N_{n}/T_{t}/"
 					if os.path.exists(folder+f"{rel}{data_file}"):
 						full_data_path = folder+f"{rel}{data_file}"
-						print(f"opening {full_data_path}")
+						# print(f"opening {full_data_path}")
 						with open(full_data_path,'r') as fp:
 							existing_data = fp.readlines()
 
@@ -2603,68 +2741,30 @@ def gen_BPCA_temp_sensitivity_plots(show_plots=True,save_plots=False,include_tot
 		fig.tight_layout()
 
 
+		h = 0.61
+		start = (0.35, h)    # figure-fraction coords
+		end   = (0.68, h)
 
-		# #	plt.close("all")
-		# plt.rcParams.update({
-		# 	'font.size': 18,
-		# 	'text.usetex': True,
-		# 	'text.latex.preamble': r'\usepackage{amsmath} \usepackage{bm}'
-		# })
+		# arrow = FancyArrowPatch(
+		#     start, end,
+		#     transform=fig.transFigure,
+		#     arrowstyle='-|>',
+		#     mutation_scale=25,
+		#     lw=5, color='black',
+		#     zorder=200
+		# )
+		# fig.add_artist(arrow)
 
-		# fig,ax = plt.subplots(figsize=(10,5))
-		# # dummy_x_data = [0,.2,.4,.6]
-		# dummy_x_data = [0.015,.2,.4,.585]
+		fig.text(
+		    # 0.515, end[1]+0.03,       # slightly above the head
+		    0.7, end[1]+0.03,       # slightly above the head
+		    Title,
+		    transform=fig.transFigure,
+		    color='black',
+		    fontsize=30,
+		    ha='center'
+		)
 
-		# ticks = []
-		# ticklabels = []
-		# for n_i,n in enumerate(N):
-		# 	rang = []
-		# 	if n == 30:
-		# 		rang = [0,4]
-		# 		# shift = -0.035
-		# 		shift = -0.04
-		# 	elif n == 100:
-		# 		rang = [4,8]
-		# 		shift = 0
-		# 	else:
-		# 		rang = [8,12]
-		# 		# shift = 0.035
-		# 		shift = 0.04
-		# 	x_data = [i+shift for i in dummy_x_data]
-
-		# 	ax.errorbar(x=x_data,y=slope_data[:,n_i],yerr=slope_sigma_data[:,n_i],\
-		# 			fmt='o',linewidth=2, capsize=6,label=f"N={n}")
-
-		# 	ticks.extend(x_data)
-		# 	ticklabels.extend([n]*4)
-
-
-		# plt.axvline(x = 0.1, color = 'black')
-		# plt.axvline(x = 0.3, color = 'black')
-		# plt.axvline(x = 0.5, color = 'black')
-
-
-		# labels = [label_from_header(i) for i in requested_data_headers]
-		# # ticklabels.extend([""]*(len(dummy_x_data)-len(requested_data_headers)))
-
-		# ax.xaxis.set(ticks=ticks,
-		# 		ticklabels=ticklabels)
-
-		# ax.text(-0.01,0.025,labels[0])
-		# ax.text(0.168,0.025,labels[1])
-		# ax.text(0.387,0.025,labels[2])
-		# ax.text(0.56,0.025,labels[3])
-
-		# plt.hlines(0,xmin=-0.0685,xmax=0.6685,linestyle="--",color='black')
-
-		# ax.set_ylabel('Sensitivity to Temperature')
-		# ax.set_xlabel('Aggregate size (N)')
-		# ax.set_ylim(-0.0010770496039509136, 0.02782241381226227)
-		# ax.set_xlim(-0.0685, 0.6685)
-		
-		# # fig.legend(loc='lower left',bbox_to_anchor=(0.785,0.65))
-		# # fig.legend(loc='lower left',bbox_to_anchor=(0.785,0.48))
-		# plt.tight_layout()
 		if save_plots:
 			plt.savefig("{}{}_methodComp.png".format(figure_folder,dataset_name))
 		if show_plots:
@@ -3202,11 +3302,12 @@ if __name__ == '__main__':
 	# gen_relax_vs_tense_BPCA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_relax_vs_tense_seqstick_plots(distribution="lognormal",show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 
+	# gen_agg_im_plot(save_plots=save_plots,show_plots=show_plots)
 	# gen_BPCA_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_ratio_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_temp_sensitivity_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
-	# gen_BPCA_porosity_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
-	gen_BPCA_gcs_csv_tables(save_plots=save_plots)
+	gen_BPCA_porosity_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
+	# gen_BPCA_gcs_csv_tables(save_plots=save_plots)
 	
 
 	# gen_BPCA_ratio_bugbetter_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
