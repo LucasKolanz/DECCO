@@ -61,8 +61,10 @@ if __name__ == '__main__':
 
 	# runs_at_once = 1
 	# attempts = [2] 
-	attempts = [i for i in range(0,10)]
-	# attempts = [0]
+	# attempts = [i for i in range(0,10)]
+	attempts = [i for i in range(0,5)]
+	attempts = [i for i in range(5,10)]
+	# attempts = [8]
 	N = [300] #minimum final size
 	# M = [20,30,50,60,100] #starting sizes
 	M = [-1] #starting sizes
@@ -82,7 +84,7 @@ if __name__ == '__main__':
 	totalNodes = 1
 	MPITasksPerNode = 1
 	totalMPITasks = totalNodes*MPITasksPerNode
-	threadsPerTask = 5
+	threadsPerTask = 32
 
 	for attempt in attempts:
 		for m in M:

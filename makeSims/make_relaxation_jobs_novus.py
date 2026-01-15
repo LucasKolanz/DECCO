@@ -59,18 +59,19 @@ if __name__ == '__main__':
 	job_group = "jobsNovus"
 
 	job_set_name = "constrollingfric"
+	job_set_name = "lognorm"
 	job_group = "jobs"
 	
 	rsize = job_set_name.split("_")[0]
 
-	attempts = [i for i in range(30)]
-	# attempts = [23]
+	# attempts = [i for i in range(30)]
+	attempts = [20]#[7,19,20]
 
 	# N = [30,100,300]
 	N = [300]
 	# M = [3,5,10,15]
 	# M=[]
-	Temps = [30,100,300,1000]
+	Temps = [1000]
 	# Temps = [30]
 
 
@@ -81,7 +82,7 @@ if __name__ == '__main__':
 	totalNodes = 1
 	MPITasksPerNode = 1
 	totalMPITasks = totalNodes*MPITasksPerNode
-	threadsPerTask = 5
+	threadsPerTask = 28
 
 
 	for values in unrolled:
@@ -96,9 +97,9 @@ if __name__ == '__main__':
 			default_input_json = json.load(fp)
 		
 		# job = curr_folder + 'jobs/' + job_set_name + str(attempt) + '/'
-		job = default_input_json["data_directory"] + f'{job_group}/' + job_set_name + "relax" + str(attempt) + '/'\
+		job = default_input_json["data_directory"] + f'{job_group}/' + job_set_name + "relax_" + str(attempt) + '/'\
 					+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
-		copyjob = default_input_json["data_directory"] + f'{job_group}/' + job_set_name + str(attempt) + '/'\
+		copyjob = default_input_json["data_directory"] + f'{job_group}/' + job_set_name + '_' + str(attempt) + '/'\
 					+ 'N_' + str(n) + '/' + 'T_' + str(Temp) + '/'
 
 		
@@ -124,7 +125,7 @@ if __name__ == '__main__':
 				input_json['temp'] = Temp
 				input_json['N'] = n
 				input_json['OMPthreads'] = threadsPerTask
-				input_json['MPInodes'] = 1
+				input_json['MPInodes'] = totalNodes
 				input_json['simType'] = "relax"
 
 				# input_json['seed'] = rand_int()
@@ -156,9 +157,12 @@ if __name__ == '__main__':
 				sbatchfile = ""
 				sbatchfile += "#!/bin/bash\n"
 				# sbatchfile += "#SBATCH -C gpu\n"
+				sbatchfile += f'#SBATCH --account=lazzati\n'
+				sbatchfile += f'#SBATCH --partition=lazzati.q\n'
 				sbatchfile += f"#SBATCH -J {job_name}\n"
 				sbatchfile += f"#SBATCH --nodes {totalNodes}\n"
-				sbatchfile += f"#SBATCH --ntasks-per-node {totalMPITasks}\n"
+				sbatchfile += f"#SBATCH --ntasks-per-node {MPITasksPerNode}\n"
+				# sbatchfile += f"#SBATCH --ntasks-per-node {totalMPITasks}\n"
 				sbatchfile += f"#SBATCH --cpus-per-task {threadsPerTask}\n\n"
 				sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(threadsPerTask)
 				sbatchfile += 'module load hdf5/1.10.8\n'
