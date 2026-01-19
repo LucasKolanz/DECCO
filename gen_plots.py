@@ -1140,8 +1140,8 @@ def gen_seqstick_plots(distribution):
 		data_prefolder = path + 'jobs/SeqStickLognormrelax_'
 		data_prefolder = path + 'jobsCosine/lognormrelax_'
 	elif distribution == "constant":
-		# data_prefolder = path + 'jobs/SeqStickConst_'
 		data_prefolder = path + 'jobs/SeqStickConstrelax_'
+		data_prefolder = path + 'jobsNovus/constrelax_'
 	else:
 		print("Distribution not recognized")
 		exit(-1)
@@ -3296,8 +3296,8 @@ if __name__ == '__main__':
 	# gen_BPCA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_vs_time_avg_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_vs_time_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
-	gen_seqstick_plots(distribution="lognormal")
-	# gen_seqstick_plots(distribution="constant")
+	# gen_seqstick_plots(distribution="lognormal")
+	gen_seqstick_plots(distribution="constant")
 
 
 	# gen_relax_vs_tense_BPCA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
