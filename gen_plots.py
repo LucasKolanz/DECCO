@@ -1137,10 +1137,10 @@ def gen_seqstick_plots(distribution):
 	path = input_json["data_directory"]
 
 	if distribution == "lognormal":
-		data_prefolder = path + 'jobs/SeqStickLognorm_'
 		data_prefolder = path + 'jobs/SeqStickLognormrelax_'
+		data_prefolder = path + 'jobsCosine/lognormrelax_'
 	elif distribution == "constant":
-		data_prefolder = path + 'jobs/SeqStickConst_'
+		# data_prefolder = path + 'jobs/SeqStickConst_'
 		data_prefolder = path + 'jobs/SeqStickConstrelax_'
 	else:
 		print("Distribution not recognized")
@@ -1164,14 +1164,15 @@ def gen_seqstick_plots(distribution):
 		rel = "relax_"
 
 
-	requested_data_headers = gd.data_headers[:2]# + [gd.data_headers[-1]]
+	requested_data_headers = gd.data_headers[:2] + gd.data_headers[-4:]
 
 
 	raw_data = np.full(shape=(len(requested_data_headers),len(attempts)),fill_value=np.nan,dtype=np.float64)
 	print(f"raw_data shape: {raw_data.shape}")
 
 	for a_i,attempt in enumerate(attempts):
-		folder = f"{data_prefolder}{attempt}/N_{n}/"
+		# folder = f"{data_prefolder}{attempt}/N_{n}/"
+		folder = f"{data_prefolder}{attempt}/N_{n}/T_3/"
 		# print(folder)
 		if os.path.exists(folder+f"{rel}job_data.csv"):
 			with open(folder+f"{rel}job_data.csv",'r') as fp:
@@ -1191,14 +1192,14 @@ def gen_seqstick_plots(distribution):
 			
 			for h_i,header in enumerate(requested_data_headers):
 				if header in existing_headers_for_size:
-					raw_data[h_i,a_i] = existing_values_for_size[existing_headers_for_size.index(header)]
+					raw_data[h_i,a_i] = u.get_plottable_value_from_saved_value(existing_values_for_size[existing_headers_for_size.index(header)],header,folder,size,relax)
 				else:
 					print(f"Header {header} doesnt exist for dir {folder}")
 		else:
 			print(f"NO DATA FILE FOR FOLDER: {folder}")
 
 
-	print(raw_data)
+	# print(raw_data)
 	avg_data = np.nanmean(raw_data,axis=1)
 	std_data = np.nanstd(raw_data,axis=1)
 	num_data = np.count_nonzero(~np.isnan(raw_data),axis=1)
@@ -3295,7 +3296,7 @@ if __name__ == '__main__':
 	# gen_BPCA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_vs_time_avg_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_vs_time_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
-	# gen_seqstick_plots(distribution="lognormal")
+	gen_seqstick_plots(distribution="lognormal")
 	# gen_seqstick_plots(distribution="constant")
 
 
@@ -3306,7 +3307,7 @@ if __name__ == '__main__':
 	# gen_BPCA_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_ratio_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_temp_sensitivity_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
-	gen_BPCA_porosity_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
+	# gen_BPCA_porosity_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_gcs_csv_tables(save_plots=save_plots)
 	
 
