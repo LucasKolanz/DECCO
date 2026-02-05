@@ -56,7 +56,12 @@ def get_plottable_value_from_saved_value(value,header,folder,data_index,relax):
 		data = 1-(r_ef_cubed/r**3)
 		return data
 
-
+#finds the integer corresponding to a particular part of the directory structure
+#could be T for temperature, N for number of particles, etc.
+def value_from_directory(pattern,directory):
+	val = re.search(rf"{re.escape(pattern)}_(\d+)", directory)
+	intVal = int(val.group(1)) if val else None
+	return intVal
 
 #this function taken from 
 #https://scipython.com/book/chapter-6-numpy/problems/p65/the-moment-of-inertia-tensor/
@@ -1042,7 +1047,7 @@ def calc_contacts(pos,radii):
 #########################################################################
 
 def calc_max_number_of_contacts(data_folder,data_index=-1,relax=False,makeVisual=False):
-	import time
+	# import time
 	line = 0
 	max_nc = -1
 	max_line = -1
@@ -1051,14 +1056,14 @@ def calc_max_number_of_contacts(data_folder,data_index=-1,relax=False,makeVisual
 	while not np.isnan(nc):
 		# max_nc = max(max_nc,nc)
 		line += 1 
-		print(line)
-		time0 = time.perf_counter()
+		# print(line)
+		# time0 = time.perf_counter()
 		pos,radii,mass,moi = get_data(data_folder,data_index=data_index,linenum=line,relax=relax)
-		time1 = time.perf_counter()
+		# time1 = time.perf_counter()
 		nc = number_of_contacts(pos,radii)
-		time2 = time.perf_counter()
-		print(f"get data: {time1-time0}")
-		print(f"number_of_contacts: {time2-time1}")
+		# time2 = time.perf_counter()
+		# print(f"get data: {time1-time0}")
+		# print(f"number_of_contacts: {time2-time1}")
 		if max_nc < nc:
 			max_nc = nc
 			max_line = line
