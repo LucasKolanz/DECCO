@@ -234,9 +234,11 @@ void runAggregation(std::string path, int num_balls)
 {
     int world_rank = getRank();
 
-    Ball_group O = Ball_group(path);  
 
+
+    Ball_group O = Ball_group(path);  
     safetyChecks(O);
+
     std::string message;
     message = "Asking for "+std::to_string(O.get_num_threads())+" threads.\n";
     MPIsafe_print(std::cerr,message);

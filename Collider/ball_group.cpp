@@ -128,8 +128,8 @@ Ball_group::Ball_group(const Ball_group& rhs)
         for (int i = 0; i < rhs.attrs.num_pairs; ++i)
         {
             distances[i] = rhs.distances[i];
-            loading_flag[i] = rhs.loading_flag[i];
-            a_store[i] = rhs.a_store[i];
+            // loading_flag[i] = rhs.loading_flag[i];
+            // a_store[i] = rhs.a_store[i];
 
             if (attrs.JKR)
             {
@@ -281,8 +281,8 @@ void Ball_group::aggregationInit(const std::string path,const int index)
     if (!just_restart && restart==1)
     {
         MPIsafe_print(std::cerr,std::string("Loading sim "+filename+'\n'));
-        // MPIsafe_print(std::cerr,std::string("Loading sim "+path+filename+'\n'));
         loadSim(path, filename.substr(filename.find_last_of('/')+1,filename.size()));
+
 
         // loadSim(path, filename);
         calc_v_collapse(); 
@@ -466,8 +466,8 @@ Ball_group& Ball_group::operator=(const Ball_group& rhs)
     KE = rhs.KE;
 
     distances = rhs.distances;
-    loading_flag = rhs.loading_flag;
-    a_store = rhs.a_store;
+    // loading_flag = rhs.loading_flag;
+    // a_store = rhs.a_store;
 
     pos = rhs.pos;
     vel = rhs.vel;
@@ -658,7 +658,6 @@ void Ball_group::parse_input_file(std::string location)
     MPIsafe_print(std::cerr,std::string("Parsing input file: "+location+"input.json\n"));
 
     set_attribute(inputs,"output_folder",attrs.output_folder);
-    // attrs.output_folder = inputs["output_folder"];
     if (attrs.output_folder == "")
     {
         MPIsafe_print(std::cerr,"ERROR: output_folder not specified in input.json. This cannot be left blank.");
@@ -666,12 +665,7 @@ void Ball_group::parse_input_file(std::string location)
     }
 
     set_attribute(inputs,"data_directory",attrs.data_directory);
-    // attrs.data_directory = inputs["data_directory"];
     set_attribute(inputs,"random_folder_template",attrs.random_folder_template);
-    // if (inputs.contains("random_folder_template"))
-    // {
-    //     attrs.random_folder_template = inputs["random_folder_template"];
-    // }
     std::string temp_sim_type = "";
     set_attribute(inputs,"simType",temp_sim_type);
     std::string temp_symmetric = "";
@@ -767,7 +761,6 @@ void Ball_group::parse_input_file(std::string location)
 
     std::string temporary_distribution = "";
     set_attribute(inputs,"radiiDistribution",temporary_distribution);
-    // std::string temporary_distribution = inputs["radiiDistribution"];
     std::transform(temporary_distribution.begin(), temporary_distribution.end(), temporary_distribution.begin(), ::tolower);
     if (temporary_distribution == "lognormal" || temporary_distribution == "lognorm")
     {
@@ -810,35 +803,21 @@ void Ball_group::parse_input_file(std::string location)
 
 
     set_attribute(inputs,"dynamicTime",attrs.dynamicTime);
-    // attrs.dynamicTime = inputs["dynamicTime"];
     set_attribute(inputs,"G",attrs.G);
-    // attrs.G = inputs["G"];
     set_attribute(inputs,"density",attrs.density);
-    // attrs.density = inputs["density"];
     set_attribute(inputs,"u_s",attrs.u_s);
-    // attrs.u_s = inputs["u_s"];
     set_attribute(inputs,"u_r",attrs.u_r);
-    // attrs.u_r = inputs["u_r"];
     set_attribute(inputs,"sigma",attrs.sigma);
-    // attrs.sigma = inputs["sigma"];
     set_attribute(inputs,"Y",attrs.Y);
-    // attrs.Y = inputs["Y"];
     set_attribute(inputs,"cor",attrs.cor);
-    // attrs.cor = inputs["cor"];
     set_attribute(inputs,"simTimeSeconds",attrs.simTimeSeconds);
-    // attrs.simTimeSeconds = inputs["simTimeSeconds"];
     set_attribute(inputs,"timeResolution",attrs.timeResolution);
-    // attrs.timeResolution = inputs["timeResolution"];
     attrs.fourThirdsPiRho = 4. / 3. * pi * attrs.density;
     set_attribute(inputs,"scaleBalls",attrs.scaleBalls);
-    // attrs.scaleBalls = inputs["scaleBalls"];
     set_attribute(inputs,"maxOverlap",attrs.maxOverlap);
-    // attrs.maxOverlap = inputs["maxOverlap"];
     set_attribute(inputs,"KEfactor",attrs.KEfactor);
-    // attrs.KEfactor = inputs["KEfactor"];
 
     set_attribute(inputs,"MPInodes",attrs.MAXMPInodes);
-    // attrs.MAXMPInodes = inputs["MPInodes"];
     attrs.MPInodes = attrs.MAXMPInodes;
     set_attribute(inputs,"OMPthreads",attrs.MAXOMPthreads);
     attrs.MAXOMPthreads = inputs["OMPthreads"];
@@ -849,12 +828,7 @@ void Ball_group::parse_input_file(std::string location)
     //However, v_custom can't be set until you know the mass of the projectile
     //if you are setting based on temp, so we do this in the init functions.
     set_attribute(inputs,"temp",attrs.temp);
-    // attrs.temp = inputs["temp"]; 
     set_attribute(inputs,"eta",attrs.eta);
-    // if (inputs.contains("eta"))
-    // {
-    //     attrs.eta = inputs["eta"]; 
-    // }
 
     std::string temp_v_custom = "";    
     set_attribute(inputs,"v_custom",temp_v_custom);
@@ -871,9 +845,7 @@ void Ball_group::parse_input_file(std::string location)
     set_attribute(inputs,"kConsts",temp_kConst);
     attrs.kConsts = temp_kConst * (attrs.fourThirdsPiRho / (attrs.maxOverlap * attrs.maxOverlap));
     set_attribute(inputs,"impactParameter",attrs.impactParameter);
-    // attrs.impactParameter = inputs["impactParameter"];
     set_attribute(inputs,"Ha",attrs.Ha);
-    // attrs.Ha = inputs["Ha"];
     double temp_h_min = -1.0;
     set_attribute(inputs,"h_min",temp_h_min);
     attrs.h_min = temp_h_min * attrs.scaleBalls;
@@ -890,21 +862,13 @@ void Ball_group::parse_input_file(std::string location)
     }
 
     set_attribute(inputs,"properties",attrs.properties);
-    // attrs.properties = inputs["properties"];
     set_attribute(inputs,"genBalls",attrs.genBalls);
-    // attrs.genBalls = inputs["genBalls"];
     set_attribute(inputs,"attempts",attrs.attempts);
-    // attrs.attempts = inputs["attempts"];
     set_attribute(inputs,"skip",attrs.skip);
-    // attrs.skip = inputs["skip"];
     set_attribute(inputs,"steps",attrs.steps);
-    // attrs.steps = inputs["steps"];
     set_attribute(inputs,"dt",attrs.dt);
-    // attrs.dt = inputs["dt"];
     set_attribute(inputs,"kin",attrs.kin);
-    // attrs.kin = inputs["kin"];
     set_attribute(inputs,"kout",attrs.kout);
-    // attrs.kout = inputs["kout"];
 
     std::string temp_spaceRange = "default";
     set_attribute(inputs,"spaceRange",temp_spaceRange);
@@ -931,31 +895,22 @@ void Ball_group::parse_input_file(std::string location)
     }
 
     set_attribute(inputs,"z0Rot",attrs.z0Rot);
-    // attrs.z0Rot = inputs["z0Rot"];
     set_attribute(inputs,"y0Rot",attrs.y0Rot);
-    // attrs.y0Rot = inputs["y0Rot"];
     set_attribute(inputs,"z1Rot",attrs.z1Rot);
-    // attrs.z1Rot = inputs["z1Rot"];
     set_attribute(inputs,"y1Rot",attrs.y1Rot);
-    // attrs.y1Rot = inputs["y1Rot"];
 
     set_attribute(inputs,"simTimeElapsed",attrs.simTimeElapsed);
-    // attrs.simTimeElapsed = inputs["simTimeElapsed"];
     set_attribute(inputs,"projectileName",attrs.projectileName);
-    // attrs.projectileName = inputs["projectileName"];
     set_attribute(inputs,"targetName",attrs.targetName);
-    // attrs.targetName = inputs["targetName"];
 
     std::string temp_output_prefix = "default";
     set_attribute(inputs,"output_prefix",temp_output_prefix);
-    // attrs.output_prefix = inputs["output_prefix"];
     if (temp_output_prefix == std::string("default"))
     {
         attrs.output_prefix = "";
     }
 
     set_attribute(inputs,"radiiFraction",attrs.radiiFraction);
-    // attrs.radiiFraction = inputs["radiiFraction"];
     attrs.output_width = attrs.num_particles;
 
 
@@ -1939,10 +1894,11 @@ Ball_group Ball_group::BAPA_projectile_init()
 
     int projectile_size = attrs.M;
 
-    double max_bound = attrs.M_max*1.0;
-    double min_bound = attrs.M_min*1.0;
+    //We want to randomly choose an M
     if (attrs.M < 0)
     {
+        double max_bound = attrs.M_max*1.0;
+        double min_bound = attrs.M_min*1.0;
         projectile_size = -1;
         //Get a lognormally distributed whole number
         double dist_size = -1.0;
@@ -1991,7 +1947,11 @@ Ball_group Ball_group::BAPA_projectile_init()
         MPIsafe_exit(-1);
     }
 
-
+    if (attrs.weld)
+    {
+        projectile.group[0] = this->attrs.num_groups-1;
+        this->attrs.num_groups++;
+    }
 
     overwrite_v_custom(projectile);
 
@@ -2086,10 +2046,10 @@ void Ball_group::merge_ball_group(const Ball_group& src,const bool includeRadius
     // Copy incoming data to the end of the currently loaded data.
     std::memcpy(
         &distances[attrs.num_particles_added], src.distances, sizeof(src.distances[0]) * src.attrs.num_particles);
-    std::memcpy(
-        &loading_flag[attrs.num_particles_added], src.loading_flag, sizeof(src.loading_flag[0]) * src.attrs.num_particles);
-    std::memcpy(
-        &a_store[attrs.num_particles_added], src.a_store, sizeof(src.a_store[0]) * src.attrs.num_particles);
+    // std::memcpy(
+    //     &loading_flag[attrs.num_particles_added], src.loading_flag, sizeof(src.loading_flag[0]) * src.attrs.num_particles);
+    // std::memcpy(
+    //     &a_store[attrs.num_particles_added], src.a_store, sizeof(src.a_store[0]) * src.attrs.num_particles);
     std::memcpy(&pos[attrs.num_particles_added], src.pos, sizeof(src.pos[0]) * src.attrs.num_particles);
     std::memcpy(&vel[attrs.num_particles_added], src.vel, sizeof(src.vel[0]) * src.attrs.num_particles);
     std::memcpy(&velh[attrs.num_particles_added], src.velh, sizeof(src.velh[0]) * src.attrs.num_particles);
@@ -2204,8 +2164,8 @@ void Ball_group::allocate_group(const int nBalls)
             m = new double[attrs.num_particles];
             moi = new double[attrs.num_particles];
 
-            loading_flag = new bool[attrs.num_pairs];
-            a_store = new double[attrs.num_pairs];
+            // loading_flag = new bool[attrs.num_pairs];
+            // a_store = new double[attrs.num_pairs];
 
         
         } catch (const std::exception& e) {
@@ -2222,10 +2182,10 @@ void Ball_group::allocate_group(const int nBalls)
 void Ball_group::freeMemory() const
 {
     delete[] distances;
-    delete[] loading_flag;
-    delete[] a_store;
+    // delete[] loading_flag;
+    // delete[] a_store;
     delete[] group;
-    delete[] phi;
+    // delete[] phi;
     delete[] pos;
     delete[] vel;
     delete[] velh;
@@ -2322,8 +2282,8 @@ void Ball_group::init_conditions_JKR()
 
                 const double contactRadius = 0.5*sqrt(alpha/lambda) + 0.5*sqrt(2.0*sqrt(alpha*lambda) - lambda*lambda);
                 // std::cout<<"contactRadius: "<<contactRadius<<std::endl;
-                a_store[e] = contactRadius;
-                loading_flag[e] = true;
+                // a_store[e] = contactRadius;
+                // loading_flag[e] = true;
 
                 const double JKRForce = 4*reducedE[e]*contactRadius*contactRadius*contactRadius * (1.0/(3.0*reducedR[e]))\
                                         -4*sqrt(pi*reducedE[e]*(reducedGamma[e])/2.0)*sqrt(contactRadius)*contactRadius;
