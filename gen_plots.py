@@ -3329,7 +3329,7 @@ if __name__ == '__main__':
 	#Do you want to see plots of the data as they are made?
 	show_plots = True
 	#Do you want to save the plots once they are made?
-	save_plots = False
+	save_plots = True
 	#Do you want the number of runs next to each point on the plots
 	#so you know how many more runs need to finish
 	include_totals = True

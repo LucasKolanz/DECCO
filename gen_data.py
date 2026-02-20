@@ -289,7 +289,8 @@ if __name__ == '__main__':
 
 
 	N = [300]
-	N = [-1] #negative N makes it CBAPA 
+	# N = [-1] 
+	CBAPA = True #this is for if we want to use CBAPA since the N and M are different than the usual constant N 
 	C = 30
 	M = [1,3,5,10,15,20,30,50,60,100]
 	# N = [30,100,300]
@@ -357,14 +358,11 @@ if __name__ == '__main__':
 		# requested_sizes = [[n] for directory in possible_dirs]
 
 		for d_i,directory in enumerate(possible_dirs):
-			if n < 0:
+			if CBAPA:
 				# n = u.find_max_index(directory)
 				m = u.value_from_directory("M",directory)
 				n = C*m
-				print(f"directory: {directory}")
-				print(f"M: {m}")
-				print(f"N: {n}")
-			exit(0)
+
 			requested_sizes = [n]
 			relax = ("relax" in directory)
 			# relax = False
