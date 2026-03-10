@@ -9,10 +9,19 @@ output_dir = "/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/data/figur
 folder = output_dir+'/'
 # Crop amounts in pixels
 # (left, bottom, right, top)
+# CROP_LEFT   = 500
+# CROP_BOTTOM = 100
+# CROP_RIGHT  = 500
+# CROP_TOP    = 100
+
 CROP_LEFT   = 500
 CROP_BOTTOM = 100
 CROP_RIGHT  = 500
 CROP_TOP    = 100
+
+crop0 = [CROP_LEFT,CROP_BOTTOM+50,CROP_RIGHT,CROP_TOP+50]
+crop1 = [CROP_LEFT,CROP_BOTTOM,CROP_RIGHT,CROP_TOP]
+crop2 = [CROP_LEFT,CROP_BOTTOM+50,CROP_RIGHT,CROP_TOP+75]
 # =================================================
 
 os.makedirs(output_dir, exist_ok=True)
@@ -21,6 +30,16 @@ valid_exts = {".png", ".jpg", ".jpeg", ".tiff", ".bmp"}
 
 less_crop = ["/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/data/figures/aggRenders/metricVisuals/visual_Pfes-lognormrelax_a-12_N-300_T-3.png","/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/data/figures/aggRenders/metricVisuals/visual_Pfee-lognormrelax_a-12_N-300_T-3.png"]
 # images = []
+
+crops = {
+    "/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/data/figures/aggRenders/metricVisuals/visual_Pabc-lognormrelax_a-12_N-300_T-3.png": crop1,
+    "/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/data/figures/aggRenders/metricVisuals/visual_PKBM-lognormrelax_a-12_N-300_T-3.png": crop1,
+    "/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/data/figures/aggRenders/metricVisuals/visual_Pfee-lognormrelax_a-12_N-300_T-3.png": crop1,
+    "/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/data/figures/aggRenders/metricVisuals/visual_Pfes-lognormrelax_a-12_N-300_T-3.png": crop1,
+    "/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/data/figures/aggRenders/metricVisuals/visual_Pch-lognormrelax_a-12_N-300_T-3.png": crop1,
+    "/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/data/figures/aggRenders/metricVisuals/visual_gcs-lognormrelax_a-12_N-300_T-3.png": crop1,
+}
+
 for fname in os.listdir(input_dir):
     name, ext = os.path.splitext(fname)
     ext = ext.lower()
@@ -34,16 +53,12 @@ for fname in os.listdir(input_dir):
     with Image.open(in_path) as img:
         w, h = img.size
 
-        # Compute crop box: (left, upper, right, lower)
-        if in_path not in less_crop:
-            BOTTOM = CROP_BOTTOM + 100
-            TOP = CROP_TOP + 100
-        else:
-            BOTTOM = CROP_BOTTOM
-            TOP = CROP_TOP
-        left   = CROP_LEFT
+        LEFT,BOTTOM,RIGHT,TOP = crops[in_path]
+        # BOTTOM = CROP_BOTTOM
+        # TOP = CROP_TOP
+        left   = LEFT
         upper  = TOP
-        right  = w - CROP_RIGHT
+        right  = w - RIGHT
         lower  = h - BOTTOM
 
         if left >= right or upper >= lower:
@@ -76,6 +91,24 @@ labels = [
     r"(f) $\mathcal{P}_{gcs}$",
 ]
 
+names = [
+    r"Equivalent Ellipsoid Porosity",
+    r"Gyration Radius Based Porosity",
+    r"Fully Enclosing Ellipsoid Porosity",
+    r"Fully Enclosing Sphere Porosity",
+    r"Convex Hull Porosity",
+    r"Geometric Cross Section Porosity",
+]
+
+# names = [
+#     r"Equivalent Ellipsoid",
+#     r"Gyration Radius",
+#     r"Enclosing Ellipsoid",
+#     r"Enclosing Sphere",
+#     r"Convex Hull",
+#     r"Geometric Cross Section",
+# ]
+
 
 
 # ---- figure layout ----
@@ -85,14 +118,25 @@ fig, axes = plt.subplots(
     figsize=(8, 11),   # tuned for two-column full-width figure
     # constrained_layout=True
 )
-plt.subplots_adjust(hspace=-0.38, wspace=0.05)
+# plt.subplots_adjust(hspace=-0.35, wspace=0.0)
+plt.subplots_adjust(hspace=-0.00, wspace=-0.1)
 
 axes = axes.flatten()
 
-for ax, img_path, label in zip(axes, images, labels):
+# heights = [0.05,0.05,0.01,0.01,0.05,0.05]
+heights = [0.01,0.01,0.01,0.01,0.01,0.01]
+heights = [0.02 for i in heights]
+
+for ax, img_path, label, name, height in zip(axes, images, labels, names, heights):
     img = mpimg.imread(img_path)
     ax.imshow(img)
-    ax.axis("off")
+    for spine in ax.spines.values():
+        spine.set_visible(True)
+        spine.set_linewidth(0.7)   # thickness
+        spine.set_color("0.1")   # border color
+    ax.set_xticks([])
+    ax.set_yticks([])
+    # ax.axis("off")
 
     # panel label (top-left corner)
     ax.text(
@@ -104,6 +148,16 @@ for ax, img_path, label in zip(axes, images, labels):
         ha="left"
     )
 
+    # panel label (top-right corner)
+    ax.text(
+        0.5, height, name,
+        transform=ax.transAxes,
+        fontsize=11,
+        # fontweight="bold",
+        va="bottom",
+        ha="center"
+    )
+
 # ---- output ----
 # plt.savefig(
 #     "porosity_visualization_composite.png",
@@ -112,7 +166,8 @@ for ax, img_path, label in zip(axes, images, labels):
 # )
 plt.savefig(
     f"{folder}porosity_visualization_composite.pdf",
-    bbox_inches="tight"
+    bbox_inches="tight",
+    dpi=600
 )
 
 plt.close()

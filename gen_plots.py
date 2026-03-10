@@ -26,7 +26,7 @@ import utils as u
 import gen_data as gd
 
 styles = ['-','--','-.',':']
-colors = ['g','b','orange','r','deeppink','m','y','tab:brown']
+colors = ['g','b','orange','r','deeppink','rebeccapurple','y','tab:brown']
 
 def label_from_header(header):
 
@@ -887,7 +887,7 @@ def gen_BPCA_vs_time_plots(show_plots=True,save_plots=False,include_totals=False
 		os.makedirs(figure_folder)
 
 
-	temp = 1000
+	temp = 3
 	# temps = [3,10]
 	n = 300
 
@@ -897,7 +897,8 @@ def gen_BPCA_vs_time_plots(show_plots=True,save_plots=False,include_totals=False
 
 
 	# requested_data_headers = gd.data_headers[:2]
-	requested_data_headers = gd.data_headers[:2] + [gd.data_headers[-1]]
+	# requested_data_headers = gd.data_headers[:2] + [gd.data_headers[-1]]
+	requested_data_headers = [gd.data_headers[0]]
 
 	
 
@@ -921,7 +922,7 @@ def gen_BPCA_vs_time_plots(show_plots=True,save_plots=False,include_totals=False
 				existing_headers_for_size = existing_data[index+1].strip("\n\t ").split(",")
 				existing_values_for_size = existing_data[index+2].strip("\n\t ").split(",")
 				
-				for h_i,header in enumerate(gd.data_headers):
+				for h_i,header in enumerate(requested_data_headers):
 					if header in existing_headers_for_size:
 						raw_data[h_i,s_i] = existing_values_for_size[existing_headers_for_size.index(header)]
 
@@ -959,7 +960,7 @@ def gen_BPCA_vs_time_plots(show_plots=True,save_plots=False,include_totals=False
 			# 		ax.annotate("{:0.0f}".format(txt), (M[txt_i], avg_data[h_i,txt_i,n_i,t_i]))
 
 			bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-			ax.set_xlabel('aggregate size (number of particles)')
+			ax.set_xlabel('aggregate size (number of monomers)')
 
 
 
@@ -1399,14 +1400,14 @@ def gen_BPCA_porosity_vs_temp_plots(show_plots=True,save_plots=False,include_tot
 
 		#Plot metric vs M for all metrics and all N and temps
 		fig,ax = plt.subplots(figsize=(10,5))
+		color_order = [0,1,4,5,6,7]
 		for h_i,header in enumerate(requested_data_headers):
-
 
 			for n_i,n in enumerate(N):
 				# print(avg_data[h_i,n_i,:])
 				ax.errorbar(temps,avg_data[h_i,n_i,:],yerr=err_data[h_i,n_i,:],\
 						label=f"{label_from_header(header)}",\
-						color=colors[h_i],\
+						color=colors[color_order[h_i]],\
 						linestyle=styles[2],\
 						marker='.',markersize=10,zorder=5)
 
@@ -1553,31 +1554,6 @@ def gen_BPCA_vs_temp_plots(show_plots=True,save_plots=False,include_totals=False
 								raw_data[h_i,a_i,n_i,t_i] = u.get_plottable_value_from_saved_value(existing_values_for_size[existing_headers_for_size.index(header)],header,folder,size,relax)
 
 
-								# raw_data[h_i,a_i,n_i,t_i] = existing_values_for_size[existing_headers_for_size.index(header)]
-
-								# print("HERE")
-								# print(existing_values_for_size[existing_headers_for_size.index(header)])
-								# print(size**(1.0/3.0))
-								# raw_data[h_i,a_i,n_i,t_i] = float(existing_values_for_size[existing_headers_for_size.index(header)])*(size**(1.0/3.0))
-								
-								# pos,radius,mass,moi = u.get_data(folder,data_index=n,relax=relax)
-								# # r = np.power((1/size)*np.sum(radius**3),1.0/3.0)
-								# S = float(existing_values_for_size[existing_headers_for_size.index(header)])*((np.pi*np.sum(np.power(radius,2))))
-								# r = np.sqrt(S/np.pi)
-								# # print(f"r: {r}")
-								# r_ef_cubed = np.sum(np.power(radius,3))
-								# # print(f"r_ef: {r_ef_cubed**(1.0/3.0)}")
-								# data = 1-(r_ef_cubed/r**3)
-								# raw_data[h_i,a_i,n_i,t_i] = data
-								
-
-								# pos,radius,mass,moi = u.get_data(folder,data_index=n,relax=relax)
-								# S = float(existing_values_for_size[existing_headers_for_size.index(header)])*((np.pi*np.sum(np.power(radius,2))))
-								# r = np.power((1/size)*np.sum(radius**3),1.0/3.0)
-								# data = S*size**(1.0/3.0)/(size*np.pi*r**2)
-								# raw_data[h_i,a_i,n_i,t_i] = data
-
-								# raw_data[h_i,a_i,n_i,t_i] = float(existing_values_for_size[existing_headers_for_size.index(header)])
 					else:
 						print(f"DNE: {full_path_data_file}")
 
@@ -3295,15 +3271,16 @@ if __name__ == '__main__':
 	# gen_stylized_BAPA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_vs_time_avg_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
-	# gen_BPCA_vs_time_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_seqstick_plots(distribution="lognormal")
-	gen_seqstick_plots(distribution="constant")
+	# gen_seqstick_plots(distribution="constant")
 
 
 	# gen_relax_vs_tense_BPCA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_relax_vs_tense_seqstick_plots(distribution="lognormal",show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 
+	##Plots for paper 1
 	# gen_agg_im_plot(save_plots=save_plots,show_plots=show_plots)
+	gen_BPCA_vs_time_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_ratio_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_temp_sensitivity_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
