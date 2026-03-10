@@ -69,7 +69,7 @@ if __name__ == '__main__':
 	C = 30
 	#Lazzati node M
 	# M = [50,60,100]
-	# M = [50]
+	# M = [100]
 	#Other node M
 	M = [3,5,10,15,20,30]
 	# M = [30] 
@@ -81,7 +81,7 @@ if __name__ == '__main__':
 	totalNodes = 1
 	MPITasksPerNode = 1
 	totalMPITasks = totalNodes*MPITasksPerNode
-	threadsPerTask = 1
+	threadsPerTask = 2
 
 	#load default input file
 	with open(project_path+"default_files/default_input.json",'r') as fp:
@@ -181,15 +181,15 @@ if __name__ == '__main__':
 					# sbatchfile += 'module load hdf5/1.14.3\n'
 					sbatchfile += 'module load gnu12/12.3.0\n'
 					sbatchfile += 'module load hdf5/1.10.8\n'
-					sbatchfile += 'module load openmpi4/4.1.6\n'
+					# sbatchfile += 'module load openmpi4/4.1.6\n'
 					# sbatchfile += 'module swap openmpi4/4.1.6 mpich\n'
 
 					
-					# sbatchfile += f"srun -n {node} -c {threads} --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+					sbatchfile += f"srun -n {totalMPITasks} -c {threadsPerTask} --cpu-bind=cores {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 					# sbatchfile += f"srun --ntasks-per-node={MPITasksPerNode} --cpus-per-task={threadsPerTask} --cpu-bind=socket numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 					# sbatchfile += f"mpirun --bind-to socket --map-by node numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 					# sbatchfile += f"mpirun -n {totalMPITasks} numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
-					sbatchfile += f"mpirun -n {totalMPITasks} {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+					# sbatchfile += f"mpirun -n {totalMPITasks} {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 
 
 					

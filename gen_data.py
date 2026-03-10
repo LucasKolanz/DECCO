@@ -304,7 +304,7 @@ if __name__ == '__main__':
 	#It should return a single data value.
 	# bool_headers = [1,1,0,0,1,0,0,0]
 	bool_headers = [0,0,1,0,0,0,0,0,0,0]
-	bool_headers = [1,1,0,0,1,0,0,0,0,0]
+	bool_headers = [1,1,0,1,1,0,0,0,0,1]
 	# requested_data_functions = [data_functions[i] for i in range(len(data_functions)) if bool_headers[i]]
 	requested_data_headers = [data_headers[i] for i in range(len(data_headers)) if bool_headers[i]]
 

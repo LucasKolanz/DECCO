@@ -305,7 +305,7 @@ rotation rotation::conj() const noexcept { return rotation(w, -x, -y, -z); }
 //  update implemented in unit quaternions (Δq right-multiplication with 
 //  half-step body-frame angular velocity). Might have energy drift over very long
 //  time periods. If so, try Lie-group variational integrators.
-// --- build Δq from body-frame ω at half step (use your w_body) ---
+// --- build Δq from body-frame ω at half step ---
 void rotation::exponential_integrate(const vec3 w_body, const double dt)
 {
     const double wb = w_body.norm();
@@ -328,7 +328,7 @@ void rotation::exponential_integrate(const vec3 w_body, const double dt)
     const vec3  dqv = s_over * w_body;
     const double dq0 = std::cos(half);
 
-    // --- right multiply: q_new = q_old ⊗ Δq ---
+    // --- right multiply: q_new = q_old ⊗ Deltaq ---
     const vec3 qv = {x,y,z};
     const double q0 = w;
 
