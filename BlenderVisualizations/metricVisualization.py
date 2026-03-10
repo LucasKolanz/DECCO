@@ -160,7 +160,9 @@ def addEnclosingSphere(directory=""):
 	json_file = os.path.join(directory, "enclosing_sphere.json")
 	blender_sphere_name = "EnclosingSphere"
 
-	addSphere(json_file,blender_sphere_name,color=(191.0/256.0,0,191.0/256.0,1))
+	addSphere(json_file,blender_sphere_name,color=(102.0/256.0,51.0/256.0,153.0/256.0,1)) #rebeccapurple
+	# addSphere(json_file,blender_sphere_name,color=(238.0/256.0,130.0/256.0,238.0/256.0,1)) #violet
+	# addSphere(json_file,blender_sphere_name,color=(191.0/256.0,0,191.0/256.0,1)) #magenta
 
 def addGyrationRadiusSphere(directory=""):
 	# default to temp directory
