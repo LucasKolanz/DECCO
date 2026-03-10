@@ -288,8 +288,11 @@ if __name__ == '__main__':
 
 
 
-
 	N = [300]
+	# N = [-1] 
+	CBAPA = True #this is for if we want to use CBAPA since the N and M are different than the usual constant N 
+	C = 30
+	M = [1,3,5,10,15,20,30,50,60,100]
 	# N = [30,100,300]
 
 	#list of the functions that calculate the data you want
@@ -301,7 +304,7 @@ if __name__ == '__main__':
 	#It should return a single data value.
 	# bool_headers = [1,1,0,0,1,0,0,0]
 	bool_headers = [0,0,1,0,0,0,0,0,0,0]
-	bool_headers = [1,1,0,0,0,0,1,1,1,1]
+	bool_headers = [1,1,0,1,1,0,0,0,0,1]
 	# requested_data_functions = [data_functions[i] for i in range(len(data_functions)) if bool_headers[i]]
 	requested_data_headers = [data_headers[i] for i in range(len(data_headers)) if bool_headers[i]]
 
@@ -312,11 +315,13 @@ if __name__ == '__main__':
 	
 		data_folders = []
 		# data_folders = [path + 'jobs/AsymBAPA_*']
+		data_folders = [path + 'jobs/CBAPA_*']
+		# data_folders = [path + 'jobs/CBAPA_29/M_5/*']
 		# data_folders = [path + 'jobs/BAPA_*']
 		# data_folders = [path + 'jobs/BAPA_*/M_1/*']
 		# data_folders = [path + 'jobs/constrollingfric*']
 		# data_folders = [path + 'jobs/BAPA_0/M_60/*']
-		data_folders = [path + 'jobs/SeqStickConstrelax_*/']
+		# data_folders = [path + 'jobs/SeqStickConstrelax_*/']
 		# data_folders = [path + 'jobs/SeqStickLognormrelax_*/']
 		# data_folders = [path + 'jobsCosine/lognorm_*/N_300/T_*/']
 		# data_folders = [path + 'jobsCosine/lognorm_*/N_300/T_*/']
@@ -350,9 +355,15 @@ if __name__ == '__main__':
 
 		# requested_sizes = list(range(30,301))
 		# requested_sizes = [[u.find_max_index(directory)] for directory in possible_dirs]
-		requested_sizes = [[n] for directory in possible_dirs]
+		# requested_sizes = [[n] for directory in possible_dirs]
 
 		for d_i,directory in enumerate(possible_dirs):
+			if CBAPA:
+				# n = u.find_max_index(directory)
+				m = u.value_from_directory("M",directory)
+				n = C*m
+
+			requested_sizes = [n]
 			relax = ("relax" in directory)
 			# relax = False
 			# print(f"relax: {relax}")
@@ -373,7 +384,8 @@ if __name__ == '__main__':
 				lines = []
 				
 				#contains both the sizes we want and the sizes we already have
-				all_sizes = sorted(set(existing_sizes+requested_sizes[d_i]))
+				all_sizes = sorted(set(existing_sizes+requested_sizes))
+				# all_sizes = sorted(set(existing_sizes+requested_sizes[d_i]))
 				# all_sizes = [300]
 				# print(all_sizes)
 				for size in all_sizes:
@@ -388,7 +400,8 @@ if __name__ == '__main__':
 
 					#If this size wasn't requested then we don't want to overwrite it
 					#Or if overwrite is true then overwrite anyway
-					if overwritedata or size in requested_sizes[d_i]:
+					if overwritedata or size in requested_sizes:
+					# if overwritedata or size in requested_sizes[d_i]:
 						headers,values = calc_from_size(size,directory,existing_headers_for_size,existing_values_for_size,requested_data_headers,relax,overwritedata,makeVisual)
 						print(headers)
 						print(values)

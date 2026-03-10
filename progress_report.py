@@ -112,7 +112,8 @@ def main():
 		input_json = json.load(fp)
 
 	
-	job = input_json["data_directory"] + 'jobsCosine/lognormrelax_$a$/N_$n$/T_$t$/'
+	job = input_json["data_directory"] + 'jobs/CBAPA_$a$/N_$n$/T_$t$/'
+	# job = input_json["data_directory"] + 'jobsCosine/lognormrelax_$a$/N_$n$/T_$t$/'
 	# job = input_json["data_directory"] + 'jobsCosine/lognorm$a$/N_$n$/T_$t$/'
 	# job = input_json["data_directory"] + 'jobsNovus/constantX_relax$a$/N_$n$/T_$t$/'
 	
@@ -125,14 +126,15 @@ def main():
 	attempts = [i for i in range(30)]
 	# attempts = [0]
 
-	N = [30,100,300]
+	# N = [30,100,300]
 
-	# M = [ 1,3,5,10,15,20,30,50,60,100]
-	M = []
+	M = [3,5,10,15,20,30,50,60,100]
+	C = 30
+	N = [i*C for i in M]
 
 	# M=[]
 	Temps = [3,10,30,100,300,1000]
-	# Temps = [1000]
+	Temps = [1000]
 
 
 
@@ -150,7 +152,8 @@ def main():
 
 	for start in range(skipsize):
 		m = unrolled[start][1]
-		n = unrolled[start][2]
+		# n = unrolled[start][2]
+		n = m*C
 		T = unrolled[start][3]
 		
 		length = min(len(attempts),100)
@@ -208,7 +211,7 @@ def main():
 
 	print(output)
 
-	print(unfinished_jobs)
+	# print(unfinished_jobs)
 
 	
 

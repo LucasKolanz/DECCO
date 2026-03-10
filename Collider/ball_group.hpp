@@ -127,6 +127,7 @@ struct Ball_group_attributes
     //different, random simulation that has already made it to this point.
     bool symmetric = true; 
     bool weld = false;
+    int num_groups = 0;
 
     // Useful values:
     double r_min = -1;
@@ -381,11 +382,11 @@ public:
 
 
     double* distances = nullptr; //pairwise
-    double* a_store = nullptr; //pairwise
-    bool* loading_flag = nullptr; //pairwise
+    // double* a_store = nullptr; //pairwise
+    // bool* loading_flag = nullptr; //pairwise
 
     vec3* pos = nullptr;
-    vec3* phi = nullptr;
+    // vec3* phi = nullptr;
     vec3* vel = nullptr;
     vec3* velh = nullptr;  ///< Velocity half step for integration purposes.
     vec3* acc = nullptr;
@@ -414,7 +415,6 @@ public:
     #endif
 
     int* group = nullptr;   ///< group a ball belongs to
-    int num_groups = 0;
 
     //////////////////////////////////
 
