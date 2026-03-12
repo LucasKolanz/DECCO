@@ -1285,35 +1285,37 @@ DECCOData::DECCOData(std::string fname, int num_particles, int writes, int steps
 	storage_type = filename.substr(dot_index+1,filename.length()-dot_index);
 	//Transform storage_type to be not case sensitive
 	std::transform(storage_type.begin(), storage_type.end(), storage_type.begin(), ::tolower);
-	if (storage_type == "h5" || storage_type == "hdf5")
-	{
-		h5data = true;
-		csvdata = false;
-		H = HDF5Handler(filename,fixed);
-	}
-	else if (storage_type == "csv")
-	{
+	#ifndef HDF5_ENABLE
+		MPIsafe_print(std::cerr,"Not compiled with HDF5. CSV format will be used for data.\n");
 		filename = trimFilename(filename);
 		csvdata = true;
 		h5data = false;
 		C = CSVHandler(filename);
-		// filename = filename.substr(0,filename.length()-4);
-	}
-	else
-	{
-		MPIsafe_print(std::cerr,"DECCOData ERROR: storage_type '"+storage_type+"' not available.\n");
-		MPIsafe_exit(-1);
-	}
-	#ifndef HDF5_ENABLE
-		MPIsafe_print(std::cerr,"HDF5 not enabled. CSV format will be used for data.\n");
-		csvdata = true;
-		h5data = false;
 		// if (storage_type != "csv")
 		// {
 		// 	// filename = filename.substr(0,filename.length()-4);
 		// }
+	#else
+		if (storage_type == "h5" || storage_type == "hdf5")
+		{
+			h5data = true;
+			csvdata = false;
+			H = HDF5Handler(filename,fixed);
+		}
+		else if (storage_type == "csv")
+		{
+			filename = trimFilename(filename);
+			csvdata = true;
+			h5data = false;
+			C = CSVHandler(filename);
+			// filename = filename.substr(0,filename.length()-4);
+		}
+		else
+		{
+			MPIsafe_print(std::cerr,"DECCOData ERROR: storage_type '"+storage_type+"' not available.\n");
+			MPIsafe_exit(-1);
+		}
 	#endif
-
 
 	//If user specified number of writes but a storage_type other than hdf5 then default to hdf5 and warn user
 	// if (fixed && not h5data)
@@ -1523,14 +1525,18 @@ int DECCOData::setWrittenSoFar(const std::string path, const std::string file)
 bool DECCOData::deleteData()
 {
 	bool result = false;
-	if (h5data)
-	{
-		result = H.deleteData();
-	}
-	else
-	{
+	#ifndef	HDF5_ENABLE
 		result = C.deleteData();
-	}
+	#else
+		if (h5data)
+		{
+			result = H.deleteData();
+		}
+		else
+		{
+			result = C.deleteData();
+		}
+	#endif
 	return result;
 }
 

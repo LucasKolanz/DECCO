@@ -3140,7 +3140,9 @@ void Ball_group::loadDatafromCSV(std::string path,std::string file)
         //writes is 0 if there is no writes so far (I don't think this should happen but if it does, more stuff needs to happen).
         //writes is >0 then that is how many writes there have been.
         //writes is -1 if there are writes and the sim is already finished. 
-        writes = data->setWrittenSoFar(path,file);
+        #ifdef HDF5_ENABLE
+            writes = data->setWrittenSoFar(path,file);
+        #endif
     }
     else
     {

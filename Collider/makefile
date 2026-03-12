@@ -15,12 +15,12 @@ CXXFLAGS = -g -O2 -std=c++17 -fopenmp #-fopenacc
 
 # Detect HDF5
 # HDF5_TEST := $(shell ldconfig -p | grep hdf5 >/dev/null 2>&1 && echo 1 || echo 0)
-HDF5_TEST = 1
+HDF5_TEST = 0
 MPI_TEST = 0
 GPU_TEST = 0
 EXPERIMENTAL_FILESYSTEM = 0
 
-LIBS += -L$(LD_LIBRARY_PATH)
+# LIBS += -L$(LD_LIBRARY_PATH)
 
 # Conditional HDF5 flags
 ifeq ($(HDF5_TEST), 1)
