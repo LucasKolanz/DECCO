@@ -53,7 +53,7 @@ if __name__ == '__main__':
 		
 
 	# job_set_name = "TESTBAPA"
-	job_set_name = "BAPA"
+	job_set_name = "WELDTEST"
 
 	# folder_name_scheme = "T_"
 
@@ -102,6 +102,7 @@ if __name__ == '__main__':
 						####################################
 						######Change input values here######
 						input_json['JKR'] = 'false'
+						input_json['weld'] = 'true'
 						input_json['temp'] = Temp
 						input_json['N'] = n
 						input_json['M'] = m
@@ -110,7 +111,7 @@ if __name__ == '__main__':
 						input_json['MPInodes'] = 1
 						input_json['impactParameter'] = -1.0
 
-						input_json['seed'] = u.rand_int()
+						input_json['seed'] = u.rand_seed()
 						# input_json['seed'] = 101
 
 						# input_json['radiiDistribution'] = 'logNormal'
@@ -151,6 +152,7 @@ if __name__ == '__main__':
 							os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_300/T_3/{m}_constants.csv {job}{m}_constants.csv")
 							os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_300/T_3/{m}_simData.csv {job}{m}_simData.csv")
 							os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_300/T_3/{m}_energy.csv {job}{m}_energy.csv")
+							os.system(f"touch {job}{m}_checkpoint.txt")
 						
 						folders.append(job)
 	# print(folders)
@@ -158,9 +160,7 @@ if __name__ == '__main__':
 
 	print(folders)
 
-	# for i in range(0,len(folders),runs_at_once):
-	# 	with mp.Pool(processes=runs_at_once) as pool:
-	# 		pool.starmap(run_job,inputs[i:i+runs_at_once]) 
+
 	if args.run:
 		with mp.Pool(processes=runs_at_once) as pool:
 			for folder in folders:
@@ -170,11 +170,5 @@ if __name__ == '__main__':
 			pool.close()
 			pool.join()
 
-	# print(folders)
-	# cwd = os.getcwd()
-	# for folder in folders:
-	# 	os.chdir(folder)
-	# 	os.system('qsub qsub.bash')
-	# os.chdir(cwd)
 
 	

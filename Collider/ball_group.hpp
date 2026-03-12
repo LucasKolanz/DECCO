@@ -230,6 +230,7 @@ struct Ball_group_attributes
 
             num_particles = other.num_particles;
             num_particles_added = other.num_particles_added;
+            num_groups = other.num_groups;
             MAXOMPthreads = other.MAXOMPthreads;
             OMPthreads = other.OMPthreads;
             MAXMPInodes = other.MAXMPInodes;
@@ -536,6 +537,7 @@ public:
     void sphereInit();
     void placeBalls(const int nBalls);
     void setRadii();
+    void setGroup(int group_num);
     void setMass();
     void updateDTK(const double& velocity);
     void simInit_cond_and_center(bool add_prefix);

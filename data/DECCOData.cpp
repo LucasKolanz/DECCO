@@ -140,7 +140,7 @@ std::string CSVHandler::get_last_line(const std::string& path, const std::string
     }
 }
 
-void CSVHandler::loadCSVSimData(const std::string& path,const std::string& file,vec3 *pos,vec3 *w,vec3 *vel)
+void CSVHandler::loadCSVSimData(const std::string& path,const std::string& file,vec3 *pos,vec3 *w,vec3 *vel,int *group)
 {
 	std::string lineElement;
     // Get number of balls in file
@@ -171,7 +171,9 @@ void CSVHandler::loadCSVSimData(const std::string& path,const std::string& file,
             std::getline(chosenLine, lineElement, ',');
             vel[A][i] = std::stod(lineElement);
         }
-        for (int i = 0; i < lineWidth - 10; i++)  // We used 10 elements. This skips the rest.
+        std::getline(chosenLine,lineElement);
+        group[A] = std::stod(lineElement);
+        for (int i = 0; i < lineWidth - 11; i++)  // We used 11 elements. This skips the rest.
         {
             std::getline(chosenLine, lineElement, ',');
         }
@@ -653,7 +655,7 @@ std::vector<double> HDF5Handler::static_readFile(const std::string datasetName, 
     return data;
 }
 
-void HDF5Handler::loadh5SimData(const std::string path, const std::string file,vec3 *pos,vec3 *w,vec3 *vel)
+void HDF5Handler::loadh5SimData(const std::string path, const std::string file,vec3 *pos,vec3 *w,vec3 *vel,int *group)
 {
 	int n_particles = get_num_particles(path,file);
 	int single_ball_width = single_ball_widths[getDataIndexFromString("simData")];
@@ -675,6 +677,8 @@ void HDF5Handler::loadh5SimData(const std::string path, const std::string file,v
 		vel[i].x = out[out_ind+7];
 		vel[i].y = out[out_ind+8];
 		vel[i].z = out[out_ind+9];
+
+		group[i] = out[out_ind+10];
 	}
 }
 
@@ -1531,7 +1535,7 @@ bool DECCOData::deleteData()
 }
 
 
-void DECCOData::loadSimData(const std::string path, const std::string file,vec3 *pos,vec3 *w,vec3 *vel)
+void DECCOData::loadSimData(const std::string path, const std::string file,vec3 *pos,vec3 *w,vec3 *vel,int *group)
 {
 	std::vector<double> out = Read("simData",false,-1,path+file);
 	// printVec(out);
@@ -1550,6 +1554,8 @@ void DECCOData::loadSimData(const std::string path, const std::string file,vec3 
 		vel[i].x = out[out_ind+7];
 		vel[i].y = out[out_ind+8];
 		vel[i].z = out[out_ind+9];
+
+		group[i] = out[out_ind+10];
 	}
 }
 

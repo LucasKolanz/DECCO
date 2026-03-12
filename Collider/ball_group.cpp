@@ -153,7 +153,8 @@ Ball_group::Ball_group(const Ball_group& rhs)
             aacc[i] = rhs.aacc[i];
             R[i] = rhs.R[i];      ///< Radius
             m[i] = rhs.m[i];      ///< Mass
-            moi[i] = rhs.moi[i];  ///< Moment of inertia       
+            moi[i] = rhs.moi[i];  ///< Moment of inertia     
+            group[i] = rhs.group[i]; 
 
             if (attrs.JKR)
             {
@@ -351,6 +352,7 @@ void Ball_group::aggregationInit(const std::string path,const int index)
 
         MPIsafe_exit(-1);
     }
+
 }
 
 //Initalize custom parameters in here
@@ -479,6 +481,7 @@ Ball_group& Ball_group::operator=(const Ball_group& rhs)
     R = rhs.R;      ///< Radius
     m = rhs.m;      ///< Mass
     moi = rhs.moi;  ///< Moment of inertia
+    group = rhs.group;
 
     n_hats = rhs.n_hats;
     nu = rhs.nu;
@@ -711,7 +714,7 @@ void Ball_group::parse_input_file(std::string location)
     }
 
     attrs.JKR = get_JKR(location);
-    std::cerr<<"JKR: "<<attrs.JKR<<std::endl;
+    // std::cerr<<"JKR: "<<attrs.JKR<<std::endl;
     if (attrs.JKR)
     {
         std::string temp_material = "";
@@ -1949,7 +1952,9 @@ Ball_group Ball_group::BAPA_projectile_init()
 
     if (attrs.weld)
     {
-        projectile.group[0] = this->attrs.num_groups-1;
+
+        projectile.setGroup(this->attrs.num_groups-1);
+        // projectile.group[0] = this->attrs.num_groups-1;
         this->attrs.num_groups++;
     }
 
@@ -2060,7 +2065,7 @@ void Ball_group::merge_ball_group(const Ball_group& src,const bool includeRadius
     std::memcpy(&R[attrs.num_particles_added], src.R, sizeof(src.R[0]) * src.attrs.num_particles);
     std::memcpy(&m[attrs.num_particles_added], src.m, sizeof(src.m[0]) * src.attrs.num_particles);
     std::memcpy(&moi[attrs.num_particles_added], src.moi, sizeof(src.moi[0]) * src.attrs.num_particles);
-    // std::memcpy(&group[attrs.num_particles_added], src.group, sizeof(src.group[0]) * src.attrs.num_particles);
+    std::memcpy(&group[attrs.num_particles_added], src.group, sizeof(src.group[0]) * src.attrs.num_particles);
 
     //JKR stuff
     if (attrs.JKR)
@@ -2163,6 +2168,7 @@ void Ball_group::allocate_group(const int nBalls)
             R = new double[attrs.num_particles];
             m = new double[attrs.num_particles];
             moi = new double[attrs.num_particles];
+            group = new int[attrs.num_particles];
 
             // loading_flag = new bool[attrs.num_pairs];
             // a_store = new double[attrs.num_pairs];
@@ -2670,7 +2676,9 @@ void Ball_group::parseSimData(std::string line)
             std::getline(chosenLine, lineElement, ',');
             vel[A][i] = std::stod(lineElement);
         }
-        for (int i = 0; i < attrs.properties - 10; i++)  // We used 10 elements. This skips the rest.
+        std::getline(chosenLine,lineElement);
+        group[A] = std::stod(lineElement);
+        for (int i = 0; i < attrs.properties - 11; i++)  // We used 11 elements. This skips the rest.
         {
             std::getline(chosenLine, lineElement, ',');
         }
@@ -2966,6 +2974,7 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename,co
                             "SOC: " + dToSci(attrs.soc) + '\n');
         MPIsafe_print(std::cerr,message);
     }
+
 }
 
 void Ball_group::parse_meta_data(std::string metadata)
@@ -3166,11 +3175,11 @@ void Ball_group::loadDatafromCSV(std::string path,std::string file)
     {
         if (attrs.typeSim != relax && has_meta)
         {
-            data -> loadSimData(path,file,pos,w,vel);
+            data -> loadSimData(path,file,pos,w,vel,group);
         }
         else
         {
-            CSVHandler::loadCSVSimData(path,file,pos,w,vel);
+            CSVHandler::loadCSVSimData(path,file,pos,w,vel,group);
         }
         attrs.start_index++;
     }
@@ -3296,7 +3305,7 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
     if(writes > 0) //Works
     {
         //This cannot be done without an instance of DECCOData, that is why these are different than loadConsts
-        data -> loadSimData(path,file,pos,w,vel);
+        data -> loadSimData(path,file,pos,w,vel,group);
 
 
         //initiate buffers since we won't call sim_init_write on a restart
@@ -3312,11 +3321,11 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
     {
         if (attrs.typeSim != relax && has_meta)
         {
-            data -> loadSimData(path,file,pos,w,vel);
+            data -> loadSimData(path,file,pos,w,vel,group);
         }
         else
         {
-            HDF5Handler::loadh5SimData(path,file,pos,w,vel);
+            HDF5Handler::loadh5SimData(path,file,pos,w,vel,group);
         }
         attrs.start_index++;
     }
@@ -3358,6 +3367,14 @@ void Ball_group::sphereInit()
     attrs.m_total = getMass();
 
     placeBalls(attrs.num_particles);
+}
+
+inline void Ball_group::setGroup(int group_num)
+{
+    for (int i = 0; i < attrs.num_particles; ++i)
+    {
+        group[i] = group_num;
+    }
 }
 
 inline void Ball_group::setRadii()
@@ -3783,6 +3800,7 @@ void Ball_group::simInit_cond_and_center(bool add_prefix)
 
     MPIsafe_print(std::cerr,message);
 
+
     if (attrs.num_particles > 1)
     {
         to_origin();
@@ -3809,6 +3827,7 @@ void Ball_group::simInit_cond_and_center(bool add_prefix)
     {   
         attrs.output_prefix += "_k" + scientific(attrs.kin) + "_Ha" + scientific(attrs.Ha) + "_dt" + scientific(attrs.dt) + "_";
     }
+
 }
 
 
@@ -4591,7 +4610,7 @@ void Ball_group::sim_one_step(int step,bool write_step)
             ballBuffer[start+7] = vel[Ball][0];
             ballBuffer[start+8] = vel[Ball][1];
             ballBuffer[start+9] = vel[Ball][2];
-            ballBuffer[start+10] = 0;
+            ballBuffer[start+10] = group[Ball];
 
             KE += .5 * m[Ball] * vel[Ball].normsquared() +
                     .5 * moi[Ball] * w[Ball].normsquared();  // Now includes rotational kinetic energy.
@@ -5034,7 +5053,7 @@ void Ball_group::sim_one_step_JKR(int step,bool write_step)
             ballBuffer[start+7] = vel[Ball][0];
             ballBuffer[start+8] = vel[Ball][1];
             ballBuffer[start+9] = vel[Ball][2];
-            ballBuffer[start+10] = 0;
+            ballBuffer[start+10] = group[Ball];
 
             KE += .5 * m[Ball] * vel[Ball].normsquared() +
                     .5 * moi[Ball] * w[Ball].normsquared();  // Now includes rotational kinetic energy.

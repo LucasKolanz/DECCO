@@ -49,7 +49,7 @@ public:
 
 	static void loadConsts(const std::string& path,const std::string& file,double *R,double *m,double *moi);
 
-	static void loadCSVSimData(const std::string& path,const std::string& file,vec3 *pos,vec3 *w,vec3 *vel);
+	static void loadCSVSimData(const std::string& path,const std::string& file,vec3 *pos,vec3 *w,vec3 *vel, int *group);
 
 	static std::string get_last_line(const std::string& path, const std::string& file);
 
@@ -102,7 +102,7 @@ class HDF5Handler {
 		// from zero then the length of the dataset, the whole dataset is returned.
 		static std::vector<double> static_readFile(const std::string datasetName, hsize_t start=0, 
 												hsize_t len=0,bool neg_offset=false,std::string readfile="");
-		static void loadh5SimData(const std::string path, const std::string file,vec3 *pos,vec3 *w,vec3 *vel);
+		static void loadh5SimData(const std::string path, const std::string file,vec3 *pos,vec3 *w,vec3 *vel,int *group);
 
 		static hsize_t get_data_length(std::string readfile,std::string datasetName);
 		int readWrites(const std::string path, const std::string f);
@@ -197,7 +197,7 @@ public:
     #ifdef HDF5_ENABLE
 	    int setWrittenSoFar(const std::string path, const std::string file);
     #endif
-  	void loadSimData(const std::string path, const std::string file,vec3 *pos,vec3 *w,vec3 *vel);
+  	void loadSimData(const std::string path, const std::string file,vec3 *pos,vec3 *w,vec3 *vel,int *group);
 	int getNumTypes();
 	int getWidth(std::string data_type);
 	static int getSingleWidth(std::string data_type);
