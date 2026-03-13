@@ -149,9 +149,11 @@ if __name__ == '__main__':
 						# if M == 3:
 							# source = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_3/2_R*"
 						if not os.path.exists(f"{job}{m}_simData.csv"):
-							os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_300/T_3/{m}_constants.csv {job}{m}_constants.csv")
-							os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_300/T_3/{m}_simData.csv {job}{m}_simData.csv")
-							os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_300/T_3/{m}_energy.csv {job}{m}_energy.csv")
+							copy_folder = f'/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_300/T_3/'
+							copy_folder = f'/home/lucas/Desktop/SpaceLab_data/jobsCosine/lognorm1/N_300/T_3/'
+							os.system(f"cp {copy_folder}{m}_constants.csv {job}{m}_constants.csv")
+							os.system(f"cp {copy_folder}{m}_simData.csv {job}{m}_simData.csv")
+							os.system(f"cp {copy_folder}{m}_energy.csv {job}{m}_energy.csv")
 							os.system(f"touch {job}{m}_checkpoint.txt")
 						
 						folders.append(job)

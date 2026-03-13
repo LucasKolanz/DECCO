@@ -398,6 +398,11 @@ public:
     double* m = nullptr;    ///< Mass
     double* moi = nullptr;  ///< Moment of inertia
 
+    std::vector<vec3> group_w;
+    std::vector<vec3> group_wh;
+    std::vector<vec3> group_aacc;
+
+
     #ifdef GPU_ENABLE
         vec3* d_accsq = nullptr;
         vec3* d_aaccsq = nullptr;
@@ -454,6 +459,7 @@ public:
     vec3 random_offset(Ball_group &projectile, Ball_group &target);
     void comSpinner(const double& spinX, const double& spinY, const double& spinZ) const;
 
+    void weld_accelerations();
     void sim_one_step(int step,bool write_step);
     bool sim_looper(unsigned long long start_step);
     
@@ -476,6 +482,8 @@ public:
     void zeroAngVel() const;
     double calc_mass(const double& radius, const double& density);
     double calc_moi(const double& radius, const double& mass);
+    std::vector<vec3> calc_group_moi(const int& group_num,const double& group_mass,const vec3& group_com);
+    vec3 calc_group_com(const int group_num);
     double calc_max_bolt_velocity(double temp, double mass);
     double calc_eta_velocity(const double eta, Ball_group &projectile, Ball_group &target);
     double calc_group_noncontact_PE(Ball_group &projectile,Ball_group &target);
