@@ -118,9 +118,18 @@ Ball_group::Ball_group(const Ball_group& rhs)
         KE = rhs.KE;
 
         //vectors
-        group_w = rhs.group_w;
-        group_wh = rhs.group_wh;
-        group_aacc = rhs.group_aacc;
+        if (attrs.weld)
+        {
+            group_aacc = rhs.group_aacc;
+            group_acc = rhs.group_acc;
+            group_pos = rhs.group_pos;
+            group_velh = rhs.group_velh;
+            group_vel = rhs.group_vel;
+            group_q = rhs.group_q;
+            group_wh = rhs.group_wh;
+            group_w = rhs.group_w;
+            group_offset = rhs.group_offset;
+        }
 
         if (attrs.JKR)
         {
@@ -363,8 +372,9 @@ void Ball_group::aggregationInit(const std::string path,const int index)
 //Initalize custom parameters in here
 void Ball_group::customInit()
 {
-    int nBalls = 2;
+    int nBalls = 3;
     attrs.num_particles = nBalls;
+    attrs.num_groups = 2;
     allocate_group(nBalls);
     if (attrs.JKR)
     {
@@ -374,36 +384,62 @@ void Ball_group::customInit()
     }
 
 
+    if (attrs.weld)
+    {
+        allocate_weld_group(attrs.num_groups);
+        // setGroup(0);
+        group[0] = 0;
+        group[1] = 0;
+        group[2] = 1;
+        // group[3] = 1;
+        for (int i = 0; i < attrs.num_particles; ++i)
+        {
+            std::cerr<<"particle, group: "<<i<<','<<group[i]<<std::endl;
+        }
+    }
+
+
     R[0] = 1e-5;
     R[1] = 1e-5;
-    // R[2] = 1e-5;    
+    R[2] = 1e-5;    
     // R[3] = 1e-5;    
     // R[4] = 1e-5;    
 
-    m[0] = density[0]*(4.0/3.0)*pi*R[0]*R[0]*R[0];
-    m[1] = density[1]*(4.0/3.0)*pi*R[1]*R[1]*R[1];
-    // m[2] = density[2]*(4.0/3.0)*pi*R[2]*R[2]*R[2];
-    // m[3] = density[3]*(4.0/3.0)*pi*R[3]*R[3]*R[3];
+    m[0] = attrs.density*(4.0/3.0)*pi*R[0]*R[0]*R[0];
+    m[1] = attrs.density*(4.0/3.0)*pi*R[1]*R[1]*R[1];
+    m[2] = attrs.density*(4.0/3.0)*pi*R[2]*R[2]*R[2];
+    // m[3] = attrs.density*(4.0/3.0)*pi*R[3]*R[3]*R[3];
     // m[4] = density[4]*(4.0/3.0)*pi*R[4]*R[4]*R[4];
 
     moi[0] = .4 * m[0] * R[0] * R[0];
     moi[1] = .4 * m[1] * R[1] * R[1];
-    // moi[2] = .4 * m[2] * R[2] * R[2];
+    moi[2] = .4 * m[2] * R[2] * R[2];
     // moi[3] = .4 * m[3] * R[3] * R[3];
     // moi[4] = .4 * m[4] * R[4] * R[4];
     
     w[0] = {0,0,0};   
-    w[1] = {100000,0,0};   
-    // w[2] = {752265.8421657234, 376018.648718707, 835191.9320559916};   
+    w[1] = {0,0,0};   
+    w[2] = {0.0, 0.0, 0.0};   
     // w[3] = {0.0, 0.0, 0.0};   
-    // w[2] = {0.0, 0.0, 0.0};   
+    // w[2] = {752265.8421657234, 376018.648718707, 835191.9320559916};   
     // w[1] = {0.0, 0.0, 0.0};   
     // w[0] = {0.0, 0.0, 0.0};   
     // w[3] = {7554669.291625383, 2093452.4801920392, 1877168.3680082832};   
 
+    double offset =  1e-5;
+    pos[0] = {-1.5e-5,0,0};
+    pos[1] = {1.5e-5,0,0};
+    pos[2] = {1.5e-5,4e-5,0};
+    // pos[3] = {4.5e-5,4e-5,0};
+    pos[0] += offset;
+    pos[1] += offset;
+    pos[2] += offset;
+    // pos[3] += offset;
 
-    pos[0] = {-3.861206679998241e-06, 1.4421592075685271e-05, 1.1560139726560676e-06};
-    pos[1] = {1.313380734510933e-06, -4.502693672807688e-06, 4.984365606494073e-06};
+    for (int i = 0; i < attrs.num_particles; ++i)
+    {
+        std::cerr<<"particle pos: "<<pos[i]<<std::endl;
+    }
     // pos[2] = {-4.183354924010277e-06, -1.968872614076021e-05, 1.6772367295500178e-05};
     // pos[3] = {6.731180869497584e-06, 9.769827737882628e-06, -2.291274687465032e-05};
  
@@ -419,20 +455,17 @@ void Ball_group::customInit()
 
     // double bel = 35.0;
     // double bel = 50.0;
-    double bel = 20.0;
+    double bel = 1.75;
     // std::cout<<"velocity of impact: "<<bel*2<<std::endl;
-    vel[0] = {0,0,0};
-    vel[1] = {0,0,-100};
-    // vel[2] = {5.852285928812472, 28.358415718031555, -17.98189749746166};
-    // vel[3] = {-0.15171177020907464, -0.058323665165048263, 0.12389806710550082};
-    // vel[2] = {0,0,0};
-    // vel[1] = {0,0,0};
+    vel[0] = {bel,0,0};
+    vel[1] = {bel,0,0};
+    vel[2] = {0,-bel,0};
+    // vel[3] = {0,-2*bel,0};
+    
     // vel[0] = {0,0,0};
-    // vel[4] = {0,0,0};
-    // vel[0] = {bel*std::sqrt(3.0)/2.0,-bel/2.0,0};
-    // vel[2] = {-bel*std::sqrt(3.0)/2.0,-bel/2.0,0};
-    // vel[0] = {-bel/std::sqrt(2),-bel/std::sqrt(2),0};
-    // vel[1] = {bel/std::sqrt(2),bel/std::sqrt(2),0};
+    // vel[1] = {0,0,0};
+    // vel[2] = {0,0,0};
+    // vel[3] = {0,0,0};
 
     if (attrs.JKR)
     {
@@ -445,7 +478,8 @@ void Ball_group::customInit()
     attrs.m_total = getMass();
     calc_v_collapse(); 
     simInit_cond_and_center(false);
-    if (attrs.dt < 0)
+    // if (attrs.dt < 0)
+    if (1)
     {
         // if (attrs.v_custom < 1.0)
         // {
@@ -458,6 +492,59 @@ void Ball_group::customInit()
         calibrate_dt(0, bel);
     }
 }
+
+// //Initalize custom parameters in here (this is for the spinny scenario)
+// void Ball_group::customInit()
+// {
+//     int nBalls = 2;
+//     attrs.num_particles = nBalls;
+//     // attrs.num_groups = 4;
+//     allocate_group(nBalls);
+
+
+//     R[0] = 1e-5;
+//     R[1] = 0.5e-5;
+
+//     m[0] = attrs.density*(4.0/3.0)*pi*R[0]*R[0]*R[0];
+//     m[1] = attrs.density*(4.0/3.0)*pi*R[1]*R[1]*R[1];
+
+//     moi[0] = .4 * m[0] * R[0] * R[0];
+//     moi[1] = .4 * m[1] * R[1] * R[1];
+
+//     w[0] = {0,0,0};   
+//     w[1] = {0,0,0};   
+
+//     pos[0] = {R[0],0,0};
+//     pos[1] = {-R[1],0,0};
+
+//     for (int i = 0; i < attrs.num_particles; ++i)
+//     {
+//         std::cerr<<"particle pos: "<<pos[i]<<std::endl;
+//     }
+
+//     double bel = 1.75;
+//     // std::cout<<"velocity of impact: "<<bel*2<<std::endl;
+//     vel[0] = {0,0,0};
+//     vel[1] = {0,bel,0};
+    
+//     calc_helpfuls(true);
+//     attrs.m_total = getMass();
+//     calc_v_collapse(); 
+//     simInit_cond_and_center(false);
+//     // if (1)
+//     if (attrs.dt < 0)
+//     {
+//         // if (attrs.v_custom < 1.0)
+//         // {
+//         //     calibrate_dt(0, 1.0);
+//         // } //This value of 0.36 seems to work well, but a better approximation would be beneficial
+//         // else
+//         // {
+//         //     calibrate_dt(0, attrs.v_custom);
+//         // }
+//         calibrate_dt(0, bel);
+//     }
+// }
 
 
 Ball_group& Ball_group::operator=(const Ball_group& rhs)
@@ -476,9 +563,15 @@ Ball_group& Ball_group::operator=(const Ball_group& rhs)
     // loading_flag = rhs.loading_flag;
     // a_store = rhs.a_store;
 
-    group_w = rhs.group_w;
-    group_wh = rhs.group_wh;
     group_aacc = rhs.group_aacc;
+    group_acc = rhs.group_acc;
+    group_pos = rhs.group_pos;
+    group_velh = rhs.group_velh;
+    group_vel = rhs.group_vel;
+    group_q = rhs.group_q;
+    group_wh = rhs.group_wh;
+    group_w = rhs.group_w;
+    group_offset = rhs.group_offset;
 
     pos = rhs.pos;
     vel = rhs.vel;
@@ -944,6 +1037,19 @@ vec3 Ball_group::calc_group_com(const int group_num)
     return com;
 }
 
+double Ball_group::calc_group_mass(const int group_num)
+{
+    double tot_mass = 0;
+    for (int Ball = 0; Ball < attrs.num_particles; ++Ball)
+    {
+        if (group[Ball] == group_num)
+        {
+            tot_mass += m[Ball];
+        }
+    }
+    return tot_mass;
+}
+
 // @brief calculates the vdw force
 inline double Ball_group::calc_VDW_force_mag(const double Ra,const double Rb,const double h)
 {
@@ -1005,7 +1111,6 @@ inline double Ball_group::calc_VDW_force_mag(const double Ra,const double Rb,con
 void Ball_group::calibrate_dt(int const Step, const double& customSpeed = -1.)
 {
     const double dtOld = attrs.dt;
-
 
     std::string message = "";
     if (attrs.JKR)
@@ -1549,46 +1654,97 @@ double Ball_group::calc_mass(const double& radius, const double& density)
 
 double Ball_group::calc_moi(const double& radius, const double& mass) { return .4 * mass * radius * radius; }
 
-//returns the MOI of selected group in the groups frame
-std::vector<vec3> Ball_group::calc_group_moi(const int& group_num,const double& group_mass,const vec3& group_com) 
+// Returns the MOI tensor of the selected welded group about that group's COM (world frame).
+// Includes both:
+// 1) point-mass contribution from each monomer center relative to the group COM
+// 2) self-inertia of each spherical monomer about its own center
+std::vector<vec3> Ball_group::calc_group_moi_world(const int& group_num, 
+                                             const vec3& group_com)
 {
+    std::vector<vec3> moi = {{0,0,0},{0,0,0},{0,0,0}};
 
-    std::vector<vec3> moi_world = {{0,0,0},{0,0,0},{0,0,0}};
     for (int Ball = 0; Ball < attrs.num_particles; ++Ball)
     {
-        moi_world[0][0] += m[Ball] * (pos[Ball][1]*pos[Ball][1] + pos[Ball][2]*pos[Ball][2]);
-        moi_world[1][1] += m[Ball] * (pos[Ball][0]*pos[Ball][0] + pos[Ball][2]*pos[Ball][2]);
-        moi_world[2][2] += m[Ball] * (pos[Ball][0]*pos[Ball][0] + pos[Ball][1]*pos[Ball][1]);
-        
-        moi_world[0][1] += -m[Ball] * (pos[Ball][0]*pos[Ball][1]);
-        moi_world[1][2] += -m[Ball] * (pos[Ball][1]*pos[Ball][2]);
-        moi_world[0][2] += -m[Ball] * (pos[Ball][0]*pos[Ball][2]);
-    } 
-        moi_world[1][0] = moi_world[0][1];
-        moi_world[2][1] = moi_world[1][2];
-        moi_world[2][0] = moi_world[0][2];
-    
-    //translate to local_com
-    const double group_com_norm = group_com.norm();
+        if (group[Ball] != group_num) continue;
 
-    //np.dot(group_com,group_com)*np.eye(3)
-    std::vector<vec3> term1 = {{group_com_norm,0,0},{0,group_com_norm,0},{0,0,group_com_norm}};
+        const double mass = m[Ball];
 
-    //-np.outer(center,center)
-    std::vector<vec3> term2 = { 
-        {group_com[0]*group_com[0],group_com[0]*group_com[1],group_com[0]*group_com[2]},
-        {group_com[1]*group_com[0],group_com[1]*group_com[1],group_com[1]*group_com[2]},
-        {group_com[2]*group_com[0],group_com[2]*group_com[1],group_com[2]*group_com[2]}
-    };
+        // Position of monomer center relative to group COM
+        const double x = pos[Ball][0] - group_com[0];
+        const double y = pos[Ball][1] - group_com[1];
+        const double z = pos[Ball][2] - group_com[2];
 
-    //moi_world-total_mass*(np.dot(center,center)*np.eye(3)-np.outer(center,center))
-    std::vector<vec3> moi_local = {
-        {moi_world[0][0]-group_mass*(term1[0][0]-term2[0][0]), moi_world[0][1]-group_mass*(term1[0][1]-term2[0][1]), moi_world[0][2]-group_mass*(term1[0][2]-term2[0][2])},
-        {moi_world[1][0]-group_mass*(term1[1][0]-term2[1][0]), moi_world[1][1]-group_mass*(term1[1][1]-term2[1][1]), moi_world[1][2]-group_mass*(term1[1][2]-term2[1][2])},
-        {moi_world[2][0]-group_mass*(term1[2][0]-term2[2][0]), moi_world[2][1]-group_mass*(term1[2][1]-term2[2][1]), moi_world[2][2]-group_mass*(term1[2][2]-term2[2][2])}
-    };
+        // Point-mass contribution from monomer center offset from group COM
+        moi[0][0] += mass * (y*y + z*z);
+        moi[1][1] += mass * (x*x + z*z);
+        moi[2][2] += mass * (x*x + y*y);
 
-    return moi_local;
+        moi[0][1] += -mass * x * y;
+        moi[0][2] += -mass * x * z;
+        moi[1][2] += -mass * y * z;
+
+        // Self-inertia of spherical monomer about its own center
+        // For a solid sphere: I = (2/5) m r^2
+        const double Iself = (2.0/5.0) * mass * R[Ball] * R[Ball];
+
+        moi[0][0] += Iself;
+        moi[1][1] += Iself;
+        moi[2][2] += Iself;
+    }
+
+    // Fill symmetric entries
+    moi[1][0] = moi[0][1];
+    moi[2][0] = moi[0][2];
+    moi[2][1] = moi[1][2];
+
+    return moi;
+}
+
+// Returns the MOI tensor of the selected welded group about that group's local coordinates.
+// Includes both:
+// 1) point-mass contribution from each monomer center relative to the group COM
+// 2) self-inertia of each spherical monomer about its own center
+std::vector<vec3> Ball_group::calc_group_moi_local(const int& group_num)
+{
+    std::vector<vec3> moi = {{0,0,0},{0,0,0},{0,0,0}};
+
+    for (int Ball = 0; Ball < attrs.num_particles; ++Ball)
+    {
+        if (group[Ball] != group_num) continue;
+
+        const double mass = m[Ball];
+
+        // Position of monomer center relative to group COM
+        const double x = group_offset[Ball][0];
+        const double y = group_offset[Ball][1];
+        const double z = group_offset[Ball][2];
+
+        // Point-mass contribution from monomer center offset from group COM
+        moi[0][0] += mass * (y*y + z*z);
+        moi[1][1] += mass * (x*x + z*z);
+        moi[2][2] += mass * (x*x + y*y);
+
+        moi[0][1] += -mass * x * y;
+        moi[0][2] += -mass * x * z;
+        moi[1][2] += -mass * y * z;
+
+        // Self-inertia of spherical monomer about its own center
+        // For a solid sphere: I = (2/5) m r^2
+        const double Iself = (2.0/5.0) * mass * R[Ball] * R[Ball];
+
+        moi[0][0] += Iself;
+        moi[1][1] += Iself;
+        moi[2][2] += Iself;
+    }
+
+    // Fill symmetric entries
+    moi[1][0] = moi[0][1];
+    moi[2][0] = moi[0][2];
+    moi[2][1] = moi[1][2];
+
+    // std::cerr<<"moi: \n"<<moi[0]<<'\n'<<moi[1]<<'\n'<<moi[2]<<std::endl;
+
+    return moi;
 }
 
 //Not used anywhere at the moment
@@ -2019,10 +2175,7 @@ Ball_group Ball_group::BAPA_projectile_init()
 
     if (attrs.weld)
     {
-
-        projectile.setGroup(this->attrs.num_groups-1);
-        // projectile.group[0] = this->attrs.num_groups-1;
-        this->attrs.num_groups++;
+        projectile.setGroup(this->attrs.num_groups);
     }
 
     overwrite_v_custom(projectile);
@@ -2062,12 +2215,22 @@ Ball_group Ball_group::add_projectile(const simType simtype)
     //     projectile.JKRpropertiesInit(attrs.material);
     // }
     
+    
 
     projectile.calc_momentum("Projectile");
     calc_momentum("Target");
     Ball_group new_group{projectile.attrs.num_particles + attrs.num_particles,attrs.JKR};
 
     int new_num_particles = projectile.attrs.num_particles + attrs.num_particles;
+    int new_num_groups = projectile.attrs.num_groups + attrs.num_groups;
+
+    if (attrs.weld)
+    {
+        new_group.allocate_weld_group(new_num_groups);
+    }
+
+    // new_group.attrs = attrs;
+    // new_group.attrs.num_groups = new_num_groups;
 
     new_group.merge_ball_group(*this);
     new_group.merge_ball_group(projectile);
@@ -2082,6 +2245,7 @@ Ball_group Ball_group::add_projectile(const simType simtype)
 
     //The next line is important because the previous line overwrites the value of num_particles set in the Ball_group constructor
     new_group.attrs = attrs;
+    new_group.attrs.num_groups = new_num_groups;
     new_group.attrs.num_particles = new_num_particles;
 
     // Hack - if v_custom is less than 1 there are problems if dt is calibrated to this
@@ -2103,6 +2267,7 @@ Ball_group Ball_group::add_projectile(const simType simtype)
     {
         new_group.init_conditions();
     }
+
 
     new_group.to_origin();
 
@@ -2134,6 +2299,33 @@ void Ball_group::merge_ball_group(const Ball_group& src,const bool includeRadius
     std::memcpy(&moi[attrs.num_particles_added], src.moi, sizeof(src.moi[0]) * src.attrs.num_particles);
     std::memcpy(&group[attrs.num_particles_added], src.group, sizeof(src.group[0]) * src.attrs.num_particles);
 
+    if (src.attrs.weld)
+    {
+        // std::cerr << "src.attrs.num_groups = " << src.attrs.num_groups << '\n';
+        // std::cerr << "attrs.num_groups_added = " << attrs.num_groups_added << '\n';
+
+        // std::cerr << "src.group_wh.size() = " << src.group_wh.size() << '\n';
+        // std::cerr << "src.group_w.size() = " << src.group_w.size() << '\n';
+        // std::cerr << "src.group_aacc.size() = " << src.group_aacc.size() << '\n';
+
+        // std::cerr << "group_wh.size() = " << group_wh.size() << '\n';
+        // std::cerr << "group_w.size() = " << group_w.size() << '\n';
+        // std::cerr << "group_aacc.size() = " << group_aacc.size() << '\n';
+
+        // std::cerr<<"MERGE BALL GROUPS: "<<src.attrs.num_groups<<std::endl;
+        std::copy(src.group_pos.begin(),src.group_pos.begin()+src.attrs.num_groups,group_pos.begin()+attrs.num_groups_added);
+        std::copy(src.group_velh.begin(),src.group_velh.begin()+src.attrs.num_groups,group_velh.begin()+attrs.num_groups_added);
+        std::copy(src.group_vel.begin(),src.group_vel.begin()+src.attrs.num_groups,group_vel.begin()+attrs.num_groups_added);
+        std::copy(src.group_q.begin(),src.group_q.begin()+src.attrs.num_groups,group_q.begin()+attrs.num_groups_added);
+        std::copy(src.group_wh.begin(),src.group_wh.begin()+src.attrs.num_groups,group_wh.begin()+attrs.num_groups_added);
+        std::copy(src.group_w.begin(),src.group_w.begin()+src.attrs.num_groups,group_w.begin()+attrs.num_groups_added);
+        std::copy(src.group_aacc.begin(),src.group_aacc.begin()+src.attrs.num_groups,group_aacc.begin()+attrs.num_groups_added);
+        std::copy(src.group_acc.begin(),src.group_acc.begin()+src.attrs.num_groups,group_acc.begin()+attrs.num_groups_added);
+
+        std::copy(src.group_offset.begin(),src.group_offset.begin()+src.attrs.num_particles,group_offset.begin()+attrs.num_particles_added);
+        // std::cerr<<"END MERGE BALL GROUPS: "<<src.attrs.num_groups<<std::endl;
+    }
+
     //JKR stuff
     if (attrs.JKR)
     {
@@ -2147,6 +2339,7 @@ void Ball_group::merge_ball_group(const Ball_group& src,const bool includeRadius
 
     // Keep track of now loaded ball set to start next set after it:
     attrs.num_particles_added += src.attrs.num_particles;
+    attrs.num_groups_added += src.attrs.num_groups_added;
 
     // num_particles_added += src.num_particles;
     // radiiDistribution = src.radiiDistribution;
@@ -2237,6 +2430,12 @@ void Ball_group::allocate_group(const int nBalls)
             moi = new double[attrs.num_particles];
             group = new int[attrs.num_particles];
 
+            //vectors
+            if (attrs.weld)
+            {
+                allocate_weld_group(attrs.num_groups);
+            }
+
             // loading_flag = new bool[attrs.num_pairs];
             // a_store = new double[attrs.num_pairs];
 
@@ -2250,9 +2449,24 @@ void Ball_group::allocate_group(const int nBalls)
     }
 }
 
+void Ball_group::allocate_weld_group(const int num_groups)
+{
+    group_wh.resize(num_groups);
+    group_w.resize(num_groups);
+    group_pos.resize(num_groups);
+    group_velh.resize(num_groups);
+    group_vel.resize(num_groups);
+    group_q.resize(num_groups);
+    group_aacc.resize(num_groups);
+    group_acc.resize(num_groups);
+
+    group_offset.resize(attrs.num_particles);
+            
+}
+
 
 /// @brief Deallocate arrays to recover memory.
-void Ball_group::freeMemory() const
+void Ball_group::freeMemory()
 {
     delete[] distances;
     // delete[] loading_flag;
@@ -2269,6 +2483,17 @@ void Ball_group::freeMemory() const
     delete[] R;
     delete[] m;
     delete[] moi;
+
+    //Free memory for vector. Not strictly necessary but I can forsee a scenario this will be useful
+    std::vector<vec3>().swap(group_wh);
+    std::vector<vec3>().swap(group_w);
+    std::vector<vec3>().swap(group_pos);
+    std::vector<vec3>().swap(group_velh);
+    std::vector<vec3>().swap(group_vel);
+    std::vector<rotation>().swap(group_q);
+    std::vector<vec3>().swap(group_offset);
+    std::vector<vec3>().swap(group_aacc);
+    std::vector<vec3>().swap(group_acc);
 
     #ifdef GPU_ENABLE
         delete[] aaccsq;
@@ -2305,6 +2530,16 @@ void Ball_group::init_conditions_JKR()
     // JKRpropertiesInit(attrs.material);
     // JKRreducedInit();    //initalize elastic properties for all pairs
     // SECOND PASS - Check for collisions, apply forces and torques:
+
+    if (attrs.weld)
+    {
+        calc_offsets_coms();
+        for (int g = 0; g < attrs.num_groups; ++g)
+        {
+            group_acc[g] = {0.0,0.0,0.0};
+            group_aacc[g] = {0.0,0.0,0.0};
+        }
+    }
 
     for (int i = 0; i < attrs.num_particles; ++i)
     {
@@ -2477,19 +2712,51 @@ void Ball_group::init_conditions_JKR()
 void Ball_group::init_conditions()
 {
 
+    //Uncomment this to set each particle as its own group
+    // attrs.num_groups = attrs.num_particles;
+    // allocate_weld_group(attrs.num_groups);
+    // for (int i = 0; i < attrs.num_particles; ++i)
+    // {
+    //     group[i] = i;
+    // }
+
+    if (attrs.weld)
+    {
+        calc_offsets_coms();
+        for (int g = 0; g < attrs.num_groups; ++g)
+        {
+            group_acc[g] = {0.0,0.0,0.0};
+            group_aacc[g] = {0.0,0.0,0.0};
+        }
+    }
+
     for (int i = 0; i < attrs.num_particles; ++i)
     {
         acc[i] = {0.0,0.0,0.0};
         aacc[i] = {0.0,0.0,0.0};
     }
 
+        // attrs.num_groups = attrs.num_particles;
+        // allocate_weld_group(attrs.num_groups);
+        // for (int i = 0; i < attrs.num_particles; ++i)
+        // {
+        //     group[i] = i;
+        // }
+
     // SECOND PASS - Check for collisions, apply forces and torques:
     for (int A = 1; A < attrs.num_particles; A++)  // cuda
     {
         // DONT DO ANYTHING HERE. A STARTS AT 1.
         for (int B = 0; B < A; B++) {
+
+            if (attrs.weld && group[A] == group[B])
+            {
+                continue;
+            }
+
             const double sumRaRb = R[A] + R[B];
             const vec3 rVecab = pos[B] - pos[A];  // Vector from a to b.
+            // std::cerr<<"rVecab, A="<<A<<" B="<<B<<" : "<<rVecab<<std::endl;
             const vec3 rVecba = -rVecab;
             const double dist = (rVecab).norm();
 
@@ -2592,6 +2859,7 @@ void Ball_group::init_conditions()
                     -attrs.Ha / 6 *
                     (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
                 PE += U_vdw + 0.5 * k * overlap * overlap;
+                // std::cerr<<"totalForceOnA, A="<<A<<" B="<<B<<" : "<<totalForceOnA<<std::endl;
 
             } else  // Non-contact forces:
             {
@@ -2644,10 +2912,18 @@ void Ball_group::init_conditions()
 
 
 
+
             // So last distance can be known for COR:
             distances[e] = dist;
         }
         // DONT DO ANYTHING HERE. A STARTS AT 1.
+    }
+
+    if (attrs.weld)
+    {
+        group_accs_from_monomer();
+        // weld_accelerations();
+        group_vel_from_monomer();
     }
 
     // Calc energy:
@@ -4307,60 +4583,112 @@ int Ball_group::get_num_threads()
 //     return largest_file_name;
 // }
 
-//Goes from accelerations summed in sim_one_step to accelerations
-//needed for groups using the groups forces, torques, and angular velocities.
-//Sums forces/torques of each group based on monomer forces/torques. 
-//Converts those to force on each monomer
-void Ball_group::weld_accelerations()
+//This fuction sets group_pos and group_offset for each group 
+//based on the current positions of each monomer (and what group 
+//it belongs to)
+void Ball_group::calc_offsets_coms()
 {
-    // std::vector<vec3> group_acc(attrs.num_groups);
-    // std::vector<vec3> group_com(attrs.num_groups);
+    for (int g = 0; g < attrs.num_groups; ++g)
+    {
+        group_pos[g] = calc_group_com(g); 
+        for (int Ball = 0; Ball < attrs.num_particles; ++Ball)
+        {
+            if (g == group[Ball])
+            {
+                vec3 rho_world = pos[Ball] - group_pos[g];
+                group_offset[Ball] = group_q[g].worldToLocal(rho_world);
+            }
+        }
+    }
+}
 
+//This function calculates group velocities from individual monomer velocities.
+//Called only for initialization. Otherwise velocities should be calculated 
+//based on the time evolved group velocities.
+void Ball_group::group_vel_from_monomer()
+{
+    for (int g = 0; g < attrs.num_groups; ++g)
+    {
+        vec3 vcom = {0,0,0};
+        double M = 0.0;
+
+        for (int Ball = 0; Ball < attrs.num_particles; ++Ball)
+        {
+            if (group[Ball] == g)
+            {
+                vcom += m[Ball] * vel[Ball];
+                M += m[Ball];
+            }
+        }
+
+        group_vel[g] = vcom / M;
+    }
+}
+
+//Goes from accelerations summed in sim_one_step to group accelerations
+//needed for using the groups forces, torques, and angular velocities.
+//Sums forces/torques of each group based on monomer forces/torques. 
+void Ball_group::group_accs_from_monomer()
+{
     for (int currgroup = 0; currgroup < attrs.num_groups; ++currgroup)
     {
-        vec3 group_force = {0,0,0};
-        vec3 group_torque = {0,0,0};
-        vec3 group_com = calc_group_com(currgroup);
-        vec3 group_acc = {0,0,0};
+        vec3 group_force_world = {0,0,0};
+        vec3 group_torque_world = {0,0,0};
         double group_mass = 0;
 
-        vec3 rho = {0,0,0};
+        vec3 rho_world = {0,0,0};
 
-        for (int Ball = 0; Ball < attrs.num_particles; Ball++)
+        for (int Ball = 0; Ball < attrs.num_particles; ++Ball)
         {
-            if (currgroup != group[Ball])
+            if (currgroup == group[Ball])
             {
                 //rho_i = pos_i - group_com
-                rho = pos[Ball]-group_com;
-                group_force += acc[Ball]*m[Ball];
-                group_torque += rho.cross(acc[Ball]*m[Ball]);
+                rho_world = quatRotate(group_q[currgroup],group_offset[Ball]);
+                group_force_world += acc[Ball]*m[Ball];
+                //Make sure to include monomer friction torque
+                group_torque_world += rho_world.cross(acc[Ball]*m[Ball]) + aacc[Ball]*moi[Ball];
                 group_mass += m[Ball];
             }
         }
 
-        std::vector<vec3> moi = calc_group_moi(currgroup,group_mass,group_com);
-        group_acc = group_force/group_mass;
+        // std::cerr << "group_w: " << group_w[currgroup] << "\n";
+        // std::cerr << "group_wh: " << group_wh[currgroup] << "\n";
 
+        std::vector<vec3> moi = calc_group_moi_local(currgroup);
+
+        if (group_mass <= 1e-50)
+        {
+            MPIsafe_print(std::cerr,"ERROR: group mass is "+dToSci(group_mass)+" g. exiting to avoid divide by zero. Now exiting. . .\n");
+            MPIsafe_exit(-1);
+        }
+
+        group_acc[currgroup] = group_force_world/group_mass;
+
+        vec3 omega_local = group_q[currgroup].worldToLocal(group_w[currgroup]);
+
+        //Do this calculation in local frame and convert final answer back to world
         //Iw
         vec3 Iw = {
-            moi[0][0]*group_wh[currgroup][0] + moi[0][1]*group_wh[currgroup][1] + moi[0][2]*group_wh[currgroup][2],
-            moi[1][0]*group_wh[currgroup][0] + moi[1][1]*group_wh[currgroup][1] + moi[1][2]*group_wh[currgroup][2],
-            moi[2][0]*group_wh[currgroup][0] + moi[2][1]*group_wh[currgroup][1] + moi[2][2]*group_wh[currgroup][2]
+            moi[0][0]*omega_local[0] + moi[0][1]*omega_local[1] + moi[0][2]*omega_local[2],
+            moi[1][0]*omega_local[0] + moi[1][1]*omega_local[1] + moi[1][2]*omega_local[2],
+            moi[2][0]*omega_local[0] + moi[2][1]*omega_local[1] + moi[2][2]*omega_local[2]
         };
         //w cross (Iw)
         vec3 wcrossIw = {
-            group_wh[currgroup][1]*Iw[2] - group_wh[currgroup][2]*Iw[1],
-            group_wh[currgroup][2]*Iw[0] - group_wh[currgroup][0]*Iw[2],
-            group_wh[currgroup][0]*Iw[1] - group_wh[currgroup][1]*Iw[0]
+            omega_local[1]*Iw[2] - omega_local[2]*Iw[1],
+            omega_local[2]*Iw[0] - omega_local[0]*Iw[2],
+            omega_local[0]*Iw[1] - omega_local[1]*Iw[0]
         };
         double moi_det = moi[0][0]*(moi[1][1]*moi[2][2] - moi[1][2]*moi[2][1]) -
                          moi[0][1]*(moi[1][0]*moi[2][2] - moi[1][2]*moi[2][0]) +
                          moi[0][2]*(moi[1][0]*moi[2][1] - moi[1][1]*moi[2][0]);
-        if (fabs(moi_det) < 1e-12)
+
+        if (moi_det <= 1e-100)
         {
-            MPIsafe_print(std::cerr,"ERROR: determinent is zero (near-singular inertia tensor). Now exiting. . .");
+            MPIsafe_print(std::cerr,"ERROR: moment of inertia determinent is "+dToSci(moi_det)+" g*cm^2. exiting to avoid divide by zero. Now exiting. . .\n");
             MPIsafe_exit(-1);
         }
+
         double inv_moi_det = 1.0/moi_det;
         std::vector<vec3> moi_inverse = {
             {(moi[1][1]*moi[2][2] - moi[1][2]*moi[2][1]) * inv_moi_det, (moi[0][2]*moi[2][1] - moi[0][1]*moi[2][2]) * inv_moi_det, (moi[0][1]*moi[1][2] - moi[0][2]*moi[1][1]) * inv_moi_det},
@@ -4368,47 +4696,141 @@ void Ball_group::weld_accelerations()
             {(moi[1][0]*moi[2][1] - moi[1][1]*moi[2][0]) * inv_moi_det, (moi[0][1]*moi[2][0] - moi[0][0]*moi[2][1]) * inv_moi_det, (moi[0][0]*moi[1][1] - moi[0][1]*moi[1][0]) * inv_moi_det}
         };
 
+        vec3 group_torque_local = group_q[currgroup].worldToLocal(group_torque_world);
         vec3 tot_torque = {
-            group_torque[0] - wcrossIw[0],
-            group_torque[1] - wcrossIw[1],
-            group_torque[2] - wcrossIw[2]
+            group_torque_local[0] - wcrossIw[0],
+            group_torque_local[1] - wcrossIw[1],
+            group_torque_local[2] - wcrossIw[2]
         };
-        vec3 group_aacc = {
+
+
+        group_aacc[currgroup] = {
             moi_inverse[0][0]*tot_torque[0] + moi_inverse[0][1]*tot_torque[1] + moi_inverse[0][2]*tot_torque[2],
             moi_inverse[1][0]*tot_torque[0] + moi_inverse[1][1]*tot_torque[1] + moi_inverse[1][2]*tot_torque[2],
             moi_inverse[2][0]*tot_torque[0] + moi_inverse[2][1]*tot_torque[1] + moi_inverse[2][2]*tot_torque[2],
         };
 
-        //recalculate each monomer's acceleration based on the group's aacc and acc
-        for (int Ball = 0; Ball < attrs.num_particles; Ball++)
-        {
-            if (currgroup != group[Ball])
-            {
-                vec3 aaccCrossrho = {
-                    group_aacc[1]*rho[2] - group_aacc[2]*rho[1],
-                    group_aacc[2]*rho[0] - group_aacc[0]*rho[2],
-                    group_aacc[0]*rho[1] - group_aacc[1]*rho[0]
-                };
-                vec3 wcrossrho = {
-                    group_wh[currgroup][1]*rho[2] - group_wh[currgroup][2]*rho[1],
-                    group_wh[currgroup][2]*rho[0] - group_wh[currgroup][0]*rho[2],
-                    group_wh[currgroup][0]*rho[1] - group_wh[currgroup][1]*rho[0]
-                };
-                vec3 wcrosswcrossrho = {
-                    group_wh[currgroup][1]*wcrossrho[2] - group_wh[currgroup][2]*wcrossrho[1],
-                    group_wh[currgroup][2]*wcrossrho[0] - group_wh[currgroup][0]*wcrossrho[2],
-                    group_wh[currgroup][0]*wcrossrho[1] - group_wh[currgroup][1]*wcrossrho[0]
-                };
-
-                acc[Ball][0] = group_acc[0] + aaccCrossrho[0] + wcrosswcrossrho[0];
-                acc[Ball][1] = group_acc[1] + aaccCrossrho[1] + wcrosswcrossrho[1];
-                acc[Ball][2] = group_acc[2] + aaccCrossrho[2] + wcrosswcrossrho[2];
-            }
-        }
-    std::cerr<<"DONE"<<std::endl;
-    exit(0);
+        //convert group_aacc from local back to world frame
+        group_aacc[currgroup] = group_q[currgroup].localToWorld(group_aacc[currgroup]);
 
     }
+}
+
+void Ball_group::half_step_updates()
+{
+    if (!attrs.weld)
+    {
+        for (int Ball = 0; Ball < attrs.num_particles; Ball++) 
+        {
+            // Update velocity half step:
+            velh[Ball] = vel[Ball] + .5 * acc[Ball] * attrs.dt;
+
+            // Update angular velocity half step:
+            wh[Ball] = w[Ball] + .5 * aacc[Ball] * attrs.dt;
+
+            // Update position:
+            pos[Ball] += velh[Ball] * attrs.dt;
+
+            // Reinitialize acceleration to be recalculated:
+            acc[Ball] = {0, 0, 0};
+
+            // Reinitialize angular acceleration to be recalculated:
+            aacc[Ball] = {0, 0, 0};
+        }
+    }
+    else
+    {
+
+        for (int g = 0; g < attrs.num_groups; ++g)
+        {
+            group_velh[g] = group_vel[g] + 0.5 * group_acc[g] * attrs.dt;
+            group_wh[g] = group_w[g] + 0.5 * group_aacc[g] * attrs.dt;
+            group_pos[g] +=  group_velh[g] * attrs.dt;
+            
+            group_aacc[g] = {0,0,0};
+            group_acc[g] = {0,0,0};
+
+            vec3 omega_local = group_q[g].worldToLocal(group_wh[g]);
+            group_q[g].exponential_integrate(omega_local, attrs.dt);
+            // group_q[g].normalize();
+        }
+
+        for (int Ball = 0; Ball < attrs.num_particles; Ball++) 
+        {
+
+            // vec3 rho = group_q[group[Ball]].quatRotate(group_offset[Ball]);
+            // pos[Ball] = group_pos[group[Ball]] + rho;
+            vec3 rho = quatRotate(group_q[group[Ball]],group_offset[Ball]);
+            
+            pos[Ball]  = group_pos[group[Ball]] + rho;
+            velh[Ball] = group_velh[group[Ball]] + group_wh[group[Ball]].cross(rho);
+            wh[Ball] = group_wh[group[Ball]];
+
+            // Reinitialize acceleration to be recalculated:
+            acc[Ball] = {0, 0, 0};
+            // Reinitialize angular acceleration to be recalculated:
+            aacc[Ball] = {0, 0, 0};
+        }
+    }
+}
+
+void Ball_group::full_step_updates(const int write_step, const int world_rank)
+{
+
+    if (!attrs.weld)
+    {
+        for (int Ball = 0; Ball < attrs.num_particles; Ball++) 
+        {
+            // Velocity for next step:
+            vel[Ball] = velh[Ball] + 0.5 * acc[Ball] * attrs.dt;
+            w[Ball] = wh[Ball] + 0.5 * aacc[Ball] * attrs.dt;
+
+        }    
+    }
+    else
+    {
+        for (int g = 0; g < attrs.num_groups; g++) 
+        {
+            // Velocity for next step:
+            group_vel[g] = group_velh[g] + 0.5 * group_acc[g] * attrs.dt;
+            group_w[g] = group_wh[g] + 0.5 * group_aacc[g] * attrs.dt;
+        }  
+
+        for (int Ball = 0; Ball < attrs.num_particles; Ball++) 
+        {
+            // Velocity for next step:
+            vec3 rho = quatRotate(group_q[group[Ball]],group_offset[Ball]);
+            vel[Ball] = group_vel[group[Ball]] + group_w[group[Ball]].cross(rho);
+            w[Ball] = group_w[group[Ball]];
+        } 
+    }
+
+
+    if (write_step && world_rank == 0) 
+    {
+        for (int Ball = 0; Ball < attrs.num_particles; Ball++) 
+        {
+            // Send positions and rotations to buffer:
+            const int start = data->getWidth("simData")*attrs.num_writes+Ball*data->getSingleWidth("simData");
+            ballBuffer[start] = pos[Ball][0];
+            ballBuffer[start+1] = pos[Ball][1];
+            ballBuffer[start+2] = pos[Ball][2];
+            ballBuffer[start+3] = w[Ball][0];
+            ballBuffer[start+4] = w[Ball][1];
+            ballBuffer[start+5] = w[Ball][2];
+            ballBuffer[start+6] = w[Ball].norm();
+            ballBuffer[start+7] = vel[Ball][0];
+            ballBuffer[start+8] = vel[Ball][1];
+            ballBuffer[start+9] = vel[Ball][2];
+            ballBuffer[start+10] = group[Ball];
+
+            KE += .5 * m[Ball] * vel[Ball].normsquared() +
+                    .5 * moi[Ball] * w[Ball].normsquared();  // Now includes rotational kinetic energy.
+            mom += m[Ball] * vel[Ball];
+            ang_mom += m[Ball] * pos[Ball].cross(vel[Ball]) + moi[Ball] * w[Ball];
+        }
+    }
+
 }
 
 
@@ -4419,29 +4841,9 @@ void Ball_group::sim_one_step(int step,bool write_step)
     int world_size = getSize();
     /// FIRST PASS - Update Kinematic Parameters:
     // t.start_event("UpdateKinPar");
-    for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
-        // Update velocity half step:
-        velh[Ball] = vel[Ball] + .5 * acc[Ball] * attrs.dt;
 
-        // Update angular velocity half step:
-        wh[Ball] = w[Ball] + .5 * aacc[Ball] * attrs.dt;
-
-        // Update position:
-        pos[Ball] += velh[Ball] * attrs.dt;
-
-        // Reinitialize acceleration to be recalculated:
-        acc[Ball] = {0, 0, 0};
-
-        // Reinitialize angular acceleration to be recalculated:
-        aacc[Ball] = {0, 0, 0};
-
-        if (attrs.weld)
-        {
-            // group_velh[Ball] = group_vel[Ball] + 0.5 * group_acc[Ball] * attrs.dt;
-            group_wh[Ball] = group_w[Ball] + 0.5 * group_aacc[Ball] * attrs.dt;
-
-        }
-    }
+    half_step_updates();
+    
     // t.end_event("UpdateKinPar");
 
     double Ha = attrs.Ha;
@@ -4455,18 +4857,19 @@ void Ball_group::sim_one_step(int step,bool write_step)
     int threads = attrs.OMPthreads;
     // bool write_step = attrs.write_step;
 
+
     
     long long A;
     long long B;
     long long pc;
     long long lllen = attrs.num_particles;
     double t0 = omp_get_wtime();
-    #pragma omp declare reduction(vec3_sum : vec3 : omp_out += omp_in)
-    #pragma omp parallel for num_threads(threads)\
-            reduction(vec3_sum:acc[:num_parts],aacc[:num_parts]) reduction(+:PE) \
-            shared(world_rank,world_size,Ha,write_step,lllen,R,pos,vel,m,w,\
-                u_r,u_s,moi,kin,kout,distances,h_min,dt)\
-            default(none) private(A,B,pc) 
+    // #pragma omp declare reduction(vec3_sum : vec3 : omp_out += omp_in)
+    // #pragma omp parallel for num_threads(threads)\
+    //         reduction(vec3_sum:acc[:num_parts],aacc[:num_parts]) reduction(+:PE) \
+    //         shared(world_rank,world_size,Ha,write_step,lllen,R,pos,vel,m,w,\
+    //             u_r,u_s,moi,kin,kout,distances,h_min,dt)\
+    //         default(none) private(A,B,pc) 
     for (pc = world_rank + 1; pc <= (((lllen*lllen)-lllen)/2); pc += world_size)
     {
             long double pd = (long double)pc;
@@ -4770,44 +5173,29 @@ void Ball_group::sim_one_step(int step,bool write_step)
 
     // t.end_event("CalcForces/loopApplicablepairs");
 
+
+    // for (int i = 0; i < attrs.num_particles; ++i)
+    // {
+    //     std::cerr<<"acc["<<i<<"]"<<acc[i]<<std::endl;
+    // }
+
     if (attrs.weld)
     {
-        weld_accelerations();
+        group_accs_from_monomer();
     }
+
+    // for (int i = 0; i < attrs.num_particles; ++i)
+    // {
+    //     std::cerr<<"acc["<<i<<"]"<<acc[i]<<std::endl;
+    // }
+    // exit(0);
+
+    
 
     // THIRD PASS - Calculate velocity for next step:
     // t.start_event("CalcVelocityforNextStep");
-    for (int Ball = 0; Ball < attrs.num_particles; Ball++) 
-    {
-        // Velocity for next step:
-        vel[Ball] = velh[Ball] + .5 * acc[Ball] * attrs.dt;
-        w[Ball] = wh[Ball] + .5 * aacc[Ball] * attrs.dt;
-
-        /////////////////////////////////
-        // if (true) {
-        /////////////////////////////////
-        if (write_step && world_rank == 0) 
-        {
-            // Send positions and rotations to buffer:
-            int start = data->getWidth("simData")*attrs.num_writes+Ball*data->getSingleWidth("simData");
-            ballBuffer[start] = pos[Ball][0];
-            ballBuffer[start+1] = pos[Ball][1];
-            ballBuffer[start+2] = pos[Ball][2];
-            ballBuffer[start+3] = w[Ball][0];
-            ballBuffer[start+4] = w[Ball][1];
-            ballBuffer[start+5] = w[Ball][2];
-            ballBuffer[start+6] = w[Ball].norm();
-            ballBuffer[start+7] = vel[Ball][0];
-            ballBuffer[start+8] = vel[Ball][1];
-            ballBuffer[start+9] = vel[Ball][2];
-            ballBuffer[start+10] = group[Ball];
-
-            KE += .5 * m[Ball] * vel[Ball].normsquared() +
-                    .5 * moi[Ball] * w[Ball].normsquared();  // Now includes rotational kinetic energy.
-            mom += m[Ball] * vel[Ball];
-            ang_mom += m[Ball] * pos[Ball].cross(vel[Ball]) + moi[Ball] * w[Ball];
-        }
-    }  // THIRD PASS END
+    full_step_updates(write_step,world_rank);
+     // THIRD PASS END
     if (write_step && world_rank == 0)
     {
         attrs.num_writes ++;
@@ -5665,7 +6053,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
 
     for (Step = start_step; Step < attrs.steps; Step++)  // Steps start at 1 for non-restart because the 0 step is initial conditions.
     {
-
+        // std::cerr<<"STEP: "<<Step<<std::endl;
         // simTimeElapsed += dt; //New code #1
         // Check if this is a write step:
         if (Step % attrs.skip == 0) {
@@ -5804,7 +6192,8 @@ Ball_group::sim_looper(unsigned long long start_step=1)
     //if this is an aggregation job, make sure the final state is all connected (we didnt miss the target)
     if (isAggregation())
     {
-        if (!isConnected(pos,R,attrs.num_particles))
+        // if (!isConnected(pos,R,attrs.num_particles))
+        if (false)
         {
             attrs.isConnectedFails += 1;
             if (attrs.isConnectedFails < attrs.maxConnectedFails)

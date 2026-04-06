@@ -2,10 +2,16 @@ import os
 import json
 import multiprocessing as mp
 import subprocess
+import argparse
+import random
+import sys
 
 relative_path = "../"
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
 project_path = os.path.abspath(relative_path) + '/'
+
+sys.path.append(project_path+"utilities/")
+import utils as u
 
 
 	# out = os.system("./ColliderSingleCore.o {}".format(curr_folder))
@@ -13,12 +19,6 @@ project_path = os.path.abspath(relative_path) + '/'
 	
 	# cmd = ["srun","-n","1","-c","2","{}ColliderSingleCore.x".format(location), location, str(num_balls)]
 
-def rand_int():
-	# Generating a random integer from 0 to the maximum unsigned integer in C++
-	# In C++, the maximum value for an unsigned int is typically 2^32 - 1
-	max_unsigned_int_cpp = 2**32 - 1
-	random_unsigned_int = random.randint(0, max_unsigned_int_cpp)
-	return random_unsigned_int
 
 def run_job(location):
 	output_file = location + "sim_output.txt"
@@ -29,6 +29,18 @@ def run_job(location):
 		subprocess.run(cmd,stdout=out,stderr=err)
 
 if __name__ == '__main__':
+
+	parser = argparse.ArgumentParser(
+	description="Prepare DEM jobs and optionally submit them via Slurm."
+	)
+	parser.add_argument(
+		"-r",
+		"--run",
+		action="store_true",
+		help="Actually submit jobs with sbatch (otherwise do a dry run).",
+	)
+
+	args = parser.parse_args()
 	#make new output folders
 	# curr_folder = os.getcwd() + '/'
 
@@ -50,10 +62,10 @@ if __name__ == '__main__':
 
 	SPECIAL_FOLDER = ""#"/home/lucas/Desktop/SpaceLab_data/largejob/"
 
-	runs_at_once = 7
+	runs_at_once = 1
 	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
-	attempts = [1] 
-	N = [2]
+	attempts = [0] 
+	N = [3]
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [3]
@@ -87,8 +99,11 @@ if __name__ == '__main__':
 				input_json['radiiFraction'] = 2
 				input_json['genBalls'] = 2
 
-				# input_json['h_min'] = 0.5
-				input_json['dataFormat'] = "h5"
+				input_json['impactParameter'] = -1.0
+
+				input_json['h_min'] = 0.5
+				input_json['dataFormat'] = "csv"
+				input_json['simType'] = "BPCA"
 				# input_json['u_s'] = 0.5
 				# input_json['u_r'] = 0.5
 				# input_json['note'] = "Does this work at all?"
@@ -111,14 +126,14 @@ if __name__ == '__main__':
 
 	print(folders)
 
-	
-	with mp.Pool(processes=runs_at_once) as pool:
-		for folder in folders:
-			# input_data = inputs[i:i+runs_at_once]
-			pool.apply_async(run_job, (folder,))
+	if args.run:
+		with mp.Pool(processes=runs_at_once) as pool:
+			for folder in folders:
+				# input_data = inputs[i:i+runs_at_once]
+				pool.apply_async(run_job, (folder,))
 
-		pool.close()
-		pool.join()
+			pool.close()
+			pool.join()
 
 	# print(folders)
 	# cwd = os.getcwd()

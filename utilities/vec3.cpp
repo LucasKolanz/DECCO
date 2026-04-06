@@ -47,6 +47,14 @@ vec3 vec3::operator+=(const vec3& v)
     return *this;
 }
 
+vec3 vec3::operator+=(const double v)
+{
+    x += v;
+    y += v;
+    z += v;
+    return *this;
+}
+
 #ifdef GPU_ENABLE
     #pragma acc routine seq
 #endif
@@ -302,10 +310,10 @@ rotation rotation::conj() const noexcept { return rotation(w, -x, -y, -z); }
 //}
 
 //We integrate attitude on SO(3) with a Lie-group midpoint (exponential map)
-//  update implemented in unit quaternions (Δq right-multiplication with 
+//  update implemented in unit quaternions (Delta q right-multiplication with 
 //  half-step body-frame angular velocity). Might have energy drift over very long
 //  time periods. If so, try Lie-group variational integrators.
-// --- build Δq from body-frame ω at half step ---
+// --- build Delta q from body-frame omega at half step ---
 void rotation::exponential_integrate(const vec3 w_body, const double dt)
 {
     const double wb = w_body.norm();
@@ -338,7 +346,7 @@ void rotation::exponential_integrate(const vec3 w_body, const double dt)
     y = newv.y;
     z = newv.z;
 
-    this->normalized();
+    *this = this->normalized();
     // normalize
     // double L = std::sqrt(new0*new0 + newv.normsquared());
     // Eu0[Ball] =  new0 / L;

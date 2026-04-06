@@ -62,7 +62,7 @@ if __name__ == '__main__':
 	runs_at_once = 1
 	# attempts = [2] 
 	# attempts = [i for i in range(0,30)]#[0,1,2,3,4,5,6,7,8,9]#,11,12,13,14,15,16,17,18,19,20] 
-	attempts = [0]
+	attempts = [2]
 	N = [30] #final size
 	M = [10] #starting sizes
 	# M = [20] #starting sizes
@@ -111,19 +111,23 @@ if __name__ == '__main__':
 						input_json['MPInodes'] = 1
 						input_json['impactParameter'] = -1.0
 
-						input_json['seed'] = u.rand_seed()
-						# input_json['seed'] = 101
+						# input_json['seed'] = u.rand_seed()
+						input_json['seed'] = 101
 
 						# input_json['radiiDistribution'] = 'logNormal'
 						# input_json['h_min'] = 0.5
+				
+						# input_json['u_s'] = 0
+						# input_json['u_r'] = 0
 						
-						# input_json['timeResolution'] = 1e-6
+						input_json['simTimeSeconds'] = 0.0001
+						input_json['timeResolution'] = 1e-6
+						# input_json['simTimeSeconds'] = 1e-4
 
-						# input_json['simTimeSeconds'] = 1e-6
-						input_json['simTimeSeconds'] = 5e-4
 
 						input_json['dataFormat'] = "csv"
 						input_json['simType'] = "BAPA"
+						# input_json['simType'] = "custom"
 						input_json['random_folder_template'] = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{a}/N_300/T_1000/"
 
 						# input_json['u_s'] = 0.5
@@ -141,7 +145,8 @@ if __name__ == '__main__':
 						os.system(f"cp {project_path}Collider/ball_group.cpp {job}ball_group.cpp")
 						os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
 
-						randint = random.randint(0, 29)
+						# randint = random.randint(0, 29)
+						randint = 0
 						# os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{randint}/N_30/T_3/27_RELAXconstants.csv {job}{m}_constants.csv")
 						# os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{randint}/N_30/T_3/27_RELAXsimData.csv {job}{m}_simData.csv")
 						# os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{randint}/N_30/T_3/27_RELAXenergy.csv {job}{m}_energy.csv")
@@ -150,7 +155,7 @@ if __name__ == '__main__':
 							# source = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_3/2_R*"
 						if not os.path.exists(f"{job}{m}_simData.csv"):
 							copy_folder = f'/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_300/T_3/'
-							copy_folder = f'/home/lucas/Desktop/SpaceLab_data/jobsCosine/lognorm1/N_300/T_3/'
+							# copy_folder = f'/home/lucas/Desktop/SpaceLab_data/jobsCosine/lognorm1/N_300/T_3/'
 							os.system(f"cp {copy_folder}{m}_constants.csv {job}{m}_constants.csv")
 							os.system(f"cp {copy_folder}{m}_simData.csv {job}{m}_simData.csv")
 							os.system(f"cp {copy_folder}{m}_energy.csv {job}{m}_energy.csv")

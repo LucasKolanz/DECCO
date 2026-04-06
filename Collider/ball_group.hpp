@@ -127,7 +127,8 @@ struct Ball_group_attributes
     //different, random simulation that has already made it to this point.
     bool symmetric = true; 
     bool weld = false;
-    int num_groups = 0;
+    int num_groups = 1;
+    int num_groups_added = 0;
 
     // Useful values:
     double r_min = -1;
@@ -231,6 +232,7 @@ struct Ball_group_attributes
             num_particles = other.num_particles;
             num_particles_added = other.num_particles_added;
             num_groups = other.num_groups;
+            num_groups_added = other.num_groups_added;
             MAXOMPthreads = other.MAXOMPthreads;
             OMPthreads = other.OMPthreads;
             MAXMPInodes = other.MAXMPInodes;
@@ -398,9 +400,17 @@ public:
     double* m = nullptr;    ///< Mass
     double* moi = nullptr;  ///< Moment of inertia
 
-    std::vector<vec3> group_w;
-    std::vector<vec3> group_wh;
     std::vector<vec3> group_aacc;
+    std::vector<vec3> group_acc;
+    std::vector<vec3> group_pos;
+    std::vector<vec3> group_velh;
+    std::vector<vec3> group_vel;
+    std::vector<rotation> group_q;
+    std::vector<vec3> group_wh;
+    std::vector<vec3> group_w;
+    //group_offsets are in body frame
+    std::vector<vec3> group_offset;
+
 
 
     #ifdef GPU_ENABLE
@@ -459,9 +469,21 @@ public:
     vec3 random_offset(Ball_group &projectile, Ball_group &target);
     void comSpinner(const double& spinX, const double& spinY, const double& spinZ) const;
 
-    void weld_accelerations();
+    void calc_offsets_coms();
+    void full_step_updates(const int write_step, const int world_rank);
+    void half_step_updates();
     void sim_one_step(int step,bool write_step);
     bool sim_looper(unsigned long long start_step);
+
+    // void weld_accelerations();
+    // void weld_velocities();
+    void group_vel_from_monomer();
+    void group_accs_from_monomer();
+    void monomer_posvel_from_group();
+    std::vector<vec3> calc_group_moi_local(const int& group_num);
+    std::vector<vec3> calc_group_moi_world(const int& group_num,const vec3& group_com);
+    vec3 calc_group_com(const int group_num);
+    double calc_group_mass(const int group_num);
     
     //Functions which calculate/set values for Ball_group
     inline double calc_VDW_force_mag(const double Ra, const double Rb, const double h);
@@ -482,8 +504,6 @@ public:
     void zeroAngVel() const;
     double calc_mass(const double& radius, const double& density);
     double calc_moi(const double& radius, const double& mass);
-    std::vector<vec3> calc_group_moi(const int& group_num,const double& group_mass,const vec3& group_com);
-    vec3 calc_group_com(const int group_num);
     double calc_max_bolt_velocity(double temp, double mass);
     double calc_eta_velocity(const double eta, Ball_group &projectile, Ball_group &target);
     double calc_group_noncontact_PE(Ball_group &projectile,Ball_group &target);
@@ -509,7 +529,7 @@ public:
     Ball_group spawn_particles(const int count);
     Ball_group add_projectile(const simType);
     void merge_ball_group(const Ball_group& src,const bool includeRadius=true);
-    void freeMemory() const;
+    void freeMemory();
     // std::string find_whole_file_name(std::string path,const int index=-1);
     int check_restart(std::string folder,bool restart=false);
     #ifdef HDF5_ENABLE
@@ -532,6 +552,7 @@ public:
     
     bool isAggregation();
     void allocate_group(const int nBalls);
+    void allocate_weld_group(const int num_groups);
     void init_conditions();
     void parseSimData(std::string line);
     void loadConsts(const std::string& path, const std::string& filename);

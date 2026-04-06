@@ -46,6 +46,10 @@ public:
     #ifdef GPU_ENABLE
         #pragma acc routine seq
     #endif
+    vec3 operator+=(const double v);
+    #ifdef GPU_ENABLE
+        #pragma acc routine seq
+    #endif
     vec3 operator+=(const vec3& v);
     #ifdef GPU_ENABLE
         #pragma acc routine seq

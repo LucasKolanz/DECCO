@@ -4,7 +4,7 @@ This file was originally written for SpaceLab/DECCO to trasnfer jobs from the no
 Author: Lucas Kolanz
 
 This file transfers all (finished) simulations that match a specified pattern from the Novus cluster to the local computer
-this file is run from. The pattern of the folders will be kept the same, but will go into a parent directory in data_directory called "jobsNovus/" 
+this file is run from. The pattern of the folders will be kept the same, but will go into a parent directory in data_directory called "jobs/" 
 It does this with scp and paramiko python libraries. Note that this file assumes you have an ssh config file that
 specifies the hostname, user, and the location of the identity file you use to ssh into the (in this case COSINE) system.
 
@@ -128,6 +128,7 @@ def main():
 	job_set_names = ["lognorm"]
 	job_set_names = ["BAPA"]
 	job_set_names = ["AsymBAPA_"]
+	job_set_names = ["CBAPA"]
 	# job_set_names = ["constrollingfric","constrollingfricrelax"]
 	
 
@@ -142,8 +143,9 @@ def main():
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [1000]
 
-	# M = [3,5,10,15]
-	M = []
+	# M = []
+	M = [3,5,10,15,20,30,50,60,100]
+	C=30
 
 	# Temps = [3]
 	for j_i,job_set_name in enumerate(job_set_names):
@@ -159,8 +161,9 @@ def main():
 			jobfolder = "jobs"
 		else:
 			jobfolder = "jobs"
-		for n in N:
-			# for m in M:
+		for m in M:
+			# for n in N:
+			n = C*m
 			for Temp in Temps:
 				for attempt in attempts:
 					
@@ -168,11 +171,13 @@ def main():
 					# 			+ "/M_" + str(m) + '/N_' + str(n) + '/T_' + str(Temp) + '/'
 					# remote_job_folder = remote_base_folder + 'jobs/' + job_set_name + '_' + str(attempt)\
 					# 			+ "/M_" + str(m) + '/N_' + str(n) + '/T_' + str(Temp) + '/'
-					local_job_folder = data_directory  + jobfolder + '/' + job_set_name + '' + str(attempt)\
-								+ '/N_' + str(n) + '/T_' + str(Temp) + '/'
-					remote_job_folder = remote_base_folder + 'jobs/' + job_set_name + '' + str(attempt)\
-								+ '/N_' + str(n) + '/T_' + str(Temp) + '/'
+					local_job_folder = data_directory  + jobfolder + '/' + job_set_name + '_' + str(attempt)\
+								+ '/M_' + str(m) + '/N_' + str(n) + '/T_' + str(Temp) + '/'
+					remote_job_folder = remote_base_folder + 'jobs/' + job_set_name + '_' + str(attempt)\
+								+ '/M_' + str(m) + '/N_' + str(n) + '/T_' + str(Temp) + '/'
 
+					# print(local_job_folder)
+					# print(remote_job_folder)
 
 					if local_job_folder == remote_job_folder:
 						print("ERROR: remote and local folders are the same thing.")

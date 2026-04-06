@@ -43,7 +43,7 @@
 	"G": 6.67e-8,
 	//density of constituent balls in g/cm^3
 	"density": 2.25,
-	//weld fragments together during BAPA
+	//weld fragments together during BAPA. Treats groups as rigid bodies.
 	"weld": "false",
 	//Use JKR contact model
 	"JKR": "false",

@@ -171,12 +171,14 @@ void CSVHandler::loadCSVSimData(const std::string& path,const std::string& file,
             std::getline(chosenLine, lineElement, ',');
             vel[A][i] = std::stod(lineElement);
         }
-        std::getline(chosenLine,lineElement);
+        std::getline(chosenLine,lineElement,',');
         group[A] = std::stod(lineElement);
-        for (int i = 0; i < lineWidth - 11; i++)  // We used 11 elements. This skips the rest.
-        {
-            std::getline(chosenLine, lineElement, ',');
-        }
+        // for (int i = 0; i < lineWidth - 10; i++)  // We used 11 elements. This skips the rest.
+        // {
+        //     std::getline(chosenLine, lineElement, ',');
+        //     std::cerr<<"TESTTESTTEST"<<std::endl;
+        // }
+
     }
 }
 
