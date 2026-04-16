@@ -51,7 +51,7 @@ if __name__ == '__main__':
 		
 
 	# job_set_name = "TESTBAPA"
-	job_set_name = "BAPA"
+	job_set_name = "BAPAWELD"
 
 	# folder_name_scheme = "T_"
 
@@ -65,7 +65,7 @@ if __name__ == '__main__':
 	# attempts = [20]
 
 	N = [300] #final size
-	M = [3,5,10,15] #starting sizes
+	M = [3,100] #starting sizes
 	# M = [3] 
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
@@ -75,7 +75,7 @@ if __name__ == '__main__':
 	totalNodes = 1
 	MPITasksPerNode = 1
 	totalMPITasks = totalNodes*MPITasksPerNode
-	threadsPerTask = 32
+	threadsPerTask = 4
 
 	#load default input file
 	with open(project_path+"default_files/default_input.json",'r') as fp:
@@ -95,7 +95,7 @@ if __name__ == '__main__':
 					job = job_template.replace('{a}',str(attempt)).replace('{m}',str(m)).replace('{n}',str(n)).replace('{t}',str(Temp))
 					# job = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/fixme/"
 
-					job_name = f"a={attempt},m={m},n={n},t={Temp}"
+					job_name = f"WELDa={attempt},m={m},n={n},t={Temp}"
 
 					# print(rand_int())
 					if not os.path.exists(job):
@@ -113,6 +113,7 @@ if __name__ == '__main__':
 						print(f"(Re)Starting job: {job}")
 						####################################
 						######Change input values here######
+						input_json['weld'] = 'true'
 						input_json['temp'] = Temp
 						input_json['N'] = n
 						input_json['M'] = m
@@ -137,7 +138,7 @@ if __name__ == '__main__':
 						input_json['dataFormat'] = "csv"
 						input_json['simType'] = "BAPA"
 						input_json['JKR'] = "false"
-						input_json['random_folder_template'] = input_json['data_directory']+"localLognormData/lognorm{a}/N_30/T_1000/"
+						input_json['random_folder_template'] = input_json['data_directory']+"localLognormData/lognorm{a}/N_300/T_1000/"
 
 						# input_json['u_s'] = 0.5
 						# input_json['u_r'] = 0.5
@@ -154,8 +155,8 @@ if __name__ == '__main__':
 						# sbatchfile += "#SBATCH -C gpu\n"
 						# sbatchfile += "#SBATCH -q regular\n"
 						# sbatchfile += "#SBATCH -t 0:10:00\n"
-						sbatchfile += f'#SBATCH --account=lazzati\n'
-						sbatchfile += f'#SBATCH --partition=lazzati.q\n'
+						# sbatchfile += f'#SBATCH --account=lazzati\n'
+						# sbatchfile += f'#SBATCH --partition=lazzati.q\n'
 
 						#NAME ORDER needs to be same as the file path order
 						sbatchfile += f"#SBATCH -J {job_name}\n"
@@ -204,13 +205,13 @@ if __name__ == '__main__':
 						# if M == 3:
 							# source = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_3/2_R*"
 						if not os.path.exists(f"{job}{m}_simData.csv"):
-							os.system(f"cp {input_json['data_directory']}/localLognormData/lognorm{randint}/N_30/T_3/{m}_constants.csv {job}{m}_constants.csv")
-							os.system(f"cp {input_json['data_directory']}/localLognormData/lognorm{randint}/N_30/T_3/{m}_simData.csv {job}{m}_simData.csv")
-							os.system(f"cp {input_json['data_directory']}/localLognormData/lognorm{randint}/N_30/T_3/{m}_energy.csv {job}{m}_energy.csv")
+							os.system(f"cp {input_json['data_directory']}localLognormData/lognorm{randint}/N_300/T_3/{m}_constants.csv {job}{m}_constants.csv")
+							os.system(f"cp {input_json['data_directory']}localLognormData/lognorm{randint}/N_300/T_3/{m}_simData.csv {job}{m}_simData.csv")
+							os.system(f"cp {input_json['data_directory']}localLognormData/lognorm{randint}/N_300/T_3/{m}_energy.csv {job}{m}_energy.csv")
 						os.system(f"touch  {job}{m}_checkpoint.txt")
 							
 						folders.append(job)
-	# print(folders)
+
 
 
 	print(folders)
