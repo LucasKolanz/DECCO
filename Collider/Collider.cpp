@@ -96,6 +96,11 @@ main(int argc, char* argv[])
     if (argc == 2)
     {
         location = std::string(argv[1]);
+        //make sure there is a tailing '/'
+        if (!location.empty() && location.back() != '/') 
+        {
+            location = location + '/';
+        }
     }
     else
     {

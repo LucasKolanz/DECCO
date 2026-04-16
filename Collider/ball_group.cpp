@@ -6192,8 +6192,8 @@ Ball_group::sim_looper(unsigned long long start_step=1)
     //if this is an aggregation job, make sure the final state is all connected (we didnt miss the target)
     if (isAggregation())
     {
-        // if (!isConnected(pos,R,attrs.num_particles))
-        if (false)
+        // if (false)
+        if (!isConnected(pos,R,attrs.num_particles))
         {
             attrs.isConnectedFails += 1;
             if (attrs.isConnectedFails < attrs.maxConnectedFails)
