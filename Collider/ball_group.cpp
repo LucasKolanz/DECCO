@@ -4865,11 +4865,11 @@ void Ball_group::sim_one_step(int step,bool write_step)
     long long lllen = attrs.num_particles;
     double t0 = omp_get_wtime();
     // #pragma omp declare reduction(vec3_sum : vec3 : omp_out += omp_in)
-    // #pragma omp parallel for num_threads(threads)\
-    //         reduction(vec3_sum:acc[:num_parts],aacc[:num_parts]) reduction(+:PE) \
-    //         shared(world_rank,world_size,Ha,write_step,lllen,R,pos,vel,m,w,\
-    //             u_r,u_s,moi,kin,kout,distances,h_min,dt)\
-    //         default(none) private(A,B,pc) 
+    #pragma omp parallel for num_threads(threads)\
+            reduction(vec3_sum:acc[:num_parts],aacc[:num_parts]) reduction(+:PE) \
+            shared(world_rank,world_size,Ha,write_step,lllen,R,pos,vel,m,w,\
+                u_r,u_s,moi,kin,kout,distances,h_min,dt)\
+            default(none) private(A,B,pc) 
     for (pc = world_rank + 1; pc <= (((lllen*lllen)-lllen)/2); pc += world_size)
     {
             long double pd = (long double)pc;
