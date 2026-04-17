@@ -8,6 +8,7 @@ import sys
 import os
 import json
 import numpy as np
+import glob
 
 relative_path = ""
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
@@ -19,6 +20,7 @@ import utils as u
 
 #returns true if every ball has at least one contact
 def verify_touching(pos,radii):
+
 	# Pairwise displacement vectors: shape (n, n, d)
     diff = pos[:, None, :] - pos[None, :, :]
 
@@ -29,31 +31,48 @@ def verify_touching(pos,radii):
     rsum = radii[:, None] + radii[None, :]
 
     # Touching matrix
-    touching = dist2 < (rsum * rsum)
+    touching = dist2 < 1.1*(rsum * rsum)
 
     # Ignore self-comparisons
     np.fill_diagonal(touching, False)
 
     # Every particle must touch at least one other
     return np.all(np.any(touching, axis=1))
-	# length = radii.size
-	# touching = np.zeros((length,length))
 
-	# for i in range(0,length):
-	# 	for j in range(i+1,length):
-	# 		if (radii[i]+radii[j]) > np.linalg.norm(pos[i] - pos[j]): # touching
-	# 			touching[i,j] = 1
-	# 			touching[j,i] = 1
+def verify_close_to_COM(pos,radii,mass):
+	COM = u.calcCOM(mass,pos)
+	for p in pos:
+		if np.linalg.norm(p-COM) > 10*np.max(radii): #The particle is far away
+			return False
+	return True
 
-	# return np.sum(np.where(np.sum(touching,axis=1) > 0,1,0)) == length
+def delete_saved_data(directory,indices):
+	if isinstance(indices, int):
+		indices = [indices]
+	for index in indices:
+		files = glob.glob(f"{directory}{index}_*")
+		[os.remove(file) for file in files]
 
-def verify_aggregation(directory):
+def verify_aggregation(directory,delete=False):
 	indices = u.get_all_indices(directory)
-	print(f"Verifying aggregation in {directory}")
+	M = u.M_from_directory(directory)
+	#is there some data that is possibly corrupted but doesnt have a checkpoint?
+	#if so, add this to the list of indices to check
+	if len(glob.glob(f"{directory}{max(indices)+M}_*")) > 0:
+		indices = indices + [max(indices)+M]
+
+	print(f"Verifying aggregation in {directory}.")
 	for i in indices:
 		pos,radii,mass,moi = u.get_data(directory,data_index=i,relax=False)
-		if not verify_touching(pos,radii):
-			print(f"Directory not touching at index {i}\n\t{directory}")
+		if np.isnan(pos).any() or np.isnan(radii).any():
+			print(f"Index has nans: {i}")
+			if delete:
+				delete_saved_data(directory,i)
+		else:
+			if not verify_close_to_COM(pos,radii,mass):
+				print(f"Directory not close at index {i}.")
+				if delete:
+					delete_saved_data(directory,i)
 
 def main():
 	with open(project_path+"default_files/default_input.json",'r') as fp:
@@ -63,15 +82,19 @@ def main():
 
 	
 	data_folders = []
-	data_folders = [path + 'jobs/BAPA_*']
+	data_folders = [path + 'jobs/BAPAWELD_*']
+
+
+	DELETE = False
 
 
 	possible_dirs = []
 	for data_folder in data_folders:
 		possible_dirs.extend(u.get_directores_containing(data_folder,[]))
 
+	# possible_dirs = ["/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/BAPAWELD_9/M_3/N_300/T_1000/"]
 	for d_i,directory in enumerate(possible_dirs):
-		verify_aggregation(directory)
+		verify_aggregation(directory,delete = DELETE)
 		
 
 

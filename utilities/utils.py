@@ -169,6 +169,12 @@ def index_from_file(file):
 		return int(file_split[0])
 	exit(0)
 
+def M_from_directory(directory):
+	dir_split = directory.split("/")
+	for i in dir_split:
+		if "M_" in i:
+			return int(i.split("_")[-1])
+
 def calc_rotational_kinetic_energy(positions, velocities, masses):
 	masses = masses[:positions.shape[1]]
 	 # Total mass of the aggregate
