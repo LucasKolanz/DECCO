@@ -169,6 +169,12 @@ def index_from_file(file):
 		return int(file_split[0])
 	exit(0)
 
+def N_from_directory(directory):
+	dir_split = directory.split("/")
+	for i in dir_split:
+		if "N_" in i:
+			return int(i.split("_")[-1])
+
 def M_from_directory(directory):
 	dir_split = directory.split("/")
 	for i in dir_split:
