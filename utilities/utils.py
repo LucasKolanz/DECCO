@@ -735,6 +735,11 @@ def format_vel(data):
 	data = data[:,7:10] #vel is after 3x pos, 3x w, 1x w mag, and is 3 long
 	return data
 
+def format_groups(data):
+	data = np.reshape(data,(int(data.size/data_columns),data_columns))
+	data = data[:,10] #groups are the last (11th) spot in the row
+	return data
+
 def calcCOM(mass, pos):
 	mass = np.asarray(mass, dtype=np.float64)
 	pos  = np.asarray(pos,  dtype=np.float64)
@@ -1767,7 +1772,10 @@ def _orthonormal_basis_from_k(k):
 	# v should already be unit if k, u are unit and orthogonal
 	return u, v
 
-
+def get_groups(data_folder,data_index=-1,linenum=-1,relax=False):
+	data = get_all_line_data(data_folder,data_index,linenum,relax=relax)
+	groups = format_groups(data)
+	return groups
 
 def get_data(data_folder,data_index=-1,linenum=-1,relax=False): #Works with both csv and h5
 	if data_folder == '/home/kolanzl/Desktop/bin/merger.csv':

@@ -514,6 +514,7 @@ public:
     [[nodiscard]] double getMmax() const;
     double getMass();
     void set_seed_from_input(const std::string location);
+    int set_num_groups();
 
     //Initializers
     Ball_group BPCA_projectile_init();

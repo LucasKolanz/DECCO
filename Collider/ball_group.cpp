@@ -703,7 +703,22 @@ void Ball_group::init_data(int counter = 0)
 }
 
 
+//calculates, sets, and returns the num_groups parameter
+int Ball_group::set_num_groups()
+{
+    int g = 0;
+    for (int i = 0; i < attrs.num_particles; ++i)
+    {
+        if (group[i] == g)
+        {
+            g++;
+            continue;
+        }
+    }
 
+    attrs.num_groups = g;
+    return attrs.num_groups;
+}
 
 void Ball_group::set_seed_from_input(const std::string location)
 {
@@ -1550,7 +1565,7 @@ void Ball_group::sim_init_write(int counter)
         ballBuffer[pt+7] = vel[i].x;
         ballBuffer[pt+8] = vel[i].y;
         ballBuffer[pt+9] = vel[i].z;
-        ballBuffer[pt+10] = 0;
+        ballBuffer[pt+10] = group[i];
         pt += jump;
     }
     data->Write(ballBuffer,"simData",1);
@@ -2175,7 +2190,9 @@ Ball_group Ball_group::BAPA_projectile_init()
 
     if (attrs.weld)
     {
+        int new_group = set_num_groups();
         projectile.setGroup(this->attrs.num_groups);
+        // projectile.setGroup(new_group+1);
     }
 
     overwrite_v_custom(projectile);
@@ -3237,6 +3254,8 @@ void Ball_group::generate_ball_field(const int nBalls)
 
 }
 
+
+
 /// Make ballGroup from file data.
 void Ball_group::loadSim(const std::string& path, const std::string& filename,const bool verbose)
 {
@@ -3288,6 +3307,7 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename,co
 
         // parseSimData(getLastLine(path, simFile));
         // loadConsts(path, constFile);
+
         loadDatafromCSV(path,file);
     }
     else if (file.substr(file.size()-3,file.size()) == ".h5")
@@ -6200,6 +6220,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
             if (attrs.isConnectedFails < attrs.maxConnectedFails)
             {
                 MPIsafe_print(std::cerr,"ERROR: aggregate failed isConnected "+std::to_string(attrs.isConnectedFails)+" times. Restarting sim. . .\n");
+                exit(0);
             }
             else
             {
