@@ -408,8 +408,9 @@ public:
     std::vector<rotation> group_q;
     std::vector<vec3> group_wh;
     std::vector<vec3> group_w;
-    //group_offsets are in body frame
+    //group_offsets and mooi are in body frame
     std::vector<vec3> group_offset;
+    std::vector<std::vector<vec3>> group_moi;
 
 
 
@@ -478,6 +479,7 @@ public:
     // void weld_accelerations();
     // void weld_velocities();
     void group_vel_from_monomer();
+    void group_w_from_monomer();
     void group_accs_from_monomer();
     void monomer_posvel_from_group();
     std::vector<vec3> calc_group_moi_local(const int& group_num);
@@ -588,7 +590,7 @@ bool is_touching(Ball_group &projectile,Ball_group &target);
 void moveApart(const vec3 &projectile_direction,Ball_group &projectile,Ball_group &target);
 bool get_JKR(const std::string folder);
 // vec3 rotateVec(const double E0,const vec3 E,const vec3 vec);
-vec3 quatRotate(const double s, const vec3& v, const vec3& vec);
+// vec3 quatRotate(const double s, const vec3& v, const vec3& vec);
 vec3 worldToLocal(const double s, const vec3& v,const vec3& vecWorld);
 vec3 localToWorld(const double s, const vec3& v,const vec3& vecLocal);
 vec3 rotateVecA(const double E0,const vec3 E,const vec3 vec);

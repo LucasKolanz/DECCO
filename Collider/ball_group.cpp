@@ -89,6 +89,8 @@ Ball_group::Ball_group(std::string& path, const int index)
         MPIsafe_exit(-1);
     }
 
+
+
 }
 
 Ball_group::Ball_group(const Ball_group& rhs)
@@ -129,6 +131,7 @@ Ball_group::Ball_group(const Ball_group& rhs)
             group_wh = rhs.group_wh;
             group_w = rhs.group_w;
             group_offset = rhs.group_offset;
+            group_moi = rhs.group_moi;
         }
 
         if (attrs.JKR)
@@ -572,6 +575,7 @@ Ball_group& Ball_group::operator=(const Ball_group& rhs)
     group_wh = rhs.group_wh;
     group_w = rhs.group_w;
     group_offset = rhs.group_offset;
+    group_moi = rhs.group_moi;
 
     pos = rhs.pos;
     vel = rhs.vel;
@@ -2340,6 +2344,7 @@ void Ball_group::merge_ball_group(const Ball_group& src,const bool includeRadius
         std::copy(src.group_acc.begin(),src.group_acc.begin()+src.attrs.num_groups,group_acc.begin()+attrs.num_groups_added);
 
         std::copy(src.group_offset.begin(),src.group_offset.begin()+src.attrs.num_particles,group_offset.begin()+attrs.num_particles_added);
+        std::copy(src.group_moi.begin(),src.group_moi.begin()+src.attrs.num_particles,group_moi.begin()+attrs.num_particles_added);
         // std::cerr<<"END MERGE BALL GROUPS: "<<src.attrs.num_groups<<std::endl;
     }
 
@@ -2478,6 +2483,8 @@ void Ball_group::allocate_weld_group(const int num_groups)
     group_acc.resize(num_groups);
 
     group_offset.resize(attrs.num_particles);
+    // group_moi.resize(attrs.num_groups);
+    // group_moi.resize(attrs.num_groups, std::vector<vec3>(3, vec3{0,0,0}));
             
 }
 
@@ -2509,6 +2516,7 @@ void Ball_group::freeMemory()
     std::vector<vec3>().swap(group_vel);
     std::vector<rotation>().swap(group_q);
     std::vector<vec3>().swap(group_offset);
+    // std::vector<std::vector<vec3>>().swap(group_moi);
     std::vector<vec3>().swap(group_aacc);
     std::vector<vec3>().swap(group_acc);
 
@@ -2550,12 +2558,19 @@ void Ball_group::init_conditions_JKR()
 
     if (attrs.weld)
     {
-        calc_offsets_coms();
         for (int g = 0; g < attrs.num_groups; ++g)
         {
             group_acc[g] = {0.0,0.0,0.0};
             group_aacc[g] = {0.0,0.0,0.0};
+            group_q[g] = {1,{0,0,0}};
         }
+        calc_offsets_coms();//This needs to be after group_q is initialized and before calc_group_moi_local is called
+        // for (int g = 0; g < attrs.num_groups; ++g)
+        // {
+        //     std::cerr<<"start "<<g<<std::endl;
+        //     group_moi[g] = calc_group_moi_local(g);
+        //     std::cerr<<"end"<<std::endl;
+        // }
     }
 
     for (int i = 0; i < attrs.num_particles; ++i)
@@ -2739,26 +2754,34 @@ void Ball_group::init_conditions()
 
     if (attrs.weld)
     {
-        calc_offsets_coms();
         for (int g = 0; g < attrs.num_groups; ++g)
         {
             group_acc[g] = {0.0,0.0,0.0};
             group_aacc[g] = {0.0,0.0,0.0};
+            group_q[g] = {1,{0,0,0}};
         }
+        calc_offsets_coms();//This needs to be after group_q is initialized and before calc_group_moi_local is called
+        // for (int g = 0; g < attrs.num_groups; ++g)
+        // {
+        //     group_moi[g] = calc_group_moi_local(g);
+        // }
     }
 
     for (int i = 0; i < attrs.num_particles; ++i)
     {
         acc[i] = {0.0,0.0,0.0};
         aacc[i] = {0.0,0.0,0.0};
+
     }
 
-        // attrs.num_groups = attrs.num_particles;
-        // allocate_weld_group(attrs.num_groups);
-        // for (int i = 0; i < attrs.num_particles; ++i)
-        // {
-        //     group[i] = i;
-        // }
+    if (attrs.weld)
+    {
+        group_vel_from_monomer();
+        group_w_from_monomer();
+        // weld_accelerations();
+        // group_accs_from_monomer();
+    }
+
 
     // SECOND PASS - Check for collisions, apply forces and torques:
     for (int A = 1; A < attrs.num_particles; A++)  // cuda
@@ -2938,9 +2961,10 @@ void Ball_group::init_conditions()
 
     if (attrs.weld)
     {
-        group_accs_from_monomer();
+        // group_vel_from_monomer();
+        // group_w_from_monomer();
         // weld_accelerations();
-        group_vel_from_monomer();
+        group_accs_from_monomer();
     }
 
     // Calc energy:
@@ -4617,6 +4641,14 @@ void Ball_group::calc_offsets_coms()
             {
                 vec3 rho_world = pos[Ball] - group_pos[g];
                 group_offset[Ball] = group_q[g].worldToLocal(rho_world);
+                if (std::isinf(group_offset[Ball][0]))
+                {
+                    std::cerr<<"HEREREREERER"<<std::endl;
+                    std::cerr<<"group_offset[Ball] "<<group_offset[Ball]<<std::endl;
+                    std::cerr<<"group_q[g] "<<group_q[g]<<std::endl;
+                    std::cerr<<"rho_world "<<rho_world<<std::endl;
+                    exit(0);
+                }
             }
         }
     }
@@ -4645,11 +4677,42 @@ void Ball_group::group_vel_from_monomer()
     }
 }
 
+void Ball_group::group_w_from_monomer()
+{
+    for (int g = 0; g < attrs.num_groups; ++g)
+    {
+        vec3 L = {0,0,0};
+
+        // Make sure this is the world-frame inertia tensor of group g
+        // about the group COM.
+        std::vector<vec3> moi = calc_group_moi_world(g,group_pos[g]);
+        // std::vector<vec3> moi = calc_group_moi_local(g);
+
+        for (int Ball = 0; Ball < attrs.num_particles; ++Ball)
+        {
+            if (group[Ball] == g)
+            {
+                // Body-frame stored offset -> world-frame offset
+                vec3 rho = quatRotate(group_q[g],group_offset[Ball]);
+
+                // Velocity relative to group translation
+                vec3 vrel = vel[Ball] - group_vel[g];
+
+                // Angular momentum from translational motion about COM
+                L += rho.cross(m[Ball] * vrel);
+            }
+        }
+
+        group_w[g] = matTimesVec(inverse3x3(moi),L);
+    }
+}
+
 //Goes from accelerations summed in sim_one_step to group accelerations
 //needed for using the groups forces, torques, and angular velocities.
 //Sums forces/torques of each group based on monomer forces/torques. 
 void Ball_group::group_accs_from_monomer()
 {
+    // std::cerr<<"START GROUP_ACCS_FROM_MONOMER"<<std::endl;
     for (int currgroup = 0; currgroup < attrs.num_groups; ++currgroup)
     {
         vec3 group_force_world = {0,0,0};
@@ -4674,7 +4737,7 @@ void Ball_group::group_accs_from_monomer()
         // std::cerr << "group_w: " << group_w[currgroup] << "\n";
         // std::cerr << "group_wh: " << group_wh[currgroup] << "\n";
 
-        std::vector<vec3> moi = calc_group_moi_local(currgroup);
+        std::vector<vec3> moi = calc_group_moi_local(currgroup);// group_moi[currgroup];
 
         if (group_mass <= 1e-50)
         {
@@ -4683,6 +4746,15 @@ void Ball_group::group_accs_from_monomer()
         }
 
         group_acc[currgroup] = group_force_world/group_mass;
+
+        if (group_acc[currgroup][0] != group_acc[currgroup][0])
+        {
+            std::cerr<<"group_acc[currgroup]: "<<group_acc[currgroup]<<std::endl;
+            std::cerr<<"group_force_world: "<<group_force_world<<std::endl;
+            std::cerr<<"group_mass: "<<group_mass<<std::endl;
+            exit(0);
+        }
+
 
         vec3 omega_local = group_q[currgroup].worldToLocal(group_w[currgroup]);
 
@@ -4699,22 +4771,79 @@ void Ball_group::group_accs_from_monomer()
             omega_local[2]*Iw[0] - omega_local[0]*Iw[2],
             omega_local[0]*Iw[1] - omega_local[1]*Iw[0]
         };
-        double moi_det = moi[0][0]*(moi[1][1]*moi[2][2] - moi[1][2]*moi[2][1]) -
-                         moi[0][1]*(moi[1][0]*moi[2][2] - moi[1][2]*moi[2][0]) +
-                         moi[0][2]*(moi[1][0]*moi[2][1] - moi[1][1]*moi[2][0]);
-
-        if (moi_det <= 1e-100)
+        if (std::isinf(wcrossIw[0]))
         {
-            MPIsafe_print(std::cerr,"ERROR: moment of inertia determinent is "+dToSci(moi_det)+" g*cm^2. exiting to avoid divide by zero. Now exiting. . .\n");
-            MPIsafe_exit(-1);
-        }
+            std::cerr<<"IT IS INF"<<std::endl;
+            std::cerr<<"currgroup:"<<currgroup<<std::endl;
+            std::cerr<<"wcrossIw: "<<wcrossIw<<std::endl;
+            std::cerr<<"omega_local[0]: "<<omega_local[0]<<std::endl;
+            std::cerr<<"omega_local[1]: "<<omega_local[1]<<std::endl;
+            std::cerr<<"omega_local[2]: "<<omega_local[2]<<std::endl;
+            std::cerr<<"Iw[0]: "<<Iw[0]<<std::endl;
+            std::cerr<<"Iw[1]: "<<Iw[1]<<std::endl;
+            std::cerr<<"Iw[2]: "<<Iw[2]<<std::endl;
+            std::cerr<<"moi[0]: "<<moi[0]<<std::endl;
+            std::cerr<<"moi[1]: "<<moi[1]<<std::endl;
+            std::cerr<<"moi[2]: "<<moi[2]<<std::endl;
+            std::cerr<<"group_q[currgroup]: "<<group_q[currgroup]<<std::endl;
+            std::cerr<<"group_w[currgroup]: "<<group_w[currgroup]<<std::endl;
 
-        double inv_moi_det = 1.0/moi_det;
-        std::vector<vec3> moi_inverse = {
-            {(moi[1][1]*moi[2][2] - moi[1][2]*moi[2][1]) * inv_moi_det, (moi[0][2]*moi[2][1] - moi[0][1]*moi[2][2]) * inv_moi_det, (moi[0][1]*moi[1][2] - moi[0][2]*moi[1][1]) * inv_moi_det},
-            {(moi[1][2]*moi[2][0] - moi[1][0]*moi[2][2]) * inv_moi_det, (moi[0][0]*moi[2][2] - moi[0][2]*moi[2][0]) * inv_moi_det, (moi[0][2]*moi[1][0] - moi[0][0]*moi[1][2]) * inv_moi_det},
-            {(moi[1][0]*moi[2][1] - moi[1][1]*moi[2][0]) * inv_moi_det, (moi[0][1]*moi[2][0] - moi[0][0]*moi[2][1]) * inv_moi_det, (moi[0][0]*moi[1][1] - moi[0][1]*moi[1][0]) * inv_moi_det}
-        };
+            exit(0);
+        }
+        // else
+        // {
+        //     std::cerr<<"NOT INF"<<std::endl;
+        //     std::cerr<<"currgroup:"<<currgroup<<std::endl;
+        //     std::cerr<<"wcrossIw: "<<wcrossIw<<std::endl;
+        //     std::cerr<<"omega_local[0]: "<<omega_local[0]<<std::endl;
+        //     std::cerr<<"omega_local[1]: "<<omega_local[1]<<std::endl;
+        //     std::cerr<<"omega_local[2]: "<<omega_local[2]<<std::endl;
+        //     std::cerr<<"Iw[0]: "<<Iw[0]<<std::endl;
+        //     std::cerr<<"Iw[1]: "<<Iw[1]<<std::endl;
+        //     std::cerr<<"Iw[2]: "<<Iw[2]<<std::endl;
+        //     std::cerr<<"moi[0]: "<<moi[0]<<std::endl;
+        //     std::cerr<<"moi[1]: "<<moi[1]<<std::endl;
+        //     std::cerr<<"moi[2]: "<<moi[2]<<std::endl;
+        //     std::cerr<<"group_q[currgroup]: "<<group_q[currgroup]<<std::endl;
+        //     std::cerr<<"group_w[currgroup]: "<<group_w[currgroup]<<std::endl;
+        //     std::cerr<<"group_vel[currgroup]: "<<group_vel[currgroup]<<std::endl;
+        //     // exit(0);
+        // }
+        // else
+        // {
+        //     std::cerr<<"NO INF"<<std::endl;
+        //     std::cerr<<"wcrossIw: "<<wcrossIw<<std::endl;
+        //     std::cerr<<"omega_local[0]: "<<omega_local[0]<<std::endl;
+        //     std::cerr<<"omega_local[1]: "<<omega_local[1]<<std::endl;
+        //     std::cerr<<"omega_local[2]: "<<omega_local[2]<<std::endl;
+        //     std::cerr<<"Iw[0]: "<<Iw[0]<<std::endl;
+        //     std::cerr<<"Iw[1]: "<<Iw[1]<<std::endl;
+        //     std::cerr<<"Iw[2]: "<<Iw[2]<<std::endl;
+        //     std::cerr<<"moi[0]: "<<moi[0]<<std::endl;
+        //     std::cerr<<"moi[1]: "<<moi[1]<<std::endl;
+        //     std::cerr<<"moi[2]: "<<moi[2]<<std::endl;
+        //     std::cerr<<"group_q[currgroup]: "<<group_q[currgroup]<<std::endl;
+        //     std::cerr<<"group_w[currgroup]: "<<group_w[currgroup]<<std::endl;
+        //     exit(0);
+        // }
+        // double moi_det = moi[0][0]*(moi[1][1]*moi[2][2] - moi[1][2]*moi[2][1]) -
+        //                  moi[0][1]*(moi[1][0]*moi[2][2] - moi[1][2]*moi[2][0]) +
+        //                  moi[0][2]*(moi[1][0]*moi[2][1] - moi[1][1]*moi[2][0]);
+
+        // if (moi_det <= 1e-100)
+        // {
+        //     MPIsafe_print(std::cerr,"ERROR: moment of inertia determinent is "+dToSci(moi_det)+" g*cm^2. exiting to avoid divide by zero. Now exiting. . .\n");
+        //     MPIsafe_exit(-1);
+        // }
+
+        // double inv_moi_det = 1.0/moi_det;
+        // std::vector<vec3> moi_inverse = {
+        //     {(moi[1][1]*moi[2][2] - moi[1][2]*moi[2][1]) * inv_moi_det, (moi[0][2]*moi[2][1] - moi[0][1]*moi[2][2]) * inv_moi_det, (moi[0][1]*moi[1][2] - moi[0][2]*moi[1][1]) * inv_moi_det},
+        //     {(moi[1][2]*moi[2][0] - moi[1][0]*moi[2][2]) * inv_moi_det, (moi[0][0]*moi[2][2] - moi[0][2]*moi[2][0]) * inv_moi_det, (moi[0][2]*moi[1][0] - moi[0][0]*moi[1][2]) * inv_moi_det},
+        //     {(moi[1][0]*moi[2][1] - moi[1][1]*moi[2][0]) * inv_moi_det, (moi[0][1]*moi[2][0] - moi[0][0]*moi[2][1]) * inv_moi_det, (moi[0][0]*moi[1][1] - moi[0][1]*moi[1][0]) * inv_moi_det}
+        // };
+
+        std::vector<vec3> moi_inverse = inverse3x3(moi);
 
         vec3 group_torque_local = group_q[currgroup].worldToLocal(group_torque_world);
         vec3 tot_torque = {
@@ -4724,16 +4853,40 @@ void Ball_group::group_accs_from_monomer()
         };
 
 
-        group_aacc[currgroup] = {
-            moi_inverse[0][0]*tot_torque[0] + moi_inverse[0][1]*tot_torque[1] + moi_inverse[0][2]*tot_torque[2],
-            moi_inverse[1][0]*tot_torque[0] + moi_inverse[1][1]*tot_torque[1] + moi_inverse[1][2]*tot_torque[2],
-            moi_inverse[2][0]*tot_torque[0] + moi_inverse[2][1]*tot_torque[1] + moi_inverse[2][2]*tot_torque[2],
-        };
+
+        // group_aacc[currgroup] = {
+        //     moi_inverse[0][0]*tot_torque[0] + moi_inverse[0][1]*tot_torque[1] + moi_inverse[0][2]*tot_torque[2],
+        //     moi_inverse[1][0]*tot_torque[0] + moi_inverse[1][1]*tot_torque[1] + moi_inverse[1][2]*tot_torque[2],
+        //     moi_inverse[2][0]*tot_torque[0] + moi_inverse[2][1]*tot_torque[1] + moi_inverse[2][2]*tot_torque[2],
+        // };
+        group_aacc[currgroup] = matTimesVec(moi_inverse,tot_torque);
 
         //convert group_aacc from local back to world frame
+        if (group_aacc[currgroup][0] != group_aacc[currgroup][0])
+        {
+            std::cerr<<"BEFORE TRANSLATION:"<<std::endl;
+            std::cerr<<"moi_inverse[0]: "<<moi_inverse[0]<<std::endl;
+            std::cerr<<"moi_inverse[1]: "<<moi_inverse[1]<<std::endl;
+            std::cerr<<"moi_inverse[2]: "<<moi_inverse[2]<<std::endl;
+            std::cerr<<"tot_torque[0]: "<<tot_torque[0]<<std::endl;
+            std::cerr<<"tot_torque[1]: "<<tot_torque[1]<<std::endl;
+            std::cerr<<"tot_torque[2]: "<<tot_torque[2]<<std::endl;
+            std::cerr<<"moi[0]: "<<moi[0]<<std::endl;
+            std::cerr<<"moi[1]: "<<moi[1]<<std::endl;
+            std::cerr<<"moi[2]: "<<moi[2]<<std::endl;
+            // std::cerr<<"group_mass: "<<group_mass<<std::endl;
+            exit(0);
+        }
         group_aacc[currgroup] = group_q[currgroup].localToWorld(group_aacc[currgroup]);
-
+        if (group_aacc[currgroup][0] != group_aacc[currgroup][0])
+        {
+            std::cerr<<"group_aacc[currgroup]: "<<group_aacc[currgroup]<<std::endl;
+            std::cerr<<"group_q[currgroup]: "<<group_q[currgroup]<<std::endl;
+            // std::cerr<<"group_mass: "<<group_mass<<std::endl;
+            exit(0);
+        }
     }
+    
 }
 
 void Ball_group::half_step_updates()
@@ -4765,6 +4918,14 @@ void Ball_group::half_step_updates()
         {
             group_velh[g] = group_vel[g] + 0.5 * group_acc[g] * attrs.dt;
             group_wh[g] = group_w[g] + 0.5 * group_aacc[g] * attrs.dt;
+            if (group_wh[g][0] != group_wh[g][0])
+            {
+                std::cerr<<"group_wh[g] "<<group_wh[g]<<std::endl;
+                std::cerr<<"group_w[g] "<<group_w[g]<<std::endl;
+                std::cerr<<"group_aacc[g] "<<group_aacc[g]<<std::endl;
+                std::cerr<<"attrs.dt "<<attrs.dt<<std::endl;
+                exit(0);
+            }
             group_pos[g] +=  group_velh[g] * attrs.dt;
             
             group_aacc[g] = {0,0,0};
@@ -4772,6 +4933,14 @@ void Ball_group::half_step_updates()
 
             vec3 omega_local = group_q[g].worldToLocal(group_wh[g]);
             group_q[g].exponential_integrate(omega_local, attrs.dt);
+            if (group_q[g] != group_q[g])
+            {
+                std::cerr<<"AFTER INTEGRATE"<<std::endl;
+                std::cerr<<"group_q[g] "<<group_q[g]<<std::endl;
+                std::cerr<<"omega_local "<<omega_local<<std::endl;
+                std::cerr<<"group_wh[g] "<<group_wh[g]<<std::endl;
+                exit(0);
+            }
             // group_q[g].normalize();
         }
 
@@ -4781,6 +4950,7 @@ void Ball_group::half_step_updates()
             // vec3 rho = group_q[group[Ball]].quatRotate(group_offset[Ball]);
             // pos[Ball] = group_pos[group[Ball]] + rho;
             vec3 rho = quatRotate(group_q[group[Ball]],group_offset[Ball]);
+
             
             pos[Ball]  = group_pos[group[Ball]] + rho;
             velh[Ball] = group_velh[group[Ball]] + group_wh[group[Ball]].cross(rho);
@@ -4877,7 +5047,6 @@ void Ball_group::sim_one_step(int step,bool write_step)
     int threads = attrs.OMPthreads;
     // bool write_step = attrs.write_step;
 
-
     
     long long A;
     long long B;
@@ -4885,6 +5054,7 @@ void Ball_group::sim_one_step(int step,bool write_step)
     long long lllen = attrs.num_particles;
     double t0 = omp_get_wtime();
     
+    //Turned off for testing. Turn back on if you see this
     #pragma omp declare reduction(vec3_sum : vec3 : omp_out += omp_in)
     #pragma omp parallel for num_threads(threads)\
             reduction(vec3_sum:acc[:num_parts],aacc[:num_parts]) reduction(+:PE) \
@@ -4893,294 +5063,237 @@ void Ball_group::sim_one_step(int step,bool write_step)
             default(none) private(A,B,pc) 
     for (pc = world_rank + 1; pc <= (((lllen*lllen)-lllen)/2); pc += world_size)
     {
-            long double pd = (long double)pc;
-            pd = (sqrt(pd*8.0L+1.0L)+1.0L)*0.5L;
-            pd -= 0.00001L;
-            A = (long long)pd;
-            B = (long long)((long double)pc-(long double)A*((long double)A-1.0L)*.5L-1.0L);
+        long double pd = (long double)pc;
+        pd = (sqrt(pd*8.0L+1.0L)+1.0L)*0.5L;
+        pd -= 0.00001L;
+        A = (long long)pd;
+        B = (long long)((long double)pc-(long double)A*((long double)A-1.0L)*.5L-1.0L);
 
-            if (attrs.weld && group[A] == group[B])
-            {
-                continue;
+        if (attrs.weld && group[A] == group[B])
+        {
+            continue;
+        }
+
+ 
+        const double sumRaRb = R[A] + R[B];
+        const vec3 rVecab = pos[B] - pos[A];  // Vector from a to b.
+        const vec3 rVecba = -rVecab;
+        const double dist = (rVecab).norm();
+
+        //////////////////////
+        // const double grav_scale = 3.0e21;
+        //////////////////////
+
+        // Check for collision between Ball and otherBall:
+        double overlap = sumRaRb - dist;
+
+        
+
+        vec3 totalForceOnA{0, 0, 0};
+
+        // Distance array element: 1,0    2,0    2,1    3,0    3,1    3,2 ...
+        int e = static_cast<unsigned>(A * (A - 1) * .5) + B;  // a^2-a is always even, so this works.
+        double oldDist = distances[e];
+        /////////////////////////////
+        // double inoutT;
+        /////////////////////////////
+        // Check for collision between Ball and otherBall.
+        if (overlap > 0) 
+        {
+
+
+
+            double k;
+            if (dist >= oldDist) {
+                k = kout;
+            } else {
+                k = kin;
             }
 
-     
-            const double sumRaRb = R[A] + R[B];
-            const vec3 rVecab = pos[B] - pos[A];  // Vector from a to b.
-            const vec3 rVecba = -rVecab;
-            const double dist = (rVecab).norm();
+            // Cohesion (in contact) h must always be h_min:
+            // constexpr double h = h_min;
+            const double h = h_min;
+            const double Ra = R[A];
+            const double Rb = R[B];
+            const double h2 = h * h;
+            // constexpr double h2 = h * h;
+            const double twoRah = 2 * Ra * h;
+            const double twoRbh = 2 * Rb * h;
 
-            //////////////////////
-            // const double grav_scale = 3.0e21;
-            //////////////////////
+            // Test new vdw force equation with less division
+            const double d1 = h2 + twoRah + twoRbh;
+            const double d2 = d1 + 4 * Ra * Rb;
+            const double numer = 64*Ha*Ra*Ra*Ra*Rb*Rb*Rb*(h+Ra+Rb);
+            const double denomrecip = 1/(6*d1*d1*d2*d2);
+            const vec3 vdwForceOnA = (numer*denomrecip)*rVecab.normalized();
 
-            // Check for collision between Ball and otherBall:
-            double overlap = sumRaRb - dist;
+            // Elastic force:
+            // vec3 elasticForceOnA{0, 0, 0};
+            // if (std::fabs(overlap) > 1e-6)
+            // {
+            //     elasticForceOnA = -k * overlap * .5 * (rVecab / dist);
+            // }
+            const vec3 elasticForceOnA = -k * overlap * .5 * (rVecab / dist);
+            ///////////////////////////////
+            // elasticForce[A] += elasticForceOnA;
+            // elasticForce[B] -= elasticForceOnA;
+            ///////////////////////////////
+            ///////////////////////////////
+            ///////material parameters for silicate composite from Reissl 2023
+            // const double Estar = 1e5*169; //in Pa
+            // const double nu2 = 0.27*0.27; // nu squared (unitless)
+            // const double prevoverlap = sumRaRb - oldDist;
+            // const double rij = sqrt(std::pow(Ra,2)-std::pow((Ra-overlap/2),2));
+            // const double Tvis = 15e-12; //Viscoelastic timescale (15ps)
+            // // const double Tvis = 5e-12; //Viscoelastic timescale (5ps)
+            // const vec3 viscoelaticforceOnA = -(2*Estar/nu2) * 
+            //                                  ((overlap - prevoverlap)/dt) * 
+            //                                  rij * Tvis * (rVecab / dist);
+            const vec3 viscoelaticforceOnA = {0,0,0};
+            ///////////////////////////////
+
+            // Gravity force:
+            // const vec3 gravForceOnA = (G * m[A] * m[B] * grav_scale / (dist * dist)) * (rVecab / dist); //SCALE MASS
+            const vec3 gravForceOnA = {0,0,0};
+            // const vec3 gravForceOnA = (G * m[A] * m[B] / (dist * dist)) * (rVecab / dist);
+
+            // Sliding and Rolling Friction:
+            vec3 slideForceOnA{0, 0, 0};
+            vec3 rollForceA{0, 0, 0};
+            vec3 torqueA{0, 0, 0};
+            vec3 torqueB{0, 0, 0};
+
+            // Shared terms:
+            const double elastic_force_A_mag = elasticForceOnA.norm();
+            const vec3 r_a = rVecab * R[A] / sumRaRb;  // Center to contact point
+            const vec3 r_b = rVecba * R[B] / sumRaRb;
+            const vec3 w_diff = w[A] - w[B];
+
+            // Sliding friction terms:
+            const vec3 d_vel = vel[B] - vel[A];
+            const vec3 frame_A_vel_B = d_vel - d_vel.dot(rVecab) * (rVecab / (dist * dist)) -
+                                       w[A].cross(r_a) - w[B].cross(r_a);
+
+            // Compute sliding friction force:
+            const double rel_vel_mag = frame_A_vel_B.norm();
+
+            ////////////////////////////////////////// CALC THIS AT INITIALIZATION for all combos os Ra,Rb
+            // const double u_scale = calc_VDW_force_mag(Ra,Rb,h_min_physical)/
+            //                         vdwForceOnA.norm();         //Friction coefficient scale factor
+            //////////////////////////////////////////
+            if (rel_vel_mag > 1e-13)  // NORMAL ONE Divide by zero protection.
+            {
+                slideForceOnA = u_s * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
+            }
+
+
+            // Compute rolling friction force:
+            const double w_diff_mag = w_diff.norm();
+            // if (w_diff_mag > 1e-20)  // Divide by zero protection.
+            // if (w_diff_mag > 1e-8)  // Divide by zero protection.
+            if (w_diff_mag > 1e-13)  // NORMAL ONE Divide by zero protection.
+            {
+                rollForceA = 
+                    -u_r * elastic_force_A_mag * (w_diff).cross(r_a) / 
+                    (w_diff).cross(r_a).norm();
+            }
+
+
+            // Total forces on a:
+            totalForceOnA = viscoelaticforceOnA + gravForceOnA + elasticForceOnA + slideForceOnA + vdwForceOnA;
 
             
 
-            vec3 totalForceOnA{0, 0, 0};
-
-            // Distance array element: 1,0    2,0    2,1    3,0    3,1    3,2 ...
-            int e = static_cast<unsigned>(A * (A - 1) * .5) + B;  // a^2-a is always even, so this works.
-            double oldDist = distances[e];
-            /////////////////////////////
-            // double inoutT;
-            /////////////////////////////
-            // Check for collision between Ball and otherBall.
-            if (overlap > 0) {
+            // Total torque a and b:
+            torqueA = r_a.cross(slideForceOnA + rollForceA);
+            torqueB = r_b.cross(-slideForceOnA + rollForceA); // original code
 
 
 
-                double k;
-                if (dist >= oldDist) {
-                    k = kout;
-                } else {
-                    k = kin;
-                }
+            aacc[A] += torqueA / moi[A];
+            aacc[B] += torqueB / moi[B];
 
-                // Cohesion (in contact) h must always be h_min:
-                // constexpr double h = h_min;
-                const double h = h_min;
-                const double Ra = R[A];
-                const double Rb = R[B];
-                const double h2 = h * h;
-                // constexpr double h2 = h * h;
-                const double twoRah = 2 * Ra * h;
-                const double twoRbh = 2 * Rb * h;
+            if (write_step) {
+                // No factor of 1/2. Includes both spheres:
+                // PE += -G * m[A] * m[B] * grav_scale / dist + 0.5 * k * overlap * overlap;
+                // PE += -G * m[A] * m[B] / dist + 0.5 * k * overlap * overlap;
 
-                // const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
-                //                              ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
-                //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
-                //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
-                //                              rVecab.normalized();
+                // Van Der Waals + elastic:
+                const double diffRaRb = R[A] - R[B];
+                const double z = sumRaRb + h;
+                const double two_RaRb = 2 * R[A] * R[B];
+                const double denom_sum = z * z - (sumRaRb * sumRaRb);
+                const double denom_diff = z * z - (diffRaRb * diffRaRb);
+                const double U_vdw =
+                    -Ha / 6 *
+                    (two_RaRb / denom_sum + two_RaRb / denom_diff + 
+                    log(denom_sum / denom_diff));
+                PE += U_vdw + 0.5 * k * overlap * overlap; ///TURN ON FOR REAL SIM
+            }
+        } else  // Non-contact forces:
+        {
 
-                // ==========================================
-                // Test new vdw force equation with less division
-                const double d1 = h2 + twoRah + twoRbh;
-                const double d2 = d1 + 4 * Ra * Rb;
-                const double numer = 64*Ha*Ra*Ra*Ra*Rb*Rb*Rb*(h+Ra+Rb);
-                const double denomrecip = 1/(6*d1*d1*d2*d2);
-                const vec3 vdwForceOnA = (numer*denomrecip)*rVecab.normalized();
-                // ==========================================
-
-                // Elastic force:
-                // vec3 elasticForceOnA{0, 0, 0};
-                // if (std::fabs(overlap) > 1e-6)
-                // {
-                //     elasticForceOnA = -k * overlap * .5 * (rVecab / dist);
-                // }
-                const vec3 elasticForceOnA = -k * overlap * .5 * (rVecab / dist);
-                ///////////////////////////////
-                // elasticForce[A] += elasticForceOnA;
-                // elasticForce[B] -= elasticForceOnA;
-                ///////////////////////////////
-                ///////////////////////////////
-                ///////material parameters for silicate composite from Reissl 2023
-                // const double Estar = 1e5*169; //in Pa
-                // const double nu2 = 0.27*0.27; // nu squared (unitless)
-                // const double prevoverlap = sumRaRb - oldDist;
-                // const double rij = sqrt(std::pow(Ra,2)-std::pow((Ra-overlap/2),2));
-                // const double Tvis = 15e-12; //Viscoelastic timescale (15ps)
-                // // const double Tvis = 5e-12; //Viscoelastic timescale (5ps)
-                // const vec3 viscoelaticforceOnA = -(2*Estar/nu2) * 
-                //                                  ((overlap - prevoverlap)/dt) * 
-                //                                  rij * Tvis * (rVecab / dist);
-                const vec3 viscoelaticforceOnA = {0,0,0};
-                ///////////////////////////////
-
-                // Gravity force:
-                // const vec3 gravForceOnA = (G * m[A] * m[B] * grav_scale / (dist * dist)) * (rVecab / dist); //SCALE MASS
-                const vec3 gravForceOnA = {0,0,0};
-                // const vec3 gravForceOnA = (G * m[A] * m[B] / (dist * dist)) * (rVecab / dist);
-
-                // Sliding and Rolling Friction:
-                vec3 slideForceOnA{0, 0, 0};
-                vec3 rollForceA{0, 0, 0};
-                vec3 torqueA{0, 0, 0};
-                vec3 torqueB{0, 0, 0};
-
-                // Shared terms:
-                const double elastic_force_A_mag = elasticForceOnA.norm();
-                const vec3 r_a = rVecab * R[A] / sumRaRb;  // Center to contact point
-                const vec3 r_b = rVecba * R[B] / sumRaRb;
-                const vec3 w_diff = w[A] - w[B];
-
-                // Sliding friction terms:
-                const vec3 d_vel = vel[B] - vel[A];
-                const vec3 frame_A_vel_B = d_vel - d_vel.dot(rVecab) * (rVecab / (dist * dist)) -
-                                           w[A].cross(r_a) - w[B].cross(r_a);
-
-                // Compute sliding friction force:
-                const double rel_vel_mag = frame_A_vel_B.norm();
-
-                ////////////////////////////////////////// CALC THIS AT INITIALIZATION for all combos os Ra,Rb
-                // const double u_scale = calc_VDW_force_mag(Ra,Rb,h_min_physical)/
-                //                         vdwForceOnA.norm();         //Friction coefficient scale factor
-                //////////////////////////////////////////
-                if (rel_vel_mag > 1e-13)  // NORMAL ONE Divide by zero protection.
-                {
-                    // slideForceOnA = u_s * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
-                    // In the frame of A, B applies force in the direction of B's velocity.
-                    ///////////////////////////////////
-                    // if (mu_scale)
-                    // {
-                    //     if (u_scale[e]*u_s > max_mu)
-                    //     {
-                    //         slideForceOnA = max_mu * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
-                    //     }
-                    //     else
-                    //     {
-                    //         slideForceOnA = u_scale[e] * u_s * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
-                    //     }
-                    // }
-                    // else
-                    // {
-                        slideForceOnA = u_s * elastic_force_A_mag * (frame_A_vel_B / rel_vel_mag);
-                    // }
-                    ///////////////////////////////////
-                }
-                //////////////////////////////////////
-                // slideForce[A] += slideForceOnA;
-                // slideForce[B] -= slideForceOnA;
-                //////////////////////////////////////
-
-
-                // Compute rolling friction force:
-                const double w_diff_mag = w_diff.norm();
-                // if (w_diff_mag > 1e-20)  // Divide by zero protection.
-                // if (w_diff_mag > 1e-8)  // Divide by zero protection.
-                if (w_diff_mag > 1e-13)  // NORMAL ONE Divide by zero protection.
-                {
-                    // rollForceA = 
-                    //     -u_r * elastic_force_A_mag * (w_diff).cross(r_a) / 
-                    //     (w_diff).cross(r_a).norm();
-                    /////////////////////////////////////
-                    // if (mu_scale)
-                    // {
-                    //     if (u_scale[e]*u_r > max_mu)
-                    //     {
-                    //         rollForceA = 
-                    //             -max_mu * elastic_force_A_mag * (w_diff).cross(r_a) / 
-                    //             (w_diff).cross(r_a).norm();
-                    //     }
-                    //     else
-                    //     {
-                    //         rollForceA = 
-                    //             -u_scale[e] * u_r * elastic_force_A_mag * (w_diff).cross(r_a) / 
-                    //             (w_diff).cross(r_a).norm();
-                    //     }
-                    // }
-                    // else
-                    // {
-                        rollForceA = 
-                            -u_r * elastic_force_A_mag * (w_diff).cross(r_a) / 
-                            (w_diff).cross(r_a).norm();
-                    // }
-                    /////////////////////////////////////
-                }
-
-
-                // Total forces on a:
-                // totalForceOnA = gravForceOnA + elasticForceOnA + slideForceOnA + vdwForceOnA;
-                ////////////////////////////////
-                totalForceOnA = viscoelaticforceOnA + gravForceOnA + elasticForceOnA + slideForceOnA + vdwForceOnA;
-                ////////////////////////////////
-
-                
-
-                // Total torque a and b:
-                torqueA = r_a.cross(slideForceOnA + rollForceA);
-                torqueB = r_b.cross(-slideForceOnA + rollForceA); // original code
-
-
-
-                aacc[A] += torqueA / moi[A];
-                aacc[B] += torqueB / moi[B];
-
-                if (write_step) {
-                    // No factor of 1/2. Includes both spheres:
-                    // PE += -G * m[A] * m[B] * grav_scale / dist + 0.5 * k * overlap * overlap;
-                    // PE += -G * m[A] * m[B] / dist + 0.5 * k * overlap * overlap;
-
-                    // Van Der Waals + elastic:
-                    const double diffRaRb = R[A] - R[B];
-                    const double z = sumRaRb + h;
-                    const double two_RaRb = 2 * R[A] * R[B];
-                    const double denom_sum = z * z - (sumRaRb * sumRaRb);
-                    const double denom_diff = z * z - (diffRaRb * diffRaRb);
-                    const double U_vdw =
-                        -Ha / 6 *
-                        (two_RaRb / denom_sum + two_RaRb / denom_diff + 
-                        log(denom_sum / denom_diff));
-                    PE += U_vdw + 0.5 * k * overlap * overlap; ///TURN ON FOR REAL SIM
-                }
-            } else  // Non-contact forces:
+            // No collision: Include gravity and vdw:
+            // const vec3 gravForceOnA = (G * m[A] * m[B] * grav_scale / (dist * dist)) * (rVecab / dist);
+            const vec3 gravForceOnA = {0.0,0.0,0.0};
+            // Cohesion (non-contact) h must be positive or h + Ra + Rb becomes catastrophic cancellation:
+            double h = std::fabs(overlap);
+            if (h < h_min)  // If h is closer to 0 (almost touching), use hmin.
             {
+                h = h_min;
+            }
+            const double Ra = R[A];
+            const double Rb = R[B];
+            const double h2 = h * h;
+            const double twoRah = 2 * Ra * h;
+            const double twoRbh = 2 * Rb * h;
 
-                // No collision: Include gravity and vdw:
-                // const vec3 gravForceOnA = (G * m[A] * m[B] * grav_scale / (dist * dist)) * (rVecab / dist);
-                const vec3 gravForceOnA = {0.0,0.0,0.0};
-                // Cohesion (non-contact) h must be positive or h + Ra + Rb becomes catastrophic cancellation:
-                double h = std::fabs(overlap);
-                if (h < h_min)  // If h is closer to 0 (almost touching), use hmin.
-                {
-                    h = h_min;
-                }
-                const double Ra = R[A];
-                const double Rb = R[B];
-                const double h2 = h * h;
-                const double twoRah = 2 * Ra * h;
-                const double twoRbh = 2 * Rb * h;
+            // const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
+            //                              ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
+            //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
+            //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
+            //                              rVecab.normalized();
+            // ==========================================
+            // Test new vdw force equation with less division
+            const double d1 = h2 + twoRah + twoRbh;
+            const double d2 = d1 + 4 * Ra * Rb;
+            const double numer = 64*Ha*Ra*Ra*Ra*Rb*Rb*Rb*(h+Ra+Rb);
+            const double denomrecip = 1/(6*d1*d1*d2*d2);
+            const vec3 vdwForceOnA = (numer*denomrecip)*rVecab.normalized();
+            // ==========================================
+           
+            /////////////////////////////
+            totalForceOnA = vdwForceOnA + gravForceOnA;
+            // totalForceOnA = vdwForceOnA;
+            // totalForceOnA = gravForceOnA;
+            /////////////////////////////
+            if (write_step) {
+                // PE += -G * m[A] * m[B] * grav_scale / dist; // Gravitational
 
-                // const vec3 vdwForceOnA = Ha / 6 * 64 * Ra * Ra * Ra * Rb * Rb * Rb *
-                //                              ((h + Ra + Rb) / ((h2 + twoRah + twoRbh) * (h2 + twoRah + twoRbh) *
-                //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb) *
-                //                                                (h2 + twoRah + twoRbh + 4 * Ra * Rb))) *
-                //                              rVecab.normalized();
-                // ==========================================
-                // Test new vdw force equation with less division
-                const double d1 = h2 + twoRah + twoRbh;
-                const double d2 = d1 + 4 * Ra * Rb;
-                const double numer = 64*Ha*Ra*Ra*Ra*Rb*Rb*Rb*(h+Ra+Rb);
-                const double denomrecip = 1/(6*d1*d1*d2*d2);
-                const vec3 vdwForceOnA = (numer*denomrecip)*rVecab.normalized();
-                // ==========================================
-               
-                /////////////////////////////
-                totalForceOnA = vdwForceOnA + gravForceOnA;
-                // totalForceOnA = vdwForceOnA;
-                // totalForceOnA = gravForceOnA;
-                /////////////////////////////
-                if (write_step) {
-                    // PE += -G * m[A] * m[B] * grav_scale / dist; // Gravitational
-
-                    const double diffRaRb = R[A] - R[B];
-                    const double z = sumRaRb + h;
-                    const double two_RaRb = 2 * R[A] * R[B];
-                    const double denom_sum = z * z - (sumRaRb * sumRaRb);
-                    const double denom_diff = z * z - (diffRaRb * diffRaRb);
-                    const double U_vdw =
-                        -Ha / 6 *
-                        (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
-                    PE += U_vdw;  // Van Der Waals TURN ON FOR REAL SIM
-                }
-
-                // todo this is part of push_apart. Not great like this.
-                // For pushing apart overlappers:
-                // vel[A] = { 0,0,0 };
-                // vel[B] = { 0,0,0 };
+                const double diffRaRb = R[A] - R[B];
+                const double z = sumRaRb + h;
+                const double two_RaRb = 2 * R[A] * R[B];
+                const double denom_sum = z * z - (sumRaRb * sumRaRb);
+                const double denom_diff = z * z - (diffRaRb * diffRaRb);
+                const double U_vdw =
+                    -Ha / 6 *
+                    (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
+                PE += U_vdw;  // Van Der Waals TURN ON FOR REAL SIM
             }
 
-            // Newton's equal and opposite forces applied to acceleration of each ball:
-            acc[A] += totalForceOnA / m[A];
-            acc[B] -= totalForceOnA / m[B];
+            // todo this is part of push_apart. Not great like this.
+            // For pushing apart overlappers:
+            // vel[A] = { 0,0,0 };
+            // vel[B] = { 0,0,0 };
+        }
 
-            
+        // Newton's equal and opposite forces applied to acceleration of each ball:
+        acc[A] += totalForceOnA / m[A];
+        acc[B] -= totalForceOnA / m[B];        
 
 
-            // So last distance can be known for COR:
-            distances[e] = dist;
+        // So last distance can be known for COR:
+        distances[e] = dist;
 
     }
 
@@ -5192,36 +5305,20 @@ void Ball_group::sim_one_step(int step,bool write_step)
         MPI_Reduce(&local_PE,&PE,1,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
     #endif
 
-    // t.end_event("CalcForces/loopApplicablepairs");
-
-
-    // for (int i = 0; i < attrs.num_particles; ++i)
-    // {
-    //     std::cerr<<"acc["<<i<<"]"<<acc[i]<<std::endl;
-    // }
-
     if (attrs.weld)
     {
         group_accs_from_monomer();
     }
 
-    // for (int i = 0; i < attrs.num_particles; ++i)
-    // {
-    //     std::cerr<<"acc["<<i<<"]"<<acc[i]<<std::endl;
-    // }
-    // exit(0);
-
     
-
     // THIRD PASS - Calculate velocity for next step:
-    // t.start_event("CalcVelocityforNextStep");
     full_step_updates(write_step,world_rank);
      // THIRD PASS END
     if (write_step && world_rank == 0)
     {
         attrs.num_writes ++;
     }
-    // t.end_event("CalcVelocityforNextStep");
+
 }  // one Step end
 #endif 
 

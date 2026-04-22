@@ -4,6 +4,7 @@
 #define VEC3_HPP
 
 #include <iostream>
+#include <vector>
 #include "MPI_utilities.hpp"
 
 class vec3
@@ -169,6 +170,9 @@ private:
     rotation operator/=(const double scalar);
     rotation normalized() const;
 };
+
+std::vector<vec3> inverse3x3(std::vector<vec3> A);
+vec3 matTimesVec(std::vector<vec3> A, vec3 v);
 
 //THIS ONLY WORKS FOR UNIT VEC QUATERNIONS
 vec3 quatRotate(const rotation& q, const vec3& vec);
