@@ -272,10 +272,6 @@ void runAggregation(std::string path, int num_balls)
         // t.start_event("add_projectile");
         // Ball_group old_O = O;
         O = O.add_projectile(O.attrs.typeSim);
-        for (int i = 0; i < O.attrs.num_particles; ++i)
-        {
-            std::cerr<<"groups in Collider: "<<O.group[i]<<std::endl;
-        }
 
         // if (O.attrs.typeSim == BCCA)
         // {

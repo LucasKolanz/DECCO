@@ -313,38 +313,6 @@ void Ball_group::aggregationInit(const std::string path,const int index)
     {
         generate_ball_field(attrs.genBalls);
         placeBalls(attrs.genBalls);
-        // Hack - Override and creation just 2 balls position and velocity.
-        // if (attrs.genBalls > 0 && attrs.genBalls <= 2)
-        // {
-        //     if (attrs.JKR)
-        //     {
-        //         pos[0] = {0, R[0]-1.01e-8, 0};
-        //         vel[0] = {0, -0.1, 0};
-        //         if (attrs.genBalls > 1)
-        //         {
-        //             pos[1] = {0, -(R[1]-1.01e-8), 0};
-        //             vel[1] = {0, 0.1, 0};
-            
-        //         }
-        //     }
-        //     else
-        //     {
-        //         pos[0] = {0, R[0]+1.01e-6, 0};
-        //         vel[0] = {0, 0, 0};
-        //         if (attrs.genBalls > 1)
-        //         {
-        //             pos[1] = {0, -(R[1]+1.01e-6), 0};
-        //             vel[1] = {0, 0, 0};
-            
-        //         }
-        //         // std::cerr<<"HEREREERERREERERERERERERER"<<std::endl;
-        //     }
-        // }
-        // else
-        // {
-        //     MPIsafe_print(std::cerr,"ERROR: genBalls > 2 not yet implimented (right)?\n");
-        // }
-
 
         attrs.m_total = getMass();
         calc_v_collapse();
@@ -764,20 +732,6 @@ void Ball_group::parse_input_file(std::string location)
 
     MPIsafe_print(std::cerr,"STARTING PARSE_INPUT FILE\n");
 
-    // if (location == "")
-    // {
-    //     try {
-    //         fs::path currentPath = fs::current_path();
-    //         location = currentPath.string() + "/";
-    //     } catch (const fs::filesystem_error& e) {
-    //         MPIsafe_print(std::cerr,std::string("Error getting current directory: " + std::string(e.what()) + '\n'));
-    //         exit(-1);
-    //     }
-    // }
-    // // std::string s_location(location);
-    // std::string json_file = location + "input.json";
-    // std::ifstream ifs(json_file);
-    // json inputs = json::parse(ifs);
     json inputs = getJsonFromFolder(location);
     MPIsafe_print(std::cerr,std::string("Parsing input file: "+location+"input.json\n"));
 
@@ -835,7 +789,6 @@ void Ball_group::parse_input_file(std::string location)
     }
 
     attrs.JKR = get_JKR(location);
-    // std::cerr<<"JKR: "<<attrs.JKR<<std::endl;
     if (attrs.JKR)
     {
         std::string temp_material = "";
@@ -896,7 +849,7 @@ void Ball_group::parse_input_file(std::string location)
     }
     else
     {
-        std::cerr<<"WARNING: radiiDistribution not specified. Defaulting to 'constant'"<<std::endl;
+        MPIsafe_print(std::cerr, "WARNING: radiiDistribution not specified. Defaulting to 'constant'.\n");
         attrs.radiiDistribution = constant;
     }
 
@@ -1332,8 +1285,6 @@ void Ball_group::calc_v_collapse()
     {
         attrs.v_collapse = fabs(attrs.v_collapse);
     }
-
-    // std::cerr<<"finish calc collapse: "<<attrs.v_collapse<<std::endl;
 }
 
 /// get max velocity
@@ -1761,8 +1712,6 @@ std::vector<vec3> Ball_group::calc_group_moi_local(const int& group_num)
     moi[2][0] = moi[0][2];
     moi[2][1] = moi[1][2];
 
-    // std::cerr<<"moi: \n"<<moi[0]<<'\n'<<moi[1]<<'\n'<<moi[2]<<std::endl;
-
     return moi;
 }
 
@@ -2067,17 +2016,6 @@ Ball_group Ball_group::BPCA_projectile_init()
     if (attrs.JKR){pos_and_vel_for_collision_JKR(projectile);}
     else{pos_and_vel_for_collision(projectile);}
     
-
-    // std::cerr<<"projectile at end of BPCA proj init: "<<projectile.pos[0]<<std::endl;
-    // projectile.vel[0] = -attrs.v_custom * projectile_direction;
-
-    // const double3x3 local_coords = local_coordinates(to_double3(projectile_direction));
-    
-    // const vec3 offset = random_offset(local_coords,projectile.pos[0],projectile.vel[0],projectile.R[0]); 
-
-    // projectile.pos[0] -= offset;
-
-
     
     return projectile;
 }
@@ -2292,8 +2230,6 @@ Ball_group Ball_group::add_projectile(const simType simtype)
 
     new_group.to_origin();
 
-    // std::cerr<<"projectile pos end of add projectile: "<<new_group.pos[new_group.attrs.num_particles-1]<<std::endl;
-
     return new_group;
 }
 
@@ -2322,18 +2258,6 @@ void Ball_group::merge_ball_group(const Ball_group& src,const bool includeRadius
 
     if (src.attrs.weld)
     {
-        // std::cerr << "src.attrs.num_groups = " << src.attrs.num_groups << '\n';
-        // std::cerr << "attrs.num_groups_added = " << attrs.num_groups_added << '\n';
-
-        // std::cerr << "src.group_wh.size() = " << src.group_wh.size() << '\n';
-        // std::cerr << "src.group_w.size() = " << src.group_w.size() << '\n';
-        // std::cerr << "src.group_aacc.size() = " << src.group_aacc.size() << '\n';
-
-        // std::cerr << "group_wh.size() = " << group_wh.size() << '\n';
-        // std::cerr << "group_w.size() = " << group_w.size() << '\n';
-        // std::cerr << "group_aacc.size() = " << group_aacc.size() << '\n';
-
-        // std::cerr<<"MERGE BALL GROUPS: "<<src.attrs.num_groups<<std::endl;
         std::copy(src.group_pos.begin(),src.group_pos.begin()+src.attrs.num_groups,group_pos.begin()+attrs.num_groups_added);
         std::copy(src.group_velh.begin(),src.group_velh.begin()+src.attrs.num_groups,group_velh.begin()+attrs.num_groups_added);
         std::copy(src.group_vel.begin(),src.group_vel.begin()+src.attrs.num_groups,group_vel.begin()+attrs.num_groups_added);
@@ -2345,7 +2269,6 @@ void Ball_group::merge_ball_group(const Ball_group& src,const bool includeRadius
 
         std::copy(src.group_offset.begin(),src.group_offset.begin()+src.attrs.num_particles,group_offset.begin()+attrs.num_particles_added);
         std::copy(src.group_moi.begin(),src.group_moi.begin()+src.attrs.num_particles,group_moi.begin()+attrs.num_particles_added);
-        // std::cerr<<"END MERGE BALL GROUPS: "<<src.attrs.num_groups<<std::endl;
     }
 
     //JKR stuff
@@ -2363,26 +2286,6 @@ void Ball_group::merge_ball_group(const Ball_group& src,const bool includeRadius
     attrs.num_particles_added += src.attrs.num_particles;
     attrs.num_groups_added += src.attrs.num_groups_added;
 
-    // num_particles_added += src.num_particles;
-    // radiiDistribution = src.radiiDistribution;
-    // radiiFraction = src.radiiFraction;
-
-    // //carry over folders
-    // project_path = src.project_path;
-    // output_folder = src.output_folder;
-    // data_directory = src.data_directory;
-    // projectileName = src.projectileName;
-    // targetName = src.targetName;
-    // output_prefix = src.output_prefix;
-
-    // skip = src.skip;
-    // steps = src.steps;
-
-    // dt=src.dt;
-    // kin=src.kin;  // Spring constant
-    // kout=src.kout;
-    // data = src.data;
-
     calc_helpfuls(includeRadius);
 }
 
@@ -2390,8 +2293,6 @@ void Ball_group::allocate_group_JKR(const int nBalls)
 {
     attrs.num_particles = nBalls;
     attrs.num_pairs = (attrs.num_particles * attrs.num_particles / 2) - (attrs.num_particles / 2);
-
-    std::cerr<<"allocating JKR group of size: "<<nBalls<<std::endl;
 
     try {
         n_hats = new vec3[2*attrs.num_pairs];
@@ -2567,9 +2468,7 @@ void Ball_group::init_conditions_JKR()
         calc_offsets_coms();//This needs to be after group_q is initialized and before calc_group_moi_local is called
         // for (int g = 0; g < attrs.num_groups; ++g)
         // {
-        //     std::cerr<<"start "<<g<<std::endl;
         //     group_moi[g] = calc_group_moi_local(g);
-        //     std::cerr<<"end"<<std::endl;
         // }
     }
 
@@ -2577,7 +2476,6 @@ void Ball_group::init_conditions_JKR()
     {
         acc[i] = {0.0,0.0,0.0};
         aacc[i] = {0.0,0.0,0.0};
-        // phi[i] = {0.0,0.0,0.0};
     }
 
     for (int A = 1; A < attrs.num_particles; A++)  // cuda
@@ -2604,7 +2502,6 @@ void Ball_group::init_conditions_JKR()
             if (overlap > 0) //overlapping
             {
                 const double dist_reciprocal = 1.0/dist;
-                // std::cerr<<dist<<std::endl;
                 const vec3 n_c = rVecba*dist_reciprocal;
                 //set contact pointers. This should only be done unconditionally like this in init_conditions_JKR
                 // n_hats[2*e] = worldToLocal(Eu0[A],Eu[A],-n_c);
@@ -2645,7 +2542,7 @@ void Ball_group::init_conditions_JKR()
 
                 //sliding
                 const vec3 slidingDisp0 = R[A]*nA - R[B]*nB + (sumRaRb)*n_c;
-                const vec3 slidingDisp = slidingDisp0 - (slidingDisp0.dot(n_c))*n_c;// std::cerr<<slidingDisp<<std::endl;
+                const vec3 slidingDisp = slidingDisp0 - (slidingDisp0.dot(n_c))*n_c;
                 const double ks = 8.0*a0[e]*reducedGstar[e];
                 const vec3 slidingForceA = -ks*slidingDisp*(R[A] + R[B] - slidingDisp0.dot(n_c))*dist_reciprocal;
 
@@ -2796,7 +2693,6 @@ void Ball_group::init_conditions()
 
             const double sumRaRb = R[A] + R[B];
             const vec3 rVecab = pos[B] - pos[A];  // Vector from a to b.
-            // std::cerr<<"rVecab, A="<<A<<" B="<<B<<" : "<<rVecab<<std::endl;
             const vec3 rVecba = -rVecab;
             const double dist = (rVecab).norm();
 
@@ -2899,7 +2795,6 @@ void Ball_group::init_conditions()
                     -attrs.Ha / 6 *
                     (two_RaRb / denom_sum + two_RaRb / denom_diff + log(denom_sum / denom_diff));
                 PE += U_vdw + 0.5 * k * overlap * overlap;
-                // std::cerr<<"totalForceOnA, A="<<A<<" B="<<B<<" : "<<totalForceOnA<<std::endl;
 
             } else  // Non-contact forces:
             {
@@ -3290,55 +3185,11 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename,co
 
     if (file.substr(file.size()-4,file.size()) == ".csv")
     {
-
-        // _pos = file.find_first_of("_");
-        // size_t _lastpos = file.find_last_of("_");
-        
-        // file_index = stoi(file.substr(0,_pos));
-        
-        // //If this is false, then its the old way of naming
-        // if (_pos == _lastpos)
-        // {
-        //     file = filename;
-        // }
-        // else
-        // {
-        //     file = std::to_string(file_index) + file.substr(_pos,_lastpos-(_pos-1));
-        // }
-        // attrs.start_index = file_index+1;//shouldnt be file_index-1 because that is just the one we read, we will write to the next index
-
-        // std::string simFile;
-        // if (filename.substr(filename.length()-11,filename.length()) != "simData.csv")
-        // {
-        //     simFile = filename + "simData.csv";
-        // }
-        // else
-        // {
-        //     simFile = filename;
-        // }
-
-        // std::string constFile = simFile.substr(0,filename.length()-11);
-        // if (filename.substr(filename.length()-11,filename.length()) != "simData.csv")
-        // {
-        //     constFile = filename + "constants.csv";
-        // }
-        // else
-        // {
-        //     constFile = filename.substr(0,filename.length()-11) + "constants.csv";
-        // }
-
-
-
-        // parseSimData(getLastLine(path, simFile));
-        // loadConsts(path, constFile);
-
         loadDatafromCSV(path,file);
     }
     else if (file.substr(file.size()-3,file.size()) == ".h5")
     {
         #ifdef HDF5_ENABLE
-            // _pos = file.find_first_of("_");
-            // file_index = stoi(file.substr(0,_pos));
             loadDatafromH5(path,file);
         #else
             MPIsafe_print(std::cerr,"ERROR: HDF5 not enabled, could not open file '"+path+file+"'. Please recompile with -DHDF5_ENABLE and try again.\n");
@@ -3410,7 +3261,7 @@ void Ball_group::parse_meta_data(std::string metadata)
         }
         else
         {
-            std::cerr<<"DECCO ERROR: sim metadata '"<<data_t<<"' doesn't exist."<<std::endl;
+            MPIsafe_print(std::cerr,"DECCO ERROR: sim metadata '"+data_t+"' doesn't exist.\n");
             exit(EXIT_FAILURE);
         }
 
@@ -3592,65 +3443,6 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
     bool has_meta = true;
     //If this error happens then then we cannot restart from midway through a sim.
     //This is because the metadata containing the info needed was missing for somereason
-  
-    // if (meta == ERR_RET_MET)  
-    // {
-    //     has_meta = false;
-    //     //If the highest sim is not finished, we need to load up the previous one and delete the partially completed sim
-    //     if (!HDF5Handler::sim_finished(path,file))
-    //     {
-    //         std::string rmfile = file;
-
-    //         #ifdef MPI_ENABLE
-    //             MPI_Barrier(MPI_COMM_WORLD);
-                
-    //             int status;
-    //             int send_result;
-    //             //If multiple nodes, we don't want to delete until everyone has loaded
-    //             if (getRank() == 0)
-    //             {
-    //                 status = remove(rmfile.c_str());
-    //                 if (getSize() > 1)
-    //                 {
-    //                     for (int i = 1; i < getSize(); i++)
-    //                     {
-    //                         send_result = MPI_Send(&status, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
-    //                         if (send_result != MPI_SUCCESS)
-    //                         {
-    //                             std::cerr<<"ERROR: MPI_Send to node "<<i<<" errored with code "<<send_result<<std::endl;   
-    //                             MPIsafe_exit(-1);
-    //                         }
-    //                     }
-
-    //                 }
-    //             }
-    //             else
-    //             {
-    //                 MPI_Status mpistat;
-    //                 MPI_Recv(&status, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &mpistat);
-    //                 //verify Recv worked
-    //                 if (mpistat.MPI_ERROR != MPI_SUCCESS)
-    //                 {
-    //                     std::cerr<<"ERROR: MPI_Recv for node "<<getRank()<<" errored with code "<<mpistat.MPI_ERROR<<std::endl;   
-    //                     MPIsafe_exit(-1);
-    //                 }
-    //             }
-    //         #else
-    //             int status = remove(rmfile.c_str());
-    //         #endif
-            
-
-    //         if (status != 0)
-    //         {
-    //             std::string message("File: '"+rmfile+"' could not be removed, now exiting with failure.\n");
-    //             MPIsafe_print(std::cerr,message);
-    //             MPIsafe_exit(EXIT_FAILURE);
-    //         }
-    //         file_index--;
-    //         file = std::to_string(file_index) + file.substr(_pos,file.size());
-
-    //     }
-    // }
 
     //This needs to be here because its used in the following function
     attrs.start_index = file_index;
@@ -3844,12 +3636,6 @@ void Ball_group::pos_and_vel_for_collision_JKR(Ball_group &projectile,Ball_group
     projectile.kick(vSmall*projectile_direction);
     target.kick(vBig*(-projectile_direction));
 
-    std::cerr<<"vSmall*projectile_direction: "<<vSmall*projectile_direction<<std::endl;
-    std::cerr<<"vBig*(-projectile_direction): "<<vBig*(-projectile_direction)<<std::endl;
-    
-    // std::cerr<<"vSmall*projectile_direction: "<<vSmall*projectile_direction<<std::endl;
-    // std::cerr<<"vBig*projectile_direction: "<<vBig*projectile_direction<<std::endl;
-
 
     if (attrs.impactParameter < 0.0)
     {
@@ -3928,12 +3714,6 @@ void Ball_group::pos_and_vel_for_collision(Ball_group &projectile,Ball_group &ta
 
     projectile.kick(vSmall*projectile_direction);
     target.kick(vBig*(-projectile_direction));
-
-    std::cerr<<"vSmall*projectile_direction: "<<vSmall*projectile_direction<<std::endl;
-    std::cerr<<"vBig*(-projectile_direction): "<<vBig*(-projectile_direction)<<std::endl;
-    
-    // std::cerr<<"vSmall*projectile_direction: "<<vSmall*projectile_direction<<std::endl;
-    // std::cerr<<"vBig*projectile_direction: "<<vBig*projectile_direction<<std::endl;
 
 
     if (attrs.impactParameter < 0.0)
@@ -4106,10 +3886,6 @@ void Ball_group::updateDTK(const double& velocity)
         double deltac = pow(9.0/16.0,1.0/3.0)*delta0;
         double Fc = 3.0*pi*(reducedGamma[0])*reducedR[0];
         attrs.dt = 0.014*sqrt(m[0]*deltac/Fc);
-        // std::cerr<<"m[0]: "<<m[0]<<std::endl;
-        // std::cerr<<"reducedGamma[0]: "<<reducedGamma[0]<<std::endl;
-        // std::cerr<<"reducedR[0]: "<<reducedR[0]<<std::endl;
-        // std::cerr<<"a0[0]: "<<a0[0]<<std::endl;
     }
     else
     {
@@ -4117,11 +3893,6 @@ void Ball_group::updateDTK(const double& velocity)
         attrs.kin = attrs.kConsts * attrs.r_max * velocity * velocity;
         attrs.kout = attrs.cor * attrs.kin;
         const double h2 = attrs.h_min * attrs.h_min;
-        // const double four_R_min = 4 * attrs.r_min * attrs.h_min;
-        // const double vdw_force_max = attrs.Ha / 6 * 64 * attrs.r_min * attrs.r_min * attrs.r_min * attrs.r_min * attrs.r_min * attrs.r_min *
-        //                              ((attrs.h_min + attrs.r_min + attrs.r_min) / ((h2 + four_R_min) * (h2 + four_R_min) *
-        //                                                          (h2 + four_R_min + 4 * attrs.r_min * attrs.r_min) *
-        //                                                          (h2 + four_R_min + 4 * attrs.r_min * attrs.r_min)));
 
         const double twoRminh = 2 * attrs.r_min * attrs.h_min;
         const double twoRmaxh = 2 * attrs.r_max * attrs.h_min;
@@ -4130,23 +3901,12 @@ void Ball_group::updateDTK(const double& velocity)
                                                                  ((h2 + twoRmaxh + twoRminh) + 4 * attrs.r_max * attrs.r_min) *
                                                                  ((h2 + twoRmaxh + twoRminh) + 4 * attrs.r_max * attrs.r_min)));
 
-        // const double four_R_max = 4 * attrs.r_max * attrs.h_min;
-        // const double vdw_force_max2 = attrs.Ha / 6 * 64 * attrs.r_max * attrs.r_max * attrs.r_max * attrs.r_max * attrs.r_max * attrs.r_max *
-        //                              ((attrs.h_min + attrs.r_max + attrs.r_max) / ((h2 + four_R_max) * (h2 + four_R_max) *
-        //                                                          (h2 + four_R_max + 4 * attrs.r_max * attrs.r_max) *
-        //                                                          (h2 + four_R_max + 4 * attrs.r_max * attrs.r_max)));
-        // std::cerr<<"vdw: "<<vdw_force_max/getMmin()<<std::endl;
-        // std::cerr<<"vdw1: "<<vdw_force_max1/getMmin()<<std::endl;
-        // std::cerr<<"vdw2: "<<vdw_force_max2/getMmax()<<std::endl;
         // // todo is it rmin*rmin or rmin*rmax
         const double elastic_force_max = attrs.kin * attrs.maxOverlap * attrs.r_min;
         const double regime = (vdw_force_max > elastic_force_max) ? vdw_force_max : elastic_force_max;
         const double regime_adjust = regime / (attrs.maxOverlap * attrs.r_min);
 
-        // dt = .02 * sqrt((fourThirdsPiRho / regime_adjust) * r_min * r_min * r_min);
         attrs.dt = .01 * sqrt((attrs.fourThirdsPiRho / regime_adjust) * attrs.r_min * attrs.r_min * attrs.r_min); //NORMAL ONE
-        // attrs.dt = .005 * sqrt((attrs.fourThirdsPiRho / regime_adjust) * attrs.r_min * attrs.r_min * attrs.r_min); 
-        // attrs.dt = .0005 * sqrt((attrs.fourThirdsPiRho / regime_adjust) * attrs.r_min * attrs.r_min * attrs.r_min);
     }
     MPIsafe_print(std::cerr,initMessage);
     calc_helpfuls();
@@ -4641,14 +4401,6 @@ void Ball_group::calc_offsets_coms()
             {
                 vec3 rho_world = pos[Ball] - group_pos[g];
                 group_offset[Ball] = group_q[g].worldToLocal(rho_world);
-                if (std::isinf(group_offset[Ball][0]))
-                {
-                    std::cerr<<"HEREREREERER"<<std::endl;
-                    std::cerr<<"group_offset[Ball] "<<group_offset[Ball]<<std::endl;
-                    std::cerr<<"group_q[g] "<<group_q[g]<<std::endl;
-                    std::cerr<<"rho_world "<<rho_world<<std::endl;
-                    exit(0);
-                }
             }
         }
     }
@@ -4712,7 +4464,6 @@ void Ball_group::group_w_from_monomer()
 //Sums forces/torques of each group based on monomer forces/torques. 
 void Ball_group::group_accs_from_monomer()
 {
-    // std::cerr<<"START GROUP_ACCS_FROM_MONOMER"<<std::endl;
     for (int currgroup = 0; currgroup < attrs.num_groups; ++currgroup)
     {
         vec3 group_force_world = {0,0,0};
@@ -4725,7 +4476,6 @@ void Ball_group::group_accs_from_monomer()
         {
             if (currgroup == group[Ball])
             {
-                //rho_i = pos_i - group_com
                 rho_world = quatRotate(group_q[currgroup],group_offset[Ball]);
                 group_force_world += acc[Ball]*m[Ball];
                 //Make sure to include monomer friction torque
@@ -4734,8 +4484,6 @@ void Ball_group::group_accs_from_monomer()
             }
         }
 
-        // std::cerr << "group_w: " << group_w[currgroup] << "\n";
-        // std::cerr << "group_wh: " << group_wh[currgroup] << "\n";
 
         std::vector<vec3> moi = calc_group_moi_local(currgroup);// group_moi[currgroup];
 
@@ -4746,15 +4494,6 @@ void Ball_group::group_accs_from_monomer()
         }
 
         group_acc[currgroup] = group_force_world/group_mass;
-
-        if (group_acc[currgroup][0] != group_acc[currgroup][0])
-        {
-            std::cerr<<"group_acc[currgroup]: "<<group_acc[currgroup]<<std::endl;
-            std::cerr<<"group_force_world: "<<group_force_world<<std::endl;
-            std::cerr<<"group_mass: "<<group_mass<<std::endl;
-            exit(0);
-        }
-
 
         vec3 omega_local = group_q[currgroup].worldToLocal(group_w[currgroup]);
 
@@ -4771,77 +4510,6 @@ void Ball_group::group_accs_from_monomer()
             omega_local[2]*Iw[0] - omega_local[0]*Iw[2],
             omega_local[0]*Iw[1] - omega_local[1]*Iw[0]
         };
-        if (std::isinf(wcrossIw[0]))
-        {
-            std::cerr<<"IT IS INF"<<std::endl;
-            std::cerr<<"currgroup:"<<currgroup<<std::endl;
-            std::cerr<<"wcrossIw: "<<wcrossIw<<std::endl;
-            std::cerr<<"omega_local[0]: "<<omega_local[0]<<std::endl;
-            std::cerr<<"omega_local[1]: "<<omega_local[1]<<std::endl;
-            std::cerr<<"omega_local[2]: "<<omega_local[2]<<std::endl;
-            std::cerr<<"Iw[0]: "<<Iw[0]<<std::endl;
-            std::cerr<<"Iw[1]: "<<Iw[1]<<std::endl;
-            std::cerr<<"Iw[2]: "<<Iw[2]<<std::endl;
-            std::cerr<<"moi[0]: "<<moi[0]<<std::endl;
-            std::cerr<<"moi[1]: "<<moi[1]<<std::endl;
-            std::cerr<<"moi[2]: "<<moi[2]<<std::endl;
-            std::cerr<<"group_q[currgroup]: "<<group_q[currgroup]<<std::endl;
-            std::cerr<<"group_w[currgroup]: "<<group_w[currgroup]<<std::endl;
-
-            exit(0);
-        }
-        // else
-        // {
-        //     std::cerr<<"NOT INF"<<std::endl;
-        //     std::cerr<<"currgroup:"<<currgroup<<std::endl;
-        //     std::cerr<<"wcrossIw: "<<wcrossIw<<std::endl;
-        //     std::cerr<<"omega_local[0]: "<<omega_local[0]<<std::endl;
-        //     std::cerr<<"omega_local[1]: "<<omega_local[1]<<std::endl;
-        //     std::cerr<<"omega_local[2]: "<<omega_local[2]<<std::endl;
-        //     std::cerr<<"Iw[0]: "<<Iw[0]<<std::endl;
-        //     std::cerr<<"Iw[1]: "<<Iw[1]<<std::endl;
-        //     std::cerr<<"Iw[2]: "<<Iw[2]<<std::endl;
-        //     std::cerr<<"moi[0]: "<<moi[0]<<std::endl;
-        //     std::cerr<<"moi[1]: "<<moi[1]<<std::endl;
-        //     std::cerr<<"moi[2]: "<<moi[2]<<std::endl;
-        //     std::cerr<<"group_q[currgroup]: "<<group_q[currgroup]<<std::endl;
-        //     std::cerr<<"group_w[currgroup]: "<<group_w[currgroup]<<std::endl;
-        //     std::cerr<<"group_vel[currgroup]: "<<group_vel[currgroup]<<std::endl;
-        //     // exit(0);
-        // }
-        // else
-        // {
-        //     std::cerr<<"NO INF"<<std::endl;
-        //     std::cerr<<"wcrossIw: "<<wcrossIw<<std::endl;
-        //     std::cerr<<"omega_local[0]: "<<omega_local[0]<<std::endl;
-        //     std::cerr<<"omega_local[1]: "<<omega_local[1]<<std::endl;
-        //     std::cerr<<"omega_local[2]: "<<omega_local[2]<<std::endl;
-        //     std::cerr<<"Iw[0]: "<<Iw[0]<<std::endl;
-        //     std::cerr<<"Iw[1]: "<<Iw[1]<<std::endl;
-        //     std::cerr<<"Iw[2]: "<<Iw[2]<<std::endl;
-        //     std::cerr<<"moi[0]: "<<moi[0]<<std::endl;
-        //     std::cerr<<"moi[1]: "<<moi[1]<<std::endl;
-        //     std::cerr<<"moi[2]: "<<moi[2]<<std::endl;
-        //     std::cerr<<"group_q[currgroup]: "<<group_q[currgroup]<<std::endl;
-        //     std::cerr<<"group_w[currgroup]: "<<group_w[currgroup]<<std::endl;
-        //     exit(0);
-        // }
-        // double moi_det = moi[0][0]*(moi[1][1]*moi[2][2] - moi[1][2]*moi[2][1]) -
-        //                  moi[0][1]*(moi[1][0]*moi[2][2] - moi[1][2]*moi[2][0]) +
-        //                  moi[0][2]*(moi[1][0]*moi[2][1] - moi[1][1]*moi[2][0]);
-
-        // if (moi_det <= 1e-100)
-        // {
-        //     MPIsafe_print(std::cerr,"ERROR: moment of inertia determinent is "+dToSci(moi_det)+" g*cm^2. exiting to avoid divide by zero. Now exiting. . .\n");
-        //     MPIsafe_exit(-1);
-        // }
-
-        // double inv_moi_det = 1.0/moi_det;
-        // std::vector<vec3> moi_inverse = {
-        //     {(moi[1][1]*moi[2][2] - moi[1][2]*moi[2][1]) * inv_moi_det, (moi[0][2]*moi[2][1] - moi[0][1]*moi[2][2]) * inv_moi_det, (moi[0][1]*moi[1][2] - moi[0][2]*moi[1][1]) * inv_moi_det},
-        //     {(moi[1][2]*moi[2][0] - moi[1][0]*moi[2][2]) * inv_moi_det, (moi[0][0]*moi[2][2] - moi[0][2]*moi[2][0]) * inv_moi_det, (moi[0][2]*moi[1][0] - moi[0][0]*moi[1][2]) * inv_moi_det},
-        //     {(moi[1][0]*moi[2][1] - moi[1][1]*moi[2][0]) * inv_moi_det, (moi[0][1]*moi[2][0] - moi[0][0]*moi[2][1]) * inv_moi_det, (moi[0][0]*moi[1][1] - moi[0][1]*moi[1][0]) * inv_moi_det}
-        // };
 
         std::vector<vec3> moi_inverse = inverse3x3(moi);
 
@@ -4852,39 +4520,8 @@ void Ball_group::group_accs_from_monomer()
             group_torque_local[2] - wcrossIw[2]
         };
 
-
-
-        // group_aacc[currgroup] = {
-        //     moi_inverse[0][0]*tot_torque[0] + moi_inverse[0][1]*tot_torque[1] + moi_inverse[0][2]*tot_torque[2],
-        //     moi_inverse[1][0]*tot_torque[0] + moi_inverse[1][1]*tot_torque[1] + moi_inverse[1][2]*tot_torque[2],
-        //     moi_inverse[2][0]*tot_torque[0] + moi_inverse[2][1]*tot_torque[1] + moi_inverse[2][2]*tot_torque[2],
-        // };
         group_aacc[currgroup] = matTimesVec(moi_inverse,tot_torque);
 
-        //convert group_aacc from local back to world frame
-        if (group_aacc[currgroup][0] != group_aacc[currgroup][0])
-        {
-            std::cerr<<"BEFORE TRANSLATION:"<<std::endl;
-            std::cerr<<"moi_inverse[0]: "<<moi_inverse[0]<<std::endl;
-            std::cerr<<"moi_inverse[1]: "<<moi_inverse[1]<<std::endl;
-            std::cerr<<"moi_inverse[2]: "<<moi_inverse[2]<<std::endl;
-            std::cerr<<"tot_torque[0]: "<<tot_torque[0]<<std::endl;
-            std::cerr<<"tot_torque[1]: "<<tot_torque[1]<<std::endl;
-            std::cerr<<"tot_torque[2]: "<<tot_torque[2]<<std::endl;
-            std::cerr<<"moi[0]: "<<moi[0]<<std::endl;
-            std::cerr<<"moi[1]: "<<moi[1]<<std::endl;
-            std::cerr<<"moi[2]: "<<moi[2]<<std::endl;
-            // std::cerr<<"group_mass: "<<group_mass<<std::endl;
-            exit(0);
-        }
-        group_aacc[currgroup] = group_q[currgroup].localToWorld(group_aacc[currgroup]);
-        if (group_aacc[currgroup][0] != group_aacc[currgroup][0])
-        {
-            std::cerr<<"group_aacc[currgroup]: "<<group_aacc[currgroup]<<std::endl;
-            std::cerr<<"group_q[currgroup]: "<<group_q[currgroup]<<std::endl;
-            // std::cerr<<"group_mass: "<<group_mass<<std::endl;
-            exit(0);
-        }
     }
     
 }
@@ -4918,14 +4555,6 @@ void Ball_group::half_step_updates()
         {
             group_velh[g] = group_vel[g] + 0.5 * group_acc[g] * attrs.dt;
             group_wh[g] = group_w[g] + 0.5 * group_aacc[g] * attrs.dt;
-            if (group_wh[g][0] != group_wh[g][0])
-            {
-                std::cerr<<"group_wh[g] "<<group_wh[g]<<std::endl;
-                std::cerr<<"group_w[g] "<<group_w[g]<<std::endl;
-                std::cerr<<"group_aacc[g] "<<group_aacc[g]<<std::endl;
-                std::cerr<<"attrs.dt "<<attrs.dt<<std::endl;
-                exit(0);
-            }
             group_pos[g] +=  group_velh[g] * attrs.dt;
             
             group_aacc[g] = {0,0,0};
@@ -4933,15 +4562,6 @@ void Ball_group::half_step_updates()
 
             vec3 omega_local = group_q[g].worldToLocal(group_wh[g]);
             group_q[g].exponential_integrate(omega_local, attrs.dt);
-            if (group_q[g] != group_q[g])
-            {
-                std::cerr<<"AFTER INTEGRATE"<<std::endl;
-                std::cerr<<"group_q[g] "<<group_q[g]<<std::endl;
-                std::cerr<<"omega_local "<<omega_local<<std::endl;
-                std::cerr<<"group_wh[g] "<<group_wh[g]<<std::endl;
-                exit(0);
-            }
-            // group_q[g].normalize();
         }
 
         for (int Ball = 0; Ball < attrs.num_particles; Ball++) 
@@ -6171,7 +5791,6 @@ Ball_group::sim_looper(unsigned long long start_step=1)
 
     for (Step = start_step; Step < attrs.steps; Step++)  // Steps start at 1 for non-restart because the 0 step is initial conditions.
     {
-        // std::cerr<<"STEP: "<<Step<<std::endl;
         // simTimeElapsed += dt; //New code #1
         // Check if this is a write step:
         if (Step % attrs.skip == 0) {
@@ -6490,8 +6109,6 @@ Ball_group::sim_looper(unsigned long long start_step=1)
                 write_step = attrs.debug;
             }
 
-
-            // std::cerr<<"step: "<<Step<<"\tskip: "<<attrs.skip<<std::endl;
 
             // Physics integration step:
             sim_one_step(Step,write_step);
