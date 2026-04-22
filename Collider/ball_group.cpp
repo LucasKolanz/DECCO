@@ -4479,13 +4479,14 @@ void Ball_group::group_accs_from_monomer()
                 rho_world = quatRotate(group_q[currgroup],group_offset[Ball]);
                 group_force_world += acc[Ball]*m[Ball];
                 //Make sure to include monomer friction torque
-                group_torque_world += rho_world.cross(acc[Ball]*m[Ball]) + aacc[Ball]*moi[Ball];
+                group_torque_world += rho_world.cross(acc[Ball]*m[Ball]);// + aacc[Ball]*moi[Ball];
                 group_mass += m[Ball];
             }
         }
 
 
-        std::vector<vec3> moi = calc_group_moi_local(currgroup);// group_moi[currgroup];
+        std::vector<vec3> moi = calc_group_moi_world(currgroup, group_pos[currgroup]);
+        // std::vector<vec3> moi = calc_group_moi_local(currgroup);// group_moi[currgroup];
 
         if (group_mass <= 1e-50)
         {
@@ -4499,26 +4500,29 @@ void Ball_group::group_accs_from_monomer()
 
         //Do this calculation in local frame and convert final answer back to world
         //Iw
-        vec3 Iw = {
-            moi[0][0]*omega_local[0] + moi[0][1]*omega_local[1] + moi[0][2]*omega_local[2],
-            moi[1][0]*omega_local[0] + moi[1][1]*omega_local[1] + moi[1][2]*omega_local[2],
-            moi[2][0]*omega_local[0] + moi[2][1]*omega_local[1] + moi[2][2]*omega_local[2]
-        };
+        // vec3 Iw = {
+        //     moi[0][0]*omega_local[0] + moi[0][1]*omega_local[1] + moi[0][2]*omega_local[2],
+        //     moi[1][0]*omega_local[0] + moi[1][1]*omega_local[1] + moi[1][2]*omega_local[2],
+        //     moi[2][0]*omega_local[0] + moi[2][1]*omega_local[1] + moi[2][2]*omega_local[2]
+        // };
+        vec3 Iw = matTimesVec(moi,group_w[currgroup]);
         //w cross (Iw)
-        vec3 wcrossIw = {
-            omega_local[1]*Iw[2] - omega_local[2]*Iw[1],
-            omega_local[2]*Iw[0] - omega_local[0]*Iw[2],
-            omega_local[0]*Iw[1] - omega_local[1]*Iw[0]
-        };
+        // vec3 wcrossIw = {
+        //     omega_local[1]*Iw[2] - omega_local[2]*Iw[1],
+        //     omega_local[2]*Iw[0] - omega_local[0]*Iw[2],
+        //     omega_local[0]*Iw[1] - omega_local[1]*Iw[0]
+        // };
+        vec3 wcrossIw = group_w[currgroup].cross(Iw);
 
         std::vector<vec3> moi_inverse = inverse3x3(moi);
 
-        vec3 group_torque_local = group_q[currgroup].worldToLocal(group_torque_world);
-        vec3 tot_torque = {
-            group_torque_local[0] - wcrossIw[0],
-            group_torque_local[1] - wcrossIw[1],
-            group_torque_local[2] - wcrossIw[2]
-        };
+        // vec3 group_torque_local = group_q[currgroup].worldToLocal(group_torque_world);
+        // vec3 tot_torque = {
+        //     group_torque_local[0] - wcrossIw[0],
+        //     group_torque_local[1] - wcrossIw[1],
+        //     group_torque_local[2] - wcrossIw[2]
+        // };
+        vec3 tot_torque = group_torque_world - wcrossIw;
 
         group_aacc[currgroup] = matTimesVec(moi_inverse,tot_torque);
 
@@ -4556,12 +4560,34 @@ void Ball_group::half_step_updates()
             group_velh[g] = group_vel[g] + 0.5 * group_acc[g] * attrs.dt;
             group_wh[g] = group_w[g] + 0.5 * group_aacc[g] * attrs.dt;
             group_pos[g] +=  group_velh[g] * attrs.dt;
+
+            if (group_pos[g][0] != group_pos[g][0])
+            {
+                std::cerr<<"group_pos[g]: "<<group_pos[g]<<std::endl;
+                std::cerr<<"group_acc[g]: "<<group_acc[g]<<std::endl;
+                exit(0);
+            }
             
             group_aacc[g] = {0,0,0};
             group_acc[g] = {0,0,0};
 
             vec3 omega_local = group_q[g].worldToLocal(group_wh[g]);
+            
+            if (group_q[g] != group_q[g])
+            {
+                std::cerr<<"BEFORE INTEGRATE"<<std::endl;
+                std::cerr<<"group_q[g]: "<<group_q[g]<<std::endl;
+                std::cerr<<"omega_local: "<<omega_local<<std::endl;
+                exit(0);
+            }
             group_q[g].exponential_integrate(omega_local, attrs.dt);
+
+            if (group_q[g] != group_q[g])
+            {
+                std::cerr<<"group_q[g]: "<<group_q[g]<<std::endl;
+                std::cerr<<"group_wh[g]: "<<group_wh[g]<<std::endl;
+                exit(0);
+            }
         }
 
         for (int Ball = 0; Ball < attrs.num_particles; Ball++) 
@@ -4647,6 +4673,10 @@ void Ball_group::full_step_updates(const int write_step, const int world_rank)
 #ifndef GPU_ENABLE
 void Ball_group::sim_one_step(int step,bool write_step)
 {
+    // if (step > 445800)
+    // {
+    //     std::cerr<<"-----------------------------STARTING STEP "<<step<<"-----------------------------"<<std::endl;
+    // }
     int world_rank = getRank();
     int world_size = getSize();
     /// FIRST PASS - Update Kinematic Parameters:
