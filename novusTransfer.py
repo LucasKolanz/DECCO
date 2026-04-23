@@ -184,7 +184,7 @@ def main():
 						exit(0)
 
 
-					if os.path.exists(local_job_folder+"timing.txt") and u.find_max_index(local_job_folder) >= n: #Have we already copied this job over?
+					if os.path.exists(local_job_folder+"timing.txt") and os.path.exists(local_job_folder+"job_data.csv") and u.find_max_index(local_job_folder) >= n: #Have we already copied this job over?
 						print(f"Job already copied: {remote_job_folder}")
 						continue
 
