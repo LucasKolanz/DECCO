@@ -131,7 +131,9 @@ Ball_group::Ball_group(const Ball_group& rhs)
             group_q = rhs.group_q;
             group_wh = rhs.group_wh;
             group_w = rhs.group_w;
-            group_offset = rhs.group_offset;
+            group_offset_body = rhs.group_offset_body;
+            group_moi_body = rhs.group_moi_body;
+            group_moi_inv_body = rhs.group_moi_inv_body;
             group_mass = rhs.group_mass;
         }
 
@@ -543,7 +545,9 @@ Ball_group& Ball_group::operator=(const Ball_group& rhs)
     group_q = rhs.group_q;
     group_wh = rhs.group_wh;
     group_w = rhs.group_w;
-    group_offset = rhs.group_offset;
+    group_offset_body = rhs.group_offset_body;
+    group_moi_body = rhs.group_moi_body;
+    group_moi_inv_body = rhs.group_moi_inv_body;
     group_mass = rhs.group_mass;
 
     pos = rhs.pos;
@@ -1692,9 +1696,9 @@ mat3 Ball_group::calc_group_moi_local(const int& group_num)
         const double mass = m[Ball];
 
         // Position of monomer center relative to group COM
-        const double x = group_offset[Ball][0];
-        const double y = group_offset[Ball][1];
-        const double z = group_offset[Ball][2];
+        const double x = group_offset_body[Ball][0];
+        const double y = group_offset_body[Ball][1];
+        const double z = group_offset_body[Ball][2];
 
         // Point-mass contribution from monomer center offset from group COM
         moi[0][0] += mass * (y*y + z*z);
@@ -2281,7 +2285,7 @@ void Ball_group::merge_ball_group(const Ball_group& src,const bool includeRadius
     //     assert(attrs.num_groups_added + src.attrs.num_groups <= group_acc.size());
     //     assert(attrs.num_groups_added + src.attrs.num_groups <= group_mass.size());
 
-    //     assert(attrs.num_particles_added + src.attrs.num_particles <= group_offset.size());
+    //     assert(attrs.num_particles_added + src.attrs.num_particles <= group_offset_body.size());
 
     //     std::cerr<<"src.attrs.num_groups: "<<src.attrs.num_groups<<std::endl;
     //     std::cerr<<"src.group_pos.size(): "<<src.group_pos.size()<<std::endl;
@@ -2295,7 +2299,7 @@ void Ball_group::merge_ball_group(const Ball_group& src,const bool includeRadius
     //     assert(src.attrs.num_groups <= src.group_acc.size());
     //     assert(src.attrs.num_groups <= src.group_mass.size());
 
-    //     assert(src.attrs.num_particles <= src.group_offset.size());
+    //     assert(src.attrs.num_particles <= src.group_offset_body.size());
     //     std::cerr<<"ASSERTIONS PASSED"<<std::endl;
 
     //     std::copy(src.group_pos.begin(),src.group_pos.begin()+src.attrs.num_groups,group_pos.begin()+attrs.num_groups_added);
@@ -2307,8 +2311,10 @@ void Ball_group::merge_ball_group(const Ball_group& src,const bool includeRadius
     //     std::copy(src.group_aacc.begin(),src.group_aacc.begin()+src.attrs.num_groups,group_aacc.begin()+attrs.num_groups_added);
     //     std::copy(src.group_acc.begin(),src.group_acc.begin()+src.attrs.num_groups,group_acc.begin()+attrs.num_groups_added);
     //     std::copy(src.group_mass.begin(),src.group_mass.begin()+src.attrs.num_groups,group_mass.begin()+attrs.num_groups_added);
+    //     std::copy(src.group_moi_body.begin(),src.group_moi_body.begin()+src.attrs.num_groups,group_moi_body.begin()+attrs.num_groups_added);
+    //     std::copy(src.group_moi_inv_body.begin(),src.group_moi_inv_body.begin()+src.attrs.num_groups,group_moi_inv_body.begin()+attrs.num_groups_added);
 
-    //     std::copy(src.group_offset.begin(),src.group_offset.begin()+src.attrs.num_particles,group_offset.begin()+attrs.num_particles_added);
+    //     std::copy(src.group_offset_body.begin(),src.group_offset_body.begin()+src.attrs.num_particles,group_offset_body.begin()+attrs.num_particles_added);
     //     std::cerr<<"COPIES COMPLETE"<<std::endl;
     // }
 
@@ -2427,8 +2433,10 @@ void Ball_group::allocate_weld_group(const int num_groups)
     group_aacc.resize(num_groups);
     group_acc.resize(num_groups);
 
-    group_offset.resize(attrs.num_particles);
+    group_offset_body.resize(attrs.num_particles);
     group_mass.resize(num_groups);
+    group_moi_body.resize(num_groups);
+    group_moi_inv_body.resize(num_groups);
 
 
 }
@@ -2460,7 +2468,9 @@ void Ball_group::freeMemory()
     std::vector<vec3>().swap(group_velh);
     std::vector<vec3>().swap(group_vel);
     std::vector<rotation>().swap(group_q);
-    std::vector<vec3>().swap(group_offset);
+    std::vector<vec3>().swap(group_offset_body);
+    std::vector<mat3>().swap(group_moi_body);
+    std::vector<mat3>().swap(group_moi_inv_body);
     std::vector<double>().swap(group_mass);
     std::vector<vec3>().swap(group_aacc);
     std::vector<vec3>().swap(group_acc);
@@ -2713,6 +2723,8 @@ void Ball_group::init_weld_vectors()
         group_acc[g] = {0.0,0.0,0.0};
         group_aacc[g] = {0.0,0.0,0.0};
         group_q[g] = {1,{0,0,0}};
+        group_moi_body[g] = calc_group_moi_local(g);
+        group_moi_inv_body[g] = inverse3x3(group_moi_body[g]);
     }
     calc_offsets_coms();//This needs to be after group_q is initialized 
     set_group_masses();
@@ -4463,7 +4475,7 @@ int Ball_group::get_num_threads()
 //     return largest_file_name;
 // }
 
-//This fuction sets group_pos and group_offset for each group 
+//This fuction sets group_pos and group_offset_body for each group 
 //based on the current positions of each monomer (and what group 
 //it belongs to)
 void Ball_group::calc_offsets_coms()
@@ -4476,7 +4488,7 @@ void Ball_group::calc_offsets_coms()
             if (g == group[Ball])
             {
                 vec3 rho_world = pos[Ball] - group_pos[g];
-                group_offset[Ball] = group_q[g].worldToLocal(rho_world);
+                group_offset_body[Ball] = group_q[g].worldToLocal(rho_world);
             }
         }
     }
@@ -4521,7 +4533,7 @@ void Ball_group::group_w_from_monomer()
             if (group[Ball] == g)
             {
                 // Body-frame stored offset -> world-frame offset
-                vec3 rho = quatRotate(group_q[g],group_offset[Ball]);
+                vec3 rho = quatRotate(group_q[g],group_offset_body[Ball]);
 
                 // Velocity relative to group translation
                 vec3 vrel = vel[Ball] - group_vel[g];
@@ -4557,7 +4569,7 @@ void Ball_group::group_accs_from_monomer()
         {
             if (currgroup == group[Ball])
             {
-                rho_world = quatRotate(group_q[currgroup],group_offset[Ball]);
+                rho_world = quatRotate(group_q[currgroup],group_offset_body[Ball]);
                 group_force_world += acc[Ball]*m[Ball];
                 //Make sure to include monomer friction torque (second term)
                 group_torque_world += rho_world.cross(acc[Ball]*m[Ball]) + aacc[Ball]*moi[Ball];
@@ -4566,41 +4578,30 @@ void Ball_group::group_accs_from_monomer()
         }
 
 
-        mat3 moi = calc_group_moi_world(currgroup, group_pos[currgroup]);
-        // mat3 moi = calc_group_moi_local(currgroup);// group_moi[currgroup];
 
         // group_acc[currgroup] = group_force_world/g_mass;
         group_acc[currgroup] = group_force_world/group_mass[currgroup];
 
-        // vec3 omega_local = group_q[currgroup].worldToLocal(group_w[currgroup]);
+        // mat3 moi = calc_group_moi_world(currgroup, group_pos[currgroup]);//world
+        mat3 moi = group_moi_body[currgroup];//local
+        vec3 omega_local = group_q[currgroup].worldToLocal(group_w[currgroup]);//local
+        vec3 group_torque_local = group_q[currgroup].worldToLocal(group_torque_world);//local
 
         //Do this calculation in local frame and convert final answer back to world
         //Iw
-        // vec3 Iw = {
-        //     moi[0][0]*omega_local[0] + moi[0][1]*omega_local[1] + moi[0][2]*omega_local[2],
-        //     moi[1][0]*omega_local[0] + moi[1][1]*omega_local[1] + moi[1][2]*omega_local[2],
-        //     moi[2][0]*omega_local[0] + moi[2][1]*omega_local[1] + moi[2][2]*omega_local[2]
-        // };
-        vec3 Iw = matTimesVec(moi,group_w[currgroup]);
+        vec3 Iw = matTimesVec(moi,omega_local);//local
+        // vec3 Iw = matTimesVec(moi,group_w[currgroup]);//world
         //w cross (Iw)
-        // vec3 wcrossIw = {
-        //     omega_local[1]*Iw[2] - omega_local[2]*Iw[1],
-        //     omega_local[2]*Iw[0] - omega_local[0]*Iw[2],
-        //     omega_local[0]*Iw[1] - omega_local[1]*Iw[0]
-        // };
-        vec3 wcrossIw = group_w[currgroup].cross(Iw);
+        vec3 wcrossIw = omega_local.cross(Iw);//local
+        // vec3 wcrossIw = group_w[currgroup].cross(Iw);//world
 
-        mat3 moi_inverse = inverse3x3(moi);
+        mat3 moi_inverse = group_moi_inv_body[currgroup];
 
-        // vec3 group_torque_local = group_q[currgroup].worldToLocal(group_torque_world);
-        // vec3 tot_torque = {
-        //     group_torque_local[0] - wcrossIw[0],
-        //     group_torque_local[1] - wcrossIw[1],
-        //     group_torque_local[2] - wcrossIw[2]
-        // };
-        vec3 tot_torque = group_torque_world - wcrossIw;
+        vec3 tot_torque = group_torque_local - wcrossIw;//local
+        // vec3 tot_torque = group_torque_world - wcrossIw;//world
 
-        group_aacc[currgroup] = matTimesVec(moi_inverse,tot_torque);
+        group_aacc[currgroup] = group_q[currgroup].localToWorld(matTimesVec(moi_inverse,tot_torque));//local (change back to local)
+        // group_aacc[currgroup] = matTimesVec(moi_inverse,tot_torque);//world
 
         if (group_acc[currgroup][0] != group_acc[currgroup][0] || group_aacc[currgroup][0] != group_aacc[currgroup][0])
         {
@@ -4679,9 +4680,9 @@ void Ball_group::half_step_updates()
         for (int Ball = 0; Ball < attrs.num_particles; Ball++) 
         {
 
-            // vec3 rho = group_q[group[Ball]].quatRotate(group_offset[Ball]);
+            // vec3 rho = group_q[group[Ball]].quatRotate(group_offset_body[Ball]);
             // pos[Ball] = group_pos[group[Ball]] + rho;
-            vec3 rho = quatRotate(group_q[group[Ball]],group_offset[Ball]);
+            vec3 rho = quatRotate(group_q[group[Ball]],group_offset_body[Ball]);
 
             
             pos[Ball]  = group_pos[group[Ball]] + rho;
@@ -4721,7 +4722,7 @@ void Ball_group::full_step_updates(const int write_step, const int world_rank)
         for (int Ball = 0; Ball < attrs.num_particles; Ball++) 
         {
             // Velocity for next step:
-            vec3 rho = quatRotate(group_q[group[Ball]],group_offset[Ball]);
+            vec3 rho = quatRotate(group_q[group[Ball]],group_offset_body[Ball]);
             vel[Ball] = group_vel[group[Ball]] + group_w[group[Ball]].cross(rho);
             w[Ball] = group_w[group[Ball]];
         } 

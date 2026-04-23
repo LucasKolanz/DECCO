@@ -409,8 +409,10 @@ public:
     std::vector<vec3> group_wh;
     std::vector<vec3> group_w;
     std::vector<double> group_mass;
-    //group_offsets are in body frame
-    std::vector<vec3> group_offset;
+    //group_offsets, moi_inv, and moi are in body frame
+    std::vector<vec3> group_offset_body;
+    std::vector<mat3> group_moi_body;
+    std::vector<mat3> group_moi_inv_body;
 
 
 

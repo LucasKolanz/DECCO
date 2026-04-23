@@ -2,20 +2,29 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-sys.path.append("/home/lpkolanz/Desktop/SpaceLab_branch/SpaceLab")
+
+
+relative_path = "."
+relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
+project_path = os.path.abspath(relative_path) + '/'
+
+sys.path.append(project_path+"utilities/")
 import utils as u
-import porosity_FD as p
+import gen_data as gd
+
 
 def main():
 	base = os.getcwd() + "/jobs/"
 	# folder1 = base + "multiCoreTest4/"
-	folder1 = base + "singleCoreComparison/"
+	# folder1 = base + "singleCoreComparison/"
 	# folder1 = base + "multiCoreTest1/"
 	# folder2 = base + "singleCoreComparison2/"
-	folder2 = base + "multiCoreTest7/"
+	# folder2 = base + "multiCoreTest7/"
 	# folder2 = base + "singleCoreComparison_COPY7/"
-	# folder1 = "/home/lpkolanz/Desktop/SpaceLab_branch/SpaceLab/jobs/accuracyTest11/N_10/T_100/"
-	# folder2 = "/home/lpkolanz/Desktop/SpaceLab_branch/SpaceLab/jobs/accuracyTest15/N_10/T_100/"
+	folder1 = "/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPAWELDTEST_10/M_3/N_300/T_1000/"
+	folder2 = "/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPAWELDTEST_11/M_3/N_300/T_1000/"
+
+
 
 	# max_ind = -1
 	# for file in os.listdir(folder1):
@@ -48,10 +57,10 @@ def main():
 
 	
 
-	N = 5
+	N = 6
 	temp = 100
 	show_FD_plots = False
-	for ind in [4]:
+	for ind in [6]:
 		f1 = "{}_{}_simData.csv".format(ind,'_'.join(body))
 		f2 = "{}_{}_simData.csv".format(ind,'_'.join(body))
 		# f2 = "{}_simData.csv".format(ind)
@@ -66,18 +75,18 @@ def main():
 			# for root_dir, cur_dir, files in os.walk(data_folder):
 			#     count += len(files)
 			# if count/3 > N:
-			porositiesabc.append(p.porosity_measure1(data_folder,ind))
-			porositiesKBM.append(p.porosity_measure2(data_folder,ind))
-			contacts.append(p.number_of_contacts(data_folder,ind))
-			if not np.isnan(porositiesabc[-1]):
-				o3dv = u.o3doctree(data_folder,overwrite_data=True,index=ind,Temp=temp)
-				o3dv.make_tree()
-				FD_data.append(o3dv.calc_fractal_dimension(show_graph=show_FD_plots))
+			porositiesabc.append(gd.calc_porosity_abc(data_folder,ind))
+			porositiesKBM.append(gd.calc_porosity_KBM(data_folder,ind))
+			# contacts.append(p.number_of_contacts(data_folder,ind))
+			# if not np.isnan(porositiesabc[-1]):
+			# 	o3dv = u.o3doctree(data_folder,overwrite_data=True,index=ind,Temp=temp)
+			# 	o3dv.make_tree()
+			# 	FD_data.append(o3dv.calc_fractal_dimension(show_graph=show_FD_plots))
 		print("================Comparing {}================".format(ind))
 		print("Porosity abc difference: {}".format(np.diff(porositiesabc)))	
 		print("Porosity KBM difference: {}".format(np.diff(porositiesKBM)))	
-		print("contacts difference    : {}".format(np.diff(contacts)))	
-		print("Fract dim difference   : {}".format(np.diff(FD_data)))	
+		# print("contacts difference    : {}".format(np.diff(contacts)))	
+		# print("Fract dim difference   : {}".format(np.diff(FD_data)))	
 		print("====================END====================".format(ind))
 
 		# data1 = np.loadtxt(folder1+f1,delimiter=",",dtype=np.float64,skiprows=1)[-1]
