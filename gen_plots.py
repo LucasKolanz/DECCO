@@ -546,6 +546,7 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 	path = input_json["data_directory"]
 
 	data_prefolders = [path + 'jobs/BAPA_', path + 'jobs/CBAPA_']
+	relax = False
 
 	data_prefolder = data_prefolders[0]
 	dataset_name = data_prefolder.split("/")[-1]
@@ -557,13 +558,16 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 	
 	attempts = [i for i in range(30)]
 
-	requested_data_headers = gd.data_headers[:2] + [gd.data_headers[4]]
+	# requested_data_headers = [1,1,0,1,1,0,0,0,0,1]
+	requested_data_headers = gd.data_headers[:2] + gd.data_headers[3:5] + [gd.data_headers[9]]
+	print(requested_data_headers)
 	# requested_data_headers = gd.data_headers[:2] + [gd.data_headers[3]] + [gd.data_headers[4]]
 
 	raw_data = np.full(shape=(len(requested_data_headers),len(attempts),len(M),len(temps)),fill_value=np.nan,dtype=np.float64)
 	for a_i,a in enumerate(attempts):
 		for m_i,m in enumerate(M):
 			n = 300
+			size = n
 			for t_i,t in enumerate(temps):
 				folder = f"{data_prefolder}{a}/M_{m}/N_{n}/T_{t}/"
 				if os.path.exists(folder+"job_data.csv"):
@@ -582,12 +586,13 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 					
 					for h_i,header in enumerate(requested_data_headers):
 						if header in existing_headers_for_size:
-							raw_data[h_i,a_i,m_i,t_i] = existing_values_for_size[existing_headers_for_size.index(header)]
+							raw_data[h_i,a_i,m_i,t_i] = u.get_plottable_value_from_saved_value(existing_values_for_size[existing_headers_for_size.index(header)],header,folder,size,relax)
+							# raw_data[h_i,a_i,m_i,t_i] = existing_values_for_size[existing_headers_for_size.index(header)]
 
 	avg_data_BAPA = np.nanmean(raw_data,axis=1)
 	std_data_BAPA = np.nanstd(raw_data,axis=1)
 	num_data_BAPA = np.count_nonzero(~np.isnan(raw_data),axis=1)
-	err_data_BAPA = std_data_BAPA/np.sqrt(num_data_BAPA)
+	err_data_BAPA = std_data_BAPA#/np.sqrt(num_data_BAPA)
 	
 
 	data_prefolder = data_prefolders[1]
@@ -599,13 +604,14 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 	M = [1,3,5,10,15,20,30,50,60,100]
 	attempts = [i for i in range(30)]
 
-	requested_data_headers = gd.data_headers[:2] + [gd.data_headers[4]]
+	# requested_data_headers = gd.data_headers[:2] + [gd.data_headers[4]]
 	# requested_data_headers = gd.data_headers[:2] + [gd.data_headers[3]] + [gd.data_headers[4]]
 
 	raw_data = np.full(shape=(len(requested_data_headers),len(attempts),len(M),len(temps)),fill_value=np.nan,dtype=np.float64)
 	for a_i,a in enumerate(attempts):
 		for m_i,m in enumerate(M):
 			n = C*m
+			size = n
 			for t_i,t in enumerate(temps):
 				folder = f"{data_prefolder}{a}/M_{m}/N_{n}/T_{t}/"
 				if os.path.exists(folder+"job_data.csv"):
@@ -624,12 +630,13 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 					
 					for h_i,header in enumerate(requested_data_headers):
 						if header in existing_headers_for_size:
-							raw_data[h_i,a_i,m_i,t_i] = existing_values_for_size[existing_headers_for_size.index(header)]
+							raw_data[h_i,a_i,m_i,t_i] = u.get_plottable_value_from_saved_value(existing_values_for_size[existing_headers_for_size.index(header)],header,folder,size,relax)
+							# raw_data[h_i,a_i,m_i,t_i] = existing_values_for_size[existing_headers_for_size.index(header)]
 
 	avg_data_CBAPA = np.nanmean(raw_data,axis=1)
 	std_data_CBAPA = np.nanstd(raw_data,axis=1)
 	num_data_CBAPA = np.count_nonzero(~np.isnan(raw_data),axis=1)
-	err_data_CBAPA = std_data_CBAPA/np.sqrt(num_data_CBAPA)
+	err_data_CBAPA = std_data_CBAPA#/np.sqrt(num_data_CBAPA)
 	
 
 	print("======================Starting figures======================")
@@ -653,12 +660,12 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 				avg_data = avg_data_BAPA
 				err_data = err_data_BAPA
 				num_data = num_data_BAPA
-				label = "Const num particles (300 particles)"
+				label = "300 total particles"
 			else:
 				avg_data = avg_data_CBAPA
 				err_data = err_data_CBAPA
 				num_data = num_data_CBAPA
-				label = f"Const num fragments  ({C} fragments)"
+				label = f"{C} fragments"
 			for t_i,t in enumerate(temps):
 
 
@@ -3308,7 +3315,7 @@ if __name__ == '__main__':
 	save_plots = True
 	#Do you want the number of runs next to each point on the plots
 	#so you know how many more runs need to finish
-	include_totals = True
+	include_totals = False
 
 
 	# gen_Asym_BAPA_numbers()
@@ -3326,7 +3333,7 @@ if __name__ == '__main__':
 
 	##Plots for paper 1
 	# gen_agg_im_plot(save_plots=save_plots,show_plots=show_plots)
-	gen_BPCA_vs_time_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
+	# gen_BPCA_vs_time_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_ratio_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_temp_sensitivity_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
