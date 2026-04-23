@@ -4559,8 +4559,8 @@ void Ball_group::group_accs_from_monomer()
         }
 
 
-        // std::vector<vec3> moi = calc_group_moi_world(currgroup, group_pos[currgroup]);
-        std::vector<vec3> moi = calc_group_moi_local(currgroup);// group_moi[currgroup];
+        std::vector<vec3> moi = calc_group_moi_world(currgroup, group_pos[currgroup]);
+        // std::vector<vec3> moi = calc_group_moi_local(currgroup);// group_moi[currgroup];
 
         // group_acc[currgroup] = group_force_world/g_mass;
         group_acc[currgroup] = group_force_world/group_mass[currgroup];
