@@ -408,9 +408,9 @@ public:
     std::vector<rotation> group_q;
     std::vector<vec3> group_wh;
     std::vector<vec3> group_w;
-    //group_offsets and mooi are in body frame
+    std::vector<double> group_mass;
+    //group_offsets are in body frame
     std::vector<vec3> group_offset;
-    std::vector<std::vector<vec3>> group_moi;
 
 
 
@@ -478,14 +478,17 @@ public:
 
     // void weld_accelerations();
     // void weld_velocities();
+    // void monomer_posvel_from_group();
+    void init_weld_vectors();
     void group_vel_from_monomer();
     void group_w_from_monomer();
     void group_accs_from_monomer();
-    void monomer_posvel_from_group();
     std::vector<vec3> calc_group_moi_local(const int& group_num);
     std::vector<vec3> calc_group_moi_world(const int& group_num,const vec3& group_com);
     vec3 calc_group_com(const int group_num);
+    void set_group_masses();
     double calc_group_mass(const int group_num);
+
     
     //Functions which calculate/set values for Ball_group
     inline double calc_VDW_force_mag(const double Ra, const double Rb, const double h);
