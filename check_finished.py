@@ -44,7 +44,7 @@ def main():
 
 	
 	data_folders = []
-	data_folders = [path + 'jobs/BAPA_*']
+	data_folders = [path + 'jobs/BAPAWELD_*']
 
 	DELETE = False
 

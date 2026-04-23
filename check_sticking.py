@@ -63,16 +63,18 @@ def verify_aggregation(directory,delete=False):
 
 	print(f"Verifying aggregation in {directory}.")
 	for i in indices:
-		pos,radii,mass,moi = u.get_data(directory,data_index=i,relax=False)
-		if np.isnan(pos).any() or np.isnan(radii).any():
-			print(f"Index has nans: {i}")
-			if delete:
-				delete_saved_data(directory,i)
-		else:
-			if not verify_close_to_COM(pos,radii,mass):
-				print(f"Directory not close at index {i}.")
+		# if os.path.exists(f'{directory}checkpoint_{i}'):
+		if 1:
+			pos,radii,mass,moi = u.get_data(directory,data_index=i,relax=False)
+			if np.isnan(pos).any() or np.isnan(radii).any():
+				print(f"Index has nans: {i}")
 				if delete:
 					delete_saved_data(directory,i)
+			else:
+				if not verify_close_to_COM(pos,radii,mass):
+					print(f"Directory not close at index {i}.")
+					if delete:
+						delete_saved_data(directory,i)
 
 def main():
 	with open(project_path+"default_files/default_input.json",'r') as fp:

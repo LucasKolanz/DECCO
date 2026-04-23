@@ -40,7 +40,7 @@ def verify_groups(directory,delete=False):
 	if len(glob.glob(f"{directory}{max(indices)+M}_*")) > 0:
 		indices = indices + [max(indices)+M]
 
-	print(f"Verifying aggregation in {directory}.")
+	print(f"Verifying groups in {directory}.")
 	for i in indices:
 		groups = u.get_groups(directory,data_index=i,relax=False)
 		if not verify_groups_integrity(groups,M):
@@ -56,11 +56,9 @@ def main():
 
 	
 	data_folders = []
-	data_folders = [path + 'jobs/BAPA_*']
-
+	data_folders = [path + 'jobs/BAPAWELD_*']
 
 	DELETE = False
-
 
 	possible_dirs = []
 	for data_folder in data_folders:
