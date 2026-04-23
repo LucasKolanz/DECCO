@@ -131,7 +131,7 @@ Ball_group::Ball_group(const Ball_group& rhs)
             group_wh = rhs.group_wh;
             group_w = rhs.group_w;
             group_offset = rhs.group_offset;
-            group_moi = rhs.group_moi;
+            group_mass = rhs.group_mass;
         }
 
         if (attrs.JKR)
@@ -543,7 +543,7 @@ Ball_group& Ball_group::operator=(const Ball_group& rhs)
     group_wh = rhs.group_wh;
     group_w = rhs.group_w;
     group_offset = rhs.group_offset;
-    group_moi = rhs.group_moi;
+    group_mass = rhs.group_mass;
 
     pos = rhs.pos;
     vel = rhs.vel;
@@ -2132,8 +2132,11 @@ Ball_group Ball_group::BAPA_projectile_init()
 
     if (attrs.weld)
     {
-        int new_group = set_num_groups();
+        // int new_group = set_num_groups();
         projectile.setGroup(this->attrs.num_groups);
+        // projectile.allocate_weld_group(1);
+        // projectile.init_weld_vectors();
+
         // projectile.setGroup(new_group+1);
     }
 
@@ -2185,6 +2188,7 @@ Ball_group Ball_group::add_projectile(const simType simtype)
 
     if (attrs.weld)
     {
+        new_group.attrs.weld = attrs.weld;
         new_group.allocate_weld_group(new_num_groups);
     }
 
@@ -2217,7 +2221,7 @@ Ball_group Ball_group::add_projectile(const simType simtype)
     {
         new_group.calibrate_dt(0, attrs.v_custom);
     }
-    
+
     if (new_group.attrs.JKR)
     {
         new_group.init_conditions_JKR();
@@ -2226,7 +2230,6 @@ Ball_group Ball_group::add_projectile(const simType simtype)
     {
         new_group.init_conditions();
     }
-
 
     new_group.to_origin();
 
@@ -2256,20 +2259,51 @@ void Ball_group::merge_ball_group(const Ball_group& src,const bool includeRadius
     std::memcpy(&moi[attrs.num_particles_added], src.moi, sizeof(src.moi[0]) * src.attrs.num_particles);
     std::memcpy(&group[attrs.num_particles_added], src.group, sizeof(src.group[0]) * src.attrs.num_particles);
 
-    if (src.attrs.weld)
-    {
-        std::copy(src.group_pos.begin(),src.group_pos.begin()+src.attrs.num_groups,group_pos.begin()+attrs.num_groups_added);
-        std::copy(src.group_velh.begin(),src.group_velh.begin()+src.attrs.num_groups,group_velh.begin()+attrs.num_groups_added);
-        std::copy(src.group_vel.begin(),src.group_vel.begin()+src.attrs.num_groups,group_vel.begin()+attrs.num_groups_added);
-        std::copy(src.group_q.begin(),src.group_q.begin()+src.attrs.num_groups,group_q.begin()+attrs.num_groups_added);
-        std::copy(src.group_wh.begin(),src.group_wh.begin()+src.attrs.num_groups,group_wh.begin()+attrs.num_groups_added);
-        std::copy(src.group_w.begin(),src.group_w.begin()+src.attrs.num_groups,group_w.begin()+attrs.num_groups_added);
-        std::copy(src.group_aacc.begin(),src.group_aacc.begin()+src.attrs.num_groups,group_aacc.begin()+attrs.num_groups_added);
-        std::copy(src.group_acc.begin(),src.group_acc.begin()+src.attrs.num_groups,group_acc.begin()+attrs.num_groups_added);
+    // if (this->attrs.weld)
+    // {
+    //     std::cerr<<"------------------------------------------------------------"<<std::endl;
+    //     std::cerr << "&src = " << &src << " this = " << this << "\n";
+    //     assert(&src != this);
+    //     assert(attrs.num_groups_added + src.attrs.num_groups <= group_pos.size());
+    //     assert(attrs.num_groups_added + src.attrs.num_groups <= group_velh.size());
+    //     assert(attrs.num_groups_added + src.attrs.num_groups <= group_vel.size());
+    //     assert(attrs.num_groups_added + src.attrs.num_groups <= group_q.size());
+    //     assert(attrs.num_groups_added + src.attrs.num_groups <= group_wh.size());
+    //     assert(attrs.num_groups_added + src.attrs.num_groups <= group_w.size());
+    //     assert(attrs.num_groups_added + src.attrs.num_groups <= group_aacc.size());
+    //     assert(attrs.num_groups_added + src.attrs.num_groups <= group_acc.size());
+    //     assert(attrs.num_groups_added + src.attrs.num_groups <= group_mass.size());
 
-        std::copy(src.group_offset.begin(),src.group_offset.begin()+src.attrs.num_particles,group_offset.begin()+attrs.num_particles_added);
-        std::copy(src.group_moi.begin(),src.group_moi.begin()+src.attrs.num_particles,group_moi.begin()+attrs.num_particles_added);
-    }
+    //     assert(attrs.num_particles_added + src.attrs.num_particles <= group_offset.size());
+
+    //     std::cerr<<"src.attrs.num_groups: "<<src.attrs.num_groups<<std::endl;
+    //     std::cerr<<"src.group_pos.size(): "<<src.group_pos.size()<<std::endl;
+    //     assert(src.attrs.num_groups <= src.group_pos.size());
+    //     assert(src.attrs.num_groups <= src.group_velh.size());
+    //     assert(src.attrs.num_groups <= src.group_vel.size());
+    //     assert(src.attrs.num_groups <= src.group_q.size());
+    //     assert(src.attrs.num_groups <= src.group_wh.size());
+    //     assert(src.attrs.num_groups <= src.group_w.size());
+    //     assert(src.attrs.num_groups <= src.group_aacc.size());
+    //     assert(src.attrs.num_groups <= src.group_acc.size());
+    //     assert(src.attrs.num_groups <= src.group_mass.size());
+
+    //     assert(src.attrs.num_particles <= src.group_offset.size());
+    //     std::cerr<<"ASSERTIONS PASSED"<<std::endl;
+
+    //     std::copy(src.group_pos.begin(),src.group_pos.begin()+src.attrs.num_groups,group_pos.begin()+attrs.num_groups_added);
+    //     std::copy(src.group_velh.begin(),src.group_velh.begin()+src.attrs.num_groups,group_velh.begin()+attrs.num_groups_added);
+    //     std::copy(src.group_vel.begin(),src.group_vel.begin()+src.attrs.num_groups,group_vel.begin()+attrs.num_groups_added);
+    //     std::copy(src.group_q.begin(),src.group_q.begin()+src.attrs.num_groups,group_q.begin()+attrs.num_groups_added);
+    //     std::copy(src.group_wh.begin(),src.group_wh.begin()+src.attrs.num_groups,group_wh.begin()+attrs.num_groups_added);
+    //     std::copy(src.group_w.begin(),src.group_w.begin()+src.attrs.num_groups,group_w.begin()+attrs.num_groups_added);
+    //     std::copy(src.group_aacc.begin(),src.group_aacc.begin()+src.attrs.num_groups,group_aacc.begin()+attrs.num_groups_added);
+    //     std::copy(src.group_acc.begin(),src.group_acc.begin()+src.attrs.num_groups,group_acc.begin()+attrs.num_groups_added);
+    //     std::copy(src.group_mass.begin(),src.group_mass.begin()+src.attrs.num_groups,group_mass.begin()+attrs.num_groups_added);
+
+    //     std::copy(src.group_offset.begin(),src.group_offset.begin()+src.attrs.num_particles,group_offset.begin()+attrs.num_particles_added);
+    //     std::cerr<<"COPIES COMPLETE"<<std::endl;
+    // }
 
     //JKR stuff
     if (attrs.JKR)
@@ -2372,8 +2406,11 @@ void Ball_group::allocate_group(const int nBalls)
     }
 }
 
+//This function sets attrs.num_groups and allocates the vectors necessary for welded groups.
+//It does not set any values, only allocates.
 void Ball_group::allocate_weld_group(const int num_groups)
 {
+    attrs.num_groups = num_groups;
     group_wh.resize(num_groups);
     group_w.resize(num_groups);
     group_pos.resize(num_groups);
@@ -2384,9 +2421,9 @@ void Ball_group::allocate_weld_group(const int num_groups)
     group_acc.resize(num_groups);
 
     group_offset.resize(attrs.num_particles);
-    // group_moi.resize(attrs.num_groups);
-    // group_moi.resize(attrs.num_groups, std::vector<vec3>(3, vec3{0,0,0}));
-            
+    group_mass.resize(num_groups);
+
+
 }
 
 
@@ -2417,7 +2454,7 @@ void Ball_group::freeMemory()
     std::vector<vec3>().swap(group_vel);
     std::vector<rotation>().swap(group_q);
     std::vector<vec3>().swap(group_offset);
-    // std::vector<std::vector<vec3>>().swap(group_moi);
+    std::vector<double>().swap(group_mass);
     std::vector<vec3>().swap(group_aacc);
     std::vector<vec3>().swap(group_acc);
 
@@ -2459,6 +2496,7 @@ void Ball_group::init_conditions_JKR()
 
     if (attrs.weld)
     {
+
         for (int g = 0; g < attrs.num_groups; ++g)
         {
             group_acc[g] = {0.0,0.0,0.0};
@@ -2637,6 +2675,46 @@ void Ball_group::init_conditions_JKR()
     }
 }
 
+void Ball_group::set_group_masses()
+{
+    //set current masses to zero
+    std::fill(group_mass.begin(),group_mass.end(),0.0);
+
+    //fill masses
+    for (int ball = 0; ball < attrs.num_particles; ++ball)
+    {
+        group_mass[group[ball]] += m[ball];
+    }
+
+    //check that group_masses are not zero
+    for (int ball = 0; ball < attrs.num_particles; ++ball)
+    {
+        if (group_mass[group[ball]] <= 1e-50)
+        {
+            MPIsafe_print(std::cerr,"ERROR: group mass is "+dToSci(group_mass[group[ball]])+" g. exiting to avoid divide by zero. Now exiting. . .\n");
+            MPIsafe_exit(-1);
+        }
+    }
+}
+
+//This function zeros/sets all group vectors, making them ready for 
+//calculating group accelerations from monomer accelerations
+void Ball_group::init_weld_vectors()
+{
+    for (int g = 0; g < attrs.num_groups; ++g)
+    {
+        group_acc[g] = {0.0,0.0,0.0};
+        group_aacc[g] = {0.0,0.0,0.0};
+        group_q[g] = {1,{0,0,0}};
+    }
+    calc_offsets_coms();//This needs to be after group_q is initialized 
+    set_group_masses();
+    
+    group_vel_from_monomer();
+    group_w_from_monomer();//This must come after the group velocities are set
+    
+}
+
 // Initialize accelerations and energy calculations:
 void Ball_group::init_conditions()
 {
@@ -2651,33 +2729,22 @@ void Ball_group::init_conditions()
 
     if (attrs.weld)
     {
-        for (int g = 0; g < attrs.num_groups; ++g)
-        {
-            group_acc[g] = {0.0,0.0,0.0};
-            group_aacc[g] = {0.0,0.0,0.0};
-            group_q[g] = {1,{0,0,0}};
-        }
-        calc_offsets_coms();//This needs to be after group_q is initialized and before calc_group_moi_local is called
-        // for (int g = 0; g < attrs.num_groups; ++g)
-        // {
-        //     group_moi[g] = calc_group_moi_local(g);
-        // }
+        init_weld_vectors();
     }
 
     for (int i = 0; i < attrs.num_particles; ++i)
     {
         acc[i] = {0.0,0.0,0.0};
         aacc[i] = {0.0,0.0,0.0};
-
     }
 
-    if (attrs.weld)
-    {
-        group_vel_from_monomer();
-        group_w_from_monomer();
-        // weld_accelerations();
-        // group_accs_from_monomer();
-    }
+    // if (attrs.weld)
+    // {
+    //     group_vel_from_monomer();
+    //     group_w_from_monomer();
+    //     // weld_accelerations();
+    //     // group_accs_from_monomer();
+    // }
 
 
     // SECOND PASS - Check for collisions, apply forces and torques:
@@ -2856,9 +2923,6 @@ void Ball_group::init_conditions()
 
     if (attrs.weld)
     {
-        // group_vel_from_monomer();
-        // group_w_from_monomer();
-        // weld_accelerations();
         group_accs_from_monomer();
     }
 
@@ -3989,6 +4053,11 @@ void Ball_group::sim_init_two_cluster(
     const std::string& projectileName,
     const std::string& targetName)
 {
+    if (attrs.weld)
+    {
+        MPIsafe_print(std::cerr,"ERROR: this function isn't compatable with WELD. Fix this to continue. . . now exiting.");
+        MPIsafe_exit(0);
+    }
     // Load file data:
     std::string message("TWO CLUSTER SIM\nFile 1: " + projectileName + "\nFile 2: " + targetName + '\n');
     MPIsafe_print(std::cerr,message);
@@ -4464,11 +4533,16 @@ void Ball_group::group_w_from_monomer()
 //Sums forces/torques of each group based on monomer forces/torques. 
 void Ball_group::group_accs_from_monomer()
 {
+    // std::cerr<<"GROUP ACCS FROM MONOMER: "<<std::endl;
+    // std::cerr<<"attrs.num_particles: "<<attrs.num_particles<<std::endl;
+    // std::cerr<<"attrs.num_groups: "<<attrs.num_groups<<std::endl;
     for (int currgroup = 0; currgroup < attrs.num_groups; ++currgroup)
     {
         vec3 group_force_world = {0,0,0};
         vec3 group_torque_world = {0,0,0};
-        double group_mass = 0;
+        // double g_mass = 0;
+
+        // std::cerr<<"g mass "<<currgroup<<": "<<group_mass[currgroup]<<std::endl;
 
         vec3 rho_world = {0,0,0};
 
@@ -4478,25 +4552,20 @@ void Ball_group::group_accs_from_monomer()
             {
                 rho_world = quatRotate(group_q[currgroup],group_offset[Ball]);
                 group_force_world += acc[Ball]*m[Ball];
-                //Make sure to include monomer friction torque
-                group_torque_world += rho_world.cross(acc[Ball]*m[Ball]);// + aacc[Ball]*moi[Ball];
-                group_mass += m[Ball];
+                //Make sure to include monomer friction torque (second term)
+                group_torque_world += rho_world.cross(acc[Ball]*m[Ball]) + aacc[Ball]*moi[Ball];
+                // g_mass += m[Ball];
             }
         }
 
 
-        std::vector<vec3> moi = calc_group_moi_world(currgroup, group_pos[currgroup]);
-        // std::vector<vec3> moi = calc_group_moi_local(currgroup);// group_moi[currgroup];
+        // std::vector<vec3> moi = calc_group_moi_world(currgroup, group_pos[currgroup]);
+        std::vector<vec3> moi = calc_group_moi_local(currgroup);// group_moi[currgroup];
 
-        if (group_mass <= 1e-50)
-        {
-            MPIsafe_print(std::cerr,"ERROR: group mass is "+dToSci(group_mass)+" g. exiting to avoid divide by zero. Now exiting. . .\n");
-            MPIsafe_exit(-1);
-        }
+        // group_acc[currgroup] = group_force_world/g_mass;
+        group_acc[currgroup] = group_force_world/group_mass[currgroup];
 
-        group_acc[currgroup] = group_force_world/group_mass;
-
-        vec3 omega_local = group_q[currgroup].worldToLocal(group_w[currgroup]);
+        // vec3 omega_local = group_q[currgroup].worldToLocal(group_w[currgroup]);
 
         //Do this calculation in local frame and convert final answer back to world
         //Iw
@@ -4525,6 +4594,16 @@ void Ball_group::group_accs_from_monomer()
         vec3 tot_torque = group_torque_world - wcrossIw;
 
         group_aacc[currgroup] = matTimesVec(moi_inverse,tot_torque);
+
+        if (group_acc[currgroup][0] != group_acc[currgroup][0] || group_aacc[currgroup][0] != group_aacc[currgroup][0])
+        {
+            std::cerr<<"group_acc[currgroup]: "<<group_acc[currgroup]<<std::endl;
+            std::cerr<<"group_aacc[currgroup]: "<<group_aacc[currgroup]<<std::endl;
+            std::cerr<<"group_mass[currgroup]: "<<group_mass[currgroup]<<std::endl;
+            std::cerr<<"group_w[currgroup]: "<<group_w[currgroup]<<std::endl;
+            std::cerr<<"group_force_world: "<<group_force_world<<std::endl;
+            exit(0);
+        }
 
     }
     
@@ -4673,8 +4752,16 @@ void Ball_group::full_step_updates(const int write_step, const int world_rank)
 #ifndef GPU_ENABLE
 void Ball_group::sim_one_step(int step,bool write_step)
 {
-    // if (step > 445800)
+    // std::cerr<<"IN SIM ONE STEP: "<<std::endl;
+    // std::cerr<<"attrs.num_groups "<<attrs.num_groups<<std::endl;
+    // std::cerr<<"attrs.num_particles "<<attrs.num_particles<<std::endl;
+    // for (int i = 0; i < attrs.num_groups; i++)
     // {
+    //     std::cerr<<"group "<<i<<" mass "<<group_mass[i]<<std::endl;
+    // }
+    // if (step > 10)
+    // {
+    //     exit(0);
     //     std::cerr<<"-----------------------------STARTING STEP "<<step<<"-----------------------------"<<std::endl;
     // }
     int world_rank = getRank();

@@ -549,6 +549,7 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 
 	data_prefolders = [path + 'jobs/BAPA_', path + 'jobs/CBAPA_', path + 'jobs/BAPAWELD_']
 
+
 	data_prefolder = data_prefolders[0]
 	dataset_name = data_prefolder.split("/")[-1]
 	figure_folder = path+'data/figures/'
@@ -559,14 +560,17 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 	
 	attempts = [i for i in range(30)]
 
-	requested_data_headers = gd.data_headers[:2] + gd.data_headers[3:4] + [gd.data_headers[9]]
-	# requested_data_headers = gd.data_headers[:2] + [gd.data_headers[4]]
+
+	# requested_data_headers = [1,1,0,1,1,0,0,0,0,1]
+	requested_data_headers = gd.data_headers[:2] + gd.data_headers[3:5] + [gd.data_headers[9]]
+	print(requested_data_headers)
 	# requested_data_headers = gd.data_headers[:2] + [gd.data_headers[3]] + [gd.data_headers[4]]
 
 	raw_data = np.full(shape=(len(requested_data_headers),len(attempts),len(M),len(temps)),fill_value=np.nan,dtype=np.float64)
 	for a_i,a in enumerate(attempts):
 		for m_i,m in enumerate(M):
 			n = 300
+			size = n
 			for t_i,t in enumerate(temps):
 				folder = f"{data_prefolder}{a}/M_{m}/N_{n}/T_{t}/"
 				if os.path.exists(folder+"job_data.csv"):
@@ -586,12 +590,12 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 					for h_i,header in enumerate(requested_data_headers):
 						if header in existing_headers_for_size:
 							raw_data[h_i,a_i,m_i,t_i] = u.get_plottable_value_from_saved_value(existing_values_for_size[existing_headers_for_size.index(header)],header,folder,n,relax)
-							# raw_data[h_i,a_i,m_i,t_i] = existing_values_for_size[existing_headers_for_size.index(header)]
+
 
 	avg_data_BAPA = np.nanmean(raw_data,axis=1)
 	std_data_BAPA = np.nanstd(raw_data,axis=1)
 	num_data_BAPA = np.count_nonzero(~np.isnan(raw_data),axis=1)
-	err_data_BAPA = std_data_BAPA/np.sqrt(num_data_BAPA)
+	err_data_BAPA = std_data_BAPA#/np.sqrt(num_data_BAPA)
 	
 
 
@@ -603,7 +607,6 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 	M = [1,3,5,10,15,20,30,50,60,100]
 	attempts = [i for i in range(30)]
 
-	# requested_data_headers = [1,1,0,1,1,0,0,0,0,1]
 	# requested_data_headers = gd.data_headers[:2] + [gd.data_headers[4]]
 	# requested_data_headers = gd.data_headers[:2] + [gd.data_headers[3]] + [gd.data_headers[4]]
 
@@ -611,6 +614,7 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 	for a_i,a in enumerate(attempts):
 		for m_i,m in enumerate(M):
 			n = C*m
+			size = n
 			for t_i,t in enumerate(temps):
 				folder = f"{data_prefolder}{a}/M_{m}/N_{n}/T_{t}/"
 				if os.path.exists(folder+"job_data.csv"):
@@ -630,7 +634,6 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 					for h_i,header in enumerate(requested_data_headers):
 						if header in existing_headers_for_size:
 							raw_data[h_i,a_i,m_i,t_i] = u.get_plottable_value_from_saved_value(existing_values_for_size[existing_headers_for_size.index(header)],header,folder,n,relax)
-							# raw_data[h_i,a_i,m_i,t_i] = existing_values_for_size[existing_headers_for_size.index(header)]
 
 	avg_data_CBAPA = np.nanmean(raw_data,axis=1)
 	std_data_CBAPA = np.nanstd(raw_data,axis=1)
@@ -718,9 +721,9 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 				err_data = err_data_BAPAWELD
 				num_data = num_data_BAPAWELD
 				label = f"Const num fragments  ({C} fragments)"
+
+
 			for t_i,t in enumerate(temps):
-
-
 				ax.errorbar(M,avg_data[h_i,:,t_i],yerr=err_data[h_i,:,t_i],\
 						label=label,color=colors[h_i],\
 						linestyle=styles[d_i],marker='.',markersize=10,zorder=5)
@@ -3371,7 +3374,7 @@ if __name__ == '__main__':
 	save_plots = True
 	#Do you want the number of runs next to each point on the plots
 	#so you know how many more runs need to finish
-	include_totals = True
+	include_totals = False
 
 
 	# gen_Asym_BAPA_numbers()
