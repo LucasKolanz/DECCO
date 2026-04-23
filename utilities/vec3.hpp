@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <vector>
+#include <array>
 #include "MPI_utilities.hpp"
 
 class vec3
@@ -127,6 +128,9 @@ public:
     vec3 arbitrary_orthogonal() const;
 };
 
+
+using mat3 = std::array<vec3, 3>;
+
 inline vec3 operator*(const double s, const vec3& v) { return v * s; }
 inline vec3 operator*(const int s,    const vec3& v) { return v * static_cast<double>(s); }
 
@@ -171,11 +175,7 @@ private:
     rotation normalized() const;
 };
 
-std::vector<vec3> inverse3x3(std::vector<vec3> A);
-vec3 matTimesVec(std::vector<vec3> A, vec3 v);
 
-//THIS ONLY WORKS FOR UNIT VEC QUATERNIONS
-vec3 quatRotate(const rotation& q, const vec3& vec);
 
 // Output vec3 to console easily.
 inline std::ostream&

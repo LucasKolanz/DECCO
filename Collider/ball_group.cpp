@@ -8,6 +8,7 @@
 // #include <algorithm>
 
 #include "ball_group.hpp"
+#include "../utilities/math.hpp"
 #include "../utilities/vec3.hpp"
 #include "../utilities/Utils.hpp"
 #include "../utilities/simple_graph.hpp"
@@ -1628,10 +1629,13 @@ double Ball_group::calc_moi(const double& radius, const double& mass) { return .
 // Includes both:
 // 1) point-mass contribution from each monomer center relative to the group COM
 // 2) self-inertia of each spherical monomer about its own center
-std::vector<vec3> Ball_group::calc_group_moi_world(const int& group_num, 
+mat3 Ball_group::calc_group_moi_world(const int& group_num, 
                                              const vec3& group_com)
 {
-    std::vector<vec3> moi = {{0,0,0},{0,0,0},{0,0,0}};
+    mat3 moi = {{
+        vec3{0,0,0},
+        vec3{0,0,0},
+        vec3{0,0,0}}};
 
     for (int Ball = 0; Ball < attrs.num_particles; ++Ball)
     {
@@ -1674,9 +1678,12 @@ std::vector<vec3> Ball_group::calc_group_moi_world(const int& group_num,
 // Includes both:
 // 1) point-mass contribution from each monomer center relative to the group COM
 // 2) self-inertia of each spherical monomer about its own center
-std::vector<vec3> Ball_group::calc_group_moi_local(const int& group_num)
+mat3 Ball_group::calc_group_moi_local(const int& group_num)
 {
-    std::vector<vec3> moi = {{0,0,0},{0,0,0},{0,0,0}};
+    mat3 moi = {{
+        vec3{0,0,0},
+        vec3{0,0,0},
+        vec3{0,0,0}}};
 
     for (int Ball = 0; Ball < attrs.num_particles; ++Ball)
     {
@@ -4506,8 +4513,8 @@ void Ball_group::group_w_from_monomer()
 
         // Make sure this is the world-frame inertia tensor of group g
         // about the group COM.
-        std::vector<vec3> moi = calc_group_moi_world(g,group_pos[g]);
-        // std::vector<vec3> moi = calc_group_moi_local(g);
+        mat3 moi = calc_group_moi_world(g,group_pos[g]);
+        // mat3 moi = calc_group_moi_local(g);
 
         for (int Ball = 0; Ball < attrs.num_particles; ++Ball)
         {
@@ -4559,8 +4566,8 @@ void Ball_group::group_accs_from_monomer()
         }
 
 
-        std::vector<vec3> moi = calc_group_moi_world(currgroup, group_pos[currgroup]);
-        // std::vector<vec3> moi = calc_group_moi_local(currgroup);// group_moi[currgroup];
+        mat3 moi = calc_group_moi_world(currgroup, group_pos[currgroup]);
+        // mat3 moi = calc_group_moi_local(currgroup);// group_moi[currgroup];
 
         // group_acc[currgroup] = group_force_world/g_mass;
         group_acc[currgroup] = group_force_world/group_mass[currgroup];
@@ -4583,7 +4590,7 @@ void Ball_group::group_accs_from_monomer()
         // };
         vec3 wcrossIw = group_w[currgroup].cross(Iw);
 
-        std::vector<vec3> moi_inverse = inverse3x3(moi);
+        mat3 moi_inverse = inverse3x3(moi);
 
         // vec3 group_torque_local = group_q[currgroup].worldToLocal(group_torque_world);
         // vec3 tot_torque = {

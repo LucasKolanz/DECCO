@@ -483,8 +483,8 @@ public:
     void group_vel_from_monomer();
     void group_w_from_monomer();
     void group_accs_from_monomer();
-    std::vector<vec3> calc_group_moi_local(const int& group_num);
-    std::vector<vec3> calc_group_moi_world(const int& group_num,const vec3& group_com);
+    mat3 calc_group_moi_local(const int& group_num);
+    mat3 calc_group_moi_world(const int& group_num,const vec3& group_com);
     vec3 calc_group_com(const int group_num);
     void set_group_masses();
     double calc_group_mass(const int group_num);
