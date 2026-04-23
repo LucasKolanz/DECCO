@@ -19,6 +19,7 @@ TODO: the line "project_dir = '/'.join(__file__.split('/')[:-1]) + '/'" fails on
 
 import os
 import json
+from pathlib import Path
 
 
 def update_json_file(file_path, key, value):
@@ -85,19 +86,37 @@ def read_json_file(file_path):
 # if data is not None:
 #     print("Data read from the file:", data)
 
+# if __name__ == '__main__':
+#     project_dir = '/'.join(__file__.split('/')[:-1]) + '/'
+#     #write the global directory to project_directory json variable
+#     json_file = project_dir+"default_files/default_input.json"
+#     update_json_file(json_file,"project_directory",project_dir)
+#     update_json_file(json_file,"data_directory",project_dir[:-1]+"_data/")
+
+#     os.system("git submodule init")
+#     os.system("git submodule update")
+
+    
+#     data_dir = read_json_file(json_file)["data_directory"]
+#     if not os.path.exists(f"{data_dir}/data/figures/aggRenders/edited/"):
+#         os.makedirs(f"{data_dir}/data/figures/aggRenders/edited/")
+
 if __name__ == '__main__':
-    project_dir = '/'.join(__file__.split('/')[:-1]) + '/'
-    #write the global directory to project_directory json variable
-    json_file = project_dir+"default_files/default_input.json"
-    update_json_file(json_file,"project_directory",project_dir)
-    update_json_file(json_file,"data_directory",project_dir[:-1]+"_data/")
+    # Absolute path to the directory containing this script
+    project_dir = Path(__file__).resolve().parent
+
+    json_file = project_dir / "default_files" / "default_input.json"
+
+    update_json_file(json_file, "project_directory", str(project_dir) + "/")
+    update_json_file(json_file, "data_directory", str(project_dir) + "_data/")
 
     os.system("git submodule init")
     os.system("git submodule update")
 
-    
-    data_dir = read_json_file(json_file)["data_directory"]
-    if not os.path.exists(f"{data_dir}/data/figures/aggRenders/edited/"):
-        os.makedirs(f"{data_dir}/data/figures/aggRenders/edited/")
+    data = read_json_file(json_file)
+    if data is not None:
+        data_dir = Path(data["data_directory"])
+        target_dir = data_dir / "data" / "figures" / "aggRenders" / "edited"
+        target_dir.mkdir(parents=True, exist_ok=True)
 
     

@@ -545,7 +545,9 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 	
 	path = input_json["data_directory"]
 
-	data_prefolders = [path + 'jobs/BAPA_', path + 'jobs/CBAPA_']
+	relax = False
+
+	data_prefolders = [path + 'jobs/BAPA_', path + 'jobs/CBAPA_', path + 'jobs/BAPAWELD_']
 
 	data_prefolder = data_prefolders[0]
 	dataset_name = data_prefolder.split("/")[-1]
@@ -557,7 +559,8 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 	
 	attempts = [i for i in range(30)]
 
-	requested_data_headers = gd.data_headers[:2] + [gd.data_headers[4]]
+	requested_data_headers = gd.data_headers[:2] + gd.data_headers[3:4] + [gd.data_headers[9]]
+	# requested_data_headers = gd.data_headers[:2] + [gd.data_headers[4]]
 	# requested_data_headers = gd.data_headers[:2] + [gd.data_headers[3]] + [gd.data_headers[4]]
 
 	raw_data = np.full(shape=(len(requested_data_headers),len(attempts),len(M),len(temps)),fill_value=np.nan,dtype=np.float64)
@@ -582,7 +585,8 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 					
 					for h_i,header in enumerate(requested_data_headers):
 						if header in existing_headers_for_size:
-							raw_data[h_i,a_i,m_i,t_i] = existing_values_for_size[existing_headers_for_size.index(header)]
+							raw_data[h_i,a_i,m_i,t_i] = u.get_plottable_value_from_saved_value(existing_values_for_size[existing_headers_for_size.index(header)],header,folder,n,relax)
+							# raw_data[h_i,a_i,m_i,t_i] = existing_values_for_size[existing_headers_for_size.index(header)]
 
 	avg_data_BAPA = np.nanmean(raw_data,axis=1)
 	std_data_BAPA = np.nanstd(raw_data,axis=1)
@@ -590,8 +594,8 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 	err_data_BAPA = std_data_BAPA/np.sqrt(num_data_BAPA)
 	
 
-	data_prefolder = data_prefolders[1]
 
+	data_prefolder = data_prefolders[1]
 	dataset_name = data_prefolder.split("/")[-1]
 
 	temps = [1000]
@@ -599,7 +603,8 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 	M = [1,3,5,10,15,20,30,50,60,100]
 	attempts = [i for i in range(30)]
 
-	requested_data_headers = gd.data_headers[:2] + [gd.data_headers[4]]
+	# requested_data_headers = [1,1,0,1,1,0,0,0,0,1]
+	# requested_data_headers = gd.data_headers[:2] + [gd.data_headers[4]]
 	# requested_data_headers = gd.data_headers[:2] + [gd.data_headers[3]] + [gd.data_headers[4]]
 
 	raw_data = np.full(shape=(len(requested_data_headers),len(attempts),len(M),len(temps)),fill_value=np.nan,dtype=np.float64)
@@ -624,12 +629,61 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 					
 					for h_i,header in enumerate(requested_data_headers):
 						if header in existing_headers_for_size:
-							raw_data[h_i,a_i,m_i,t_i] = existing_values_for_size[existing_headers_for_size.index(header)]
+							raw_data[h_i,a_i,m_i,t_i] = u.get_plottable_value_from_saved_value(existing_values_for_size[existing_headers_for_size.index(header)],header,folder,n,relax)
+							# raw_data[h_i,a_i,m_i,t_i] = existing_values_for_size[existing_headers_for_size.index(header)]
 
 	avg_data_CBAPA = np.nanmean(raw_data,axis=1)
 	std_data_CBAPA = np.nanstd(raw_data,axis=1)
 	num_data_CBAPA = np.count_nonzero(~np.isnan(raw_data),axis=1)
 	err_data_CBAPA = std_data_CBAPA/np.sqrt(num_data_CBAPA)
+
+
+	data_prefolder = data_prefolders[2]
+	dataset_name = data_prefolder.split("/")[-1]
+
+	temps = [1000]
+	# M = [3,100]
+	n = 300
+	attempts = [i for i in range(30)]
+
+	# requested_data_headers = [1,1,0,1,1,0,0,0,0,1]
+	# requested_data_headers = gd.data_headers[:2] + [gd.data_headers[4]]
+	# requested_data_headers = gd.data_headers[:2] + [gd.data_headers[3]] + [gd.data_headers[4]]
+
+	raw_data = np.full(shape=(len(requested_data_headers),len(attempts),len(M),len(temps)),fill_value=np.nan,dtype=np.float64)
+	for a_i,a in enumerate(attempts):
+		for m_i,m in enumerate(M):
+			for t_i,t in enumerate(temps):
+				folder = f"{data_prefolder}{a}/M_{m}/N_{n}/T_{t}/"
+				if os.path.exists(folder+"job_data.csv"):
+					with open(folder+"job_data.csv",'r') as fp:
+						existing_data = fp.readlines()
+
+					existing_sizes = [int(i.split('=')[1].strip("\n\t ")) for i in existing_data if i[:2] == "N="]
+					#even though the data can have other sizes in it, 
+					#we only want the data of size n
+					if n not in existing_sizes:
+						print(f"ERROR: Data of size {n} does not exist for {folder}.")
+						continue
+					index = existing_sizes.index(n)*4
+					existing_headers_for_size = existing_data[index+1].strip("\n\t ").split(",")
+					existing_values_for_size = existing_data[index+2].strip("\n\t ").split(",")
+					
+					for h_i,header in enumerate(requested_data_headers):
+						if header in existing_headers_for_size:
+							raw_data[h_i,a_i,m_i,t_i] = u.get_plottable_value_from_saved_value(existing_values_for_size[existing_headers_for_size.index(header)],header,folder,n,relax)
+							# raw_data[h_i,a_i,m_i,t_i] = existing_values_for_size[existing_headers_for_size.index(header)]
+
+	avg_data_BAPAWELD = np.nanmean(raw_data,axis=1)
+	std_data_BAPAWELD = np.nanstd(raw_data,axis=1)
+	num_data_BAPAWELD = np.count_nonzero(~np.isnan(raw_data),axis=1)
+	err_data_BAPAWELD = std_data_BAPAWELD/np.sqrt(num_data_BAPAWELD)
+
+	for h_i,header in enumerate(requested_data_headers):
+
+		print(f"BAPA M=100 {header}    : {avg_data_BAPA[h_i,9,0]}+-{err_data_BAPA[h_i,9,0]} ({num_data_BAPA[h_i,9,0]})")
+		print(f"BAPAWELD M=100 {header}: {avg_data_BAPAWELD[h_i,9,0]}+-{err_data_BAPAWELD[h_i,9,0]} ({num_data_BAPAWELD[h_i,9,0]})")
+
 	
 
 	print("======================Starting figures======================")
@@ -654,10 +708,15 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 				err_data = err_data_BAPA
 				num_data = num_data_BAPA
 				label = "Const num particles (300 particles)"
-			else:
+			elif data_prefolder == data_prefolders[1]: #This is CBAPA
 				avg_data = avg_data_CBAPA
 				err_data = err_data_CBAPA
 				num_data = num_data_CBAPA
+				label = f"Const num particles (weld)  (300 particles)"
+			elif data_prefolder == data_prefolders[1]: #This is BAPAWELD
+				avg_data = avg_data_BAPAWELD
+				err_data = err_data_BAPAWELD
+				num_data = num_data_BAPAWELD
 				label = f"Const num fragments  ({C} fragments)"
 			for t_i,t in enumerate(temps):
 
@@ -687,6 +746,10 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 			plt.savefig("{}{}_{}_metric_vs_frag_size.png".format(figure_folder,dataset_name,header))
 		if show_plots:
 			plt.show() 
+
+
+
+
 
 def gen_stylized_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 	with open(project_path+"default_files/default_input.json",'r') as fp:
@@ -3326,7 +3389,7 @@ if __name__ == '__main__':
 
 	##Plots for paper 1
 	# gen_agg_im_plot(save_plots=save_plots,show_plots=show_plots)
-	gen_BPCA_vs_time_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
+	# gen_BPCA_vs_time_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_ratio_vs_temp_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	# gen_BPCA_temp_sensitivity_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)

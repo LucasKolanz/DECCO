@@ -290,10 +290,10 @@ if __name__ == '__main__':
 
 	N = [300]
 	# N = [-1] 
-	CBAPA = True #this is for if we want to use CBAPA since the N and M are different than the usual constant N 
+	CBAPA = False #this is for if we want to use CBAPA since the N and M are different than the usual constant N 
 	C = 30
-	M = [1,3,5,10,15,20,30,50,60,100]
-	# N = [30,100,300]
+	# M = [1,3,5,10,15,20,30,50,60,100]
+	M = [3,100]
 
 	#list of the functions that calculate the data you want
 	#if adding to this list, name your function calc_*header_name*
@@ -303,7 +303,7 @@ if __name__ == '__main__':
 	#to calculate as an input.
 	#It should return a single data value.
 	# bool_headers = [1,1,0,0,1,0,0,0]
-	bool_headers = [0,0,1,0,0,0,0,0,0,0]
+	bool_headers = [0,0,0,0,0,0,0,0,0,1]
 	bool_headers = [1,1,0,1,1,0,0,0,0,1]
 	# requested_data_functions = [data_functions[i] for i in range(len(data_functions)) if bool_headers[i]]
 	requested_data_headers = [data_headers[i] for i in range(len(data_headers)) if bool_headers[i]]
@@ -315,9 +315,10 @@ if __name__ == '__main__':
 	
 		data_folders = []
 		# data_folders = [path + 'jobs/AsymBAPA_*']
-		data_folders = [path + 'jobs/CBAPA_*']
+		data_folders += [path + 'jobs/BAPAWELD_*']
+		# data_folders = [path + 'jobs/CBAPA_*']
 		# data_folders = [path + 'jobs/CBAPA_29/M_5/*']
-		# data_folders = [path + 'jobs/BAPA_*']
+		data_folders += [path + 'jobs/BAPA_*']
 		# data_folders = [path + 'jobs/BAPA_*/M_1/*']
 		# data_folders = [path + 'jobs/constrollingfric*']
 		# data_folders = [path + 'jobs/BAPA_0/M_60/*']

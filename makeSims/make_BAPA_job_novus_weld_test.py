@@ -51,7 +51,7 @@ if __name__ == '__main__':
 		
 
 	# job_set_name = "TESTBAPA"
-	job_set_name = "BAPAWELD"
+	job_set_name = "BAPAWELDTEST"
 
 	# folder_name_scheme = "T_"
 
@@ -61,11 +61,11 @@ if __name__ == '__main__':
 	# attempts = [10] 
 	# attempts = [i for i in range(0,25)]
 	# attempts = [i for i in range(25,30)]
-	attempts = [i for i in range(0,30)]
-	# attempts = [20]
+	# attempts = [i for i in range(0,30)]
+	attempts = [0]
 
-	N = [300] #final size
-	M = [3,100] #starting sizes
+	N = [15] #final size
+	M = [3] #starting sizes
 	# M = [3] 
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
@@ -75,7 +75,7 @@ if __name__ == '__main__':
 	totalNodes = 1
 	MPITasksPerNode = 1
 	totalMPITasks = totalNodes*MPITasksPerNode
-	threadsPerTask = 1
+	threadsPerTask = 4
 
 	#load default input file
 	with open(project_path+"default_files/default_input.json",'r') as fp:
@@ -122,8 +122,8 @@ if __name__ == '__main__':
 						input_json['MPInodes'] = 1
 						input_json['impactParameter'] = -1.0
 
-						input_json['seed'] = u.rand_seed()
-						# input_json['seed'] = -1372429765
+						# input_json['seed'] = u.rand_seed()
+						input_json['seed'] = 101
 
 						# input_json['radiiDistribution'] = 'logNormal'
 						# input_json['h_min'] = 0.5
@@ -155,8 +155,8 @@ if __name__ == '__main__':
 						# sbatchfile += "#SBATCH -C gpu\n"
 						# sbatchfile += "#SBATCH -q regular\n"
 						# sbatchfile += "#SBATCH -t 0:10:00\n"
-						# sbatchfile += f'#SBATCH --account=lazzati\n'
-						# sbatchfile += f'#SBATCH --partition=lazzati.q\n'
+						sbatchfile += f'#SBATCH --account=lazzati\n'
+						sbatchfile += f'#SBATCH --partition=lazzati.q\n'
 
 						#NAME ORDER needs to be same as the file path order
 						sbatchfile += f"#SBATCH -J {job_name}\n"
