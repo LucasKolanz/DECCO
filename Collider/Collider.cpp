@@ -108,12 +108,12 @@ main(int argc, char* argv[])
     }
     dummy.parse_input_file(location);
 
-    //Must call this before running anything to properly set the seed
+    //Must call this before running anything to properly set the seed for the whole program.
     //Call it here with dummy to we make sure we set the seed asap.
     //If anything happens with random before here, it will not have the
     //proper seed. But you cannot call this anywhere in Ball_group because
     //then it can be called multiple times throughout the run. 
-    dummy.set_seed_from_input(location);
+    dummy.attrs.seed = set_seed_from_input(location,dummy.attrs.output_folder+"seedFile.txt");
 
     //verify OpenMP threads
     #ifdef MPI_ENABLE

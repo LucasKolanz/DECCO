@@ -254,9 +254,10 @@ void Ball_group::relaxInit(const std::string path)
     }
     simInit_cond_and_center(false);
   
-
 }
 
+//Initializes the collision between two ball_groups. Clusters will be loaded
+//based on attrs.projectileName and attrs.targetName from input.json
 void Ball_group::colliderInit(const std::string path)
 {
     // parse_input_file(std::string(path));
@@ -266,10 +267,10 @@ void Ball_group::colliderInit(const std::string path)
     simInit_cond_and_center(true);
 }
 
-// Initializes BPCA and BCCA job for restart or new job
+// Initializes BPCA, BCCA, and BAPA job for restart or new job.
 // index is -1 by default. If index >= 0 then this isnt a restart 
 // and this shouldnt delete any files. 
-void Ball_group::aggregationInit(const std::string path,const int index)
+void Ball_group::aggregationInit(const std::string path,const int index/*=-1*/)
 {
     int restart;
     if (index < 0)
@@ -343,7 +344,7 @@ void Ball_group::aggregationInit(const std::string path,const int index)
 
 }
 
-//Initalize custom parameters in here
+//Initalize custom parameters in here. Mostly for testing.
 void Ball_group::customInit()
 {
     int nBalls = 3;
@@ -534,9 +535,23 @@ Ball_group& Ball_group::operator=(const Ball_group& rhs)
     KE = rhs.KE;
 
     distances = rhs.distances;
-    // loading_flag = rhs.loading_flag;
-    // a_store = rhs.a_store;
+    data = rhs.data;
 
+
+    //standard variables
+    pos = rhs.pos;
+    vel = rhs.vel;
+    velh = rhs.velh;  ///< Velocity half step for integration purposes.
+    acc = rhs.acc;
+    w = rhs.w;
+    wh = rhs.wh;  ///< Angular velocity half step for integration purposes.
+    aacc = rhs.aacc;
+    R = rhs.R;      ///< Radius
+    m = rhs.m;      ///< Mass
+    moi = rhs.moi;  ///< Moment of inertia
+    
+    //Group variables
+    group = rhs.group;
     group_aacc = rhs.group_aacc;
     group_acc = rhs.group_acc;
     group_pos = rhs.group_pos;
@@ -550,18 +565,7 @@ Ball_group& Ball_group::operator=(const Ball_group& rhs)
     group_moi_inv_body = rhs.group_moi_inv_body;
     group_mass = rhs.group_mass;
 
-    pos = rhs.pos;
-    vel = rhs.vel;
-    velh = rhs.velh;  ///< Velocity half step for integration purposes.
-    acc = rhs.acc;
-    w = rhs.w;
-    wh = rhs.wh;  ///< Angular velocity half step for integration purposes.
-    aacc = rhs.aacc;
-    R = rhs.R;      ///< Radius
-    m = rhs.m;      ///< Mass
-    moi = rhs.moi;  ///< Moment of inertia
-    group = rhs.group;
-
+    //JKR variables
     n_hats = rhs.n_hats;
     nu = rhs.nu;
     G = rhs.G;
@@ -574,15 +578,7 @@ Ball_group& Ball_group::operator=(const Ball_group& rhs)
     reducedGstar = rhs.reducedGstar;
     reducedR = rhs.reducedR;
     reducedGamma = rhs.reducedGamma;
-
     q = rhs.q;
-    // Eu0 = rhs.Eu0;
-    // Eu0p = rhs.Eu0p;
-    // Eu = rhs.Eu;
-    // Eup = rhs.Eup;
-
-
-    data = rhs.data;
 
     return *this;
     
@@ -636,6 +632,7 @@ void Ball_group::JKRreducedInit()
     }
 }
 
+//Initializes the instance of DECCOData for reading and writing data
 void Ball_group::init_data(int counter = 0)
 {
 
@@ -681,6 +678,8 @@ void Ball_group::init_data(int counter = 0)
 
 
 //calculates, sets, and returns the num_groups parameter
+//NOTE: this function assumes groups start from zero and 
+//increase by 1 each time a new group is added
 int Ball_group::set_num_groups()
 {
     int g = 0;
@@ -697,39 +696,7 @@ int Ball_group::set_num_groups()
     return attrs.num_groups;
 }
 
-void Ball_group::set_seed_from_input(const std::string location)
-{
-    json inputs = getJsonFromFolder(location);
-    if (inputs.contains("seed"))
-    {
-        if (inputs["seed"] == std::string("default"))
-        {
-            attrs.seed = static_cast<unsigned int>(time(nullptr));
-        }
-        else
-        {
-            attrs.seed = static_cast<unsigned int>(inputs["seed"]);
-        }
-    }
-    else
-    {
-        MPIsafe_print(std::cerr,std::string("ERROR: no 'seed' in input file. Now exiting . . .\n"));
-        MPIsafe_exit(-1);
-    }
 
-    if (getRank() == 0)
-    {
-        std::ofstream seedFile;
-        seedFile.open(attrs.output_folder+"seedFile.txt",std::ios::app);
-        seedFile<<attrs.seed<<std::endl;
-        seedFile.close();
-    }
-    
-    
-    MPIsafe_print(std::cerr,std::string("Writing seed '"+std::to_string(attrs.seed)+"' to seedFile.txt\n"));
-    
-    seed_generators(attrs.seed);
-}
 
 //Parses input.json file that is in the same folder the executable is in
 void Ball_group::parse_input_file(std::string location)
@@ -2437,8 +2404,6 @@ void Ball_group::allocate_weld_group(const int num_groups)
     group_mass.resize(num_groups);
     group_moi_body.resize(num_groups);
     group_moi_inv_body.resize(num_groups);
-
-
 }
 
 
@@ -2501,30 +2466,27 @@ void Ball_group::freeMemory()
         // delete[] Eup;
     }
     delete data;
-
-    
+ 
 }
 
+
+//This function initializes linear and angular accelerations for 
+//each ball for a JKR simulation. Does not work for JKR=true and 
+//weld=true together yet.
 void Ball_group::init_conditions_JKR()
 {
+    if (attrs.JKR == true && attrs.weld == true)
+    {
+        MPIsafe_print(std::cerr,"ERROR: attrs.JKR and attrs.weld both being true has not been implimented yet. Please impliment to continue. Now exiting. . .");
+        MPIsafe_exit(0);
+    }
     // JKRpropertiesInit(attrs.material);
     // JKRreducedInit();    //initalize elastic properties for all pairs
     // SECOND PASS - Check for collisions, apply forces and torques:
 
     if (attrs.weld)
     {
-
-        for (int g = 0; g < attrs.num_groups; ++g)
-        {
-            group_acc[g] = {0.0,0.0,0.0};
-            group_aacc[g] = {0.0,0.0,0.0};
-            group_q[g] = {1,{0,0,0}};
-        }
-        calc_offsets_coms();//This needs to be after group_q is initialized and before calc_group_moi_local is called
-        // for (int g = 0; g < attrs.num_groups; ++g)
-        // {
-        //     group_moi[g] = calc_group_moi_local(g);
-        // }
+        init_weld_vectors();
     }
 
     for (int i = 0; i < attrs.num_particles; ++i)

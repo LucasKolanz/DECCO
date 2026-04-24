@@ -59,6 +59,43 @@ std::mt19937 random_generator;
 //     return ret;
 // }
 
+//Reads seed from input.json, writes seed to seed_file_full_path, and seeds generators with it
+int set_seed_from_input(const std::string input_file_location,const std::string seed_file_full_path)
+{
+    int seed;
+    json inputs = getJsonFromFolder(input_file_location);
+    if (inputs.contains("seed"))
+    {
+        if (inputs["seed"] == std::string("default"))
+        {
+            seed = static_cast<unsigned int>(time(nullptr));
+        }
+        else
+        {
+            seed = static_cast<unsigned int>(inputs["seed"]);
+        }
+    }
+    else
+    {
+        MPIsafe_print(std::cerr,std::string("ERROR: no 'seed' in input file. Now exiting . . .\n"));
+        MPIsafe_exit(-1);
+    }
+
+    if (getRank() == 0)
+    {
+        std::ofstream seedFile;
+        seedFile.open(seed_file_full_path,std::ios::app);
+        seedFile<<seed<<std::endl;
+        seedFile.close();
+    }
+    
+    
+    MPIsafe_print(std::cerr,std::string("Writing seed '"+std::to_string(seed)+"' to "+seed_file_full_path+'\n'));
+    
+    seed_generators(seed);
+    return seed;
+}
+
 void seed_generators(size_t seed)
 {
     MPIsafe_print(std::cerr,"SEEDING GENERATORS!! seed of "+std::to_string(seed)+"\n");

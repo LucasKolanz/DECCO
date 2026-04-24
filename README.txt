@@ -67,3 +67,5 @@ Data for each job is generated with gen_data.py. This data is stored in the indi
 
 
 
+Assumptions:
+Groups are numbered starting at zero, increasing by 1 each time

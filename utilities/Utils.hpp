@@ -31,7 +31,8 @@ void set_attribute(const json& input, const std::string &attribute_key, T &varia
 }
 
 void seed_generators(size_t seed);
-
+//Reads seed from input.json, writes seed to seed_file_full_path, and seeds generators with it
+int set_seed_from_input(const std::string input_file_location,const std::string seed_file_full_path);
 
 bool isAllDigits(const std::string& s);
 //Returns all the folders in a particular directory
