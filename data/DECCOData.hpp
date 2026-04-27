@@ -46,6 +46,8 @@ public:
 	// bool writeTiming(std::vector<double> data, int width, std::string filename);
 
 	static int get_num_particles(std::string path, std::string filename);
+	
+	static int get_num_groups(std::string path, std::string filename);
 
 	static void loadConsts(const std::string& path,const std::string& file,double *R,double *m,double *moi);
 
@@ -112,6 +114,8 @@ class HDF5Handler {
 	    static bool sim_finished(std::string path, std::string file);
 
 		static int get_num_particles(std::string path, std::string file);
+		
+		static int get_num_groups(std::string path, std::string file);
 
 		static void loadConsts(std::string path,std::string file,double *R,double *m,double *moi);
 

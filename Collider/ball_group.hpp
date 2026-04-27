@@ -490,6 +490,7 @@ public:
     vec3 calc_group_com(const int group_num);
     void set_group_masses();
     double calc_group_mass(const int group_num);
+    int count_num_groups();
 
     
     //Functions which calculate/set values for Ball_group

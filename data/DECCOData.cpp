@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <regex>
 #include <cstring>
+#include <unordered_set>
 
 
 #include "DECCOData.hpp"
@@ -214,6 +215,33 @@ void CSVHandler::loadConsts(const std::string& path,const std::string& file,doub
 	{
 		MPIsafe_print(std::cerr,"ERROR: one or more of R, m, and/or moi are nullptr.");
 	}
+}
+
+int CSVHandler::get_num_groups(std::string path, std::string filename)
+{
+	std::unordered_set<int> group_local;
+	std::string lineElement;
+    // Get number of balls in file
+    int num_particles = get_num_particles(path,filename);
+
+    std::string line = get_last_line(path,filename);
+
+    std::stringstream chosenLine(line);  // This is the last line of the read file, containing all data
+                                         // for all balls at last time step
+    
+    int lineWidth = DECCOData::getSingleWidth("simData");
+    // Get position and angular velocity data:
+    for (int A = 0; A < num_particles; A++) 
+    {
+        for (int i = 0; i < 10; i++)                  // group
+        {
+            std::getline(chosenLine, lineElement, ',');
+        }
+        std::getline(chosenLine,lineElement,',');
+        group_local.insert(std::stod(lineElement));
+        
+    }
+    return group_local.size();
 }
 
 int CSVHandler::get_num_particles(std::string path, std::string filename)
@@ -804,6 +832,22 @@ bool HDF5Handler::sim_finished(std::string path, std::string file)
     return false;
 }
 
+int HDF5Handler::get_num_groups(std::string path, std::string filename)
+{
+	std::unordered_set<int> group_local;
+	int n_particles = get_num_particles(path,file);
+	int single_ball_width = single_ball_widths[getDataIndexFromString("simData")];
+	int width = n_particles*single_ball_width;
+	std::vector<double> out = static_readFile("simData",width,0,true,path+file); // get last line
+	// printVec(out);
+	
+	for (int i = 0; i < n_particles; ++i)
+	{
+		int out_ind = i*single_ball_width;
+		group_local.insert(out[out_ind+10]);
+	}
+    return group_local.size();
+}
 
 int HDF5Handler::get_num_particles(std::string path, std::string file)
 {

@@ -4,6 +4,7 @@
 #include <fstream>
 #include <stdio.h>
 #include <vector>
+#include <unordered_set>
 // #include <regex>
 // #include <algorithm>
 
@@ -702,11 +703,8 @@ int Ball_group::set_num_groups()
 void Ball_group::parse_input_file(std::string location)
 {
 
-    MPIsafe_print(std::cerr,"STARTING PARSE_INPUT FILE\n");
-
-    json inputs = getJsonFromFolder(location);
     MPIsafe_print(std::cerr,std::string("Parsing input file: "+location+"input.json\n"));
-
+    json inputs = getJsonFromFolder(location);
     set_attribute(inputs,"output_folder",attrs.output_folder);
     if (attrs.output_folder == "")
     {
@@ -961,7 +959,6 @@ void Ball_group::parse_input_file(std::string location)
 
     set_attribute(inputs,"radiiFraction",attrs.radiiFraction);
     attrs.output_width = attrs.num_particles;
-
 
 }
 
@@ -1308,6 +1305,18 @@ double Ball_group::get_soc()
     return attrs.soc;
 }
 
+int Ball_group::count_num_groups()
+{
+    std::unordered_set<int> unique_groups;
+
+    for (int b = 0; b < attrs.num_particles; ++b)
+    {
+        unique_groups.insert(group[b]);
+    }
+
+    return unique_groups.size();
+}
+
 void Ball_group::calc_helpfuls(const bool includeRadius)
 {
     attrs.r_min = getRmin();
@@ -1318,7 +1327,9 @@ void Ball_group::calc_helpfuls(const bool includeRadius)
 
     if (includeRadius) {attrs.initial_radius = getRadius(getCOM());}
     attrs.soc = 4 * attrs.r_max + attrs.initial_radius;
+
     // soc = -1;
+
 }   
 
 // Kick ballGroup (give the whole thing a velocity)
@@ -2218,24 +2229,60 @@ Ball_group Ball_group::add_projectile(const simType simtype)
 /// @param src The ballGroup to be added.
 void Ball_group::merge_ball_group(const Ball_group& src,const bool includeRadius)
 {
+    int dst_start = attrs.num_particles_added;
+    int count = src.attrs.num_particles;
     // Copy incoming data to the end of the currently loaded data.
-    std::memcpy(
-        &distances[attrs.num_particles_added], src.distances, sizeof(src.distances[0]) * src.attrs.num_particles);
     // std::memcpy(
-    //     &loading_flag[attrs.num_particles_added], src.loading_flag, sizeof(src.loading_flag[0]) * src.attrs.num_particles);
-    // std::memcpy(
-    //     &a_store[attrs.num_particles_added], src.a_store, sizeof(src.a_store[0]) * src.attrs.num_particles);
-    std::memcpy(&pos[attrs.num_particles_added], src.pos, sizeof(src.pos[0]) * src.attrs.num_particles);
-    std::memcpy(&vel[attrs.num_particles_added], src.vel, sizeof(src.vel[0]) * src.attrs.num_particles);
-    std::memcpy(&velh[attrs.num_particles_added], src.velh, sizeof(src.velh[0]) * src.attrs.num_particles);
-    std::memcpy(&acc[attrs.num_particles_added], src.acc, sizeof(src.acc[0]) * src.attrs.num_particles);
-    std::memcpy(&w[attrs.num_particles_added], src.w, sizeof(src.w[0]) * src.attrs.num_particles);
-    std::memcpy(&wh[attrs.num_particles_added], src.wh, sizeof(src.wh[0]) * src.attrs.num_particles);
-    std::memcpy(&aacc[attrs.num_particles_added], src.aacc, sizeof(src.aacc[0]) * src.attrs.num_particles);
-    std::memcpy(&R[attrs.num_particles_added], src.R, sizeof(src.R[0]) * src.attrs.num_particles);
-    std::memcpy(&m[attrs.num_particles_added], src.m, sizeof(src.m[0]) * src.attrs.num_particles);
-    std::memcpy(&moi[attrs.num_particles_added], src.moi, sizeof(src.moi[0]) * src.attrs.num_particles);
-    std::memcpy(&group[attrs.num_particles_added], src.group, sizeof(src.group[0]) * src.attrs.num_particles);
+    //     &distances[attrs.num_particles_added], src.distances, sizeof(src.distances[0]) * src.attrs.num_particles);
+    // checked_copy(distances,attrs.num_particles,dst_start,src.distances,src.attrs.num_particles,count,"distances");
+
+    // std::memcpy(&pos[attrs.num_particles_added], src.pos, sizeof(src.pos[0]) * src.attrs.num_particles);
+    // std::memcpy(&vel[attrs.num_particles_added], src.vel, sizeof(src.vel[0]) * src.attrs.num_particles);
+    // std::memcpy(&velh[attrs.num_particles_added], src.velh, sizeof(src.velh[0]) * src.attrs.num_particles);
+    // std::memcpy(&acc[attrs.num_particles_added], src.acc, sizeof(src.acc[0]) * src.attrs.num_particles);
+    // std::memcpy(&w[attrs.num_particles_added], src.w, sizeof(src.w[0]) * src.attrs.num_particles);
+    // std::memcpy(&wh[attrs.num_particles_added], src.wh, sizeof(src.wh[0]) * src.attrs.num_particles);
+    // std::memcpy(&aacc[attrs.num_particles_added], src.aacc, sizeof(src.aacc[0]) * src.attrs.num_particles);
+    // std::memcpy(&R[attrs.num_particles_added], src.R, sizeof(src.R[0]) * src.attrs.num_particles);
+    // std::memcpy(&m[attrs.num_particles_added], src.m, sizeof(src.m[0]) * src.attrs.num_particles);
+    // std::memcpy(&moi[attrs.num_particles_added], src.moi, sizeof(src.moi[0]) * src.attrs.num_particles);
+    // std::memcpy(&group[attrs.num_particles_added], src.group, sizeof(src.group[0]) * src.attrs.num_particles);
+
+    checked_copy(distances, attrs.num_particles, dst_start,
+                 src.distances, src.attrs.num_particles, count, "distances");
+
+    checked_copy(pos, attrs.num_particles, dst_start,
+                 src.pos, src.attrs.num_particles, count, "pos");
+
+    checked_copy(vel, attrs.num_particles, dst_start,
+                 src.vel, src.attrs.num_particles, count, "vel");
+
+    checked_copy(velh, attrs.num_particles, dst_start,
+                 src.velh, src.attrs.num_particles, count, "velh");
+
+    checked_copy(acc, attrs.num_particles, dst_start,
+                 src.acc, src.attrs.num_particles, count, "acc");
+
+    checked_copy(w, attrs.num_particles, dst_start,
+                 src.w, src.attrs.num_particles, count, "w");
+
+    checked_copy(wh, attrs.num_particles, dst_start,
+                 src.wh, src.attrs.num_particles, count, "wh");
+
+    checked_copy(aacc, attrs.num_particles, dst_start,
+                 src.aacc, src.attrs.num_particles, count, "aacc");
+
+    checked_copy(R, attrs.num_particles, dst_start,
+                 src.R, src.attrs.num_particles, count, "R");
+
+    checked_copy(m, attrs.num_particles, dst_start,
+                 src.m, src.attrs.num_particles, count, "m");
+
+    checked_copy(moi, attrs.num_particles, dst_start,
+                 src.moi, src.attrs.num_particles, count, "moi");
+
+    checked_copy(group, attrs.num_particles, dst_start,
+                 src.group, src.attrs.num_particles, count, "group");
 
     // if (this->attrs.weld)
     // {
@@ -2298,7 +2345,7 @@ void Ball_group::merge_ball_group(const Ball_group& src,const bool includeRadius
 
     // Keep track of now loaded ball set to start next set after it:
     attrs.num_particles_added += src.attrs.num_particles;
-    attrs.num_groups_added += src.attrs.num_groups_added;
+    // attrs.num_groups_added += src.attrs.num_groups_added;
 
     calc_helpfuls(includeRadius);
 }
@@ -2665,12 +2712,12 @@ void Ball_group::set_group_masses()
         group_mass[group[ball]] += m[ball];
     }
 
-    //check that group_masses are not zero
-    for (int ball = 0; ball < attrs.num_particles; ++ball)
+    //check that group_masses are not zero (or negative for some reason)
+    for (int g = 0; g < attrs.num_groups; ++g)
     {
-        if (group_mass[group[ball]] <= 1e-50)
+        if (group_mass[g] <= 1e-50)
         {
-            MPIsafe_print(std::cerr,"ERROR: group mass is "+dToSci(group_mass[group[ball]])+" g. exiting to avoid divide by zero. Now exiting. . .\n");
+            MPIsafe_print(std::cerr,"ERROR: group mass is "+dToSci(group_mass[g])+" g. exiting to avoid divide by zero. Now exiting. . .\n");
             MPIsafe_exit(-1);
         }
     }
@@ -2689,6 +2736,7 @@ void Ball_group::init_weld_vectors()
         group_moi_inv_body[g] = inverse3x3(group_moi_body[g]);
     }
     calc_offsets_coms();//This needs to be after group_q is initialized 
+
     set_group_masses();
     
     group_vel_from_monomer();
@@ -3258,6 +3306,12 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename,co
         MPIsafe_print(std::cerr,message);
     }
 
+    // if (attrs.weld)
+    // {
+    //     attrs.num_groups = count_num_groups();
+    //     allocate_weld_group(attrs.num_groups);
+    // }
+
 }
 
 void Ball_group::parse_meta_data(std::string metadata)
@@ -3399,6 +3453,7 @@ void Ball_group::loadDatafromCSV(std::string path,std::string file)
     attrs.start_index = file_index;
     
     int num_particles = CSVHandler::get_num_particles(path,file);
+    attrs.num_groups = CSVHandler::get_num_groups(path,file);
     allocate_group(num_particles);
     if (get_JKR(path))
     {
@@ -3493,6 +3548,7 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
     attrs.start_index = file_index;
     
     int num_particles = HDF5Handler::get_num_particles(path,file);
+    attrs.num_groups = HDF5Handler::get_num_groups(path,file);
     allocate_group(num_particles);
     if (get_JKR(path))
     {

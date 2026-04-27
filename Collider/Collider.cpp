@@ -108,12 +108,17 @@ main(int argc, char* argv[])
     }
     dummy.parse_input_file(location);
 
+
     //Must call this before running anything to properly set the seed for the whole program.
     //Call it here with dummy to we make sure we set the seed asap.
     //If anything happens with random before here, it will not have the
     //proper seed. But you cannot call this anywhere in Ball_group because
     //then it can be called multiple times throughout the run. 
     dummy.attrs.seed = set_seed_from_input(location,dummy.attrs.output_folder+"seedFile.txt");
+    // std::cerr<<"location: "<<location<<std::endl;
+    // std::cerr<<"dummy.attrs.output_folder: "<<dummy.attrs.output_folder<<std::endl;
+    // std::cerr<<"dummy.attrs.seed: "<<dummy.attrs.seed<<std::endl;
+    // exit(0);
 
     //verify OpenMP threads
     #ifdef MPI_ENABLE
@@ -150,7 +155,7 @@ main(int argc, char* argv[])
         #ifdef MPI_ENABLE
             MPI_Barrier(MPI_COMM_WORLD);
         #endif
-        runCollider(argv[1]);
+        runCollider(dummy.attrs.output_folder);
     }
     else if (dummy.attrs.typeSim == BPCA || dummy.attrs.typeSim == BCCA || dummy.attrs.typeSim == BAPA)
     {

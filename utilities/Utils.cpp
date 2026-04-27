@@ -59,6 +59,49 @@ std::mt19937 random_generator;
 //     return ret;
 // }
 
+// //if the attribute_key exists in input, set variable based on input[attribute_key]
+// template <typename T>
+// void set_attribute(const json& input, const std::string &attribute_key, T &variable)
+// {
+//     if (input.contains(attribute_key))
+//     {
+//         variable = input[attribute_key];
+//     }
+//     else
+//     {
+//         std::string message("WARNING: attribute '"+attribute_key+"' does not exist.\n");
+//     }
+// }
+
+// template <typename T>
+// void checked_copy(
+//     T* dst,
+//     int dst_size,
+//     int dst_start,
+//     const T* src,
+//     int src_size,
+//     int count,
+//     const char* name
+// )
+// {
+//     assert(dst != nullptr);
+//     assert(src != nullptr);
+
+//     if (dst_start < 0 || count < 0 ||
+//         src_size < count ||
+//         dst_size < dst_start + count)
+//     {
+//         std::cerr << "BAD COPY: " << name << "\n"
+//                   << "  dst_size  = " << dst_size << "\n"
+//                   << "  dst_start = " << dst_start << "\n"
+//                   << "  src_size  = " << src_size << "\n"
+//                   << "  count     = " << count << "\n";
+//         std::abort();
+//     }
+
+//     std::memcpy(&dst[dst_start], src, sizeof(T) * count);
+// }
+
 //Reads seed from input.json, writes seed to seed_file_full_path, and seeds generators with it
 int set_seed_from_input(const std::string input_file_location,const std::string seed_file_full_path)
 {
@@ -224,14 +267,32 @@ nlohmann::json getJsonFromFolder(std::string location)
             location = currentPath.string() + "/";
         } catch (const fs::filesystem_error& e) {
             MPIsafe_print(std::cerr,std::string("Error getting current directory: " + std::string(e.what()) + '\n'));
-            exit(-1);
+            MPIsafe_exit(-1);
         }
     }
-    // std::string s_location(location);
+
+    if (location.back() != '/')
+        location += "/";
+
     std::string json_file = location + "input.json";
+
     std::ifstream ifs(json_file);
-    return nlohmann::json::parse(ifs);
+    if (!ifs.is_open())
+    {
+        std::cerr << "ERROR: could not open input JSON file:\n"
+                  << json_file << std::endl;
+        std::exit(-1);
+    }
+
+    try {
+        return nlohmann::json::parse(ifs);
+    } catch (const nlohmann::json::parse_error& e) {
+        std::cerr << "JSON parse error in " << json_file << ":\n"
+                  << e.what() << std::endl;
+        std::exit(-1);
+    }
 }
+
 
 std::string data_type_from_input(const std::string location)
 {

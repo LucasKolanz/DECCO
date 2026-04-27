@@ -29,6 +29,35 @@ void set_attribute(const json& input, const std::string &attribute_key, T &varia
         std::string message("WARNING: attribute '"+attribute_key+"' does not exist.\n");
     }
 }
+template <typename T>
+void checked_copy(
+    T* dst,
+    int dst_size,
+    int dst_start,
+    const T* src,
+    int src_size,
+    int count,
+    const char* name
+)
+{
+    assert(dst != nullptr);
+    assert(src != nullptr);
+
+    if (dst_start < 0 || count < 0 ||
+        src_size < count ||
+        dst_size < dst_start + count)
+    {
+        std::cerr << "BAD COPY: " << name << "\n"
+                  << "  dst_size  = " << dst_size << "\n"
+                  << "  dst_start = " << dst_start << "\n"
+                  << "  src_size  = " << src_size << "\n"
+                  << "  count     = " << count << "\n";
+        std::abort();
+    }
+
+    std::memcpy(&dst[dst_start], src, sizeof(T) * count);
+}
+
 
 void seed_generators(size_t seed);
 //Reads seed from input.json, writes seed to seed_file_full_path, and seeds generators with it
