@@ -6023,7 +6023,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
             if (attrs.isConnectedFails < attrs.maxConnectedFails)
             {
                 MPIsafe_print(std::cerr,"ERROR: aggregate failed isConnected "+std::to_string(attrs.isConnectedFails)+" times. Restarting sim. . .\n");
-                exit(0);
+                // MPIsafe_exit(-1); //Want it to stop upon first aggregation fail?
             }
             else
             {
