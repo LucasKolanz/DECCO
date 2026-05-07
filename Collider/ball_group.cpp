@@ -4665,34 +4665,14 @@ void Ball_group::half_step_updates()
             group_velh[g] = group_vel[g] + 0.5 * group_acc[g] * attrs.dt;
             group_wh[g] = group_w[g] + 0.5 * group_aacc[g] * attrs.dt;
             group_pos[g] +=  group_velh[g] * attrs.dt;
-
-            if (group_pos[g][0] != group_pos[g][0])
-            {
-                std::cerr<<"group_pos[g]: "<<group_pos[g]<<std::endl;
-                std::cerr<<"group_acc[g]: "<<group_acc[g]<<std::endl;
-                exit(0);
-            }
             
             group_aacc[g] = {0,0,0};
             group_acc[g] = {0,0,0};
 
             vec3 omega_local = group_q[g].worldToLocal(group_wh[g]);
             
-            if (group_q[g] != group_q[g])
-            {
-                std::cerr<<"BEFORE INTEGRATE"<<std::endl;
-                std::cerr<<"group_q[g]: "<<group_q[g]<<std::endl;
-                std::cerr<<"omega_local: "<<omega_local<<std::endl;
-                exit(0);
-            }
             group_q[g].exponential_integrate(omega_local, attrs.dt);
 
-            if (group_q[g] != group_q[g])
-            {
-                std::cerr<<"group_q[g]: "<<group_q[g]<<std::endl;
-                std::cerr<<"group_wh[g]: "<<group_wh[g]<<std::endl;
-                exit(0);
-            }
         }
 
         for (int Ball = 0; Ball < attrs.num_particles; Ball++) 

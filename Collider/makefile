@@ -12,6 +12,7 @@ CXX = g++
 # Base CXXFLAGS, without HDF5-specific flags
 # CXXFLAGS = -g -O2 -std=c++17 -fopenmp -fopenacc -foffload=nvptx-none -#-fopenacc 
 CXXFLAGS = -g -O2 -std=c++17 -fopenmp #-fopenacc 
+# CXXFLAGS = -g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer -std=c++17 -fopenmp #debug CXXFLAGS
 
 # Detect HDF5
 # HDF5_TEST := $(shell ldconfig -p | grep hdf5 >/dev/null 2>&1 && echo 1 || echo 0)
@@ -71,9 +72,9 @@ ifeq ($(EXPERIMENTAL_FILESYSTEM),1)
 endif
 
 # Source files
-SOURCES = Collider.cpp ball_group.cpp ../utilities/MPI_utilities.cpp ../utilities/vec3.cpp ../data/DECCOData.cpp ../utilities/Utils.cpp ../utilities/simple_graph.cpp
-TEST_SOURCES = testing.cpp ball_group.cpp ../utilities/MPI_utilities.cpp ../utilities/vec3.cpp ../data/DECCOData.cpp ../utilities/Utils.cpp ../utilities/simple_graph.cpp
-HPP += ../data/DECCOData.hpp ball_group.hpp ../utilities/Utils.hpp ../utilities/MPI_utilities.hpp ../utilities/Utils.hpp ../utilities/simple_graph.hpp
+SOURCES = Collider.cpp ball_group.cpp ../utilities/MPI_utilities.cpp ../utilities/vec3.cpp ../data/DECCOData.cpp ../utilities/Utils.cpp ../utilities/simple_graph.cpp ../utilities/math.cpp
+TEST_SOURCES = testing.cpp ball_group.cpp ../utilities/MPI_utilities.cpp ../utilities/vec3.cpp ../data/DECCOData.cpp ../utilities/Utils.cpp ../utilities/simple_graph.cpp ../utilities/math.cpp
+HPP += ../data/DECCOData.hpp ball_group.hpp ../utilities/Utils.hpp ../utilities/MPI_utilities.hpp ../utilities/Utils.hpp ../utilities/simple_graph.hpp ../utilities/math.hpp
 
 # Object directory
 OBJDIR = objs
