@@ -339,7 +339,7 @@ void rotation::exponential_integrate(const vec3 w_body, const double dt)
     const vec3  dqv = s_over * w_body;
     const double dq0 = std::cos(half);
 
-    // --- right multiply: q_new = q_old ⊗ Deltaq ---
+    // --- right multiply: q_new = q_old tensor product Deltaq ---
     const vec3 qv = {x,y,z};
     const double q0 = w;
 
