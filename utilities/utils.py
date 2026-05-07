@@ -42,6 +42,8 @@ def get_plottable_value_from_saved_value(value,header,folder,data_index,relax):
 		return value
 	elif header == "fractal_dimension":
 		return value
+	elif header == "asymmetry_parameter":
+		return value
 	elif header == "porosity_fee":
 		return value 
 	elif header == "porosity_fes":
