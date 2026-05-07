@@ -63,6 +63,7 @@ if __name__ == '__main__':
 	# attempts = [i for i in range(25,30)]
 	# attempts = [i for i in range(0,30)]
 	attempts = [i for i in range(0,30)]
+	attempts = [2,3,4,5]
 	# attempts = [0]
 
 	#C is the number of projectiles each aggregate will consist of
@@ -71,8 +72,8 @@ if __name__ == '__main__':
 	# M = [50,60,100]
 	# M = [100]
 	#Other node M
-	M = [3,5,10,15,20,30]
-	# M = [30] 
+	# M = [3,5,10,15,20,30]
+	M = [50] 
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [1000]
@@ -81,7 +82,7 @@ if __name__ == '__main__':
 	totalNodes = 1
 	MPITasksPerNode = 1
 	totalMPITasks = totalNodes*MPITasksPerNode
-	threadsPerTask = 2
+	threadsPerTask = 4
 
 	#load default input file
 	with open(project_path+"default_files/default_input.json",'r') as fp:
@@ -161,8 +162,8 @@ if __name__ == '__main__':
 					# sbatchfile += "#SBATCH -C gpu\n"
 					# sbatchfile += "#SBATCH -q regular\n"
 					# sbatchfile += "#SBATCH -t 0:10:00\n"
-					# sbatchfile += f'#SBATCH --account=lazzati\n'
-					# sbatchfile += f'#SBATCH --partition=lazzati.q\n'
+					sbatchfile += f'#SBATCH --account=lazzati\n'
+					sbatchfile += f'#SBATCH --partition=lazzati.q\n'
 
 					#NAME ORDER needs to be same as the file path order
 					sbatchfile += f"#SBATCH -J {job_name}\n"
@@ -176,7 +177,9 @@ if __name__ == '__main__':
 					# sbatchfile += "#SBATCH -G {}\n".format(node)
 					# sbatchfile += 'module load gpu\n'
 
-					sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(threadsPerTask)
+					sbatchfile += f'export OMP_NUM_THREADS={threadsPerTask}\n'
+					# sbatchfile += f'export OMP_PLACES=cores\n'
+					# sbatchfile += f'export OMP_PROC_BIND=close\n'
 					# sbatchfile += 'export SLURM_CPU_BIND="socket"\n'
 					# sbatchfile += 'module load hdf5/1.14.3\n'
 					sbatchfile += 'module load gnu12/12.3.0\n'
@@ -185,7 +188,18 @@ if __name__ == '__main__':
 					# sbatchfile += 'module swap openmpi4/4.1.6 mpich\n'
 
 					
-					sbatchfile += f"srun -n {totalMPITasks} -c {threadsPerTask} --cpu-bind=cores {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+					sbatchfile += (
+						f"srun "
+						f"--ntasks={totalMPITasks} "
+						f"--cpus-per-task={threadsPerTask} "
+						# f"--sockets-per-node=1 "
+						f"--cpu-bind=cores,verbose "
+						# f"--hint=nomultithread "
+						# f"--mem-bind=local "
+						f"{job}Collider.x {job} "
+						f"2>>sim_err.log "
+						f"1>>sim_out.log\n"
+					)
 					# sbatchfile += f"srun --ntasks-per-node={MPITasksPerNode} --cpus-per-task={threadsPerTask} --cpu-bind=socket numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 					# sbatchfile += f"mpirun --bind-to socket --map-by node numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
 					# sbatchfile += f"mpirun -n {totalMPITasks} numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"

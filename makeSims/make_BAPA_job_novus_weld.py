@@ -62,10 +62,10 @@ if __name__ == '__main__':
 	# attempts = [i for i in range(0,25)]
 	# attempts = [i for i in range(25,30)]
 	attempts = [i for i in range(0,30)]
-	# attempts = [20]
+	# attempts = [21]
 
 	N = [300] #final size
-	M = [3,100] #starting sizes
+	M = [3,15,100] #starting sizes
 	# M = [3] 
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
@@ -192,7 +192,10 @@ if __name__ == '__main__':
 
 						#add run script and executable to folders
 						# os.system(f"cp {project_path}default_files/run_sim.py {job}run_sim.py")
+						os.system(f"rm -f {job}Collider.x")
 						os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
+						# os.system(f"chmod 755 {job}Collider.x")
+						# os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
 						os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
 						os.system(f"cp {project_path}Collider/ball_group.cpp {job}ball_group.cpp")
 						os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
