@@ -556,7 +556,7 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 
 	temps = [1000]
 	Nums = [300]
-	M = [1,3,5,10,15,20,30,50,60,100]
+	M = [1,3,5,10,15,20,30,50,60,75,100,150]
 	
 	attempts = [i for i in range(30)]
 
@@ -604,7 +604,7 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 
 	temps = [1000]
 	C = 30
-	M = [1,3,5,10,15,20,30,50,60,100]
+	M = [1,3,5,10,15,20,30,50,60,75,100,150]
 	attempts = [i for i in range(30)]
 
 	# requested_data_headers = gd.data_headers[:2] + [gd.data_headers[4]]
@@ -3214,7 +3214,7 @@ def gen_BAPA_porosity_vs_asymmetry(show_plots=True,save_plots=False,include_tota
 
 	attempts = [i for i in range(30)]
 	N = [300]
-	M = [1,3,5,10,15,20,30,50,60,100]
+	M = [1,3,5,10,15,20,30,50,60,75,100,150]
 	C=30
 	
 	data_files = []
@@ -3445,7 +3445,7 @@ if __name__ == '__main__':
 	# gen_Asym_BAPA_numbers()
 
 	##Plots for paper 2
-	# gen_BAPA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
+	gen_BAPA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 	gen_BAPA_porosity_vs_asymmetry(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
 
 	# gen_stylized_BAPA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)

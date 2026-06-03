@@ -10,8 +10,6 @@ for the folders which have completed jobs in them.
 
 
 
-
-
 import sys
 import glob
 import os
@@ -291,8 +289,8 @@ if __name__ == '__main__':
 	N = [300]
 	# N = [-1] 
 	C = 30
-	# M = [1,3,5,10,15,20,30,50,60,100]
-	M = [3,15,100]
+	# M = [1,3,5,10,15,20,30,50,60,75,100,150]
+	# M = [3,15,100]
 
 	#list of the functions that calculate the data you want
 	#if adding to this list, name your function calc_*header_name*
@@ -305,7 +303,7 @@ if __name__ == '__main__':
 
 	bool_headers = [0,0,0,0,1,0,0,0,0,0]
 	bool_headers = [1,1,0,0,1,0,0,0,0,0]
-	bool_headers = [1,1,0,1,1,0,0,0,0,1]
+	bool_headers = [1,1,0,1,1,1,0,0,0,1]
 	# requested_data_functions = [data_functions[i] for i in range(len(data_functions)) if bool_headers[i]]
 	requested_data_headers = [data_headers[i] for i in range(len(data_headers)) if bool_headers[i]]
 
@@ -317,9 +315,9 @@ if __name__ == '__main__':
 		data_folders = []
 		# data_folders = [path + 'jobs/AsymBAPA_*']
 		data_folders += [path + 'jobs/BAPAWELD_*']
-		# data_folders = [path + 'jobs/CBAPA_*']
+		data_folders += [path + 'jobs/CBAPA_*']
 		# data_folders = [path + 'jobs/CBAPA_29/M_5/*']
-		# data_folders += [path + 'jobs/BAPA_*']
+		data_folders += [path + 'jobs/BAPA_*']
 
 		# data_folders = [path + 'jobs/BAPA_*/M_1/*']
 		# data_folders = [path + 'jobs/constrollingfric*']
@@ -365,9 +363,12 @@ if __name__ == '__main__':
 			if CBAPA:
 				# n = u.find_max_index(directory)
 				m = u.value_from_directory("M",directory)
-				n = C*m
+				en = C*m
+			else:
+				en = n
 
-			requested_sizes = [n]
+
+			requested_sizes = [en]
 			relax = ("relax" in directory)
 			# relax = False
 			# print(f"relax: {relax}")

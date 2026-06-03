@@ -66,7 +66,7 @@ if __name__ == '__main__':
 
 	N = [300] #final size
 	M = [3,15,100] #starting sizes
-	# M = [3] 
+	M = [3] 
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [1000]
@@ -75,7 +75,7 @@ if __name__ == '__main__':
 	totalNodes = 1
 	MPITasksPerNode = 1
 	totalMPITasks = totalNodes*MPITasksPerNode
-	threadsPerTask = 1
+	threadsPerTask = 4
 
 	#load default input file
 	with open(project_path+"default_files/default_input.json",'r') as fp:
