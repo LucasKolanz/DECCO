@@ -55,7 +55,7 @@ class TransferConfig:
     host_alias: str = "Novus"
     job_set_names: tuple[str, ...] = ("BAPAWELD",)
     attempts: range = range(30)
-    m_values: tuple[int, ...] = (3, 5, 10, 15, 20, 30, 50, 60, 100)
+    m_values: tuple[int, ...] = (3, 5, 10, 15, 20, 30, 50, 60, 75, 100, 150)
     n_default: int = 300
     temps: tuple[int, ...] = (1000,)
     cbapa_c: int = 30
@@ -113,29 +113,44 @@ def ssh_command(config: TransferConfig, remote_command: str) -> list[str]:
     return command
 
 
-def remote_file_exists(config: TransferConfig, remote_path: Path) -> bool:
+def remote_files_exist(config: TransferConfig, remote_files: list) -> bool:
     """
-    Check whether a remote file exists using the system ssh command.
+    Check whether all remote files exist using the system ssh command.
 
     Return code meanings:
       0 -> file exists
       1 -> ssh worked, but test -f returned false
       other -> ssh/connection/config problem
+
+    Returns:
+      True  -> all remote files exist
+      False -> at least one remote file does not exist
     """
-    remote_command = f"test -f {shlex_quote(str(remote_path))}"
-    result = run_command(ssh_command(config, remote_command))
 
-    if result.returncode == 0:
-        return True
+    for remote_file in remote_files:
+        remote_command = f"test -f {shlex_quote(str(remote_file))}"
+        command = ssh_command(config, remote_command)
 
-    if result.returncode == 1:
-        return False
+        result = run_command(command)
 
-    print("SSH command failed while checking remote file.")
-    print("Command:", " ".join(ssh_command(config, remote_command)))
-    print("stderr:")
-    print(result.stderr.strip())
-    raise RuntimeError(f"ssh failed with exit code {result.returncode}")
+        if result.returncode == 0:
+            # This file exists, keep checking the rest.
+            continue
+
+        elif result.returncode == 1:
+            # SSH worked, but this file does not exist.
+            return False
+        else:  
+            # Any other return code means SSH itself failed.
+            print("SSH command failed while checking remote file.")
+            print("Remote file:", remote_file)
+            print("Command:", " ".join(command))
+            print("stderr:")
+            print(result.stderr.strip())
+
+            raise RuntimeError(f"ssh failed with exit code {result.returncode}")
+
+    return True
 
 
 def scp_get_folder(config: TransferConfig, remote_folder: Path, local_parent: Path) -> bool:
@@ -297,7 +312,8 @@ def transfer_finished_jobs(config: TransferConfig) -> None:
             continue
 
         remote_timing = remote_folder / "timing.txt"
-        if not remote_file_exists(config, remote_timing):
+        remote_data = remote_folder / "job_data.csv"
+        if not remote_files_exist(config, [remote_timing,remote_data]):
             print(f"Not finished:    {remote_folder}")
             unfinished += 1
             continue
@@ -335,7 +351,7 @@ def parse_args() -> TransferConfig:
         "--m-values",
         nargs="+",
         type=int,
-        default=[3, 5, 10, 15, 20, 30, 50, 60, 100],
+        default=[3, 5, 10, 15, 20, 30, 50, 60, 75, 100, 150],
         help="M values to copy.",
     )
     parser.add_argument("--attempts", type=int, default=30, help="Number of attempts, starting from 0.")
