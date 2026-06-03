@@ -522,12 +522,30 @@ rand_int_between(const int min, const int max)
     return rand;
 }
 
+// Returns a random position within the given box.
+//IMPORTANT: calling rand_between() in the call to vec3()
+//      ex: vec3 rand_pos = vec3(rand_between(), rand_between(), rand_between());
+//  will potentially give different results on different systems because the states of these 
+//  random calls are tied together, but the order in which the calls to rand_between 
+//  happen are not necessarily going to be the same each time. So you should use this function
+//  instead.
+vec3
+rand_pos_in_box(const double maxx, const double maxy, const double maxz)
+{
+    //random_gaussian is MPIsafe so no need to send stuff here
+    double x = rand_between(0.0,maxx);
+    double y = rand_between(0.0,maxy);
+    double z = rand_between(0.0,maxz);
+    return vec3(x, y, z);
+}
+
 // Returns a random unit vector.
 //IMPORTANT: calling random_gaussian() in the call to vec3()
 //      ex: vec3 rand_dir = vec3(random_gaussian(), random_gaussian(), random_gaussian());
 //  will potentially give different results on different systems because the states of these 
 //  random calls are tied together, but the order in which the calls to random_gaussian 
-//  happen are not necessarily going to be the same each time.
+//  happen are not necessarily going to be the same each time. So you should use this function
+//  instead.
 vec3
 rand_unit_vec3()
 {

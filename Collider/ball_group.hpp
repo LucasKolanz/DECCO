@@ -33,7 +33,7 @@
 using json = nlohmann::json;
 extern const int bufferlines;
 enum distributions {constant, logNorm};
-enum simType {BPCA, BCCA, BAPA, collider, relax, custom};
+enum simType {BPCA, BCCA, BAPA, collider, relax, custom, bigbox};
 enum materials {amorphousCarbon,quartz};
 
 constexpr double Kb = 1.380649e-16; //in erg/K
@@ -209,6 +209,9 @@ struct Ball_group_attributes
     double critSlidingDisp = -1.0;
     materials material;
 
+    //Big box attributes
+    vec3 boxdims;
+
 
     // Overload the assignment operator
     Ball_group_attributes& operator=(const Ball_group_attributes& other) 
@@ -325,6 +328,9 @@ struct Ball_group_attributes
             critRollingDisp = other.critRollingDisp;
             critSlidingDisp = other.critSlidingDisp;
             material = other.material;
+
+            //big box attrs
+            boxdims = other.boxdims;
         }
         return *this;
     }
@@ -532,6 +538,7 @@ public:
     void aggregationInit(const std::string path,const int index=-1);
     void colliderInit(const std::string path);
     void customInit();
+    void bigboxInit();
     void sim_init_write(int counter=0);
     void parse_input_file(std::string location);
     Ball_group spawn_particles(const int count);
@@ -572,7 +579,9 @@ public:
     void distSizeSphere(const int nBalls);
     void oneSizeSphere(const int nBalls);
     void sphereInit();
-    void placeBalls(const int nBalls);
+    void boxInit();
+    void placeBallsInSphere(const int nBalls);
+    void placeBallsInBox(const int nBalls);
     void setRadii();
     void setGroup(int group_num);
     void setMass();
@@ -594,6 +603,7 @@ private:
 bool is_touching(Ball_group &projectile,Ball_group &target);
 void moveApart(const vec3 &projectile_direction,Ball_group &projectile,Ball_group &target);
 bool get_JKR(const std::string folder);
+vec3 get_boxdims(const std::string& input);
 // vec3 rotateVec(const double E0,const vec3 E,const vec3 vec);
 // vec3 quatRotate(const double s, const vec3& v, const vec3& vec);
 vec3 worldToLocal(const double s, const vec3& v,const vec3& vecWorld);

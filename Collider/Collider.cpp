@@ -38,6 +38,8 @@ void
 runCollider(std::string path);
 void
 runCustom(std::string path);
+void 
+runBigBox(std::string path);
 timey t;
 
 //////////////////////////////////////////////////////////////
@@ -185,6 +187,13 @@ main(int argc, char* argv[])
         #endif
         runCustom(dummy.attrs.output_folder);
     }
+    else if (dummy.attrs.typeSim == bigbox)
+    {
+        #ifdef MPI_ENABLE
+            MPI_Barrier(MPI_COMM_WORLD);
+        #endif
+        runBigBox(dummy.attrs.output_folder);
+    }
     else
     {
         MPIsafe_print(std::cerr,"ERROR: input file needs to specify a simulation type (simType).\n");
@@ -232,6 +241,19 @@ void runCollider(std::string path)
     // std::cerr<<"sim init wrote"<<std::endl;
     O.sim_looper(O.attrs.start_step);
     // std::cerr<<"looper finished"<<std::endl;
+    // t.end_event("collider");
+    O.freeMemory();
+    return;
+}
+
+void runBigBox(std::string path)
+{
+    // t.start_event("collider");
+    Ball_group O = Ball_group(path);
+    
+    safetyChecks(O);
+    O.sim_init_write();
+    // O.sim_looper(O.attrs.start_step);
     // t.end_event("collider");
     O.freeMemory();
     return;
@@ -447,7 +469,7 @@ safetyChecks(Ball_group &O) //Should be ready to call sim_looper after running t
         MPIsafe_exit(EXIT_FAILURE);
     } 
 
-    if (O.attrs.typeSim != BPCA && O.attrs.typeSim != BCCA && O.attrs.typeSim != collider && O.attrs.typeSim != relax && O.attrs.typeSim != BAPA) {
+    if (O.attrs.typeSim != bigbox && O.attrs.typeSim != BPCA && O.attrs.typeSim != BCCA && O.attrs.typeSim != collider && O.attrs.typeSim != relax && O.attrs.typeSim != BAPA) {
         fprintf(stderr, "\ntypeSim NOT SET for rank %1d\n",getRank());
         MPIsafe_exit(EXIT_FAILURE);
     } 

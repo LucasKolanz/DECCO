@@ -52,12 +52,12 @@ Ball_group::Ball_group(const int nBalls, const bool JKR)
 /// @param index is the index of the file to load. If index is less than 0
 ///        then the code will check if this is a restart and delete partial files if applicable
 ///        If index is greater than or equal to 0 these checks are bypassed and
-///        the specified index is simply loaded (for BCCA projectile loading)
+///        the specified index is simply loaded (for BCCA projectile loading).
+///        Index is ignored for bigbox simulations
 Ball_group::Ball_group(std::string& path, const int index)
 {
     parse_input_file(path);
     
-
     if (attrs.typeSim == BPCA || attrs.typeSim == BCCA || attrs.typeSim == BAPA)
     {
         aggregationInit(path,index);
@@ -83,6 +83,10 @@ Ball_group::Ball_group(std::string& path, const int index)
     else if (attrs.typeSim == custom)
     {
         customInit();
+    }
+    else if (attrs.typeSim == bigbox)
+    {
+        bigboxInit();
     }
     else
     {
@@ -317,7 +321,7 @@ void Ball_group::aggregationInit(const std::string path,const int index/*=-1*/)
     else if (restart == 0 || just_restart)
     {
         generate_ball_field(attrs.genBalls);
-        placeBalls(attrs.genBalls);
+        // placeBallsInSphere(attrs.genBalls);
 
         attrs.m_total = getMass();
         calc_v_collapse();
@@ -342,6 +346,19 @@ void Ball_group::aggregationInit(const std::string path,const int index/*=-1*/)
 
         MPIsafe_exit(-1);
     }
+
+}
+
+//Initalize custom parameters in here. Mostly for testing.
+void Ball_group::bigboxInit()
+{
+    generate_ball_field(attrs.N);
+    // placeBallsInBox(attrs.genBalls);
+    attrs.m_total = getMass();
+    calc_v_collapse();
+    
+    simInit_cond_and_center(true);
+    calibrate_dt(0, attrs.v_custom);
 
 }
 
@@ -756,6 +773,14 @@ void Ball_group::parse_input_file(std::string location)
     else if (temp_sim_type == "custom")
     {
         attrs.typeSim = custom;
+    }
+    else if (temp_sim_type == "bigbox")
+    {
+        attrs.typeSim = bigbox;
+
+        std::string temp_box_dims = "";
+        set_attribute(inputs,"boxDims",temp_box_dims);
+        attrs.boxdims = get_boxdims(temp_box_dims);
     }
 
     attrs.JKR = get_JKR(location);
@@ -2009,7 +2034,6 @@ Ball_group Ball_group::BPCA_projectile_init()
     return projectile;
 }
 
-
 // @brief returns new ball group consisting of one particle
 //        where particle is given initial conditions
 //        including an random offset linearly dependant on radius 
@@ -2107,7 +2131,7 @@ Ball_group Ball_group::BAPA_projectile_init()
         projectile = Ball_group(projectile_size,attrs.JKR);
         projectile.parse_input_file(attrs.output_folder);
         projectile.generate_ball_field(projectile_size);
-        projectile.placeBalls(projectile_size);
+        projectile.placeBallsInSphere(projectile_size);
     }
     else if (projectile_size == 1)
     {
@@ -3254,8 +3278,14 @@ void Ball_group::generate_ball_field(const int nBalls)
         setMass();
     }
 
-
-    sphereInit();
+    if (attrs.typeSim != bigbox)
+    {
+        sphereInit();
+    }
+    else
+    {
+        boxInit();
+    }
     
     calc_helpfuls();
 
@@ -3632,7 +3662,7 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
 
 //     attrs.m_total = getMass();
 
-//     placeBalls(nBalls);
+//     placeBallsInSphere(nBalls);
 // }
 
 void Ball_group::sphereInit()
@@ -3648,7 +3678,23 @@ void Ball_group::sphereInit()
 
     attrs.m_total = getMass();
 
-    placeBalls(attrs.num_particles);
+    placeBallsInSphere(attrs.num_particles);
+}
+
+void Ball_group::boxInit()
+{
+    for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
+        // setRadii(Ball);
+        // setMass(Ball);
+        // m[Ball] = attrs.density * 4. / 3. * 3.14159 * std::pow(R[Ball], 3);
+        moi[Ball] = .4 * m[Ball] * R[Ball] * R[Ball];
+        w[Ball] = {0, 0, 0};
+        pos[Ball] = rand_pos_in_box(attrs.boxdims.x,attrs.boxdims.y,attrs.boxdims.z);
+    }
+
+    attrs.m_total = getMass();
+
+    placeBallsInBox(attrs.num_particles);
 }
 
 inline void Ball_group::setGroup(int group_num)
@@ -3737,30 +3783,32 @@ void Ball_group::pos_and_vel_for_collision_JKR(Ball_group &projectile,Ball_group
     projectile.kick(vSmall*projectile_direction);
     target.kick(vBig*(-projectile_direction));
 
-
-    if (attrs.impactParameter < 0.0)
+    if (attrs.typeSim != bigbox)
     {
-        //move the projectile so it is barely not touching the target        
-        projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*(-projectile_direction));
+        if (attrs.impactParameter < 0.0)
+        {
+            //move the projectile so it is barely not touching the target        
+            projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*(-projectile_direction));
 
-        //give the projectile a random offset such that they still collide
-        vec3 offset = random_offset(projectile, target);
-        
-        MPIsafe_print(std::cerr,"Applying random offset of "+vToSci(offset)+" cm.\n");
+            //give the projectile a random offset such that they still collide
+            vec3 offset = random_offset(projectile, target);
+            
+            MPIsafe_print(std::cerr,"Applying random offset of "+vToSci(offset)+" cm.\n");
 
-    }
-    else
-    {
-        // TODO::MAke this work in any direction, not just xy plane  
-        MPIsafe_print(std::cerr,"ERROR::if you made it here, you need to finish this code before this can run.\n");
-        MPIsafe_exit(-1);
-        // projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*projectile_direction);
-        projectile.offset(
-            projectile.attrs.initial_radius + projectile.getRmax(), target.attrs.initial_radius + target.getRmax(), attrs.impactParameter);
-        MPIsafe_print(std::cerr,"Applying impact parameter of "+std::to_string(attrs.impactParameter)+" cm.\n");
-            // //Next line was the original
-            // projectile.attrs.initial_radius, target.attrs.initial_radius + target.getRmax() * 2, attrs.impactParameter);
-            // (projectile.attrs.initial_radius + target.attrs.initial_radius)*3, 0.0, attrs.impactParameter);
+        }
+        else
+        {
+            // TODO::MAke this work in any direction, not just xy plane  
+            MPIsafe_print(std::cerr,"ERROR::if you made it here, you need to finish this code before this can run.\n");
+            MPIsafe_exit(-1);
+            // projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*projectile_direction);
+            projectile.offset(
+                projectile.attrs.initial_radius + projectile.getRmax(), target.attrs.initial_radius + target.getRmax(), attrs.impactParameter);
+            MPIsafe_print(std::cerr,"Applying impact parameter of "+std::to_string(attrs.impactParameter)+" cm.\n");
+                // //Next line was the original
+                // projectile.attrs.initial_radius, target.attrs.initial_radius + target.getRmax() * 2, attrs.impactParameter);
+                // (projectile.attrs.initial_radius + target.attrs.initial_radius)*3, 0.0, attrs.impactParameter);
+        }
     }
 
     //Now we can move the aggregates apart a little bit if they are touching
@@ -3816,29 +3864,31 @@ void Ball_group::pos_and_vel_for_collision(Ball_group &projectile,Ball_group &ta
     projectile.kick(vSmall*projectile_direction);
     target.kick(vBig*(-projectile_direction));
 
-
-    if (attrs.impactParameter < 0.0)
+    if (attrs.typeSim != bigbox)
     {
-        //move the projectile so it is barely not touching the target        
-        projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*(-projectile_direction));
+        if (attrs.impactParameter < 0.0)
+        {
+            //move the projectile so it is barely not touching the target        
+            projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*(-projectile_direction));
 
-        //give the projectile a random offset such that they still collide
-        const auto offset = random_offset(projectile, target); 
-        MPIsafe_print(std::cerr,"Applying random offset of "+vToSci(offset)+" cm.\n");
+            //give the projectile a random offset such that they still collide
+            const auto offset = random_offset(projectile, target); 
+            MPIsafe_print(std::cerr,"Applying random offset of "+vToSci(offset)+" cm.\n");
 
-    }
-    else
-    {
-        // TODO::MAke this work in any direction, not just xy plane  
-        MPIsafe_print(std::cerr,"ERROR::if you made it here, you need to finish this code before this can run.");
-        MPIsafe_exit(-1);
-        // projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*projectile_direction);
-        projectile.offset(
-            projectile.attrs.initial_radius + projectile.getRmax(), target.attrs.initial_radius + target.getRmax(), attrs.impactParameter);
-        MPIsafe_print(std::cerr,"Applying impact parameter of "+std::to_string(attrs.impactParameter)+" cm.\n");
-            // //Next line was the original
-            // projectile.attrs.initial_radius, target.attrs.initial_radius + target.getRmax() * 2, attrs.impactParameter);
-            // (projectile.attrs.initial_radius + target.attrs.initial_radius)*3, 0.0, attrs.impactParameter);
+        }
+        else
+        {
+            // TODO::MAke this work in any direction, not just xy plane  
+            MPIsafe_print(std::cerr,"ERROR::if you made it here, you need to finish this code before this can run.\n");
+            MPIsafe_exit(-1);
+            // projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*projectile_direction);
+            projectile.offset(
+                projectile.attrs.initial_radius + projectile.getRmax(), target.attrs.initial_radius + target.getRmax(), attrs.impactParameter);
+            MPIsafe_print(std::cerr,"Applying impact parameter of "+std::to_string(attrs.impactParameter)+" cm.\n");
+                // //Next line was the original
+                // projectile.attrs.initial_radius, target.attrs.initial_radius + target.getRmax() * 2, attrs.impactParameter);
+                // (projectile.attrs.initial_radius + target.attrs.initial_radius)*3, 0.0, attrs.impactParameter);
+        }
     }
 
     //Now we can move the aggregates apart a little bit if they are touching
@@ -3886,7 +3936,7 @@ void Ball_group::overwrite_v_custom(Ball_group &projectile,Ball_group &target)
 
 
 
-void Ball_group::placeBalls(const int nBalls)
+void Ball_group::placeBallsInSphere(const int nBalls)
 {
     // Generate non-overlapping spherical particle field:
     int collisionDetected = 0;
@@ -3972,6 +4022,60 @@ void Ball_group::placeBalls(const int nBalls)
                             "Mass: "+dToSci(attrs.m_total)+'\n');
         MPIsafe_print(std::cerr,message);
     }
+}
+
+void Ball_group::placeBallsInBox(const int nBalls)
+{
+    // Generate non-overlapping spherical particle field:
+    int collisionDetected = 0;
+    int oldCollisions = nBalls;
+
+    
+    for (int failed = 0; failed < attrs.attempts; failed++) {
+        for (int A = 0; A < nBalls; A++) {
+            for (int B = A + 1; B < nBalls; B++) {
+
+                // Check for Ball overlap.
+                const double dist = (pos[A] - pos[B]).norm();
+                const double sumRaRb = R[A] + R[B];
+                const double overlap = dist - sumRaRb;
+                if (overlap < 0) {
+                    collisionDetected += 1;
+                    // Move the other ball:
+                    pos[B] = rand_vec3(attrs.spaceRange);
+                }
+            }
+        }
+        if (collisionDetected < oldCollisions) {
+            oldCollisions = collisionDetected;
+            MPIsafe_print(std::cerr,"Collisions: "+std::to_string(collisionDetected)+'\n');
+        }
+        if (collisionDetected == 0) {
+            MPIsafe_print(std::cerr,"Success!\n");
+            break;
+        }
+        if (failed == attrs.attempts - 1 ||
+            collisionDetected >
+                static_cast<int>(
+                    1.5 *
+                    static_cast<double>(
+                        nBalls)))  // Added the second part to speed up spatial constraint increase when
+                                   // there are clearly too many collisions for the space to be feasible.
+        {
+
+            std::string message("Failed "+std::to_string(attrs.spaceRange)+". Increasing range "+std::to_string(attrs.spaceRangeIncrement)+"cm^3.\n");
+            MPIsafe_print(std::cerr,message);
+            attrs.spaceRange += attrs.spaceRangeIncrement;
+            failed = 0;
+            for (int Ball = 0; Ball < nBalls; Ball++) {
+                pos[Ball] = rand_vec3(
+                    attrs.spaceRange);  // Each time we fail and increase range, redistribute all balls randomly
+                                  // so we don't end up with big balls near mid and small balls outside.
+            }
+        }
+        collisionDetected = 0;
+    }
+
 }
 
 
@@ -6375,6 +6479,33 @@ bool Ball_group::isAggregation()
         return true;
     }
     return false;
+}
+
+vec3 get_boxdims(const std::string& input)
+{
+    std::string cleaned = input;
+
+    for (char& c : cleaned)
+    {
+        if (c == ',' || c == '(' || c == ')' ||
+            c == '[' || c == ']' ||
+            c == '{' || c == '}')
+        {
+            c = ' ';
+        }
+    }
+
+    std::istringstream iss(cleaned);
+
+    vec3 dims;
+
+    if (!(iss >> dims.x >> dims.y >> dims.z))
+    {
+        MPIsafe_print(std::cerr,"Could not parse three doubles from: " + input + '\n');
+        MPIsafe_exit(-1);
+    }
+
+    return dims;
 }
 
 bool get_JKR(const std::string folder)
