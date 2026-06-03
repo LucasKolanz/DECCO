@@ -44,6 +44,8 @@ def get_plottable_value_from_saved_value(value,header,folder,data_index,relax):
 		return value
 	elif header == "asymmetry_parameter":
 		return value
+	elif header == "stretch_parameter":
+		return value
 	elif header == "porosity_fee":
 		return value 
 	elif header == "porosity_fes":
@@ -57,6 +59,8 @@ def get_plottable_value_from_saved_value(value,header,folder,data_index,relax):
 		r_ef_cubed = np.sum(np.power(radius,3))
 		data = 1-(r_ef_cubed/r**3)
 		return data
+	elif header == "effective_radius":
+		return float(value)*10000.0 #convert to micrometers
 
 #finds the integer corresponding to a particular part of the directory structure
 #could be T for temperature, N for number of particles, etc.
@@ -1403,45 +1407,10 @@ def calc_geometric_cross_section(
 								 proj_points=None, radii=None, directory=directory)
 	return sigma
 
-# def mvee_points(points, tol=0.0001):
-# 	"""
-# 	Finds the ellipse equation in "center form"
-# 	(x-c).T * A * (x-c) = 1
-# 	"""
-# 	import numpy.linalg as la
+#########################################################################
+#END functions for calculating metrics
+#########################################################################
 
-# 	N, d = points.shape
-# 	Q = np.column_stack((points, np.ones(N))).T
-# 	err = tol+1.0
-# 	u = np.ones(N)/N
-# 	while err > tol:
-# 		# assert u.sum() == 1 # invariant
-# 		X = np.dot(np.dot(Q, np.diag(u)), Q.T)
-# 		M = np.diag(np.dot(np.dot(Q.T, la.inv(X)), Q))
-# 		jdx = np.argmax(M)
-# 		step_size = (M[jdx]-d-1.0)/((d+1)*(M[jdx]-1.0))
-# 		new_u = (1-step_size)*u
-# 		new_u[jdx] += step_size
-# 		err = la.norm(new_u-u)
-# 		u = new_u
-# 	c = np.dot(u, points)
-# 	A = la.inv(np.dot(np.dot(points.T, np.diag(u)), points)
-# 			   - np.multiply.outer(c, c))/d
-
-# 	# Ensure A is symmetric (numerical noise)
-# 	A = 0.5 * (A + A.T)
-
-# 	# Eigen-decomposition
-# 	lam, R = np.linalg.eigh(A)
-
-# 	# Safety: remove tiny negative eigenvals due to numerical noise
-# 	lam = np.maximum(lam, 1e-15)
-
-# 	# Semi-axes
-# 	axes = 1.0 / np.sqrt(lam)    # (a1, a2, a3)
-
-# 	center = c                   # center of ellipsoid
-# 	return center,R,axes,0.0
 
 
 

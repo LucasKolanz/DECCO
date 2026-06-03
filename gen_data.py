@@ -184,6 +184,17 @@ def calc_porosity_abc(data_folder,size,relax=False, **kwargs):
 
 	return porosity
 
+def calc_effective_radius(data_folder,size,relax=False, **kwargs):
+	makeVisual = kwargs.get("makeVisual", False)
+
+	pos,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
+	if pos is None:
+		return np.nan
+
+	effective_radius = np.power(np.sum(np.power(radius,3)),1/3) 
+
+	return effective_radius
+
 def calc_porosity_KBM(data_folder,size,relax=False,**kwargs):
 	makeVisual = kwargs.get("makeVisual", False)
 
@@ -224,7 +235,8 @@ data_functions = [calc_porosity_abc,calc_porosity_KBM, \
 					calc_number_of_contacts,calc_fractal_dimension, \
 					calc_asymmetry_parameter,calc_stretch_parameter, \
 					calc_porosity_fee,calc_porosity_fes, \
-					calc_porosity_ch,calc_geometric_cross_section]
+					calc_porosity_ch,calc_geometric_cross_section, \
+					calc_effective_radius]
 data_headers = [i.__name__[5:] for i in data_functions]
 
 def calc_from_size(size,directory,existing_headers,existing_values,requested_headers,relax=False,overwrite=False,makeVisual=False):
@@ -289,7 +301,7 @@ if __name__ == '__main__':
 	N = [300]
 	# N = [-1] 
 	C = 30
-	# M = [1,3,5,10,15,20,30,50,60,75,100,150]
+	M = [1,3,5,10,15,20,30,50,60,75,100,150]
 	# M = [3,15,100]
 
 	#list of the functions that calculate the data you want
@@ -301,9 +313,10 @@ if __name__ == '__main__':
 	#It should return a single data value.
 	# bool_headers = [1,1,0,0,1,0,0,0]
 
-	bool_headers = [0,0,0,0,1,0,0,0,0,0]
-	bool_headers = [1,1,0,0,1,0,0,0,0,0]
-	bool_headers = [1,1,0,1,1,1,0,0,0,1]
+	bool_headers = [1,1,0,0,1,0,0,0,0,0,0]
+	bool_headers = [1,1,0,1,1,0,0,0,0,1,0]
+	bool_headers = [0,0,0,0,0,1,0,0,0,0,0]
+
 	# requested_data_functions = [data_functions[i] for i in range(len(data_functions)) if bool_headers[i]]
 	requested_data_headers = [data_headers[i] for i in range(len(data_headers)) if bool_headers[i]]
 
@@ -313,40 +326,11 @@ if __name__ == '__main__':
 	for n_i,n in enumerate(N):
 	
 		data_folders = []
-		# data_folders = [path + 'jobs/AsymBAPA_*']
+		data_folders = [path + 'jobs/CBAPA_*']
 		data_folders += [path + 'jobs/BAPAWELD_*']
-		data_folders += [path + 'jobs/CBAPA_*']
-		# data_folders = [path + 'jobs/CBAPA_29/M_5/*']
 		data_folders += [path + 'jobs/BAPA_*']
 
-		# data_folders = [path + 'jobs/BAPA_*/M_1/*']
-		# data_folders = [path + 'jobs/constrollingfric*']
-		# data_folders = [path + 'jobs/BAPA_0/M_60/*']
-		# data_folders = [path + 'jobs/SeqStickConstrelax_*/']
-		# data_folders = [path + 'jobs/SeqStickLognormrelax_*/']
-		# data_folders = [path + 'jobsCosine/lognorm_*/N_300/T_*/']
-		# data_folders = [path + 'jobsCosine/lognorm_*/N_300/T_*/']
-		# data_folders = [path + 'jobsNovus/const_*/N_300/T_1000/']
-		# data_folders = data_folders + [path + 'jobsNovus/const_*/N_300/T_3/']
-		# data_folders.append(path + f'jobsNovus/constrelax_*/N_{n}/*')
-		# data_folders = [path + 'jobsNovus/constrelax_*/N_300/T_*/']
 
-		# data_folders.append(path + 'jobs/SeqStickLognormrelax*/')
-		# data_folders.append(path + 'jobs/SeqStickConstrelax*/')
-		# data_folders.append(path + f'jobs/constrollingfricrelax*/N_{n}/*')
-		
-		# data_folders.append(path + f'jobsNovus/const_*/N_{n}/*')
-		# data_folders.append(path + f'jobsCosine/lognorm_*/N_{n}/*')
-		# data_folders.append(path + f'jobsNovus/constrelax_*/N_{n}/*')
-		# data_folders.append(path + f'jobsCosine/lognormrelax_*/N_{n}/*')
-		# data_folders.append('/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobsNovus/constrelax_4/N_300/T_30/')
-		# data_folders.append('/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobsCosine/lognormrelax_12/N_300/T_3/')
-		# data_folders.append(f'{path}jobs/lognormrelax_7/N_300/T_1000/')
-		# data_folders.append(f'{path}jobs/lognormrelax_19/N_300/T_1000/')
-		# data_folders.append(f'{path}jobs/lognormrelax_20/N_300/T_1000/')
-		# data_folders.append(f'{path}jobsCosine/lognormrelax_7/N_300/T_1000/')
-		# data_folders.append(f'{path}jobsCosine/lognormrelax_19/N_300/T_1000/')
-		# data_folders.append(f'{path}jobsCosine/lognormrelax_20/N_300/T_1000/')
 
 		possible_dirs = []
 		for data_folder in data_folders:
