@@ -1329,7 +1329,7 @@ apply_shared_random_oriented_equirectangular_texture_to_spheres(
     roughness=0.9,
     metallic=0.0,
     max_rotation_degrees=360.0,
-    do_uv_project=True,
+    do_uv_project=False,
 )
 
 # Change aggregate color
@@ -1372,8 +1372,9 @@ add_sun_light_from_direction(
 
 
 # Suppose your aggregate animation already occupies these Blender frames:
-frame_start = 600#bpy.data.scenes[0].frame_start
+frame_start = 0#bpy.data.scenes[0].frame_start
 frame_end = bpy.data.scenes[0].frame_end
+print(frame_start,frame_end)
 
 # Point the camera at the aggregate center.
 # You can replace this with your aggregate COM if you have it.
@@ -1414,7 +1415,7 @@ animate_parameterized_camera(
 
 print("setting up rendering image sequence")
 setup_image_sequence_render(
-   output_dir="/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/data/videos/aggregate_orbit_test/",
+   output_dir="/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/data/videos/aggregate_orbit/",
    frame_start=frame_start,
    frame_end=frame_end,
    fps=20,

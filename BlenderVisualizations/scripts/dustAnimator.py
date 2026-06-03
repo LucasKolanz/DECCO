@@ -198,8 +198,8 @@ path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPAWELDTES
 path = '/home/kolanzl/Desktop/Visualize/V0/'
 #9,12,
 
-simStart = 200 
-simEnd = 700
+simStart = 1700 
+simEnd = 1900
 just_last_line = False 
 
 
