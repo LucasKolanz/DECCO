@@ -193,13 +193,14 @@ path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/constrollin
 path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobsNovus/constrelax_4/N_300/T_30/'
 path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/JKRTestest_0/'
 path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/spinTest0/N_3/T_3/'
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/WELDTEST_1/M_10/N_30/T_1000/'
 path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPAWELDTEST_11/M_3/N_300/T_1000/'
 path = '/home/kolanzl/Desktop/Visualize/V0/'
+path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/bigboxtest_0/N_30/T_1000/'
+path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/bigboxtest_0/N_30/T_1/'
 #9,12,
 
-simStart = 1700 
-simEnd = 1900
+simStart = 30
+simEnd = 30
 just_last_line = False 
 
 
