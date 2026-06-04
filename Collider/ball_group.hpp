@@ -583,6 +583,7 @@ public:
     void placeBallsInSphere(const int nBalls);
     void placeBallsInBox(const int nBalls);
     void setRadii();
+    void setVel();
     void setGroup(int group_num);
     void setMass();
     void updateDTK(const double& velocity);
@@ -610,5 +611,9 @@ vec3 worldToLocal(const double s, const vec3& v,const vec3& vecWorld);
 vec3 localToWorld(const double s, const vec3& v,const vec3& vecLocal);
 vec3 rotateVecA(const double E0,const vec3 E,const vec3 vec);
 vec3 rotateVecInvA(const double E0,const vec3 E,const vec3 vec);
+
+void wrap_position(vec3& r, const vec3& boxdims);
+vec3 periodic_displacement(const vec3& rA, const vec3& rB, const vec3& boxdims);
+
 
 #endif

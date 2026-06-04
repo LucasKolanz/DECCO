@@ -352,7 +352,9 @@ void Ball_group::aggregationInit(const std::string path,const int index/*=-1*/)
 //Initalize custom parameters in here. Mostly for testing.
 void Ball_group::bigboxInit()
 {
+    attrs.num_particles = attrs.N;
     generate_ball_field(attrs.N);
+    setVel();
     // placeBallsInBox(attrs.genBalls);
     attrs.m_total = getMass();
     calc_v_collapse();
@@ -3689,7 +3691,7 @@ void Ball_group::boxInit()
         // m[Ball] = attrs.density * 4. / 3. * 3.14159 * std::pow(R[Ball], 3);
         moi[Ball] = .4 * m[Ball] * R[Ball] * R[Ball];
         w[Ball] = {0, 0, 0};
-        pos[Ball] = rand_pos_in_box(attrs.boxdims.x,attrs.boxdims.y,attrs.boxdims.z);
+        pos[Ball] = rand_pos_in_box_centered(attrs.boxdims.x,attrs.boxdims.y,attrs.boxdims.z);
     }
 
     attrs.m_total = getMass();
@@ -3717,6 +3719,15 @@ inline void Ball_group::setRadii()
         {
             R[i] = lognorm_dist(attrs.scaleBalls*std::exp(-5.0*std::pow(attrs.lnSigma,2)/2.0),attrs.lnSigma);
         }
+    }
+
+}
+
+inline void Ball_group::setVel()
+{
+    for (int i = 0; i < attrs.num_particles; ++i)
+    {
+        vel[i] = rand_unit_vec3() * calc_max_bolt_velocity(attrs.temp,m[i]);
     }
 
 }
@@ -4042,7 +4053,7 @@ void Ball_group::placeBallsInBox(const int nBalls)
                 if (overlap < 0) {
                     collisionDetected += 1;
                     // Move the other ball:
-                    pos[B] = rand_vec3(attrs.spaceRange);
+                    pos[B] = rand_pos_in_box_centered(attrs.boxdims.x,attrs.boxdims.y,attrs.boxdims.z);
                 }
             }
         }
@@ -4753,6 +4764,10 @@ void Ball_group::half_step_updates()
 
             // Update position:
             pos[Ball] += velh[Ball] * attrs.dt;
+            if (attrs.typeSim == bigbox)
+            {
+                wrap_position(pos[Ball],attrs.boxdims);
+            }
 
             // Reinitialize acceleration to be recalculated:
             acc[Ball] = {0, 0, 0};
@@ -4923,7 +4938,10 @@ void Ball_group::sim_one_step(int step,bool write_step)
 
  
         const double sumRaRb = R[A] + R[B];
-        const vec3 rVecab = pos[B] - pos[A];  // Vector from a to b.
+        const vec3 rVecab =
+            (attrs.typeSim == bigbox)
+            ? periodic_displacement(pos[A], pos[B], attrs.boxdims)
+            : pos[B] - pos[A];
         const vec3 rVecba = -rVecab;
         const double dist = (rVecab).norm();
 
@@ -6555,4 +6573,33 @@ void moveApart(const vec3 &projectile_direction,Ball_group &projectile,Ball_grou
         projectile.move(-min_r*projectile_direction);
         touching = is_touching(projectile,target);
     }
+}
+
+
+vec3 periodic_displacement(const vec3& rA, const vec3& rB, const vec3& boxdims)
+{
+    vec3 dr = rB - rA;
+
+    if (dr.x >  0.5 * boxdims.x) dr.x -= boxdims.x;
+    if (dr.x < -0.5 * boxdims.x) dr.x += boxdims.x;
+
+    if (dr.y >  0.5 * boxdims.y) dr.y -= boxdims.y;
+    if (dr.y < -0.5 * boxdims.y) dr.y += boxdims.y;
+
+    if (dr.z >  0.5 * boxdims.z) dr.z -= boxdims.z;
+    if (dr.z < -0.5 * boxdims.z) dr.z += boxdims.z;
+
+    return dr;
+}
+
+void wrap_position(vec3& r, const vec3& boxdims)
+{
+    if (r.x >=  0.5 * boxdims.x) r.x -= boxdims.x;
+    if (r.x <  -0.5 * boxdims.x) r.x += boxdims.x;
+
+    if (r.y >=  0.5 * boxdims.y) r.y -= boxdims.y;
+    if (r.y <  -0.5 * boxdims.y) r.y += boxdims.y;
+
+    if (r.z >=  0.5 * boxdims.z) r.z -= boxdims.z;
+    if (r.z <  -0.5 * boxdims.z) r.z += boxdims.z;
 }

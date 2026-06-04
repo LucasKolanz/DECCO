@@ -59,7 +59,7 @@ if __name__ == '__main__':
 	# attempts = [0,1,2,3,4,5] 
 	attempts = [0] 
 	N = [30]
-	Temps = [1000]
+	Temps = [1]
 	box_sizes = [[]]
 	folders = []
 	for attempt in attempts:
@@ -87,7 +87,7 @@ if __name__ == '__main__':
 				input_json['seed'] = 101
 				input_json['radiiDistribution'] = 'constant'#'lognormal'
 				input_json['simType'] = 'bigbox'
-				input_json['boxDims'] = '1e-4,1e-4,1e-4'
+				input_json['boxDims'] = '2e-4,2e-4,2e-4'
 				# input_json['simType'] = 'custom'
 				input_json['N'] = n
 				input_json['output_folder'] = job

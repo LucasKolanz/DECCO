@@ -522,6 +522,12 @@ rand_int_between(const int min, const int max)
     return rand;
 }
 
+vec3
+rand_pos_in_box_centered(const double maxx, const double maxy, const double maxz)
+{
+    return rand_pos_in_box(maxx,maxy,maxz) - vec3(maxx/2.0,maxy/2.0,maxz/2.0);
+}
+
 // Returns a random position within the given box.
 //IMPORTANT: calling rand_between() in the call to vec3()
 //      ex: vec3 rand_pos = vec3(rand_between(), rand_between(), rand_between());

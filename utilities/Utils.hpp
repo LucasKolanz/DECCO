@@ -102,6 +102,7 @@ void titleBar(const std::string title);
 bool input(const std::string& question);
 double rand_between(const double min, const double max);
 vec3 rand_pos_in_box(const double maxx, const double maxy, const double maxz);
+vec3 rand_pos_in_box_centered(const double maxx, const double maxy, const double maxz);
 int rand_int_between(const int min, const int max);
 // Returns a random unit vector.
 vec3 rand_unit_vec3();
