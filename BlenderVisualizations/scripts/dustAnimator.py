@@ -195,12 +195,16 @@ path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/JKRTestest_
 path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/spinTest0/N_3/T_3/'
 path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPAWELDTEST_11/M_3/N_300/T_1000/'
 path = '/home/kolanzl/Desktop/Visualize/V0/'
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/bigboxtest_0/N_30/T_1000/'
+path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/bigboxtest_1/N_30/T_1000/'
 path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/bigboxtest_0/N_30/T_1/'
+path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/bigboxtest_0/N_30/T_1000/'
+path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/bigboxtest_2/N_30/T_1/'
+path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/bigboxtest_2/N_30/T_1000/'
+path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/bigboxtest_3/N_1000/T_1000/'
 #9,12,
 
-simStart = 30
-simEnd = 30
+simStart = 1000
+simEnd = 1000
 just_last_line = False 
 
 
@@ -225,6 +229,8 @@ print(f"sims: {sims}")
 
 
 simData,constants,numSpheres,steps = get_simData_and_consts(path,sims[0],relax=rel)  
+print("HERERERERE")
+print(numSpheres)
 if len(simData.shape) == 1:
     simData = simData[np.newaxis,:]
 if isinstance(simData,int) and simData == -1:

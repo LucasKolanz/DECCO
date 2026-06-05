@@ -355,7 +355,7 @@ void Ball_group::bigboxInit()
     attrs.num_particles = attrs.N;
     generate_ball_field(attrs.N);
     setVel();
-    // placeBallsInBox(attrs.genBalls);
+
     attrs.m_total = getMass();
     calc_v_collapse();
     
@@ -1100,7 +1100,7 @@ void Ball_group::calibrate_dt(int const Step, const double& customSpeed = -1.)
         message += dToSci(attrs.v_collapse) + " = vCollapse | vMax = " + dToSci(attrs.v_max);
         if (attrs.v_max < attrs.v_collapse) { attrs.v_max = attrs.v_collapse; }
 
-        // if (attrs.v_max < 1.0) { attrs.v_max = 1.0; }
+        if (attrs.v_max < 1.0) { attrs.v_max = 1.0; }
 
         if (attrs.v_max < attrs.v_max_prev) {
             updateDTK(attrs.v_max);
@@ -1247,7 +1247,6 @@ void Ball_group::calc_v_collapse()
 
         // while (position < attrs.initial_radius) {
         while (position < attrs.initial_radius-attrs.h_min && count < max_count) {
-            // todo - include vdw!!!
 
             //This is like the smallest ball falling into the largest ball due only to vdw force
             //starting at initial_radius to h_min
@@ -4122,8 +4121,11 @@ void Ball_group::updateDTK(const double& velocity)
         const double regime = (vdw_force_max > elastic_force_max) ? vdw_force_max : elastic_force_max;
         const double regime_adjust = regime / (attrs.maxOverlap * attrs.r_min);
 
-        attrs.dt = .01 * sqrt((attrs.fourThirdsPiRho / regime_adjust) * attrs.r_min * attrs.r_min * attrs.r_min); //NORMAL ONE
+        // attrs.dt = .01 * sqrt((attrs.fourThirdsPiRho / regime_adjust) * attrs.r_min * attrs.r_min * attrs.r_min); //NORMAL ONE
+        attrs.dt = sqrt((attrs.fourThirdsPiRho / regime_adjust) * attrs.r_min * attrs.r_min * attrs.r_min); 
+        // attrs.dt = .001 * sqrt((attrs.fourThirdsPiRho / regime_adjust) * attrs.r_min * attrs.r_min * attrs.r_min); 
     }
+    
     MPIsafe_print(std::cerr,initMessage);
     calc_helpfuls();
 
@@ -4877,18 +4879,7 @@ void Ball_group::full_step_updates(const int write_step, const int world_rank)
 #ifndef GPU_ENABLE
 void Ball_group::sim_one_step(int step,bool write_step)
 {
-    // std::cerr<<"IN SIM ONE STEP: "<<std::endl;
-    // std::cerr<<"attrs.num_groups "<<attrs.num_groups<<std::endl;
-    // std::cerr<<"attrs.num_particles "<<attrs.num_particles<<std::endl;
-    // for (int i = 0; i < attrs.num_groups; i++)
-    // {
-    //     std::cerr<<"group "<<i<<" mass "<<group_mass[i]<<std::endl;
-    // }
-    // if (step > 10)
-    // {
-    //     exit(0);
-    //     std::cerr<<"-----------------------------STARTING STEP "<<step<<"-----------------------------"<<std::endl;
-    // }
+    
     int world_rank = getRank();
     int world_size = getSize();
     /// FIRST PASS - Update Kinematic Parameters:
@@ -4938,6 +4929,10 @@ void Ball_group::sim_one_step(int step,bool write_step)
 
  
         const double sumRaRb = R[A] + R[B];
+        // const vec3 rVecab =
+        //     (false)
+        //     ? periodic_displacement(pos[A], pos[B], attrs.boxdims)
+        //     : pos[B] - pos[A];
         const vec3 rVecab =
             (attrs.typeSim == bigbox)
             ? periodic_displacement(pos[A], pos[B], attrs.boxdims)
@@ -4965,8 +4960,6 @@ void Ball_group::sim_one_step(int step,bool write_step)
         // Check for collision between Ball and otherBall.
         if (overlap > 0) 
         {
-
-
 
             double k;
             if (dist >= oldDist) {

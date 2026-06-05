@@ -250,6 +250,10 @@ void runBigBox(std::string path)
 {
     // t.start_event("collider");
     Ball_group O = Ball_group(path);
+
+    std::string message;
+    message = "Asking for "+std::to_string(O.get_num_threads())+" threads.\n";
+    MPIsafe_print(std::cerr,message);
     
     safetyChecks(O);
     O.sim_init_write(O.attrs.N);
