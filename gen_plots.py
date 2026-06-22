@@ -1381,7 +1381,8 @@ def gen_BAPA_plots_images(show_plots=True,save_plots=False,include_totals=False)
 
     relax = False
 
-    job_name = ["BAPA","CBAPA","BAPAWELD"]
+    # job_name = ["DBAPA"]
+    job_name = ["BAPA","CBAPA","BAPAWELD","DBAPA"]
     data_prefolders = [path + f'jobs/{name}_' for name in job_name]
 
 
@@ -1391,6 +1392,7 @@ def gen_BAPA_plots_images(show_plots=True,save_plots=False,include_totals=False)
 
     temps = [1000]
     Nums = [300]
+    # M = [1,3,5,10,15,20,30,50,60,75,100,150,300]
     M = [1,3,5,10,15,20,30,50,60,75,100,150,300]
     
     attempts = [i for i in range(30)]
@@ -1408,6 +1410,7 @@ def gen_BAPA_plots_images(show_plots=True,save_plots=False,include_totals=False)
     BAPA_image_paths = np.full(shape=image_paths.shape, dtype=object, fill_value="")
     CBAPA_image_paths = np.full(shape=image_paths.shape, dtype=object, fill_value="")
     BAPAWELD_image_paths = np.full(shape=image_paths.shape, dtype=object, fill_value="")
+    # DBAPA_image_paths = np.full(shape=image_paths.shape, dtype=object, fill_value="")
 
     for a_i,a in enumerate(attempts):
         for m_i,m in enumerate(M):
@@ -1450,10 +1453,10 @@ def gen_BAPA_plots_images(show_plots=True,save_plots=False,include_totals=False)
     data_prefolder = data_prefolders[1]
     dataset_name = data_prefolder.split("/")[-1]
 
-    temps = [1000]
+    # temps = [1000]
     C = 30
-    # M = [1,3,5,10,15,20,30,50,60,75,100]
-    attempts = [i for i in range(30)]
+    # # M = [1,3,5,10,15,20,30,50,60,75,100]
+    # attempts = [i for i in range(30)]
 
     raw_data = np.full(shape=(len(requested_data_headers),len(attempts),len(M),len(temps)),fill_value=np.nan,dtype=np.float64)
     for a_i,a in enumerate(attempts):
@@ -1499,10 +1502,10 @@ def gen_BAPA_plots_images(show_plots=True,save_plots=False,include_totals=False)
     data_prefolder = data_prefolders[2]
     dataset_name = data_prefolder.split("/")[-1]
 
-    temps = [1000]
-    # M = [3,100]
-    n = 300
-    attempts = [i for i in range(30)]
+    # temps = [1000]
+    # # M = [3,100]
+    # n = 300
+    # attempts = [i for i in range(30)]
 
     raw_data = np.full(shape=(len(requested_data_headers),len(attempts),len(M),len(temps)),fill_value=np.nan,dtype=np.float64)
     for a_i,a in enumerate(attempts):
@@ -1540,14 +1543,66 @@ def gen_BAPA_plots_images(show_plots=True,save_plots=False,include_totals=False)
     err_data_BAPAWELD = std_data_BAPAWELD/np.sqrt(num_data_BAPAWELD)
 
 
+    C_sp = [1,2,3,4,5,6,10,15,20,30,60] 
+    M_sp = 20
+
+    DBAPA_image_paths = np.full(shape=(len(requested_data_headers),len(C_sp),len(temps)), dtype=object, fill_value="")
+
+    data_prefolder = data_prefolders[3]
+    dataset_name = data_prefolder.split("/")[-1]
+
+    raw_data = np.full(shape=(len(requested_data_headers),len(attempts),len(C_sp),len(temps)),fill_value=np.nan,dtype=np.float64)
+    for a_i,a in enumerate(attempts):
+        for c_i,c in enumerate(C_sp):
+            n = c*M_sp
+            m = M_sp
+            size = n
+            for t_i,t in enumerate(temps):
+                folder = f"{data_prefolder}{a}/M_{m}/N_{n}/T_{t}/"
+
+                if os.path.exists(folder+"job_data.csv"):
+                    with open(folder+"job_data.csv",'r') as fp:
+                        existing_data = fp.readlines()
+
+                    existing_sizes = [int(i.split('=')[1].strip("\n\t ")) for i in existing_data if i[:2] == "N="]
+                    #even though the data can have other sizes in it, 
+                    #we only want the data of size n
+                    if n not in existing_sizes:
+                        print(f"ERROR: Data of size {n} does not exist for {folder}.")
+                        continue
+                    index = existing_sizes.index(n)*4
+                    existing_headers_for_size = existing_data[index+1].strip("\n\t ").split(",")
+                    existing_values_for_size = existing_data[index+2].strip("\n\t ").split(",")
+                    
+                    for h_i,header in enumerate(requested_data_headers):
+                        if header in existing_headers_for_size:
+                            # if h_i == 3:
+                            #   print(existing_values_for_size[existing_headers_for_size.index(header)])
+                            raw_data[h_i,a_i,c_i,t_i] = u.get_plottable_value_from_saved_value(existing_values_for_size[existing_headers_for_size.index(header)],header,folder,n,relax)
+
+                            if DBAPA_image_paths[h_i,c_i,t_i] == "":
+                                blob = f"{path}/data/figures/aggRenders/BAPA/ColoredFragg-DBAPA_a-*_M-{m}_N-{n}_T-{t}.png"
+                                paths = g.glob(blob)
+                                if len(paths) == 1:
+                                    DBAPA_image_paths[h_i,c_i,t_i] = paths[0]
+
+
+
+    avg_data_DBAPA = np.nanmean(raw_data,axis=1)
+    std_data_DBAPA = np.nanstd(raw_data,axis=1)
+    num_data_DBAPA = np.count_nonzero(~np.isnan(raw_data),axis=1)
+    err_data_DBAPA = std_data_DBAPA/np.sqrt(num_data_DBAPA)
+
+
+
 
 
     print("======================Starting combined BAPA figures======================")
 
     plt.rcParams.update({
         'font.size': 16,
-        'text.usetex': True,
-        'text.latex.preamble': r'\usepackage{amsmath} \usepackage{bm}'
+        # 'text.usetex': True,
+        # 'text.latex.preamble': r'\usepackage{amsmath} \usepackage{bm}'
     })
 
     dataset_plot_info = [
@@ -1556,21 +1611,36 @@ def gen_BAPA_plots_images(show_plots=True,save_plots=False,include_totals=False)
             "err": err_data_BAPA,
             "num": num_data_BAPA,
             "label": "Const. final size (CFS) $N=300$",
-            "image_paths": BAPA_image_paths
+            "image_paths": BAPA_image_paths,
+            "xlabel": "Fragment size $M$",
+            "xdata": M,
         },
         {
             "avg": avg_data_CBAPA,
             "err": err_data_CBAPA,
             "num": num_data_CBAPA,
             "label": f"Const. num. projectiles (CNP) $C={C}$",
-            "image_paths": CBAPA_image_paths
+            "image_paths": CBAPA_image_paths,
+            "xlabel": "Fragment size $M$",
+            "xdata": M,
         },
         {
             "avg": avg_data_BAPAWELD,
             "err": err_data_BAPAWELD,
             "num": num_data_BAPAWELD,
             "label": "Welded const. final size (wCFS) $N=300$",
-            "image_paths": BAPAWELD_image_paths
+            "image_paths": BAPAWELD_image_paths,
+            "xlabel": "Fragment size $M$",
+            "xdata": M,
+        },
+        {
+            "avg": avg_data_DBAPA,
+            "err": err_data_DBAPA,
+            "num": num_data_DBAPA,
+            "label": "DBAPA",
+            "image_paths": DBAPA_image_paths,
+            "xlabel": "Final size $N$",
+            "xdata": [c*M_sp for c in C_sp],
         },
     ]
 
@@ -1582,7 +1652,10 @@ def gen_BAPA_plots_images(show_plots=True,save_plots=False,include_totals=False)
         err_data = info["err"]
         num_data = info["num"]
         label = info["label"]
+        xlabel = info["xlabel"]
+        xdata = info["xdata"]
 
+        print(label)
         image_paths = info["image_paths"]
 
 
@@ -1619,12 +1692,14 @@ def gen_BAPA_plots_images(show_plots=True,save_plots=False,include_totals=False)
                 # )
 
                 # Add image at each data point
-                for m_i, m in enumerate(M):
-                    x = M[m_i]
-                    y = avg_data[h_i, m_i, t_i]
+                # print(xdata)
+                # print(avg_data)
+                for x_i, x in enumerate(xdata):
+                    # x = M[m_i]
+                    y = avg_data[h_i, x_i, t_i]
 
-                    if image_paths[h_i,m_i,t_i] != "":
-                        image_path = image_paths[h_i,m_i,t_i]
+                    if image_paths[h_i,x_i,t_i] != "":
+                        image_path = image_paths[h_i,x_i,t_i]
                         # print(f"h:{h_i}, m:{m_i}, t:{t_i}")
 
                         add_image_marker(
@@ -1637,7 +1712,7 @@ def gen_BAPA_plots_images(show_plots=True,save_plots=False,include_totals=False)
                         )
 
                         if include_totals:
-                            total = num_data[h_i, m_i, t_i]
+                            total = num_data[h_i, x_i, t_i]
 
                             ax.annotate(
                                 f"{total:.0f}",
@@ -1648,23 +1723,24 @@ def gen_BAPA_plots_images(show_plots=True,save_plots=False,include_totals=False)
                                 alpha=0.9,
                                 zorder=20
                             )
-                    # else:
-                    #     ax.errorbar(
-                    #         M[m_i],
-                    #         avg_data[h_i, m_i, t_i],
-                    #         yerr=err_data[h_i, m_i, t_i],
-                    #         color=colors[t_i],
-                    #         linestyle=styles[t_i],
-                    #         marker="*",
-                    #         fmt='-',
-                    #         linewidth=1.0,
-                    #         capsize=2,
-                    #         alpha=0.6,
-                    #         zorder=3
-                    #     )
+                    else:
+                        ax.errorbar(
+                            x,
+                            avg_data[h_i, x_i, t_i],
+                            yerr=err_data[h_i, x_i, t_i],
+                            color=colors[t_i],
+                            linestyle=None,
+                            marker="*",
+                            fmt='-',
+                            linewidth=1.0,
+                            capsize=2,
+                            alpha=0.6,
+                            zorder=3
+                        )
 
-            ax.set_ylabel(label_from_header(header))
-            ax.set_xlabel("Fragment size $M$")
+            # ax.set_ylabel(label_from_header(header))
+            ax.set_ylabel(header)
+            ax.set_xlabel(xlabel)
             ax.set_xscale('log')
             ax.grid(alpha=0.25)
 
@@ -1676,13 +1752,16 @@ def gen_BAPA_plots_images(show_plots=True,save_plots=False,include_totals=False)
             #     va='bottom'
             # )
 
-        xmax = M[np.where(~np.isnan(avg_data[0,:,0]))[0].max()]
-        xmin = M[np.where(~np.isnan(avg_data[0,:,0]))[0].min()]
+        xmin, xmax = ax.get_xlim()
+        ymin, ymax = ax.get_ylim()
+        if len(np.where(~np.isnan(avg_data[0,:,0]))[0]) > 0:
+            xmax = xdata[np.where(~np.isnan(avg_data[0,:,0]))[0].max()]
+            xmin = xdata[np.where(~np.isnan(avg_data[0,:,0]))[0].min()]
+            ymin = np.nanmin(avg_data)
+            ymax = np.nanmax(avg_data)
         # xmin = 0
         # xmax = len(M)
         xpad = 1.5
-        ymin = np.nanmin(avg_data)
-        ymax = np.nanmax(avg_data)
         ypad = 0.03
 
         for ax in axs[:n_metrics]:
@@ -5443,21 +5522,21 @@ def gen_individual_BAPA_porosity_vs_asymmetry(show_plots=True,save_plots=False,i
 
 if __name__ == '__main__':
     #Do you want to see plots of the data as they are made?
-    show_plots = True
+    show_plots = False
     #Do you want to save the plots once they are made?
     save_plots = True
     #Do you want the number of runs next to each point on the plots
     #so you know how many more runs need to finish
-    include_totals = False
+    include_totals = True
 
 
     # gen_Asym_BAPA_numbers()
     # gen_agg_im_plot_BAPA(save_plots=save_plots,show_plots=show_plots)
 
     ##Plots for paper 2
-    gen_BAPA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
-    gen_BAPA_plots_images(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
-    gen_BAPA_porosity_vs_asymmetry(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
+    # gen_BAPA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
+    # gen_BAPA_plots_images(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
+    # gen_BAPA_porosity_vs_asymmetry(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
     # gen_agg_im_plot_paper2(save_plots=save_plots,show_plots=show_plots)
     # gen_geometry_plot(save_plots=save_plots,show_plots=show_plots)
     # gen_BAPA_eff_rad(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
