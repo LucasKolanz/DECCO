@@ -1290,7 +1290,446 @@ def gen_BAPA_eff_rad(show_plots=True,save_plots=False,include_totals=False):
         plt.show()
 
     plt.close(fig)  
-           
+
+
+def add_image_marker(ax, image_path, x, y, zoom=0.12, zorder=10,
+                     trim_white=True, white_thresh=245, pad=2):
+    from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+    if image_path is None or not os.path.exists(image_path):
+        return
+    if zoom <= 0:
+        return
+
+    if trim_white:
+        img = load_and_trim_white(image_path, white_thresh=white_thresh, pad=pad)
+    else:
+        img = Image.open(image_path).convert("RGB")
+
+    imagebox = OffsetImage(img, zoom=zoom)
+
+    ab = AnnotationBbox(
+        imagebox,
+        (x, y),
+        frameon=False,
+        xycoords="data",
+        box_alignment=(0.5, 0.5),
+        pad=0.0,
+        zorder=zorder
+    )
+
+    ax.add_artist(ab)
+
+
+
+def load_and_trim_white(image_path, white_thresh=245, pad=2):
+    """
+    Open an image and crop away near-white borders.
+
+    Parameters
+    ----------
+    image_path : str
+        Full path to image.
+    white_thresh : int
+        Pixels with all RGB channels >= this value are treated as white.
+        Lower this if trimming is too aggressive or too weak.
+    pad : int
+        Number of pixels of padding to add back after cropping.
+
+    Returns
+    -------
+    PIL.Image.Image
+        Cropped image.
+    """
+    from PIL import Image, ImageOps
+    import numpy as np
+    import os
+    
+
+    img = Image.open(image_path).convert("RGB")
+    arr = np.array(img)
+
+    # True where pixel is NOT white
+    nonwhite = np.any(arr < white_thresh, axis=2)
+
+    # If image is entirely white, just return original
+    if not np.any(nonwhite):
+        return img
+
+    ys, xs = np.where(nonwhite)
+    x0, x1 = xs.min(), xs.max()
+    y0, y1 = ys.min(), ys.max()
+
+    # Add a little padding back
+    x0 = max(0, x0 - pad)
+    y0 = max(0, y0 - pad)
+    x1 = min(arr.shape[1] - 1, x1 + pad)
+    y1 = min(arr.shape[0] - 1, y1 + pad)
+
+    return img.crop((x0, y0, x1 + 1, y1 + 1))
+     
+def gen_BAPA_plots_images(show_plots=True,save_plots=False,include_totals=False):
+    import glob as g
+    from PIL import Image
+    from matplotlib.lines import Line2D
+
+    image_zoom = 0.02
+
+    with open(project_path+"default_files/default_input.json",'r') as fp:
+        input_json = json.load(fp)
+    
+    path = input_json["data_directory"]
+
+    relax = False
+
+    job_name = ["BAPA","CBAPA","BAPAWELD"]
+    data_prefolders = [path + f'jobs/{name}_' for name in job_name]
+
+
+    data_prefolder = data_prefolders[0]
+    dataset_name = data_prefolder.split("/")[-1]
+    figure_folder = path+'data/figures/'
+
+    temps = [1000]
+    Nums = [300]
+    M = [1,3,5,10,15,20,30,50,60,75,100,150,300]
+    
+    attempts = [i for i in range(30)]
+
+
+    # requested_data_headers = [1,1,0,1,1,0,0,0,0,1]
+    # requested_data_headers = gd.data_headers[:2] + gd.data_headers[3:6] + [gd.data_headers[9]]
+    requested_data_headers = [gd.data_headers[0]]
+    print(requested_data_headers)
+    # requested_data_headers = gd.data_headers[:2] + [gd.data_headers[3]] + [gd.data_headers[4]]
+
+    raw_data = np.full(shape=(len(requested_data_headers),len(attempts),len(M),len(temps)),fill_value=np.nan,dtype=np.float64)
+    
+    image_paths = np.full(shape=(len(requested_data_headers),len(M),len(temps)), dtype=object, fill_value="")
+    BAPA_image_paths = np.full(shape=image_paths.shape, dtype=object, fill_value="")
+    CBAPA_image_paths = np.full(shape=image_paths.shape, dtype=object, fill_value="")
+    BAPAWELD_image_paths = np.full(shape=image_paths.shape, dtype=object, fill_value="")
+
+    for a_i,a in enumerate(attempts):
+        for m_i,m in enumerate(M):
+            n = 300
+            size = n
+            for t_i,t in enumerate(temps):
+                folder = f"{data_prefolder}{a}/M_{m}/N_{n}/T_{t}/"
+                if os.path.exists(folder+"job_data.csv"):
+                    with open(folder+"job_data.csv",'r') as fp:
+                        existing_data = fp.readlines()
+
+                    existing_sizes = [int(i.split('=')[1].strip("\n\t ")) for i in existing_data if i[:2] == "N="]
+                    #even though the data can have other sizes in it, 
+                    #we only want the data of size n
+                    if n not in existing_sizes:
+                        print(f"ERROR: Data of size {n} does not exist for {folder}.")
+                        continue
+                    index = existing_sizes.index(n)*4
+                    existing_headers_for_size = existing_data[index+1].strip("\n\t ").split(",")
+                    existing_values_for_size = existing_data[index+2].strip("\n\t ").split(",")
+                    
+                    for h_i,header in enumerate(requested_data_headers):
+                        if header in existing_headers_for_size:
+                            raw_data[h_i,a_i,m_i,t_i] = u.get_plottable_value_from_saved_value(existing_values_for_size[existing_headers_for_size.index(header)],header,folder,n,relax)
+                            if BAPA_image_paths[h_i,m_i,t_i] == "":
+                                blob = f"{path}/data/figures/aggRenders/BAPA/ColoredFragg-BAPA_a-*_M-{m}_N-{n}_T-{t}.png"
+                                # print(blob)
+                                paths = g.glob(blob)
+                                # print(paths)
+                                if len(paths) == 1:
+                                    BAPA_image_paths[h_i,m_i,t_i] = paths[0]
+
+    avg_data_BAPA = np.nanmean(raw_data,axis=1)
+    std_data_BAPA = np.nanstd(raw_data,axis=1)
+    num_data_BAPA = np.count_nonzero(~np.isnan(raw_data),axis=1)
+    err_data_BAPA = std_data_BAPA/np.sqrt(num_data_BAPA)
+
+    # print(avg_data_BAPA)
+    
+    data_prefolder = data_prefolders[1]
+    dataset_name = data_prefolder.split("/")[-1]
+
+    temps = [1000]
+    C = 30
+    # M = [1,3,5,10,15,20,30,50,60,75,100]
+    attempts = [i for i in range(30)]
+
+    raw_data = np.full(shape=(len(requested_data_headers),len(attempts),len(M),len(temps)),fill_value=np.nan,dtype=np.float64)
+    for a_i,a in enumerate(attempts):
+        for m_i,m in enumerate(M):
+            n = C*m
+            size = n
+            for t_i,t in enumerate(temps):
+                folder = f"{data_prefolder}{a}/M_{m}/N_{n}/T_{t}/"
+                if os.path.exists(folder+"job_data.csv"):
+                    with open(folder+"job_data.csv",'r') as fp:
+                        existing_data = fp.readlines()
+
+                    existing_sizes = [int(i.split('=')[1].strip("\n\t ")) for i in existing_data if i[:2] == "N="]
+                    #even though the data can have other sizes in it, 
+                    #we only want the data of size n
+                    if n not in existing_sizes:
+                        print(f"ERROR: Data of size {n} does not exist for {folder}.")
+                        continue
+                    index = existing_sizes.index(n)*4
+                    existing_headers_for_size = existing_data[index+1].strip("\n\t ").split(",")
+                    existing_values_for_size = existing_data[index+2].strip("\n\t ").split(",")
+                    
+                    for h_i,header in enumerate(requested_data_headers):
+                        if header in existing_headers_for_size:
+                            # if h_i == 3:
+                            #   print(existing_values_for_size[existing_headers_for_size.index(header)])
+                            raw_data[h_i,a_i,m_i,t_i] = u.get_plottable_value_from_saved_value(existing_values_for_size[existing_headers_for_size.index(header)],header,folder,n,relax)
+
+                            if CBAPA_image_paths[h_i,m_i,t_i] == "":
+                                blob = f"{path}/data/figures/aggRenders/BAPA/ColoredFragg-CBAPA_a-*_M-{m}_N-{n}_T-{t}.png"
+                                paths = g.glob(blob)
+                                if len(paths) == 1:
+                                    CBAPA_image_paths[h_i,m_i,t_i] = paths[0]
+
+
+
+    avg_data_CBAPA = np.nanmean(raw_data,axis=1)
+    std_data_CBAPA = np.nanstd(raw_data,axis=1)
+    num_data_CBAPA = np.count_nonzero(~np.isnan(raw_data),axis=1)
+    err_data_CBAPA = std_data_CBAPA/np.sqrt(num_data_CBAPA)
+
+
+    data_prefolder = data_prefolders[2]
+    dataset_name = data_prefolder.split("/")[-1]
+
+    temps = [1000]
+    # M = [3,100]
+    n = 300
+    attempts = [i for i in range(30)]
+
+    raw_data = np.full(shape=(len(requested_data_headers),len(attempts),len(M),len(temps)),fill_value=np.nan,dtype=np.float64)
+    for a_i,a in enumerate(attempts):
+        for m_i,m in enumerate(M):
+            for t_i,t in enumerate(temps):
+                folder = f"{data_prefolder}{a}/M_{m}/N_{n}/T_{t}/"
+                if os.path.exists(folder+"job_data.csv"):
+                    with open(folder+"job_data.csv",'r') as fp:
+                        existing_data = fp.readlines()
+
+                    existing_sizes = [int(i.split('=')[1].strip("\n\t ")) for i in existing_data if i[:2] == "N="]
+                    #even though the data can have other sizes in it, 
+                    #we only want the data of size n
+                    if n not in existing_sizes:
+                        print(f"ERROR: Data of size {n} does not exist for {folder}.")
+                        continue
+                    index = existing_sizes.index(n)*4
+                    existing_headers_for_size = existing_data[index+1].strip("\n\t ").split(",")
+                    existing_values_for_size = existing_data[index+2].strip("\n\t ").split(",")
+                    
+                    for h_i,header in enumerate(requested_data_headers):
+                        if header in existing_headers_for_size:
+                            raw_data[h_i,a_i,m_i,t_i] = u.get_plottable_value_from_saved_value(existing_values_for_size[existing_headers_for_size.index(header)],header,folder,n,relax)
+                            # raw_data[h_i,a_i,m_i,t_i] = existing_values_for_size[existing_headers_for_size.index(header)]
+
+                            if BAPAWELD_image_paths[h_i,m_i,t_i] == "":
+                                blob = f"{path}/data/figures/aggRenders/BAPA/ColoredFragg-BAPAWELD_a-*_M-{m}_N-{n}_T-{t}.png"
+                                paths = g.glob(blob)
+                                if len(paths) == 1:
+                                    BAPAWELD_image_paths[h_i,m_i,t_i] = paths[0]
+
+    avg_data_BAPAWELD = np.nanmean(raw_data,axis=1)
+    std_data_BAPAWELD = np.nanstd(raw_data,axis=1)
+    num_data_BAPAWELD = np.count_nonzero(~np.isnan(raw_data),axis=1)
+    err_data_BAPAWELD = std_data_BAPAWELD/np.sqrt(num_data_BAPAWELD)
+
+
+
+
+    print("======================Starting combined BAPA figures======================")
+
+    plt.rcParams.update({
+        'font.size': 16,
+        'text.usetex': True,
+        'text.latex.preamble': r'\usepackage{amsmath} \usepackage{bm}'
+    })
+
+    dataset_plot_info = [
+        {
+            "avg": avg_data_BAPA,
+            "err": err_data_BAPA,
+            "num": num_data_BAPA,
+            "label": "Const. final size (CFS) $N=300$",
+            "image_paths": BAPA_image_paths
+        },
+        {
+            "avg": avg_data_CBAPA,
+            "err": err_data_CBAPA,
+            "num": num_data_CBAPA,
+            "label": f"Const. num. projectiles (CNP) $C={C}$",
+            "image_paths": CBAPA_image_paths
+        },
+        {
+            "avg": avg_data_BAPAWELD,
+            "err": err_data_BAPAWELD,
+            "num": num_data_BAPAWELD,
+            "label": "Welded const. final size (wCFS) $N=300$",
+            "image_paths": BAPAWELD_image_paths
+        },
+    ]
+
+
+    n_metrics = len(requested_data_headers)
+
+    for d_i, info in enumerate(dataset_plot_info):
+        avg_data = info["avg"]
+        err_data = info["err"]
+        num_data = info["num"]
+        label = info["label"]
+
+        image_paths = info["image_paths"]
+
+
+        fig, axs = plt.subplots(
+            nrows=1,
+            ncols=n_metrics,
+            figsize=(7, 5.0),
+            sharex=False,
+            constrained_layout=False
+        )
+
+        axs = np.asarray(axs).flatten()
+
+        ax_order = [i for i in range(len(axs))]
+
+        for h_i, header in enumerate(requested_data_headers):
+            ax = axs[ax_order[h_i]]
+
+            for t_i, t in enumerate(temps):
+
+                # Optional: draw error bars, but no point marker
+                # ax.errorbar(
+                #     M,
+                #     avg_data[h_i, :, t_i],
+                #     yerr=err_data[h_i, :, t_i],
+                #     color=colors[t_i],
+                #     linestyle=styles[t_i],
+                #     marker=None,
+                #     fmt='-',
+                #     linewidth=1.0,
+                #     capsize=2,
+                #     alpha=0.6,
+                #     zorder=3
+                # )
+
+                # Add image at each data point
+                for m_i, m in enumerate(M):
+                    x = M[m_i]
+                    y = avg_data[h_i, m_i, t_i]
+
+                    if image_paths[h_i,m_i,t_i] != "":
+                        image_path = image_paths[h_i,m_i,t_i]
+                        # print(f"h:{h_i}, m:{m_i}, t:{t_i}")
+
+                        add_image_marker(
+                            ax,
+                            image_path=image_path,
+                            x=x,
+                            y=y,
+                            zoom=image_zoom,
+                            zorder=0
+                        )
+
+                        if include_totals:
+                            total = num_data[h_i, m_i, t_i]
+
+                            ax.annotate(
+                                f"{total:.0f}",
+                                (x, y),
+                                textcoords="offset points",
+                                xytext=(6, 6),
+                                fontsize=9,
+                                alpha=0.9,
+                                zorder=20
+                            )
+                    # else:
+                    #     ax.errorbar(
+                    #         M[m_i],
+                    #         avg_data[h_i, m_i, t_i],
+                    #         yerr=err_data[h_i, m_i, t_i],
+                    #         color=colors[t_i],
+                    #         linestyle=styles[t_i],
+                    #         marker="*",
+                    #         fmt='-',
+                    #         linewidth=1.0,
+                    #         capsize=2,
+                    #         alpha=0.6,
+                    #         zorder=3
+                    #     )
+
+            ax.set_ylabel(label_from_header(header))
+            ax.set_xlabel("Fragment size $M$")
+            ax.set_xscale('log')
+            ax.grid(alpha=0.25)
+
+            # ax.text(
+            #     0.02, 0.04,
+            #     f"({chr(97 + ax_order[h_i])})",
+            #     transform=ax.transAxes,
+            #     ha='left',
+            #     va='bottom'
+            # )
+
+        xmax = M[np.where(~np.isnan(avg_data[0,:,0]))[0].max()]
+        xmin = M[np.where(~np.isnan(avg_data[0,:,0]))[0].min()]
+        # xmin = 0
+        # xmax = len(M)
+        xpad = 1.5
+        ymin = np.nanmin(avg_data)
+        ymax = np.nanmax(avg_data)
+        ypad = 0.03
+
+        for ax in axs[:n_metrics]:
+            # ax.set_xlim(xmin - xpad, xmax + xpad)
+            ax.set_xlim(xmin / xpad, xmax * xpad)
+            ax.set_ylim(ymin - ypad, ymax + ypad)
+
+
+
+        # Temperature legend
+        # temp_handles = [
+        #     Line2D(
+        #         [0], [0],
+        #         color=colors[t_i],
+        #         linestyle=styles[t_i],
+        #         linewidth=1.5,
+        #         label=f"{t} K"
+        #     )
+        #     for t_i, t in enumerate(temps)
+        # ]
+
+        # fig.legend(
+        #     handles=temp_handles,
+        #     loc='upper center',
+        #     ncol=len(temps),
+        #     frameon=False,
+        #     bbox_to_anchor=(0.5, 1.02)
+        # )
+
+        # fig.suptitle(label, y=1.08)
+
+        # fig.tight_layout(rect=[0, 0, 1, 0.92])
+
+        if save_plots:
+            safe_label = label.replace(" ", "_")
+            print(f"{figure_folder}{job_name[d_i]}_image_metrics_vs_frag_size.png")
+            plt.savefig(
+                f"{figure_folder}{job_name[d_i]}_image_metrics_vs_frag_size.png",
+                dpi=300,
+                # bbox_inches='tight'
+            )
+
+        if show_plots:
+            plt.show()
+
+        plt.close(fig)
+
 
 def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
     with open(project_path+"default_files/default_input.json",'r') as fp:
@@ -1307,11 +1746,11 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
     dataset_name = data_prefolder.split("/")[-1]
     figure_folder = path+'data/figures/'
 
-	temps = [1000]
-	Nums = [300]
-	M = [1,3,5,10,15,20,30,50,60,75,100,150]
-	
-	attempts = [i for i in range(30)]
+    temps = [1000]
+    Nums = [300]
+    M = [1,3,5,10,15,20,30,50,60,75,100,150,300]
+    
+    attempts = [i for i in range(30)]
 
 
     # requested_data_headers = [1,1,0,1,1,0,0,0,0,1]
@@ -1325,6 +1764,11 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
             n = 300
             size = n
             for t_i,t in enumerate(temps):
+                # if m == M[-1]:# or m == M[0]: #first and last folder is actually from old data
+                #     # folder = f"{path}/jobsCosine/lognorm_{a}/N_300/T_{t}/"
+                #     folder = f"{data_prefolder}{a}/M_{M[0]}/N_{n}/T_{t}/"
+                    
+                # else:
                 folder = f"{data_prefolder}{a}/M_{m}/N_{n}/T_{t}/"
                 if os.path.exists(folder+"job_data.csv"):
                     with open(folder+"job_data.csv",'r') as fp:
@@ -1350,15 +1794,18 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
     num_data_BAPA = np.count_nonzero(~np.isnan(raw_data),axis=1)
     err_data_BAPA = std_data_BAPA/np.sqrt(num_data_BAPA)
     
+    for h_i,header in enumerate(requested_data_headers):
+        print(header)
+        print(f"First: {avg_data_BAPA[h_i,0,0]}+-{err_data_BAPA[h_i,0,0]}, Last: {avg_data_BAPA[h_i,-1,0]}+-{err_data_BAPA[h_i,-1,0]}")
 
 
     data_prefolder = data_prefolders[1]
     dataset_name = data_prefolder.split("/")[-1]
 
-	temps = [1000]
-	C = 30
-	M = [1,3,5,10,15,20,30,50,60,75,100,150]
-	attempts = [i for i in range(30)]
+    temps = [1000]
+    C = 30
+    # M = [1,3,5,10,15,20,30,50,60,75,100,150]
+    attempts = [i for i in range(30)]
 
     # requested_data_headers = gd.data_headers[:2] + [gd.data_headers[4]]
     # requested_data_headers = gd.data_headers[:2] + [gd.data_headers[3]] + [gd.data_headers[4]]
@@ -1369,6 +1816,12 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
             n = C*m
             size = n
             for t_i,t in enumerate(temps):
+                # folder = f"{data_prefolder}{a}/M_{m}/N_{n}/T_{t}/"
+                # if m == M[0]: #first and last folder is actually from old data
+                #     folder = f"{path}/jobsCosine/lognorm_{a}/N_30/T_{t}/"
+                #     # folder = f"{data_prefolder}{a}/M_{M[0]}/N_{n}/T_{t}/"
+                    
+                # else:
                 folder = f"{data_prefolder}{a}/M_{m}/N_{n}/T_{t}/"
                 if os.path.exists(folder+"job_data.csv"):
                     with open(folder+"job_data.csv",'r') as fp:
@@ -4518,14 +4971,14 @@ def gen_BAPA_porosity_vs_asymmetry(show_plots=True,save_plots=False,include_tota
     path = input_json["data_directory"]
 
 
-	attempts = [i for i in range(30)]
-	N = [300]
-	M = [1,3,5,10,15,20,30,50,60,75,100,150]
-	C=30
-	
-	data_files = []
-	# data_files.append("nonrelax_job_data.csv") #This nonrelax data follows the Df figure in paper
-	data_file = "job_data.csv"
+    attempts = [i for i in range(30)]
+    N = [300]
+    M = [1,3,5,10,15,20,30,50,60,75,100,150]
+    C=30
+    
+    data_files = []
+    # data_files.append("nonrelax_job_data.csv") #This nonrelax data follows the Df figure in paper
+    data_file = "job_data.csv"
 
 
     # bool_headers = [0,0,0,0,1,0,0,0,0,1,0] #Pgcs
@@ -4737,7 +5190,7 @@ def gen_BAPA_porosity_vs_asymmetry(show_plots=True,save_plots=False,include_tota
     
 
     # Restore limits so fill doesn't change view
-    ax.set_xlim(0.3, xmax)
+    ax.set_xlim(0.2, xmax)
     ax.set_ylim(ymin, ymax)
 
     ax.legend(loc="upper left")
@@ -5002,10 +5455,11 @@ if __name__ == '__main__':
     # gen_agg_im_plot_BAPA(save_plots=save_plots,show_plots=show_plots)
 
     ##Plots for paper 2
-    # gen_BAPA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
-    # gen_BAPA_porosity_vs_asymmetry(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
+    gen_BAPA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
+    gen_BAPA_plots_images(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
+    gen_BAPA_porosity_vs_asymmetry(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
     # gen_agg_im_plot_paper2(save_plots=save_plots,show_plots=show_plots)
-    gen_geometry_plot(save_plots=save_plots,show_plots=show_plots)
+    # gen_geometry_plot(save_plots=save_plots,show_plots=show_plots)
     # gen_BAPA_eff_rad(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
     # gen_individual_BAPA_porosity_vs_asymmetry(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
     # gen_c_over_a_plot(save_plots=save_plots,show_plots=show_plots)
