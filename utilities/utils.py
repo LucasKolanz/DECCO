@@ -2431,7 +2431,7 @@ class o3doctree(object):
 
 
 	def calc_fractal_dimension(self,show_graph=False):
-		import matplotlib.pyplot as plt
+		# import matplotlib.pyplot as plt
 		OIsize = self.octree_size
 		S0 = 1
 		
@@ -2440,41 +2440,41 @@ class o3doctree(object):
 		fract_dim_fit = self.bestfit(self.s_data,self.Ns_data,self.bestfitlen)
 		# fract_dim_fit = self.bestfit(self.s_data,self.Ns_data,self.bestfitlen,1,self.dm.radius/OIsize)
 
-		fig, ax = plt.subplots(2,1)
-		ax.flatten()
+		# fig, ax = plt.subplots(2,1)
+		# ax.flatten()
 
 
-		ax[0].set_title('D = {:.2f}, unit side length'.format(fract_dim_fit[0]))
-		# ax[1].set_title('D = {:.2f} for T = {}'.format(fract_dim_fit[0],self.dm.Temp))
-		ax[0].plot(1/self.s_data,self.Ns_data,marker='*',label='Frac dim data')
-		ax[0].loglog(1/self.s_data,np.exp(np.log(1/self.s_data)*fract_dim_fit[0]+fract_dim_fit[1]),label='log(y) = {:.2f}*log(x) + {:.2f}'.format(fract_dim_fit[0],fract_dim_fit[1]))
-		ax[0].set_xlabel('log(1/(Unit side lengths))')
-		ax[0].set_ylabel('log(Number of boxes to enclose)')
+		# ax[0].set_title('D = {:.2f}, unit side length'.format(fract_dim_fit[0]))
+		# # ax[1].set_title('D = {:.2f} for T = {}'.format(fract_dim_fit[0],self.dm.Temp))
+		# ax[0].plot(1/self.s_data,self.Ns_data,marker='*',label='Frac dim data')
+		# ax[0].loglog(1/self.s_data,np.exp(np.log(1/self.s_data)*fract_dim_fit[0]+fract_dim_fit[1]),label='log(y) = {:.2f}*log(x) + {:.2f}'.format(fract_dim_fit[0],fract_dim_fit[1]))
+		# ax[0].set_xlabel('log(1/(Unit side lengths))')
+		# ax[0].set_ylabel('log(Number of boxes to enclose)')
 
 
-		ax[1].plot(1/self.s_data,np.log(self.Ns_data)/np.log(1/self.s_data))
-		ax[1].set_xscale('log')
-		ax[1].set_xlabel('log(1/(Unit side lengths))')
-		ax[1].set_ylabel('Fractal Dimension')
+		# ax[1].plot(1/self.s_data,np.log(self.Ns_data)/np.log(1/self.s_data))
+		# ax[1].set_xscale('log')
+		# ax[1].set_xlabel('log(1/(Unit side lengths))')
+		# ax[1].set_ylabel('Fractal Dimension')
 		
-		avg = np.mean(np.log(self.Ns_data)/np.log(1/self.s_data))
-		# print('y avg: {}'.format(avg))
-		ax[1].axhline(y=np.mean(np.log(self.Ns_data)/np.log(1/self.s_data)), color='g')
+		# avg = np.mean(np.log(self.Ns_data)/np.log(1/self.s_data))
+		# # print('y avg: {}'.format(avg))
+		# ax[1].axhline(y=np.mean(np.log(self.Ns_data)/np.log(1/self.s_data)), color='g')
 
-		ax[0].axvline(1/1, color='g')
-		ax[0].axvline(1/(np.mean(self.dm.radius)/OIsize), color='g')
-		# ax[0].axvline(1/(self.dm.radius/OIsize), color='g')
+		# ax[0].axvline(1/1, color='g')
+		# ax[0].axvline(1/(np.mean(self.dm.radius)/OIsize), color='g')
+		# # ax[0].axvline(1/(self.dm.radius/OIsize), color='g')
 
-		fig.legend()
-		# plt.legend(bbox_to_anchor=(0, 1.02, 1, 0.2), loc="lower left",
-		# mode="expand", borderaxespad=0, ncol=3)
-		fig.set_figheight(10)
-		fig.set_figwidth(10)
-		plt.tight_layout()
-		plt.savefig(self.data_folder+"FractDim.png")
-		if show_graph:
-			plt.show()
-		plt.close()
+		# fig.legend()
+		# # plt.legend(bbox_to_anchor=(0, 1.02, 1, 0.2), loc="lower left",
+		# # mode="expand", borderaxespad=0, ncol=3)
+		# fig.set_figheight(10)
+		# fig.set_figwidth(10)
+		# plt.tight_layout()
+		# plt.savefig(self.data_folder+"FractDim.png")
+		# if show_graph:
+		# 	plt.show()
+		# plt.close()
 		# fig.close()
 
 		return fract_dim_fit[0]
