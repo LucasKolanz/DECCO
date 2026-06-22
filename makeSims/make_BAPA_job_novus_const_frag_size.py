@@ -51,7 +51,7 @@ if __name__ == '__main__':
 		
 
 	# job_set_name = "TESTBAPA"
-	job_set_name = "CBAPA"
+	job_set_name = "DBAPA"
 
 	# folder_name_scheme = "T_"
 
@@ -67,13 +67,8 @@ if __name__ == '__main__':
 	# attempts = [0]
 
 	#C is the number of projectiles each aggregate will consist of
-	C = 30
-	#Lazzati node M
-	# M = [50,60,100]
-	# M = [100]
-	#Other node M
-	# M = [3,5,10,15,20,30]
-	M = [50,60] 
+	C = [1,2,3,4,5,6,10,15,20,30,60] 
+	M = [20]
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [1000]
@@ -82,7 +77,7 @@ if __name__ == '__main__':
 	totalNodes = 1
 	MPITasksPerNode = 1
 	totalMPITasks = totalNodes*MPITasksPerNode
-	threadsPerTask = 8
+	threadsPerTask = 1
 
 	#load default input file
 	with open(project_path+"default_files/default_input.json",'r') as fp:
@@ -91,8 +86,9 @@ if __name__ == '__main__':
 	job_template = input_json["data_directory"] + 'jobs/' + job_set_name + '_{a}/M_{m}/N_{n}/T_{t}/'
 
 	for attempt in attempts:
-		for m in M:
-			n = C*m
+		for c in C:
+			m = M[0]
+			n = c*m
 			for Temp in Temps:
 				#load default input file
 				# with open(project_path+"default_files/default_input.json",'r') as fp:
@@ -102,7 +98,7 @@ if __name__ == '__main__':
 				job = job_template.replace('{a}',str(attempt)).replace('{m}',str(m)).replace('{n}',str(n)).replace('{t}',str(Temp))
 				# job = "/home/kolanzl/novus/kolanzl/SpaceLab_data/jobs/fixme/"
 
-				job_name = f"a={attempt},m={m},n={n},t={Temp}"
+				job_name = f"lilaca={attempt},m={m},n={n},t={Temp}"
 
 				# print(rand_int())
 				if not os.path.exists(job):
@@ -212,10 +208,10 @@ if __name__ == '__main__':
 
 
 					#add run script and executable to folders
-					# os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
-					# os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
-					# os.system(f"cp {project_path}Collider/ball_group.cpp {job}ball_group.cpp")
-					# os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
+					os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
+					os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
+					os.system(f"cp {project_path}Collider/ball_group.cpp {job}ball_group.cpp")
+					os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
 
 					randint = random.randint(0, 29)
 					# os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{randint}/N_30/T_3/27_RELAXconstants.csv {job}{m}_constants.csv")
@@ -225,9 +221,14 @@ if __name__ == '__main__':
 					# if M == 3:
 						# source = "/media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm{randint}/N_30/T_3/2_R*"
 					if not os.path.exists(f"{job}{m}_simData.csv"):
-						os.system(f"cp {input_json['data_directory']}/localLognormData/lognorm{randint}/N_300/T_3/{m}_constants.csv {job}{m}_constants.csv")
-						os.system(f"cp {input_json['data_directory']}/localLognormData/lognorm{randint}/N_300/T_3/{m}_simData.csv {job}{m}_simData.csv")
-						os.system(f"cp {input_json['data_directory']}/localLognormData/lognorm{randint}/N_300/T_3/{m}_energy.csv {job}{m}_energy.csv")
+						while not os.path.exists(f"{input_json['data_directory']}/localLognormData/lognorm{randint}/N_300/T_1000/{m}_constants.csv"):
+							print(f"DOES NOT EXIST: {input_json['data_directory']}/localLognormData/lognorm{randint}/N_300/T_1000/{m}_constants.csv")
+							randint = random.randint(0, 29)
+
+						os.system(f"cp {input_json['data_directory']}/localLognormData/lognorm{randint}/N_300/T_1000/{m}_constants.csv {job}{m}_constants.csv")
+						os.system(f"cp {input_json['data_directory']}/localLognormData/lognorm{randint}/N_300/T_1000/{m}_simData.csv {job}{m}_simData.csv")
+						os.system(f"cp {input_json['data_directory']}/localLognormData/lognorm{randint}/N_300/T_1000/{m}_energy.csv {job}{m}_energy.csv")
+						randint = random.randint(0, 29)
 					os.system(f"touch  {job}{m}_checkpoint.txt")
 						
 					folders.append(job)
