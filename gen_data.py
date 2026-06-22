@@ -314,8 +314,8 @@ if __name__ == '__main__':
 	# bool_headers = [1,1,0,0,1,0,0,0]
 
 	bool_headers = [1,1,0,0,1,0,0,0,0,0,0]
-	bool_headers = [1,1,0,1,1,0,0,0,0,1,0]
 	bool_headers = [0,0,0,0,0,1,0,0,0,0,0]
+	bool_headers = [1,1,0,1,1,1,0,0,0,1,0]
 
 	# requested_data_functions = [data_functions[i] for i in range(len(data_functions)) if bool_headers[i]]
 	requested_data_headers = [data_headers[i] for i in range(len(data_headers)) if bool_headers[i]]
@@ -326,7 +326,8 @@ if __name__ == '__main__':
 	for n_i,n in enumerate(N):
 	
 		data_folders = []
-		data_folders = [path + 'jobs/CBAPA_*']
+		data_folders += [path + 'jobs/DBAPA_*']
+		data_folders += [path + 'jobs/CBAPA_*']
 		data_folders += [path + 'jobs/BAPAWELD_*']
 		data_folders += [path + 'jobs/BAPA_*']
 
@@ -344,10 +345,15 @@ if __name__ == '__main__':
 
 		for d_i,directory in enumerate(possible_dirs):
 			CBAPA = ("CBAPA" in directory) #this is for if we want to use CBAPA since the N and M are different than the usual constant N 
+			DBAPA = ("DBAPA" in directory) #this is for if we want to use DBAPA since the N and M are different than the usual constant N 
+			#en is the n value to calculate data for
 			if CBAPA:
 				# n = u.find_max_index(directory)
 				m = u.value_from_directory("M",directory)
 				en = C*m
+			elif DBAPA:
+				m = u.value_from_directory("M",directory)
+				en = u.value_from_directory("N",directory)
 			else:
 				en = n
 
