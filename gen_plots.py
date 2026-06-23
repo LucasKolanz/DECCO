@@ -1810,6 +1810,207 @@ def gen_BAPA_plots_images(show_plots=True,save_plots=False,include_totals=False)
         plt.close(fig)
 
 
+def gen_DBAPA_plots(show_plots=True,save_plots=False,include_totals=False):
+    with open(project_path+"default_files/default_input.json",'r') as fp:
+        input_json = json.load(fp)
+    
+    path = input_json["data_directory"]
+
+    relax = False
+
+    data_prefolders = [path + 'jobs/DBAPA_']
+    figure_folder = path+'data/figures/'
+
+    data_prefolder = data_prefolders[0]
+    dataset_name = data_prefolder.split("/")[-1]
+
+    temps = [1000]
+    C = [1,2,3,4,5,6,10,15,20,30,60]
+    M = 20
+    attempts = [i for i in range(30)]
+
+    requested_data_headers = gd.data_headers[:2] + gd.data_headers[3:6] + [gd.data_headers[9]]
+    # requested_data_headers = gd.data_headers[:2] + [gd.data_headers[4]]
+    # requested_data_headers = gd.data_headers[:2] + [gd.data_headers[3]] + [gd.data_headers[4]]
+
+    raw_data = np.full(shape=(len(requested_data_headers),len(attempts),len(C),len(temps)),fill_value=np.nan,dtype=np.float64)
+    for a_i,a in enumerate(attempts):
+        for c_i,c in enumerate(C):
+            m = M
+            n = c*M
+            size = n
+            for t_i,t in enumerate(temps):
+                # folder = f"{data_prefolder}{a}/M_{m}/N_{n}/T_{t}/"
+                # if m == M[0]: #first and last folder is actually from old data
+                #     folder = f"{path}/jobsCosine/lognorm_{a}/N_30/T_{t}/"
+                #     # folder = f"{data_prefolder}{a}/M_{M[0]}/N_{n}/T_{t}/"
+                    
+                # else:
+                folder = f"{data_prefolder}{a}/M_{m}/N_{n}/T_{t}/"
+                if os.path.exists(folder+"job_data.csv"):
+                    with open(folder+"job_data.csv",'r') as fp:
+                        existing_data = fp.readlines()
+
+                    existing_sizes = [int(i.split('=')[1].strip("\n\t ")) for i in existing_data if i[:2] == "N="]
+                    #even though the data can have other sizes in it, 
+                    #we only want the data of size n
+                    if n not in existing_sizes:
+                        print(f"ERROR: Data of size {n} does not exist for {folder}.")
+                        continue
+                    index = existing_sizes.index(n)*4
+                    existing_headers_for_size = existing_data[index+1].strip("\n\t ").split(",")
+                    existing_values_for_size = existing_data[index+2].strip("\n\t ").split(",")
+                    
+                    for h_i,header in enumerate(requested_data_headers):
+                        if header in existing_headers_for_size:
+                            # if h_i == 3:
+                            #   print(existing_values_for_size[existing_headers_for_size.index(header)])
+                            raw_data[h_i,a_i,c_i,t_i] = u.get_plottable_value_from_saved_value(existing_values_for_size[existing_headers_for_size.index(header)],header,folder,n,relax)
+
+    avg_data_DBAPA = np.nanmean(raw_data,axis=1)
+    std_data_DBAPA = np.nanstd(raw_data,axis=1)
+    num_data_DBAPA = np.count_nonzero(~np.isnan(raw_data),axis=1)
+    err_data_DBAPA = std_data_DBAPA/np.sqrt(num_data_DBAPA)
+
+
+    print("======================Starting combined BAPA figures======================")
+
+    plt.rcParams.update({
+        'font.size': 16,
+        # 'text.usetex': True,
+        # 'text.latex.preamble': r'\usepackage{amsmath} \usepackage{bm}'
+    })
+
+    dataset_plot_info = [
+        {
+            "avg": avg_data_DBAPA,
+            "err": err_data_DBAPA,
+            "num": num_data_DBAPA,
+            "label": "Const. frag size (M=20)",
+        },
+    ]
+
+    n_metrics = len(requested_data_headers)
+    ncols = 2
+    nrows = math.ceil(n_metrics / ncols)
+
+    fig, axs = plt.subplots(
+        nrows=nrows,
+        ncols=ncols,
+        figsize=(8.5, 11.0),
+        sharex=True,
+        constrained_layout=False
+    )
+
+    axs = np.asarray(axs).flatten()
+
+    # Same style as your temperature version, but truncate safely
+    preferred_ax_order = [4,3,0,1,2,5]
+    preferred_ax_order = [0,1,2,3,4,5]
+    preferred_ax_order = [4,5,2,0,1,3]
+    preferred_ax_order = [0,1,3,4,5,2]
+    ax_order = [i for i in preferred_ax_order if i < len(axs)]
+    print([requested_data_headers[i] for i in ax_order])
+
+    # If there are more metrics than entries in preferred_ax_order,
+    # append any remaining axes.
+    # ax_order += [i for i in range(len(axs)) if i not in ax_order]
+
+    for h_i, header in enumerate(requested_data_headers):
+        ax = axs[ax_order[h_i]]
+
+        for d_i, info in enumerate(dataset_plot_info):
+            avg_data = info["avg"]
+            err_data = info["err"]
+            num_data = info["num"]
+
+            print(avg_data[h_i, :, t_i])
+            print(C)
+            for t_i, t in enumerate(temps):
+                ax.errorbar(
+                    C,
+                    avg_data[h_i, :, t_i],
+                    yerr=err_data[h_i, :, t_i],
+                    label=info["label"],
+                    color=colors[3],       
+                    linestyle=styles[d_i],   
+                    marker='*' if d_i == 2 else '.',
+                    markersize=8,
+                    zorder=5
+                )
+
+                if include_totals:
+                    print("HERERER")
+                    for c_i, total in enumerate(num_data[h_i, :, t_i]):
+                        ax.annotate(
+                            f"{total:.0f}",
+                            (C[c_i], avg_data[h_i, c_i, t_i]),
+                            textcoords="offset points",
+                            xytext=(2, 2),
+                            fontsize=9,
+                            alpha=0.9
+                        )
+
+        # ax.set_ylabel(label_from_header(header))
+        ax.set_ylabel(header)
+        ax.set_xscale('log')
+        ax.grid(alpha=0.25)
+
+        ax.text(
+            0.02, 0.04,
+            f"({chr(97 + ax_order[h_i])})",
+            transform=ax.transAxes,
+            ha='left',
+            va='bottom'
+        )
+
+    # Common x-label only on bottom row
+    for ax in axs[-ncols:]:
+        ax.set_xlabel("Number of fragments $C$")
+    # axs[3].tick_params(labelbottom=True)
+    # axs[3].set_xlabel("Fragment size $M$")
+
+    xmin = np.min(C)
+    xmax = np.max(C)
+    pad = 1.5
+
+    for ax in axs[:n_metrics]:
+        ax.set_xlim(xmin / pad, xmax * pad)
+
+    # Shared legend: get handles from the first used axis
+    first_used_ax = axs[ax_order[0]]
+    handles, labels = first_used_ax.get_legend_handles_labels()
+
+    fig.legend(
+        handles,
+        labels,
+        loc='upper center',
+        ncol=1,
+        frameon=False,
+        bbox_to_anchor=(0.5, 1.0001)
+    )
+
+    # Remove unused axes
+    # for i in range(n_metrics, len(axs)):
+    #     fig.delaxes(axs[i])
+
+    fig.tight_layout(rect=[0, 0, 1, 0.90])
+
+    if save_plots:
+        save_file = f"{figure_folder}{dataset_name}all_metrics_vs_num_frags.png"
+        print(f"saving to {save_file}")
+        plt.savefig(
+            save_file,
+            dpi=300,
+            bbox_inches='tight'
+        )
+
+    if show_plots:
+        plt.show()
+
+    plt.close(fig)  
+
+
 def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
     with open(project_path+"default_files/default_input.json",'r') as fp:
         input_json = json.load(fp)
@@ -5073,8 +5274,9 @@ def gen_BAPA_porosity_vs_asymmetry(show_plots=True,save_plots=False,include_tota
     data_prefolders.append(path + 'jobs/BAPA_')
     data_prefolders.append(path + 'jobs/CBAPA_')
     data_prefolders.append(path + 'jobs/BAPAWELD_')
+    data_prefolders.append(path + 'jobs/DBAPA_')
 
-    avg_data = np.full(shape=(len(data_prefolders),len(requested_data_headers),len(N),len(M)),fill_value=np.nan,dtype=np.float64)
+    avg_data = np.full(shape=(len(requested_data_headers),len(N),len(M)),fill_value=np.nan,dtype=np.float64)
     std_data = np.full(shape=avg_data.shape,fill_value=np.nan,dtype=np.float64)
     num_data = np.full(shape=avg_data.shape,fill_value=np.nan,dtype=np.float64)
     err_data = np.full(shape=avg_data.shape,fill_value=np.nan,dtype=np.float64)
@@ -5092,6 +5294,14 @@ def gen_BAPA_porosity_vs_asymmetry(show_plots=True,save_plots=False,include_tota
     BAPAWELD_num_data = np.full(shape=avg_data.shape,fill_value=np.nan,dtype=np.float64)
     BAPAWELD_err_data = np.full(shape=avg_data.shape,fill_value=np.nan,dtype=np.float64)
     
+    C_sp = [1,2,3,4,5,6,10,15,20,30,60]
+    M_sp = 20
+    DBAPA_avg_data = np.full(shape=(len(requested_data_headers),len(N),len(M)),fill_value=np.nan,dtype=np.float64)
+    DBAPA_std_data = np.full(shape=avg_data.shape,fill_value=np.nan,dtype=np.float64)
+    DBAPA_num_data = np.full(shape=avg_data.shape,fill_value=np.nan,dtype=np.float64)
+    DBAPA_err_data = np.full(shape=avg_data.shape,fill_value=np.nan,dtype=np.float64)
+    
+
     for d_i,data_prefolder in enumerate(data_prefolders):
         dataset_name = data_prefolder.split("/")[-1].strip("_")
         figure_folder = path+f'data/figures/{dataset_name}/'
@@ -5107,6 +5317,11 @@ def gen_BAPA_porosity_vs_asymmetry(show_plots=True,save_plots=False,include_tota
         if relax:
             rel = "relax_"
 
+        if "DBAPA" in data_prefolder:
+            xdata = C_sp
+        else:
+            xdata = M
+
         raw_data = np.full(shape=(len(requested_data_headers),len(attempts),len(N),len(M)),fill_value=np.nan,dtype=np.float64)
         for a_i,a in enumerate(attempts):
             size = N[0]
@@ -5114,10 +5329,17 @@ def gen_BAPA_porosity_vs_asymmetry(show_plots=True,save_plots=False,include_tota
             n=size
 
             
-            for m_i,m in enumerate(M):
+            for x_i,x in enumerate(xdata):
+
+                m = x
                 if "CBAPA" in data_prefolder: #CBAPA
                     size = C*m
                     n = size
+                elif "DBAPA" in data_prefolder: #DBAPA
+                    size = x*M_sp
+                    m = M_sp
+                    n = size
+                                    
                 folder = f"{data_prefolder}{a}/M_{m}/N_{n}/T_1000/"
                 full_data_path = folder+f"{rel}{data_file}"
                 if os.path.exists(full_data_path):
@@ -5137,15 +5359,15 @@ def gen_BAPA_porosity_vs_asymmetry(show_plots=True,save_plots=False,include_tota
                     
                     for h_i,header in enumerate(requested_data_headers):
                         if header in existing_headers_for_size:
-                            raw_data[h_i,a_i,n_i,m_i] = u.get_plottable_value_from_saved_value(existing_values_for_size[existing_headers_for_size.index(header)],header,folder,size,relax)
+                            raw_data[h_i,a_i,n_i,x_i] = u.get_plottable_value_from_saved_value(existing_values_for_size[existing_headers_for_size.index(header)],header,folder,size,relax)
                 else:
                     print(f"DNE: {full_data_path}")
 
 
-        avg_data[d_i,:,:,:] = np.nanmean(raw_data,axis=1)
-        std_data[d_i,:,:,:] = np.nanstd(raw_data,axis=1)
-        num_data[d_i,:,:,:] = np.count_nonzero(~np.isnan(raw_data),axis=1)
-        err_data[d_i,:,:,:] = std_data[d_i,:,:,:]/np.sqrt(num_data[d_i,:,:,:])
+        avg_data = np.nanmean(raw_data,axis=1)
+        std_data = np.nanstd(raw_data,axis=1)
+        num_data = np.count_nonzero(~np.isnan(raw_data),axis=1)
+        err_data = std_data/np.sqrt(num_data)
 
         if data_prefolder == data_prefolders[0]:
             BAPA_avg_data = avg_data
@@ -5162,7 +5384,12 @@ def gen_BAPA_porosity_vs_asymmetry(show_plots=True,save_plots=False,include_tota
             BAPAWELD_std_data = std_data
             BAPAWELD_num_data = num_data
             BAPAWELD_err_data = err_data
-
+        elif data_prefolder == data_prefolders[3]:
+            DBAPA_avg_data = avg_data
+            DBAPA_std_data = std_data
+            DBAPA_num_data = num_data
+            DBAPA_err_data = err_data
+        
 
     print("======================Starting figures======================")
     # print(data.shape)
@@ -5171,8 +5398,8 @@ def gen_BAPA_porosity_vs_asymmetry(show_plots=True,save_plots=False,include_tota
     #   plt.close("all")
     plt.rcParams.update({
         'font.size': 18,
-        'text.usetex': True,
-        'text.latex.preamble': r'\usepackage{amsmath} \usepackage{bm}'
+        # 'text.usetex': True,
+        # 'text.latex.preamble': r'\usepackage{amsmath} \usepackage{bm}'
     })
 
     #Plot metric vs M for all metrics and all N and temps
@@ -5202,21 +5429,29 @@ def gen_BAPA_porosity_vs_asymmetry(show_plots=True,save_plots=False,include_tota
             err_data = BAPAWELD_err_data
             label = "wCFS"
             color = colors[2]
+        elif data_prefolder == data_prefolders[3]:
+            avg_data = DBAPA_avg_data
+            print(avg_data)
+            std_data = DBAPA_std_data
+            num_data = DBAPA_num_data
+            err_data = DBAPA_err_data
+            label = "lilac"
+            color = colors[3]
         n_i = 0
         # print(avg_data[d_i,0,n_i,:])
         # print(avg_data[d_i,1,n_i,:])
         # ax.plot(temps,ratio_data[h_i,n_i,:],\
-        ax.errorbar(avg_data[d_i,1,n_i,:],avg_data[d_i,0,n_i,:],\
-                yerr=err_data[d_i,0,n_i,:],\
-                xerr=err_data[d_i,1,n_i,:],\
+        ax.errorbar(avg_data[1,n_i,:],avg_data[0,n_i,:],\
+                yerr=err_data[0,n_i,:],\
+                xerr=err_data[1,n_i,:],\
                 label=f"{label}",\
                 color=color,\
                 linestyle=styles[n_i],\
-                marker='.',markersize=10,zorder=5)
+                marker='.',markersize=10,zorder=d_i)
 
         # if include_totals:
-        for txt_i, txt in enumerate(M):
-            ax.annotate("{:0.0f}".format(txt), (avg_data[d_i,1,n_i,txt_i]+0.01, avg_data[d_i,0,n_i,txt_i]+0.01))
+        for txt_i, txt in enumerate(xdata):
+            ax.annotate("{:0.0f}".format(txt), (avg_data[1,n_i,txt_i]+0.01, avg_data[0,n_i,txt_i]+0.01))
 
 
 
@@ -5225,10 +5460,10 @@ def gen_BAPA_porosity_vs_asymmetry(show_plots=True,save_plots=False,include_tota
     #       ax.annotate("{:0.0f}".format(txt), (M[txt_i], avg_data[h_i,txt_i,n_i,t_i]))
 
     bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-    # ax.set_ylabel(requested_data_headers[0])
-    # ax.set_xlabel(requested_data_headers[1])
-    ax.set_ylabel(label_from_header(requested_data_headers[0]))
-    ax.set_xlabel(label_from_header(requested_data_headers[1]))
+    ax.set_ylabel(requested_data_headers[0])
+    ax.set_xlabel(requested_data_headers[1])
+    # ax.set_ylabel(label_from_header(requested_data_headers[0]))
+    # ax.set_xlabel(label_from_header(requested_data_headers[1]))
 
     # ax.set_ylabel(label_from_header(header))
     # ax.set_title(f'{data_prefolder}')
@@ -5534,9 +5769,10 @@ if __name__ == '__main__':
     # gen_agg_im_plot_BAPA(save_plots=save_plots,show_plots=show_plots)
 
     ##Plots for paper 2
+    # gen_DBAPA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
     # gen_BAPA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
     # gen_BAPA_plots_images(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
-    # gen_BAPA_porosity_vs_asymmetry(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
+    gen_BAPA_porosity_vs_asymmetry(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
     # gen_agg_im_plot_paper2(save_plots=save_plots,show_plots=show_plots)
     # gen_geometry_plot(save_plots=save_plots,show_plots=show_plots)
     # gen_BAPA_eff_rad(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
