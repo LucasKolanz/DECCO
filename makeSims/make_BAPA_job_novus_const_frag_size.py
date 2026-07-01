@@ -67,7 +67,7 @@ if __name__ == '__main__':
 	# attempts = [0]
 
 	#C is the number of projectiles each aggregate will consist of
-	C = [1,2,3,4,5,6,10,15,20,30,60] 
+	C = [1,2,3,4,5,6,10,15,20,30]#,60] 
 	M = [20]
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
@@ -77,7 +77,7 @@ if __name__ == '__main__':
 	totalNodes = 1
 	MPITasksPerNode = 1
 	totalMPITasks = totalNodes*MPITasksPerNode
-	threadsPerTask = 1
+	threadsPerTask = 4
 
 	#load default input file
 	with open(project_path+"default_files/default_input.json",'r') as fp:
