@@ -110,7 +110,6 @@ main(int argc, char* argv[])
     }
     dummy.parse_input_file(location);
 
-
     //Must call this before running anything to properly set the seed for the whole program.
     //Call it here with dummy to we make sure we set the seed asap.
     //If anything happens with random before here, it will not have the
@@ -147,7 +146,8 @@ main(int argc, char* argv[])
     std::string message(
         "simTimeSeconds: "+dToSci(dummy.attrs.simTimeSeconds) + '\n' +
         "timeResolution: "+dToSci(dummy.attrs.timeResolution) + '\n' +
-        "Using "+radiiDist+" particle radii distribution\n");
+        "Using "+radiiDist+" particle radii distribution\n" + 
+        "dynamicTime: "+std::to_string(dummy.attrs.dynamicTime)+'\n');
     MPIsafe_print(std::cerr,message);
 
     if (dummy.attrs.typeSim == collider)
@@ -447,11 +447,11 @@ safetyChecks(Ball_group &O) //Should be ready to call sim_looper after running t
         MPIsafe_exit(EXIT_FAILURE);
     }
 
-    if (O.attrs.data_directory == "")
-    {
-        fprintf(stderr, "\ndata_directory NOT SET for rank %1d\n",getRank());
-        MPIsafe_exit(EXIT_FAILURE);
-    }
+    // if (O.attrs.data_directory == "")
+    // {
+    //     fprintf(stderr, "\ndata_directory NOT SET for rank %1d\n",getRank());
+    //     MPIsafe_exit(EXIT_FAILURE);
+    // }
 
     if (O.attrs.soc <= 0) {
         fprintf(stderr, "\nSOC NOT SET for rank %1d\n",getRank());

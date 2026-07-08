@@ -39,7 +39,8 @@
 	"radiiFraction": 1,
 	//distribution of radii, default to "constant", other options: "logNormal"
 	"radiiDistribution": "constant",
-	//IDK, keep false until figure it out
+	//Do you want the timestep to be constant (false), or change each timestep (true)
+	//This does not work at the moment so should not be used until fixed
 	"dynamicTime": false,
 	//Gravitiational Constant, don't change unless to give more precision
 	"G": 6.67e-8,

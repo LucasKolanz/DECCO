@@ -50,7 +50,6 @@ if __name__ == '__main__':
 		print('compilation failed')
 		exit(-1)
 		
-	job_set_name = "JKRTestest"
 	job_set_name = "bigboxtest"
 	# folder_name_scheme = "T_"
 
@@ -62,6 +61,7 @@ if __name__ == '__main__':
 	Temps = [1000]
 	box_sizes = [[]]
 	folders = []
+	totalMPITasks = 1
 	for attempt in attempts:
 		for n in N:
 			for Temp in Temps:
@@ -83,32 +83,28 @@ if __name__ == '__main__':
 				####################################
 				######Change input values here######
 				input_json['temp'] = Temp
-				input_json['dynamicTime'] = True
 				# input_json['seed'] = u.rand_int()
 				input_json['seed'] = 101
 				input_json['radiiDistribution'] = 'constant'#'lognormal'
 				input_json['simType'] = 'bigbox'
-				# input_json['simType'] = 'custom'
 				# input_json['boxDims'] = '1e-4,1e-4,1e-4'
 				# input_json['boxDims'] = '5e-4,5e-4,5e-4'
 				input_json['boxDims'] = '15e-4,15e-4,15e-4'
-				# input_json['boxDims'] = '1.0,1.0,1.0'
 				# input_json['simType'] = 'custom'
 				input_json['N'] = n
 				input_json['output_folder'] = job
 				# input_json['dataFormat'] = "h5"
 				input_json['dataFormat'] = "csv"
 				input_json['cor'] = (0.4)**(0.5)
-				input_json["OMPthreads"] = 14
+				input_json["OMPthreads"] = 1
 				# input_json['impactParameter'] = -1.0
 				# input_json['simTimeSeconds'] = 1e-4
 				# input_json['timeResolution'] = 1e-6
 				# input_json['simTimeSeconds'] = 10e-5
-				# input_json['simTimeSeconds'] = 1e-4
-				# input_json['simTimeSeconds'] = 3e-3
-				input_json['simTimeSeconds'] = 1e-5
-				input_json['timeResolution'] = 1e-7
-				# input_json['timeResolution'] = 1e-5
+				# input_json['simTimeSeconds'] = 2e-5
+				input_json['simTimeSeconds'] = 3e-3
+				# input_json['simTimeSeconds'] = 1e-5
+				input_json['timeResolution'] = 1e-5
 				# input_json['material'] = "amorphousCarbon"
 				# input_json['material'] = "quartz"
 				# input_json['JKR'] = "False"
@@ -127,30 +123,88 @@ if __name__ == '__main__':
 				with open(job + "input.json",'w') as fp:
 					json.dump(input_json,fp,indent=4)
 
+				#NOVUS CLUSTER
+				sbatchfile = ""
+				sbatchfile += "#!/bin/bash\n"
+				# sbatchfile += "#SBATCH -C gpu\n"
+				# sbatchfile += "#SBATCH -q regular\n"
+				# sbatchfile += "#SBATCH -t 0:10:00\n"
+				# sbatchfile += f'#SBATCH --partition=dri.q\n'
+
+				#FOR ENGR CLUSTER
+				#NAME ORDER needs to be same as the file path order
+				sbatchfile += f"#SBATCH -J LBGPU,GPUS={totalMPITasks},a={attempt},n={n},t={Temp}\n"
+				sbatchfile += "#SBATCH --partition=preempt-gpu.q\n"
+				sbatchfile += "#SBATCH --gres=gpu:a40:1\n"
+				sbatchfile += f"#SBATCH --ntasks=1\n"
+				# sbatchfile += f"#SBATCH --nodes {totalNodes}\n"
+				# sbatchfile += f"#SBATCH --ntasks-per-node {totalMPITasks}\n"
+				# sbatchfile += f"#SBATCH --gpus-per-node=1\n"
+				sbatchfile += f"#SBATCH --cpus-per-task 1\n\n"
+				# sbatchfile += "#SBATCH -N {}\n".format(1)#(node)
+
+				# sbatchfile += "#SBATCH -G {}\n".format(node)
+				# sbatchfile += 'module load gpu\n'
+
+				# sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(threadsPerTask)
+				sbatchfile += 'lscpu\n'
+				# sbatchfile += 'export SLURM_CPU_BIND="socket"\n'
+				# sbatchfile += 'module load hdf5/1.14.3\n'
+				sbatchfile += 'module load hdf5/1.10.8\n'
+				# sbatchfile += 'module load gcc/8.3\n'
+				# sbatchfile += 'module load gnu12/12.3.0\n'
+
+				# sbatchfile += 'module load mpich/3.3\n'
+				sbatchfile += 'module list\n'
+				sbatchfile += 'echo "Running on host: $(hostname)"\n'
+				# sbatchfile += 'export LD_LIBRARY_PATH=$PWD/lib:$LD_LIBRARY_PATH\n'
+				# sbatchfile += 'echo $LD_LIBRARY_PATH\n'
+				# sbatchfile += 'ls /usr/lib64/libc.*\n'
+				# sbatchfile += "unset NV_ACC_DEBUG\n"
+				# sbatchfile += "unset NV_ACC_NOTIFY\n"
+				# sbatchfile += "export NV_ACC_NOTIFY=3\n"
+				# sbatchfile += "export NV_ACC_DEBUG=0x800\n"
+				sbatchfile += "export ACC_DEVICE_TYPE=nvidia\n"
+				sbatchfile += "echo $LD_LIBRARY_PATH\n"
+				sbatchfile += "export HDF5_USE_FILE_LOCKING=FALSE\n"
+				sbatchfile += "ls /opt/ohpc/pub/libs/gnu12/hdf5/1.10.8/lib/\n"
+				sbatchfile += "nvidia-smi\n"
+
+			
+
+				
+				# sbatchfile += f"srun -n {totalNodes} -c {threads} --cpu-bind=cores numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+				# sbatchfile += f"srun --ntasks-per-node={MPITasksPerNode} --cpus-per-task={threadsPerTask} --cpu-bind=socket numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+				# sbatchfile += f"mpirun --bind-to socket --map-by node numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+				sbatchfile += f"mpirun -np 1 {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+				# sbatchfile += f"mpirun -n {totalMPITasks} {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+
+
+				
+				with open(job+"sbatchMulti.bash",'w') as sfp:
+					sfp.write(sbatchfile)
+
+
+
 				#add run script and executable to folders
-				# os.system("cp default_files/run_sim.py {}run_sim.py".format(job))
-				os.system("cp Collider/Collider.x {}Collider.x".format(job))
+				# os.system(f"cp {project_path}default_files/run_sim.py {job}run_sim.py")
+				os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
+				os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
+				os.system(f"cp {project_path}Collider/ball_group.cpp {job}ball_group.cpp")
+				os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
+
+				
+					
 				folders.append(job)
-	
+	# print(folders)
 
 
 	print(folders)
-
 	if args.run:
-		with mp.Pool(processes=runs_at_once) as pool:
-			for folder in folders:
-				# input_data = inputs[i:i+runs_at_once]
-				pool.apply_async(run_job, (folder,))
-
-			pool.close()
-			pool.join()
-
-	# print(folders)
-	# cwd = os.getcwd()
-	# for folder in folders:
-	# 	os.chdir(folder)
-	# 	os.system('qsub qsub.bash')
-	# os.chdir(cwd)
-
+		cwd = os.getcwd()
+		for folder in folders:
+			os.chdir(folder)
+			os.system('sbatch sbatchMulti.bash')
+		os.chdir(cwd)
 
 	

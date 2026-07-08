@@ -369,7 +369,7 @@ void Ball_group::customInit()
 {
     int nBalls = 3;
     attrs.num_particles = nBalls;
-    attrs.num_groups = 2;
+    // attrs.num_groups = 2;
     allocate_group(nBalls);
     if (attrs.JKR)
     {
@@ -393,12 +393,15 @@ void Ball_group::customInit()
         }
     }
 
+    std::cerr<<"HEREREREERERER"<<std::endl;
+
 
     R[0] = 1e-5;
     R[1] = 1e-5;
     R[2] = 1e-5;    
     // R[3] = 1e-5;    
     // R[4] = 1e-5;    
+    std::cerr<<"adfasdfadfasdfasdfa"<<std::endl;
 
     m[0] = attrs.density*(4.0/3.0)*pi*R[0]*R[0]*R[0];
     m[1] = attrs.density*(4.0/3.0)*pi*R[1]*R[1]*R[1];
@@ -422,13 +425,13 @@ void Ball_group::customInit()
     // w[3] = {7554669.291625383, 2093452.4801920392, 1877168.3680082832};   
 
     double offset =  1e-5;
-    pos[0] = {-1.5e-5,0,0};
-    pos[1] = {1.5e-5,0,0};
+    pos[0] = {-1e-5,0,0};
+    pos[1] = {1e-5,0,0};
     pos[2] = {1.5e-5,4e-5,0};
     // pos[3] = {4.5e-5,4e-5,0};
-    pos[0] += offset;
-    pos[1] += offset;
-    pos[2] += offset;
+    // pos[0] += offset;
+    // pos[1] += offset;
+    // pos[2] += offset;
     // pos[3] += offset;
 
     for (int i = 0; i < attrs.num_particles; ++i)
@@ -450,11 +453,11 @@ void Ball_group::customInit()
 
     // double bel = 35.0;
     // double bel = 50.0;
-    double bel = 1.75;
+    double bel = 0.3;
     // std::cout<<"velocity of impact: "<<bel*2<<std::endl;
     vel[0] = {bel,0,0};
-    vel[1] = {bel,0,0};
-    vel[2] = {0,-bel,0};
+    vel[1] = {-bel,0,0};
+    vel[2] = {0,0,0};
     // vel[3] = {0,-2*bel,0};
     
     // vel[0] = {0,0,0};
@@ -731,7 +734,7 @@ void Ball_group::parse_input_file(std::string location)
         MPIsafe_exit(-1);
     }
 
-    set_attribute(inputs,"data_directory",attrs.data_directory);
+    // set_attribute(inputs,"data_directory",attrs.data_directory);
     set_attribute(inputs,"random_folder_template",attrs.random_folder_template);
     std::string temp_sim_type = "";
     set_attribute(inputs,"simType",temp_sim_type);
@@ -977,15 +980,16 @@ void Ball_group::parse_input_file(std::string location)
     set_attribute(inputs,"projectileName",attrs.projectileName);
     set_attribute(inputs,"targetName",attrs.targetName);
 
-    std::string temp_output_prefix = "default";
-    set_attribute(inputs,"output_prefix",temp_output_prefix);
-    if (temp_output_prefix == std::string("default"))
-    {
-        attrs.output_prefix = "";
-    }
+    // std::string temp_output_prefix = "default";
+    // set_attribute(inputs,"output_prefix",temp_output_prefix);
+    // if (temp_output_prefix == std::string("default"))
+    // {
+    //     attrs.output_prefix = "";
+    // }
 
     set_attribute(inputs,"radiiFraction",attrs.radiiFraction);
-    attrs.output_width = attrs.num_particles;
+    // attrs.output_width = attrs.num_particles;
+
 
 }
 
@@ -2512,10 +2516,10 @@ void Ball_group::freeMemory()
     std::vector<vec3>().swap(group_aacc);
     std::vector<vec3>().swap(group_acc);
 
-    #ifdef GPU_ENABLE
-        delete[] aaccsq;
-        delete[] accsq;
-    #endif
+    // #ifdef GPU_ENABLE
+    //     delete[] aaccsq;
+    //     delete[] accsq;
+    // #endif
 
     if (attrs.JKR)
     {
@@ -2819,6 +2823,12 @@ void Ball_group::init_conditions()
 
             // Check for collision between Ball and otherBall:
             double overlap = sumRaRb - dist;
+
+            // //Keep track of the closest spheres
+            if (overlap > -attrs.min_dist)
+            {
+                attrs.min_dist = -overlap;
+            }
 
             vec3 totalForceOnA{0, 0, 0};
 
@@ -3290,9 +3300,9 @@ void Ball_group::generate_ball_field(const int nBalls)
     
     calc_helpfuls();
 
-    attrs.output_prefix = std::to_string(nBalls) + "_R" + scientific(getRadius(getCOM())) + "_v" +
-                    scientific(attrs.v_custom) + "_cor" + rounder(sqrtf(attrs.cor), 4) + "_mu" + rounder(attrs.u_s, 3) +
-                    "_rho" + rounder(attrs.density, 4);
+    // attrs.output_prefix = std::to_string(nBalls) + "_R" + scientific(getRadius(getCOM())) + "_v" +
+                    // scientific(attrs.v_custom) + "_cor" + rounder(sqrtf(attrs.cor), 4) + "_mu" + rounder(attrs.u_s, 3) +
+                    // "_rho" + rounder(attrs.density, 4);
 
 
 }
@@ -3304,7 +3314,6 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename,co
 {
     std::string file = filename;
     //file we are loading is csv file
-    size_t _pos;
     int file_index;
 
     if (file.substr(file.size()-4,file.size()) == ".csv")
@@ -3698,6 +3707,72 @@ void Ball_group::boxInit()
     placeBallsInBox(attrs.num_particles);
 }
 
+//Set groups based on which spheres are touching
+void Ball_group::captureGroups()
+{
+    Graph g;
+    int n = attrs.num_particles;
+
+    makeGraph(g, pos, R, n);
+
+    if (g.empty()) // If it is empty we have a problem somewhere
+    {
+        MPIsafe_print(std::cerr, "Error making graph in simple_graph. Graph is empty. Now exiting. . .\n");
+        MPIsafe_exit(-1);
+    }
+
+    // Optional but useful sanity check
+    if ((int)g.size() != n)
+    {
+        std::string message =
+            "Error: graph size does not match n.\n"
+            "g.size(): " + std::to_string((int)g.size()) + "\n"
+            "n: " + std::to_string(n) + "\n";
+
+        MPIsafe_print(std::cerr, message);
+        MPIsafe_exit(-1);
+    }
+
+    std::vector<bool> visited(n, false);
+    std::queue<int> q;
+
+    int group_id = 0;
+
+    // Loop over every ball
+    for (int start = 0; start < n; ++start)
+    {
+        // If this ball is already part of a group, skip it
+        if (visited[start])
+            continue;
+
+        // Start a new group
+        visited[start] = true;
+        group[start] = group_id;
+        q.push(start);
+
+        while (!q.empty())
+        {
+            int current = q.front();
+            q.pop();
+
+            for (int neighbor : g[current])
+            {
+                if (!visited[neighbor])
+                {
+                    visited[neighbor] = true;
+                    group[neighbor] = group_id;
+                    q.push(neighbor);
+                }
+            }
+        }
+
+        // Finished one connected component
+        ++group_id;
+    }
+
+    attrs.num_groups = group_id;
+}
+
 inline void Ball_group::setGroup(int group_num)
 {
     for (int i = 0; i < attrs.num_particles; ++i)
@@ -4089,7 +4164,10 @@ void Ball_group::placeBallsInBox(const int nBalls)
 }
 
 
-
+void Ball_group::setDtLarge()
+{
+    attrs.dt_large = attrs.min_dist/attrs.v_max;
+}
 
 void Ball_group::updateDTK(const double& velocity)
 {
@@ -4121,10 +4199,11 @@ void Ball_group::updateDTK(const double& velocity)
         const double regime = (vdw_force_max > elastic_force_max) ? vdw_force_max : elastic_force_max;
         const double regime_adjust = regime / (attrs.maxOverlap * attrs.r_min);
 
-        // attrs.dt = .01 * sqrt((attrs.fourThirdsPiRho / regime_adjust) * attrs.r_min * attrs.r_min * attrs.r_min); //NORMAL ONE
-        attrs.dt = sqrt((attrs.fourThirdsPiRho / regime_adjust) * attrs.r_min * attrs.r_min * attrs.r_min); 
+        attrs.dt = .01 * sqrt((attrs.fourThirdsPiRho / regime_adjust) * attrs.r_min * attrs.r_min * attrs.r_min); //NORMAL ONE
+        // attrs.dt = sqrt((attrs.fourThirdsPiRho / regime_adjust) * attrs.r_min * attrs.r_min * attrs.r_min); 
         // attrs.dt = .001 * sqrt((attrs.fourThirdsPiRho / regime_adjust) * attrs.r_min * attrs.r_min * attrs.r_min); 
     }
+    attrs.dt_small = attrs.dt;
     
     MPIsafe_print(std::cerr,initMessage);
     calc_helpfuls();
@@ -4188,12 +4267,14 @@ void Ball_group::simInit_cond_and_center(bool add_prefix)
         init_conditions();
     }
 
+    setDtLarge();
+
     
     // Name the file based on info above:
-    if (add_prefix)
-    {   
-        attrs.output_prefix += "_k" + scientific(attrs.kin) + "_Ha" + scientific(attrs.Ha) + "_dt" + scientific(attrs.dt) + "_";
-    }
+    // if (add_prefix)
+    // {   
+    //     attrs.output_prefix += "_k" + scientific(attrs.kin) + "_Ha" + scientific(attrs.Ha) + "_dt" + scientific(attrs.dt) + "_";
+    // }
 
 }
 
@@ -4754,15 +4835,16 @@ void Ball_group::group_accs_from_monomer()
 
 void Ball_group::half_step_updates()
 {
+    double dt_kick = (attrs.dt + attrs.dt_old)/2.0;
     if (!attrs.weld)
     {
         for (int Ball = 0; Ball < attrs.num_particles; Ball++) 
         {
             // Update velocity half step:
-            velh[Ball] = vel[Ball] + .5 * acc[Ball] * attrs.dt;
+            velh[Ball] = vel[Ball] + .5 * acc[Ball] * dt_kick;
 
             // Update angular velocity half step:
-            wh[Ball] = w[Ball] + .5 * aacc[Ball] * attrs.dt;
+            wh[Ball] = w[Ball] + .5 * aacc[Ball] * dt_kick;
 
             // Update position:
             pos[Ball] += velh[Ball] * attrs.dt;
@@ -4783,8 +4865,8 @@ void Ball_group::half_step_updates()
 
         for (int g = 0; g < attrs.num_groups; ++g)
         {
-            group_velh[g] = group_vel[g] + 0.5 * group_acc[g] * attrs.dt;
-            group_wh[g] = group_w[g] + 0.5 * group_aacc[g] * attrs.dt;
+            group_velh[g] = group_vel[g] + 0.5 * group_acc[g] * dt_kick;
+            group_wh[g] = group_w[g] + 0.5 * group_aacc[g] * dt_kick;
             group_pos[g] +=  group_velh[g] * attrs.dt;
             
             group_aacc[g] = {0,0,0};
@@ -4946,6 +5028,12 @@ void Ball_group::sim_one_step(int step,bool write_step)
 
         // Check for collision between Ball and otherBall:
         double overlap = sumRaRb - dist;
+
+        // //Keep track of the closest spheres
+        if (overlap > -attrs.min_dist)
+        {
+            attrs.min_dist = -overlap;
+        }
 
         
 
@@ -5655,6 +5743,10 @@ void Ball_group::sim_one_step(int step,bool write_step)
 
         // Update position:
         d_pos[Ball] += d_velh[Ball] * d_attrs->dt;
+        if (attrs.typeSim == bigbox)
+        {
+            wrap_position(d_pos[Ball],attrs.boxdims);
+        }
 
         // Reinitialize acceleration to be recalculated:
         d_acc[Ball] = {0, 0, 0};
@@ -5694,7 +5786,11 @@ void Ball_group::sim_one_step(int step,bool write_step)
      
             const double sumRaRb = d_R[A] + d_R[B];
 
-            const vec3 rVecab = d_pos[B] - d_pos[A];  // Vector from a to b.
+            // const vec3 rVecab = d_pos[B] - d_pos[A];  // Vector from a to b.
+            const vec3 rVecab =
+                (attrs.typeSim == bigbox)
+                ? periodic_displacement(d_pos[A], d_pos[B], attrs.boxdims)
+                : d_pos[B] - d_pos[A];
             const vec3 rVecba = -rVecab;
             const double dist = (rVecab).norm();
 
@@ -6078,6 +6174,8 @@ Ball_group::sim_looper(unsigned long long start_step=1)
 
         // std::cerr<<"step: "<<Step<<"\tskip: "<<attrs.skip<<std::endl;
 
+        attrs.min_dist = HUGE_VAL;
+
         // Physics integration step:
         if (attrs.JKR)
         {
@@ -6085,6 +6183,14 @@ Ball_group::sim_looper(unsigned long long start_step=1)
         }
         else
         {
+            // if (Step == 1000)
+            // {
+            //     attrs.weld = true;
+            //     captureGroups();
+            //     allocate_weld_group(attrs.num_groups);
+            //     init_weld_vectors();
+            // }
+            
             sim_one_step(Step,write_step);
         }
         // #ifndef GPU_ENABLE
@@ -6149,9 +6255,21 @@ Ball_group::sim_looper(unsigned long long start_step=1)
             mom = {0, 0, 0};
             ang_mom = {0, 0, 0};
 
-            // if (attrs.dynamicTime) { calibrate_dt(Step, false); }
+            // if (attrs.dynamicTime) { setDynamicTime(); }
+
+
             // t.end_event("writeStep");
         }  // writestep end
+
+        if (Step % 1000 == 0)
+        {
+            attrs.weld = true;
+            captureGroups();
+            allocate_weld_group(attrs.num_groups);
+            init_weld_vectors();
+        }
+
+        if (attrs.dynamicTime) { setDistBasedDT(); }
     }
 
     // #ifdef GPU_ENABLE
@@ -6209,7 +6327,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
 
 
 #ifdef GPU_ENABLE
-void
+bool
 Ball_group::sim_looper(unsigned long long start_step=1)
 {
 
@@ -6477,10 +6595,29 @@ Ball_group::sim_looper(unsigned long long start_step=1)
         std::cerr << "\n===============================================================\n";
     }
 
-    data->write_checkpoint();
+    data->writeCheckpoint();
+    attrs.isConnectedFails = 0;
+    return true;
 }  // end simLooper
 #endif //GPU looper
 
+//Checks if spheres are close enough for small dt
+//      or far away enough for large dt. 
+//returns true if dt has been changed by this function,
+//      false otherwise
+bool Ball_group::setDistBasedDT()
+{
+    attrs.dt_old = attrs.dt;
+    if (attrs.min_dist < attrs.min_dist_cutoff)
+    {
+        attrs.dt = attrs.dt_small;
+    }
+    else
+    {
+        attrs.dt = attrs.dt_large;
+    }
+    return attrs.dt != attrs.dt_old;
+}
 
 
 bool Ball_group::isAggregation()
@@ -6534,6 +6671,56 @@ bool get_JKR(const std::string folder)
         JKR = false;
     }
     return JKR;
+}
+
+//Checks if all spheres in the sim are connected
+bool isConnected(vec3* pos, double* R, int n)
+{
+    Graph g;
+
+    MPIsafe_print(std::cerr,"n: "+std::to_string(n)+'\n');
+    makeGraph(g,pos,R,n);
+
+    if (g.empty()) //If it is empty we have a problem somewhere
+    {
+        MPIsafe_print(std::cerr,"Error makeing graph in simple_graph. Graph is empty. Now exiting. . .\n");
+        MPIsafe_exit(-1);
+    }
+
+    std::vector<bool> visited(g.size(), false);
+    std::queue<int> q;
+    
+    // Start BFS from vertex 0
+    visited[0] = true;
+    q.push(0);
+    
+    int countVisited = 1;
+
+    while (!q.empty()) 
+    {
+        int current = q.front();
+        q.pop();
+        for (int neighbor : g[current]) 
+        {
+            if (!visited[neighbor]) 
+            {
+                visited[neighbor] = true;
+                q.push(neighbor);
+                ++countVisited;
+            }
+        }
+    }
+
+
+    bool connected = (countVisited == n);
+
+    if (!connected)
+    {
+        std::string message;
+        message = "countVisited: "+std::to_string(countVisited)+"\n(int)g.size(): "+std::to_string((int)g.size())+'\n';
+    }
+    // If we've visited all vertices, the graph is connected
+    return connected;
 }
 
 

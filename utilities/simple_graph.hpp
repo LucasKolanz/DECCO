@@ -19,7 +19,7 @@ using Graph = std::vector<std::vector<int>>;
 
 void addEdge(Graph& g, int u, int v);
 void makeGraph(Graph& g, vec3* pos, double* R, int n);
-bool isConnected(vec3* pos, double* R, int n);
+// bool isConnected(vec3* pos, double* R, int n);
 
 
 

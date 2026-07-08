@@ -38,54 +38,7 @@ void makeGraph(Graph& g, vec3* pos, double* R, int n)
 
 }
 
-bool isConnected(vec3* pos, double* R, int n)
-{
-	Graph g;
 
-	MPIsafe_print(std::cerr,"n: "+std::to_string(n)+'\n');
-	makeGraph(g,pos,R,n);
-
-	if (g.empty()) //If it is empty we have a problem somewhere
-	{
-		MPIsafe_print(std::cerr,"Error makeing graph in simple_graph. Graph is empty. Now exiting. . .\n");
-        MPIsafe_exit(-1);
-	}
-
-    std::vector<bool> visited(g.size(), false);
-    std::queue<int> q;
-    
-    // Start BFS from vertex 0
-    visited[0] = true;
-    q.push(0);
-    
-    int countVisited = 1;
-
-    while (!q.empty()) 
-    {
-        int current = q.front();
-        q.pop();
-        for (int neighbor : g[current]) 
-        {
-            if (!visited[neighbor]) 
-            {
-                visited[neighbor] = true;
-                q.push(neighbor);
-                ++countVisited;
-            }
-        }
-    }
-
-
-    bool connected = (countVisited == n);
-
-    if (!connected)
-    {
-    	std::string message;
-    	message = "countVisited: "+std::to_string(countVisited)+"\n(int)g.size(): "+std::to_string((int)g.size())+'\n';
-    }
-    // If we've visited all vertices, the graph is connected
-    return connected;
-}
 
 
 

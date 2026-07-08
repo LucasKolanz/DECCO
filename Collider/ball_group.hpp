@@ -76,9 +76,9 @@ const material_properties aCarbon_mat = {25.0,250e10,1.04167e12,0.2,2.7}; //Prop
 //during a BPCA growth simulation.
 struct Ball_group_attributes
 {
-    std::string project_path = "";
+    // std::string project_path = "";
     std::string output_folder = "";
-    std::string data_directory = "";
+    // std::string data_directory = "";
     std::string projectileName = "";
     std::string targetName = "";
     std::string output_prefix = "";
@@ -86,7 +86,7 @@ struct Ball_group_attributes
 
     double radiiFraction = -1;
     bool debug = false;
-    bool write_all = false;
+    // bool write_all = false;
     bool mid_sim_restart = false;
 
     // std::string out_folder;
@@ -104,7 +104,13 @@ struct Ball_group_attributes
     unsigned long long skip=-1;  // Steps thrown away before recording a step to the buffer. 500*.04 is every 20 seconds in sim.
     unsigned long long steps=0;
 
+    double min_dist_cutoff = 1e-5;
+    double min_dist = HUGE_VAL;
+
     double dt=-1;
+    double dt_small=-1;
+    double dt_large=-1;
+    double dt_old=-1;
     double kin=-1;  // Spring constant
     double kout=-1;
 
@@ -117,10 +123,10 @@ struct Ball_group_attributes
     const std::string sim_meta_data_name = "sim_info";
 
     int seed = -1;
-    int output_width = -1;
+    // int output_width = -1;
     distributions radiiDistribution;
     simType typeSim = BPCA; //Default to BPCA for now
-    double lnSigma = 0.2; //sigma for log normal distribution 
+    double lnSigma = 0.2; //sigma for radii distribution log normal distribution 
 
     //Variable only has an effect for BCCA simulations (typeSim = BCCA)
     //if true, projectile is copy of target, if false, projectile is taken from a 
@@ -218,17 +224,17 @@ struct Ball_group_attributes
     {
         if (this != &other) // Protect against self-assignment 
         {  
-            project_path = other.project_path;
+            // project_path = other.project_path;
             output_folder = other.output_folder;
-            data_directory = other.data_directory;
+            // data_directory = other.data_directory;
             projectileName = other.projectileName;
             targetName = other.targetName;
-            output_prefix = other.output_prefix;
+            // output_prefix = other.output_prefix;
             random_folder_template = other.random_folder_template;
 
             radiiFraction = other.radiiFraction;
             debug = other.debug;
-            write_all = other.write_all;
+            // write_all = other.write_all;
             mid_sim_restart = other.mid_sim_restart;
             allocated = other.allocated;
 
@@ -247,13 +253,18 @@ struct Ball_group_attributes
             skip = other.skip;
             steps = other.steps;
 
+            min_dist_cutoff = other.min_dist_cutoff;
+            min_dist = other.min_dist;
             dt = other.dt;
+            dt_small = other.dt_small;
+            dt_large = other.dt_large;
+            dt_old = other.dt_old;
             kin = other.kin;
             kout = other.kout;
 
 
             seed = other.seed;
-            output_width = other.output_width;
+            // output_width = other.output_width;
             radiiDistribution = other.radiiDistribution;
             typeSim = other.typeSim;
             symmetric = other.symmetric;
@@ -345,10 +356,6 @@ public:
     // enum distributions {constant, logNorm};
     // enum simType {BPCA, BCCA, collider, relax};
     
-    //Take these out after JKR stuff is figured out
-    double max_w = 0.0;
-    double min_overlap = 0.0;
-    bool touched = false;
 
 
     Ball_group_attributes attrs;
@@ -487,6 +494,7 @@ public:
     // void weld_accelerations();
     // void weld_velocities();
     // void monomer_posvel_from_group();
+    void captureGroups();
     void init_weld_vectors();
     void group_vel_from_monomer();
     void group_w_from_monomer();
@@ -503,6 +511,7 @@ public:
     inline double calc_VDW_force_mag(const double Ra, const double Rb, const double h);
     // void calc_mu_scale_factor();
     void calibrate_dt(int const Step, const double& customSpeed);
+    bool setDistBasedDT();
     void calc_v_collapse();
     [[nodiscard]] double getVelMax();
     void calc_helpfuls(const bool includeRadius=true);
@@ -587,6 +596,7 @@ public:
     void setGroup(int group_num);
     void setMass();
     void updateDTK(const double& velocity);
+    void setDtLarge();
     void simInit_cond_and_center(bool add_prefix);
     void sim_continue(const std::string& path);
     void sim_init_two_cluster(const std::string& path,const std::string& projectileName,const std::string& targetName);
@@ -600,7 +610,7 @@ private:
 
 
     
-
+bool isConnected(vec3* pos, double* R, int n);
 bool is_touching(Ball_group &projectile,Ball_group &target);
 void moveApart(const vec3 &projectile_direction,Ball_group &projectile,Ball_group &target);
 bool get_JKR(const std::string folder);
