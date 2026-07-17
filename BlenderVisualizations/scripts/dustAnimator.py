@@ -194,13 +194,14 @@ path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobsNovus/constr
 path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/JKRTestest_0/'
 path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/spinTest0/N_3/T_3/'
 path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/WELDTEST_1/M_10/N_30/T_1000/'
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPAWELDTEST_11/M_3/N_300/T_1000/'
-path = '/home/kolanzl/Desktop/Visualize/V0/'
+path = '/home/kolanzl/Desktop/Visualize/V1/'
+path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/CBAPA_27/M_20/N_600/T_1000/'
+path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/DBAPA_27/M_20/N_600/T_1000/'
 #9,12,
 
-simStart = 1700 
-simEnd = 1900
-just_last_line = False 
+simStart = 600
+simEnd = 600
+just_last_line = True 
 
 
 #csv = False
