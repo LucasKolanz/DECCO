@@ -5,6 +5,7 @@
 #SBATCH -c 1
 ##SBATCH --account=lazzati
 ##SBATCH --partition=lazzati.q
+##SBATCH --mem=5G
 #SBATCH --mem=80G
 
 source /home/kolanzl/novus/kolanzl/venv/bin/activate
