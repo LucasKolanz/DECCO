@@ -2139,6 +2139,8 @@ def gen_BAPA_plots_images(show_plots=True,save_plots=False,include_totals=False)
     raw_data = np.full(shape=(len(requested_data_headers),len(attempts),len(M),len(temps)),fill_value=np.nan,dtype=np.float64)
     for a_i,a in enumerate(attempts):
         for m_i,m in enumerate(M):
+            if m == 60:
+                continue
             n = C*m
             size = n
             for t_i,t in enumerate(temps):
@@ -2466,6 +2468,116 @@ def gen_BAPA_plots_images(show_plots=True,save_plots=False,include_totals=False)
 
         plt.close(fig)
 
+def permutate_data(data1, data2, permutation=[]):
+    assert(len(data1) == len(data2))
+    assert(len(data1.shape) == 1)
+    assert(len(data2.shape) == 1)
+    if len(permutation) == 0:
+        permutation = range(len(data1)+len(data2))
+    assert(len(data1) + len(data2) == len(permutation))
+
+    all_data = np.concatenate((data1, data2))
+    all_data = all_data[permutation]
+
+    data1 = all_data[:len(data1)]
+    data2 = all_data[len(data1):len(data1)+len(data2)]
+
+    return data1,data2
+
+    
+
+def test_data(data):
+    asym_param_index = 3
+    DBAPA_M_ind = 9
+    CBAPA_M_ind = 5
+    permutations = 50
+    # print(asym_param_index)
+    # print(gd.data_headers)
+    DBAPA_raw_data = data[0,asym_param_index,:,DBAPA_M_ind,0]
+    CBAPA_raw_data = data[1,asym_param_index,:,CBAPA_M_ind,0]
+
+    DBAPA_avg_data = np.nanmean(DBAPA_raw_data)
+    DBAPA_std_data = np.nanstd(DBAPA_raw_data)
+    DBAPA_num_data = np.count_nonzero(~np.isnan(DBAPA_raw_data))
+    DBAPA_err_data = DBAPA_std_data/np.sqrt(DBAPA_num_data)
+    
+
+    CBAPA_avg_data = np.nanmean(CBAPA_raw_data)
+    CBAPA_std_data = np.nanstd(CBAPA_raw_data)
+    CBAPA_num_data = np.count_nonzero(~np.isnan(CBAPA_raw_data))
+    CBAPA_err_data = CBAPA_std_data/np.sqrt(CBAPA_num_data)
+    
+
+    print(f"DBAPA Asymetry Parameter for N=600: {DBAPA_avg_data}+-{DBAPA_err_data}")
+    print(f"CBAPA Asymetry Parameter for N=600: {CBAPA_avg_data}+-{CBAPA_err_data}")
+
+
+    newshape = DBAPA_raw_data.shape
+
+    newshape = (newshape[0]*2)
+
+    all_raw = np.full(shape=(newshape),fill_value=np.nan,dtype=np.float64)
+    all_raw[:30] = DBAPA_raw_data
+    all_raw[30:] = CBAPA_raw_data
+
+    vals = []
+    unc = []
+    rng = np.random.default_rng(seed=42)
+    for i in range(permutations):
+        if i == 0: 
+            indices = range(60)
+        else:
+            indices = rng.permutation(60)
+
+        avg_data_first = np.nanmean(all_raw[indices[0:30]])
+        std_data_first = np.nanstd(all_raw[indices[0:30]])
+        num_data_first = np.count_nonzero(~np.isnan(all_raw[indices[0:30]]))
+        err_data_first = std_data_first/np.sqrt(num_data_first)
+
+        vals.append(avg_data_first)
+        unc.append(err_data_first)
+
+        avg_data_sec = np.nanmean(all_raw[indices[30:]])
+        std_data_sec = np.nanstd(all_raw[indices[30:]])
+        num_data_sec = np.count_nonzero(~np.isnan(all_raw[indices[30:]]))
+        err_data_sec = std_data_sec/np.sqrt(num_data_sec)
+
+        # print(f"first Asymetry Parameter for N=600: {avg_data_first}+-{err_data_first}")
+        # print(f"secon Asymetry Parameter for N=600: {avg_data_sec}+-{err_data_sec}")
+
+        vals.append(avg_data_sec)
+        unc.append(err_data_sec)
+
+
+    fig, ax = plt.subplots()
+
+    vals = np.asarray(vals)
+    unc = np.asarray(unc)
+
+    x = np.arange(len(vals))
+
+    even = x % 2 == 0
+    odd = ~even
+
+    ax.errorbar(
+        x[even],
+        vals[even],
+        yerr=unc[even],
+        fmt="o",
+        linestyle="none",
+        color="blue",
+    )
+
+    ax.errorbar(
+        x[odd],
+        vals[odd],
+        yerr=unc[odd],
+        fmt="o",
+        linestyle="none",
+        color="red",
+    )
+    plt.show()
+
 def gen_other_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
     with open(project_path+"default_files/default_input.json",'r') as fp:
         input_json = json.load(fp)
@@ -2473,6 +2585,10 @@ def gen_other_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
     path = input_json["data_directory"]
 
     relax = False
+
+    asym_param_index = 3
+    DBAPA_M_ind = 9
+    CBAPA_M_ind = 5
 
     data_prefolders = []
     data_prefolders += [path + 'jobs/DBAPA_']
@@ -2489,6 +2605,7 @@ def gen_other_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
     attempts = [i for i in range(30)]
 
     requested_data_headers = gd.data_headers[:2] + gd.data_headers[3:6] + [gd.data_headers[9]]
+    print(requested_data_headers)
 
     # requested_data_headers = gd.data_headers[:2] + [gd.data_headers[4]]
     # requested_data_headers = gd.data_headers[:2] + [gd.data_headers[3]] + [gd.data_headers[4]]
@@ -2508,9 +2625,11 @@ def gen_other_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
     num_data_CBAPA = np.full(shape=(avg_data.shape),fill_value=np.nan,dtype=np.float64)
     err_data_CBAPA = np.full(shape=(avg_data.shape),fill_value=np.nan,dtype=np.float64)
 
+    all_data = np.full(shape=(2,len(requested_data_headers),len(attempts),len(M),len(temps)),fill_value=np.nan,dtype=np.float64)
 
-    raw_data = np.full(shape=(len(requested_data_headers),len(attempts),len(M),len(temps)),fill_value=np.nan,dtype=np.float64)
+
     for d_i,data_prefolder in enumerate(data_prefolders):
+        raw_data = np.full(shape=(len(requested_data_headers),len(attempts),len(M),len(temps)),fill_value=np.nan,dtype=np.float64)
         dataset_name = data_prefolder.split("/")[-1]
         for a_i,a in enumerate(attempts):
             if data_prefolder == data_prefolders[0]: #DBAPA
@@ -2537,9 +2656,7 @@ def gen_other_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
                         
                     # else:
                     folder = f"{data_prefolder}{a}/M_{m}/N_{n}/T_{t}/"
-                    if data_prefolder == data_prefolders[1]: #CBAPA
-                        with open("otherBAPAfolders.txt",'a') as f:
-                            f.write(folder)
+
                     if os.path.exists(folder+"job_data.csv"):
                         with open(folder+"job_data.csv",'r') as fp:
                             existing_data = fp.readlines()
@@ -2556,13 +2673,29 @@ def gen_other_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
                         
                         for h_i,header in enumerate(requested_data_headers):
                             if header in existing_headers_for_size:
-                                # if h_i == 3:
-                                #   print(existing_values_for_size[existing_headers_for_size.index(header)])
                                 raw_data[h_i,a_i,x_i,t_i] = u.get_plottable_value_from_saved_value(existing_values_for_size[existing_headers_for_size.index(header)],header,folder,n,relax)
+                    # elif data_prefolder == data_prefolders[1] and x_i > 6 and x_i < 9:
+                    #     print(f"DNE: {folder}job_data.csv")
+        # if data_prefolder == == data_prefolders[1]:
+        #     np.savetext("rawdata_other.txt",raw_data)
+        all_data[d_i] = raw_data
+    
+    raw_dbapa_permute = all_data[0,asym_param_index,:,DBAPA_M_ind,0]
+    raw_cbapa_permute = all_data[1,asym_param_index,:,CBAPA_M_ind,0]
+    rng = np.random.default_rng(seed=42)
+    permutation = rng.permutation(len(raw_dbapa_permute) + len(raw_cbapa_permute))
 
-        avg_data = np.nanmean(raw_data,axis=1)
-        std_data = np.nanstd(raw_data,axis=1)
-        num_data = np.count_nonzero(~np.isnan(raw_data),axis=1)
+    raw_dbapa_permute, raw_cbapa_permute = permutate_data(raw_dbapa_permute, raw_cbapa_permute,permutation)
+    
+    all_data[0,asym_param_index,:,DBAPA_M_ind,0] = raw_dbapa_permute
+    np.savetxt(f"{path}/temp/dbapa_permutation.csv",raw_dbapa_permute)
+    all_data[1,asym_param_index,:,CBAPA_M_ind,0] = raw_cbapa_permute
+    np.savetxt(f"{path}/temp/cbapa_permutation.csv", raw_cbapa_permute)
+
+    for d_i,data_prefolder in enumerate(data_prefolders):
+        avg_data = np.nanmean(all_data[d_i],axis=1)
+        std_data = np.nanstd(all_data[d_i],axis=1)
+        num_data = np.count_nonzero(~np.isnan(all_data[d_i]),axis=1)
         err_data = std_data/np.sqrt(num_data)
 
         if data_prefolder == data_prefolders[0]: #DBAPA
@@ -2576,8 +2709,20 @@ def gen_other_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
             std_data_CBAPA = std_data
             num_data_CBAPA = num_data
             err_data_CBAPA = err_data
-            print(avg_data_CBAPA[0])
 
+    # #ensure average for repeated sims
+    # avg = (avg_data_DBAPA[3,9,0] + avg_data_CBAPA[3,5,0])/2.0
+    # unc = np.sqrt(err_data_DBAPA[3,9,0]**2.0 + err_data_CBAPA[3,5,0]**2.0)/2.0
+
+    # avg_data_DBAPA[3,9,0] = avg  
+    # err_data_DBAPA[3,9,0] = unc
+    # avg_data_CBAPA[3,5,0] = avg
+    # err_data_CBAPA[3,5,0] = unc
+
+
+
+    # test_data(all_data)
+    # exit(0)
 
     print("======================Starting combined BAPA figures======================")
 
@@ -2632,6 +2777,7 @@ def gen_other_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
         
     xdata_DBAPA = [c*M_sp for c in C_sp]
     xdata_CBAPA = [C*m for m in M]
+
     for h_i, header in enumerate(requested_data_headers):
         ax = axs[ax_order[h_i]]
 
@@ -2741,6 +2887,10 @@ def gen_DBAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 
     relax = False
 
+    asym_param_index = 3
+    DBAPA_M_ind = 9
+    CBAPA_M_ind = 5
+
     data_prefolders = []
     data_prefolders += [path + 'jobs/DBAPA_']
     data_prefolders += [path + 'jobs/BAPA_']
@@ -2774,8 +2924,8 @@ def gen_DBAPA_plots(show_plots=True,save_plots=False,include_totals=False):
     err_data_BAPA = np.full(shape=(avg_data.shape),fill_value=np.nan,dtype=np.float64)
 
 
-    raw_data = np.full(shape=(len(requested_data_headers),len(attempts),len(M),len(temps)),fill_value=np.nan,dtype=np.float64)
     for d_i,data_prefolder in enumerate(data_prefolders):
+        raw_data = np.full(shape=(len(requested_data_headers),len(attempts),len(M),len(temps)),fill_value=np.nan,dtype=np.float64)
         dataset_name = data_prefolder.split("/")[-1]
         for a_i,a in enumerate(attempts):
             if data_prefolder == data_prefolders[0]: #DBAPA
@@ -2820,6 +2970,9 @@ def gen_DBAPA_plots(show_plots=True,save_plots=False,include_totals=False):
                                 # if h_i == 3:
                                 #   print(existing_values_for_size[existing_headers_for_size.index(header)])
                                 raw_data[h_i,a_i,x_i,t_i] = u.get_plottable_value_from_saved_value(existing_values_for_size[existing_headers_for_size.index(header)],header,folder,n,relax)
+
+        if "DBAPA" in data_prefolder: 
+            raw_data[asym_param_index,:,DBAPA_M_ind,0] = np.loadtxt(f"{path}/temp/dbapa_permutation.csv")
 
         avg_data = np.nanmean(raw_data,axis=1)
         std_data = np.nanstd(raw_data,axis=1)
@@ -3000,6 +3153,10 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
 
     relax = False
 
+    asym_param_index = 3
+    DBAPA_M_ind = 9
+    CBAPA_M_ind = 5
+
     data_prefolders = [path + 'jobs/BAPA_', path + 'jobs/CBAPA_', path + 'jobs/BAPAWELD_']
 
 
@@ -3080,8 +3237,6 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
             # print(f"C: {C}\tm: {m}\tn: {n}")
             for t_i,t in enumerate(temps):
                 folder = f"{data_prefolder}{a}/M_{m}/N_{n}/T_{t}/"
-                # with open("BAPAfolders.txt",'a') as f:
-                #     f.write(folder)
                 if os.path.exists(folder+"job_data.csv"):
                     with open(folder+"job_data.csv",'r') as fp:
                         existing_data = fp.readlines()
@@ -3101,12 +3256,13 @@ def gen_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
                             # if h_i == 3:
                             #   print(existing_values_for_size[existing_headers_for_size.index(header)])
                             raw_data[h_i,a_i,m_i,t_i] = u.get_plottable_value_from_saved_value(existing_values_for_size[existing_headers_for_size.index(header)],header,folder,n,relax)
-
+    if "CBAPA" in data_prefolder: 
+        raw_data[asym_param_index,:,CBAPA_M_ind,0] = np.loadtxt(f"{path}/temp/cbapa_permutation.csv")
+    # np.savetext("rawdata_other.txt",raw_data)
     avg_data_CBAPA = np.nanmean(raw_data,axis=1)
     std_data_CBAPA = np.nanstd(raw_data,axis=1)
     num_data_CBAPA = np.count_nonzero(~np.isnan(raw_data),axis=1)
     err_data_CBAPA = std_data_CBAPA/np.sqrt(num_data_CBAPA)
-    # print(avg_data_CBAPA[0])
 
 
     data_prefolder = data_prefolders[2]
@@ -6827,7 +6983,7 @@ if __name__ == '__main__':
 
     ##Plots for paper 2
     gen_other_BAPA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
-    # gen_DBAPA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
+    gen_DBAPA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
     gen_BAPA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
     # gen_BAPA_plots_images(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
     # gen_BAPA_porosity_vs_asymmetry(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
