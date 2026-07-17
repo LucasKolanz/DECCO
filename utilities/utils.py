@@ -65,9 +65,41 @@ def get_plottable_value_from_saved_value(value,header,folder,data_index,relax):
 #finds the integer corresponding to a particular part of the directory structure
 #could be T for temperature, N for number of particles, etc.
 def value_from_directory(pattern,directory):
-	val = re.search(rf"{re.escape(pattern)}_(\d+)", directory)
-	intVal = int(val.group(1)) if val else None
-	return intVal
+	if pattern != "job_group" and pattern != "attempt" and pattern != "a":
+		val = re.search(rf"{re.escape(pattern)}_(\d+)", directory)
+		intVal = int(val.group(1)) if val else None
+		return intVal
+
+	else:
+		split_dir = directory.split("/")[::-1]
+		split_again = [folder.split('_') for folder in split_dir]
+		# print(split_again)
+
+		group_index = -1
+		for i in range(len(split_dir)):
+			# if split_again[i][0] == "N":
+			# print(split_again[i][0])
+			# print(i)
+			# print(split_again[i+1][0])
+			# print(i+1)
+			if split_again[i][0] == "N" and split_again[i+1][0] == "M":
+				group_index = i+2
+			elif split_again[i][0] == "N" and split_again[i+1][0] != "M":
+				group_index = i+1
+		if group_index < 0:
+			print(f"Group index not found for {directory}.\nNow exiting...")
+			exit(-1)
+
+		if pattern == "job_group":
+			return split_again[group_index][0]
+		elif pattern == "attempt" or pattern == 'a':
+			return int(split_again[group_index][1])
+		else:
+			print("This should never happen :))")
+			exit(-1)
+# print(value_from_directory("job_group","/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/DBAPA_0/M_20/N_40/T_1000/"))
+# print(value_from_directory("attempt","/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/DBAPA_0/M_20/N_40/T_1000/"))
+# exit(0)
 
 #this function taken from 
 #https://scipython.com/book/chapter-6-numpy/problems/p65/the-moment-of-inertia-tensor/
