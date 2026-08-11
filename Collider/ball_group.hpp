@@ -12,6 +12,7 @@
 #include "../external/json/single_include/nlohmann/json.hpp"
 #include "../utilities/vec3.hpp"
 #include "../utilities/MPI_utilities.hpp"
+#include "../utilities/simple_graph.hpp"
 #include "../data/DECCOData.hpp"
 
 
@@ -104,15 +105,17 @@ struct Ball_group_attributes
     unsigned long long skip=-1;  // Steps thrown away before recording a step to the buffer. 500*.04 is every 20 seconds in sim.
     unsigned long long steps=0;
 
-    double min_dist_cutoff = 1e-5;
-    double min_dist = HUGE_VAL;
+    double min_gap_cutoff = 1e-5;
+    double min_gap = HUGE_VAL;
+    bool active_contact = false;
 
     double dt=-1;
     double dt_small=-1;
     double dt_large=-1;
-    double dt_old=-1;
+
     double kin=-1;  // Spring constant
     double kout=-1;
+    double currTime = 0.0;
 
     //Don't copy these during add_particle. These are set at the beginning (or during) of sim_looper
     int world_rank = -1;
@@ -143,6 +146,7 @@ struct Ball_group_attributes
     double initial_radius = -1;
     double v_collapse = 0;
     double v_max = -1;
+    double a_max = -1;
     double v_max_prev = HUGE_VAL;
     double soc = -1;
 
@@ -253,15 +257,17 @@ struct Ball_group_attributes
             skip = other.skip;
             steps = other.steps;
 
-            min_dist_cutoff = other.min_dist_cutoff;
-            min_dist = other.min_dist;
+            min_gap_cutoff = other.min_gap_cutoff;
+            min_gap = other.min_gap;
+            active_contact = other.active_contact;
+
             dt = other.dt;
             dt_small = other.dt_small;
             dt_large = other.dt_large;
-            dt_old = other.dt_old;
+
             kin = other.kin;
             kout = other.kout;
-
+            currTime = other.currTime;
 
             seed = other.seed;
             // output_width = other.output_width;
@@ -276,6 +282,7 @@ struct Ball_group_attributes
             initial_radius = other.initial_radius;
             v_collapse = other.v_collapse;
             v_max = other.v_max;
+            a_max = other.a_max;
             v_max_prev = other.v_max_prev;
             soc = other.soc;
             N = other.N;
@@ -424,6 +431,7 @@ public:
     std::vector<double> group_mass;
     //group_offsets, moi_inv, and moi are in body frame
     std::vector<vec3> group_offset_body;
+    std::vector<vec3> unwrapped_pos;
     std::vector<mat3> group_moi_body;
     std::vector<mat3> group_moi_inv_body;
 
@@ -490,11 +498,13 @@ public:
     void half_step_updates();
     void sim_one_step(int step,bool write_step);
     bool sim_looper(unsigned long long start_step);
+    void updateExternalPairState();
 
     // void weld_accelerations();
     // void weld_velocities();
     // void monomer_posvel_from_group();
     void captureGroups();
+    void unwrap_groups(const Graph& g);
     void init_weld_vectors();
     void group_vel_from_monomer();
     void group_w_from_monomer();
@@ -510,10 +520,11 @@ public:
     //Functions which calculate/set values for Ball_group
     inline double calc_VDW_force_mag(const double Ra, const double Rb, const double h);
     // void calc_mu_scale_factor();
-    void calibrate_dt(int const Step, const double& customSpeed);
-    bool setDistBasedDT();
+    void calibrate_dt(const int Step, const double& customSpeed);
+    bool setDistBasedDT(int step);
     void calc_v_collapse();
     [[nodiscard]] double getVelMax();
+    [[nodiscard]] double getAccMax();
     void calc_helpfuls(const bool includeRadius=true);
     inline void setMass(int Ball);
     inline void setRadii(int Ball);
@@ -610,7 +621,7 @@ private:
 
 
     
-bool isConnected(vec3* pos, double* R, int n);
+bool isConnected(vec3* pos, double* R, int n, vec3 boxdims, simType type);
 bool is_touching(Ball_group &projectile,Ball_group &target);
 void moveApart(const vec3 &projectile_direction,Ball_group &projectile,Ball_group &target);
 bool get_JKR(const std::string folder);

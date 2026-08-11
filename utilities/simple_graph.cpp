@@ -1,6 +1,6 @@
 
+#include <cmath>
 #include "simple_graph.hpp"
-// #include "vec3.hpp"
 
 #define TOUCH_TOLERANCE 1.01
 
@@ -11,33 +11,43 @@ void addEdge(Graph& g, int u, int v)
     g[v].push_back(u); // if undirected
 }
 
-void makeGraph(Graph& g, vec3* pos, double* R, int n)
+void makeGraph(
+    Graph& g,
+    const vec3* pos,
+    const double* R,
+    int n,
+    const vec3& boxdims,
+    bool periodic)
 {
-	//loop over balls
-	for (int i = 0; i < n; ++i)
-	{
-		g.push_back({});
-	}
+    // Make exactly n empty vertices.
+    g.clear();
+    g.resize(n);
 
+    // Loop over each unique pair once.
+    for (int i = 0; i < n; ++i)
+    {
+        for (int j = i + 1; j < n; ++j)
+        {
+            vec3 dr = pos[j] - pos[i];
 
-	//loop over pairs adding edges if balls touch 
-	// for (int i = 1; i < n; ++i)
-	for (int i = 0; i < n; ++i)
-	{
-		for (int j = 0; j < n; ++j)
-		{
-			//check if balls are touching (give some leeway if they arent exactly touching)
-			const double dist = (pos[j]-pos[i]).norm();
-			const double sum_radii = R[i] + R[j];
-			if (TOUCH_TOLERANCE*sum_radii-dist > 0)//touching condition
-			{
-				addEdge(g,i,j);
-			}
-		}
-	}
+            if (periodic)
+            {
+                // Minimum-image convention.
+                dr.x -= boxdims.x * std::round(dr.x / boxdims.x);
+                dr.y -= boxdims.y * std::round(dr.y / boxdims.y);
+                dr.z -= boxdims.z * std::round(dr.z / boxdims.z);
+            }
 
+            const double dist = dr.norm();
+            const double sum_radii = R[i] + R[j];
+
+            if (dist < TOUCH_TOLERANCE * sum_radii)
+            {
+                addEdge(g, i, j);
+            }
+        }
+    }
 }
-
 
 
 

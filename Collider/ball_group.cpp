@@ -137,6 +137,7 @@ Ball_group::Ball_group(const Ball_group& rhs)
             group_wh = rhs.group_wh;
             group_w = rhs.group_w;
             group_offset_body = rhs.group_offset_body;
+            unwrapped_pos = rhs.unwrapped_pos;
             group_moi_body = rhs.group_moi_body;
             group_moi_inv_body = rhs.group_moi_inv_body;
             group_mass = rhs.group_mass;
@@ -359,8 +360,8 @@ void Ball_group::bigboxInit()
     attrs.m_total = getMass();
     calc_v_collapse();
     
-    simInit_cond_and_center(true);
     calibrate_dt(0, attrs.v_custom);
+    simInit_cond_and_center(true);
 
 }
 
@@ -584,6 +585,7 @@ Ball_group& Ball_group::operator=(const Ball_group& rhs)
     group_wh = rhs.group_wh;
     group_w = rhs.group_w;
     group_offset_body = rhs.group_offset_body;
+    unwrapped_pos = rhs.unwrapped_pos;
     group_moi_body = rhs.group_moi_body;
     group_moi_inv_body = rhs.group_moi_inv_body;
     group_mass = rhs.group_mass;
@@ -976,7 +978,7 @@ void Ball_group::parse_input_file(std::string location)
     set_attribute(inputs,"z1Rot",attrs.z1Rot);
     set_attribute(inputs,"y1Rot",attrs.y1Rot);
 
-    set_attribute(inputs,"simTimeElapsed",attrs.simTimeElapsed);
+    // set_attribute(inputs,"simTimeElapsed",attrs.simTimeElapsed);
     set_attribute(inputs,"projectileName",attrs.projectileName);
     set_attribute(inputs,"targetName",attrs.targetName);
 
@@ -996,17 +998,31 @@ void Ball_group::parse_input_file(std::string location)
 vec3 Ball_group::calc_group_com(const int group_num)
 {
     vec3 com = {0,0,0};
-    double tot_mass = 0;
+    double total_mass = 0.0;
+
     for (int Ball = 0; Ball < attrs.num_particles; ++Ball)
     {
-        if (group[Ball] == group_num)
+        if (group[Ball] != group_num)
         {
-            tot_mass += m[Ball];
-            com += m[Ball]*pos[Ball];
+            continue;
         }
+
+        com += m[Ball] * unwrapped_pos[Ball];
+        total_mass += m[Ball];
     }
-    com /= tot_mass;
-    return com;
+
+    if (total_mass <= 0.0)
+    {
+        MPIsafe_print(
+            std::cerr,
+            "ERROR: group " + std::to_string(group_num) +
+            " has zero mass in calc_group_com.\n"
+        );
+
+        MPIsafe_exit(-1);
+    }
+
+    return com / total_mass;
 }
 
 double Ball_group::calc_group_mass(const int group_num)
@@ -1080,7 +1096,7 @@ inline double Ball_group::calc_VDW_force_mag(const double Ra,const double Rb,con
 // }
 ////////////////////////////////////
 
-void Ball_group::calibrate_dt(int const Step, const double& customSpeed = -1.)
+void Ball_group::calibrate_dt(const int Step, const double& customSpeed = -1.)
 {
     const double dtOld = attrs.dt;
 
@@ -1291,44 +1307,71 @@ void Ball_group::calc_v_collapse()
 {
     attrs.v_max = 0;
 
-    // todo - make this a manual set true or false to use soc so we know if it is being used or not.
-    if (attrs.soc > 0) {
-        int counter = 0;
-        for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
-            if (vel[Ball].norm() > attrs.v_max) 
-            { 
-                attrs.v_max = vel[Ball].norm();
-            }
-            /////////////////SECTION COMMENTED FOR ACCURACY TESTS
-            // Only consider balls moving toward com and within 4x initial radius around it.
-            // const vec3 fromCOM = pos[Ball] - getCOM();
-            // if (acos(vel[Ball].normalized().dot(fromCOM.normalized())) > cone && fromCOM.norm() < soc) {
-            //     if (vel[Ball].norm() > v_max) { v_max = vel[Ball].norm(); }
-            // } else {
-            //     counter++;
-            // }
-        }
-
-        // MPIsafe_print(std::cerr,'(' + std::to_string(counter) + " spheres ignored"+ ") \n");
-    } else {
-        for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
-
-            if (vel[Ball].norm() > attrs.v_max) 
-            { 
-                attrs.v_max = vel[Ball].norm();
-            }
-        }
-
-        // Is vMax for some reason unreasonably small? Don't proceed. Probably a finished sim.
-        // This shouldn't apply to extremely destructive collisions because it is possible that no
-        // particles are considered, so it will keep pausing.
-        if (attrs.v_max < 1e-10) {
-            MPIsafe_print(std::cerr,"\nWARNING: Max velocity in system is less than 1e-10.\n");
-        }
+    for (int i = 0; i < attrs.num_particles; ++i)
+    {
+        attrs.v_max = std::max(attrs.v_max, vel[i].norm());
     }
 
     return attrs.v_max;
 }
+
+
+/// get max acceleration
+[[nodiscard]] double Ball_group::getAccMax()
+{
+    attrs.a_max = 0;
+
+    for (int i = 0; i < attrs.num_particles; ++i)
+    {
+        attrs.a_max = std::max(attrs.a_max, acc[i].norm());
+    }
+
+    return attrs.a_max;
+}
+
+// /// get max velocity
+// [[nodiscard]] double Ball_group::getVelMax()
+// {
+//     attrs.v_max = 0;
+
+//     // todo - make this a manual set true or false to use soc so we know if it is being used or not.
+//     if (attrs.soc > 0) {
+//         int counter = 0;
+//         for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
+//             if (vel[Ball].norm() > attrs.v_max) 
+//             { 
+//                 attrs.v_max = vel[Ball].norm();
+//             }
+//             /////////////////SECTION COMMENTED FOR ACCURACY TESTS
+//             // Only consider balls moving toward com and within 4x initial radius around it.
+//             // const vec3 fromCOM = pos[Ball] - getCOM();
+//             // if (acos(vel[Ball].normalized().dot(fromCOM.normalized())) > cone && fromCOM.norm() < soc) {
+//             //     if (vel[Ball].norm() > v_max) { v_max = vel[Ball].norm(); }
+//             // } else {
+//             //     counter++;
+//             // }
+//         }
+
+//         // MPIsafe_print(std::cerr,'(' + std::to_string(counter) + " spheres ignored"+ ") \n");
+//     } else {
+//         for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
+
+//             if (vel[Ball].norm() > attrs.v_max) 
+//             { 
+//                 attrs.v_max = vel[Ball].norm();
+//             }
+//         }
+
+//         // Is vMax for some reason unreasonably small? Don't proceed. Probably a finished sim.
+//         // This shouldn't apply to extremely destructive collisions because it is possible that no
+//         // particles are considered, so it will keep pausing.
+//         if (attrs.v_max < 1e-10) {
+//             MPIsafe_print(std::cerr,"\nWARNING: Max velocity in system is less than 1e-10.\n");
+//         }
+//     }
+
+//     return attrs.v_max;
+// }
 
 double Ball_group::get_soc()
 {
@@ -1503,7 +1546,7 @@ void Ball_group::sim_init_write(int counter)
 
 
     energyBuffer = std::vector<double> (data->getWidth("energy"));
-    energyBuffer[0] = attrs.simTimeElapsed;
+    energyBuffer[0] = attrs.currTime;
     energyBuffer[1] = PE;
     energyBuffer[2] = KE;
     energyBuffer[3] = PE+KE;
@@ -2477,6 +2520,7 @@ void Ball_group::allocate_weld_group(const int num_groups)
     group_acc.resize(num_groups);
 
     group_offset_body.resize(attrs.num_particles);
+    unwrapped_pos.resize(attrs.num_particles);
     group_mass.resize(num_groups);
     group_moi_body.resize(num_groups);
     group_moi_inv_body.resize(num_groups);
@@ -2510,6 +2554,7 @@ void Ball_group::freeMemory()
     std::vector<vec3>().swap(group_vel);
     std::vector<rotation>().swap(group_q);
     std::vector<vec3>().swap(group_offset_body);
+    std::vector<vec3>().swap(unwrapped_pos);
     std::vector<mat3>().swap(group_moi_body);
     std::vector<mat3>().swap(group_moi_inv_body);
     std::vector<double>().swap(group_mass);
@@ -2777,14 +2822,6 @@ void Ball_group::init_weld_vectors()
 void Ball_group::init_conditions()
 {
 
-    //Uncomment this to set each particle as its own group
-    // attrs.num_groups = attrs.num_particles;
-    // allocate_weld_group(attrs.num_groups);
-    // for (int i = 0; i < attrs.num_particles; ++i)
-    // {
-    //     group[i] = i;
-    // }
-
     if (attrs.weld)
     {
         init_weld_vectors();
@@ -2796,13 +2833,10 @@ void Ball_group::init_conditions()
         aacc[i] = {0.0,0.0,0.0};
     }
 
-    // if (attrs.weld)
-    // {
-    //     group_vel_from_monomer();
-    //     group_w_from_monomer();
-    //     // weld_accelerations();
-    //     // group_accs_from_monomer();
-    // }
+
+
+    attrs.min_gap = HUGE_VAL;
+    attrs.active_contact = false;
 
 
     // SECOND PASS - Check for collisions, apply forces and torques:
@@ -2817,18 +2851,27 @@ void Ball_group::init_conditions()
             }
 
             const double sumRaRb = R[A] + R[B];
-            const vec3 rVecab = pos[B] - pos[A];  // Vector from a to b.
+            // const vec3 rVecab = pos[B] - pos[A];  // Vector from a to b.
+            const vec3 rVecab =
+                (attrs.typeSim == bigbox)
+                ? periodic_displacement(pos[A], pos[B], attrs.boxdims)
+                : pos[B] - pos[A];
             const vec3 rVecba = -rVecab;
             const double dist = (rVecab).norm();
 
             // Check for collision between Ball and otherBall:
-            double overlap = sumRaRb - dist;
+            const double gap = dist - sumRaRb;
 
-            // //Keep track of the closest spheres
-            if (overlap > -attrs.min_dist)
+            if (gap <= 0.0)
             {
-                attrs.min_dist = -overlap;
+                attrs.active_contact = true;
             }
+            else
+            {
+                attrs.min_gap = std::min(attrs.min_gap, gap);
+            }
+
+            const double overlap = -gap;
 
             vec3 totalForceOnA{0, 0, 0};
 
@@ -2840,12 +2883,6 @@ void Ball_group::init_conditions()
             if (overlap > 0) {
                 double k;
                 k = attrs.kin;
-                // Apply coefficient of restitution to balls leaving collision.
-                // if (dist >= oldDist) {
-                //     k = kout;
-                // } else {
-                //     k = kin;
-                // }
 
                 // Cohesion (in contact) h must always be h_min:
                 // constexpr double h = h_min;
@@ -3346,12 +3383,6 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename,co
         MPIsafe_print(std::cerr,message);
     }
 
-    // if (attrs.weld)
-    // {
-    //     attrs.num_groups = count_num_groups();
-    //     allocate_weld_group(attrs.num_groups);
-    // }
-
 }
 
 void Ball_group::parse_meta_data(std::string metadata)
@@ -3619,11 +3650,7 @@ void Ball_group::loadDatafromH5(std::string path,std::string file)
         // init_data(attrs.start_index);
         writes = -1;
     }
-    // if (writes == 0)//This should really never happen. If it did then there is an empty h5 file
-    // {
-    //     std::cerr<<"not implimented"<<std::endl;
-    //     exit(-1);
-    // }
+
     if(writes > 0) //Works
     {
         //This cannot be done without an instance of DECCOData, that is why these are different than loadConsts
@@ -3707,66 +3734,163 @@ void Ball_group::boxInit()
     placeBallsInBox(attrs.num_particles);
 }
 
-//Set groups based on which spheres are touching
+void Ball_group::unwrap_groups(const Graph& g)
+{
+    const int n = attrs.num_particles;
+
+    unwrapped_pos.resize(n);
+
+    std::vector<bool> visited(n, false);
+    std::queue<int> q;
+
+    // There may be multiple disconnected aggregates, so start a BFS
+    // for every connected component.
+    for (int start = 0; start < n; ++start)
+    {
+        if (visited[start])
+        {
+            continue;
+        }
+
+        // Arbitrarily choose the wrapped position of the first particle
+        // as the origin/image for this connected component.
+        unwrapped_pos[start] = pos[start];
+        visited[start] = true;
+        q.push(start);
+
+        while (!q.empty())
+        {
+            const int current = q.front();
+            q.pop();
+
+            for (const int neighbor : g[current])
+            {
+                if (visited[neighbor])
+                {
+                    continue;
+                }
+
+                vec3 dr;
+
+                if (attrs.typeSim == bigbox)
+                {
+                    // Minimum-image displacement from current to neighbor.
+                    dr = periodic_displacement(
+                        pos[current],
+                        pos[neighbor],
+                        attrs.boxdims
+                    );
+                }
+                else
+                {
+                    dr = pos[neighbor] - pos[current];
+                }
+
+                // Place neighbor in the same unwrapped coordinate
+                // system as current.
+                unwrapped_pos[neighbor] =
+                    unwrapped_pos[current] + dr;
+
+                visited[neighbor] = true;
+                q.push(neighbor);
+            }
+        }
+    }
+}
+
 void Ball_group::captureGroups()
 {
     Graph g;
-    int n = attrs.num_particles;
+    const int n = attrs.num_particles;
 
-    makeGraph(g, pos, R, n);
+    makeGraph(
+        g,
+        pos,
+        R,
+        n,
+        attrs.boxdims,
+        attrs.typeSim == bigbox
+    );
 
-    if (g.empty()) // If it is empty we have a problem somewhere
+    if (g.empty())
     {
-        MPIsafe_print(std::cerr, "Error making graph in simple_graph. Graph is empty. Now exiting. . .\n");
+        MPIsafe_print(
+            std::cerr,
+            "Error making graph in simple_graph. Graph is empty. "
+            "Now exiting...\n"
+        );
         MPIsafe_exit(-1);
     }
 
-    // Optional but useful sanity check
-    if ((int)g.size() != n)
+    if (static_cast<int>(g.size()) != n)
     {
-        std::string message =
-            "Error: graph size does not match n.\n"
-            "g.size(): " + std::to_string((int)g.size()) + "\n"
-            "n: " + std::to_string(n) + "\n";
-
-        MPIsafe_print(std::cerr, message);
+        MPIsafe_print(
+            std::cerr,
+            "Error: graph size does not match number of particles.\n"
+        );
         MPIsafe_exit(-1);
     }
+
+    unwrapped_pos.resize(n);
 
     std::vector<bool> visited(n, false);
     std::queue<int> q;
 
     int group_id = 0;
 
-    // Loop over every ball
     for (int start = 0; start < n; ++start)
     {
-        // If this ball is already part of a group, skip it
         if (visited[start])
+        {
             continue;
+        }
 
-        // Start a new group
+        // Start a new connected component.
         visited[start] = true;
         group[start] = group_id;
+
+        // Establish the coordinate image for this component.
+        unwrapped_pos[start] = pos[start];
+
         q.push(start);
 
         while (!q.empty())
         {
-            int current = q.front();
+            const int current = q.front();
             q.pop();
 
-            for (int neighbor : g[current])
+            for (const int neighbor : g[current])
             {
-                if (!visited[neighbor])
+                if (visited[neighbor])
                 {
-                    visited[neighbor] = true;
-                    group[neighbor] = group_id;
-                    q.push(neighbor);
+                    continue;
                 }
+
+                visited[neighbor] = true;
+                group[neighbor] = group_id;
+
+                vec3 dr;
+
+                if (attrs.typeSim == bigbox)
+                {
+                    dr = periodic_displacement(
+                        pos[current],
+                        pos[neighbor],
+                        attrs.boxdims
+                    );
+                }
+                else
+                {
+                    dr = pos[neighbor] - pos[current];
+                }
+
+                unwrapped_pos[neighbor] =
+                    unwrapped_pos[current] + dr;
+
+                q.push(neighbor);
             }
         }
 
-        // Finished one connected component
         ++group_id;
     }
 
@@ -4111,62 +4235,77 @@ void Ball_group::placeBallsInSphere(const int nBalls)
 
 void Ball_group::placeBallsInBox(const int nBalls)
 {
-    // Generate non-overlapping spherical particle field:
     int collisionDetected = 0;
-    int oldCollisions = nBalls;
+    int oldCollisions = std::numeric_limits<int>::max();
 
-    
-    for (int failed = 0; failed < attrs.attempts; failed++) {
-        for (int A = 0; A < nBalls; A++) {
-            for (int B = A + 1; B < nBalls; B++) {
+    for (int failed = 0; failed < attrs.attempts; failed++)
+    {
+        collisionDetected = 0;
 
-                // Check for Ball overlap.
-                const double dist = (pos[A] - pos[B]).norm();
+        for (int A = 0; A < nBalls; A++)
+        {
+            for (int B = A + 1; B < nBalls; B++)
+            {
+                const vec3 rVecab =
+                    (attrs.typeSim == bigbox)
+                    ? periodic_displacement(pos[A], pos[B], attrs.boxdims)
+                    : pos[B] - pos[A];
+
+                const double dist = rVecab.norm();
                 const double sumRaRb = R[A] + R[B];
-                const double overlap = dist - sumRaRb;
-                if (overlap < 0) {
-                    collisionDetected += 1;
-                    // Move the other ball:
-                    pos[B] = rand_pos_in_box_centered(attrs.boxdims.x,attrs.boxdims.y,attrs.boxdims.z);
+
+                if (dist < sumRaRb)
+                {
+                    collisionDetected++;
+
+                    pos[B] = rand_pos_in_box_centered(
+                        attrs.boxdims.x,
+                        attrs.boxdims.y,
+                        attrs.boxdims.z
+                    );
                 }
             }
         }
-        if (collisionDetected < oldCollisions) {
-            oldCollisions = collisionDetected;
-            MPIsafe_print(std::cerr,"Collisions: "+std::to_string(collisionDetected)+'\n');
-        }
-        if (collisionDetected == 0) {
-            MPIsafe_print(std::cerr,"Success!\n");
-            break;
-        }
-        if (failed == attrs.attempts - 1 ||
-            collisionDetected >
-                static_cast<int>(
-                    1.5 *
-                    static_cast<double>(
-                        nBalls)))  // Added the second part to speed up spatial constraint increase when
-                                   // there are clearly too many collisions for the space to be feasible.
-        {
 
-            std::string message("Failed "+std::to_string(attrs.spaceRange)+". Increasing range "+std::to_string(attrs.spaceRangeIncrement)+"cm^3.\n");
-            MPIsafe_print(std::cerr,message);
-            attrs.spaceRange += attrs.spaceRangeIncrement;
-            failed = 0;
-            for (int Ball = 0; Ball < nBalls; Ball++) {
-                pos[Ball] = rand_vec3(
-                    attrs.spaceRange);  // Each time we fail and increase range, redistribute all balls randomly
-                                  // so we don't end up with big balls near mid and small balls outside.
-            }
+        if (collisionDetected < oldCollisions)
+        {
+            oldCollisions = collisionDetected;
+            MPIsafe_print(
+                std::cerr,
+                "Collisions: " + std::to_string(collisionDetected) + '\n'
+            );
         }
-        collisionDetected = 0;
+
+        if (collisionDetected == 0)
+        {
+            MPIsafe_print(std::cerr, "Success!\n");
+            return;
+        }
     }
 
+    MPIsafe_print(
+        std::cerr,
+        "ERROR: Could not generate a non-overlapping configuration "
+        "inside the specified box after "
+        + std::to_string(attrs.attempts)
+        + " attempts.\n"
+    );
+
+    MPIsafe_exit(-1);
 }
 
 
 void Ball_group::setDtLarge()
 {
-    attrs.dt_large = attrs.min_dist/attrs.v_max;
+    constexpr double safety = 0.1;
+
+    attrs.dt_large =
+        safety * attrs.min_gap / (2.0 * attrs.v_max);
+
+    if (attrs.dt_large < attrs.dt_small)
+    {
+        attrs.dt_large = attrs.dt_small;
+    }
 }
 
 void Ball_group::updateDTK(const double& velocity)
@@ -4267,7 +4406,7 @@ void Ball_group::simInit_cond_and_center(bool add_prefix)
         init_conditions();
     }
 
-    setDtLarge();
+    if (attrs.typeSim == bigbox){setDtLarge();}
 
     
     // Name the file based on info above:
@@ -4698,14 +4837,20 @@ void Ball_group::calc_offsets_coms()
 {
     for (int g = 0; g < attrs.num_groups; ++g)
     {
-        group_pos[g] = calc_group_com(g); 
+        group_pos[g] = calc_group_com(g);
+
         for (int Ball = 0; Ball < attrs.num_particles; ++Ball)
         {
-            if (g == group[Ball])
+            if (group[Ball] != g)
             {
-                vec3 rho_world = pos[Ball] - group_pos[g];
-                group_offset_body[Ball] = group_q[g].worldToLocal(rho_world);
+                continue;
             }
+
+            const vec3 rho_world =
+                unwrapped_pos[Ball] - group_pos[g];
+
+            group_offset_body[Ball] =
+                group_q[g].worldToLocal(rho_world);
         }
     }
 }
@@ -4835,16 +4980,15 @@ void Ball_group::group_accs_from_monomer()
 
 void Ball_group::half_step_updates()
 {
-    double dt_kick = (attrs.dt + attrs.dt_old)/2.0;
     if (!attrs.weld)
     {
         for (int Ball = 0; Ball < attrs.num_particles; Ball++) 
         {
             // Update velocity half step:
-            velh[Ball] = vel[Ball] + .5 * acc[Ball] * dt_kick;
+            velh[Ball] = vel[Ball] + .5 * acc[Ball] * attrs.dt;
 
             // Update angular velocity half step:
-            wh[Ball] = w[Ball] + .5 * aacc[Ball] * dt_kick;
+            wh[Ball] = w[Ball] + .5 * aacc[Ball] * attrs.dt;
 
             // Update position:
             pos[Ball] += velh[Ball] * attrs.dt;
@@ -4865,9 +5009,14 @@ void Ball_group::half_step_updates()
 
         for (int g = 0; g < attrs.num_groups; ++g)
         {
-            group_velh[g] = group_vel[g] + 0.5 * group_acc[g] * dt_kick;
-            group_wh[g] = group_w[g] + 0.5 * group_aacc[g] * dt_kick;
+            group_velh[g] = group_vel[g] + 0.5 * group_acc[g] * attrs.dt;
+            group_wh[g] = group_w[g] + 0.5 * group_aacc[g] * attrs.dt;
             group_pos[g] +=  group_velh[g] * attrs.dt;
+
+            if (attrs.typeSim == bigbox)
+            {
+                wrap_position(group_pos[g], attrs.boxdims);
+            }
             
             group_aacc[g] = {0,0,0};
             group_acc[g] = {0,0,0};
@@ -4887,6 +5036,11 @@ void Ball_group::half_step_updates()
 
             
             pos[Ball]  = group_pos[group[Ball]] + rho;
+            if (attrs.typeSim == bigbox)
+            {
+                wrap_position(pos[Ball], attrs.boxdims);
+            }
+
             velh[Ball] = group_velh[group[Ball]] + group_wh[group[Ball]].cross(rho);
             wh[Ball] = group_wh[group[Ball]];
 
@@ -4988,11 +5142,15 @@ void Ball_group::sim_one_step(int step,bool write_step)
     long long pc;
     long long lllen = attrs.num_particles;
     double t0 = omp_get_wtime();
+
+    double local_min_gap = HUGE_VAL;
+    int local_active_contact = false;
     
     //Turned off for testing. Turn back on if you see this
     #pragma omp declare reduction(vec3_sum : vec3 : omp_out += omp_in)
     #pragma omp parallel for num_threads(threads)\
-            reduction(vec3_sum:acc[:num_parts],aacc[:num_parts]) reduction(+:PE) \
+            reduction(vec3_sum:acc[:num_parts],aacc[:num_parts]) \
+            reduction(+:PE) reduction(min:local_min_gap) reduction(max:local_active_contact) \
             shared(world_rank,world_size,Ha,write_step,lllen,R,pos,vel,m,w,\
                 u_r,u_s,moi,kin,kout,distances,h_min,dt)\
             default(none) private(A,B,pc) 
@@ -5004,38 +5162,47 @@ void Ball_group::sim_one_step(int step,bool write_step)
         A = (long long)pd;
         B = (long long)((long double)pc-(long double)A*((long double)A-1.0L)*.5L-1.0L);
 
-        if (attrs.weld && group[A] == group[B])
+
+        const bool same_group = (group[A] == group[B]);
+
+        if (attrs.weld && same_group)
         {
             continue;
         }
 
  
         const double sumRaRb = R[A] + R[B];
-        // const vec3 rVecab =
-        //     (false)
-        //     ? periodic_displacement(pos[A], pos[B], attrs.boxdims)
-        //     : pos[B] - pos[A];
+        
         const vec3 rVecab =
             (attrs.typeSim == bigbox)
             ? periodic_displacement(pos[A], pos[B], attrs.boxdims)
             : pos[B] - pos[A];
+
         const vec3 rVecba = -rVecab;
         const double dist = (rVecab).norm();
 
-        //////////////////////
-        // const double grav_scale = 3.0e21;
-        //////////////////////
+        const double gap = dist - sumRaRb;
+        // positive = separated
+        // zero     = touching
+        // negative = overlapping
 
-        // Check for collision between Ball and otherBall:
-        double overlap = sumRaRb - dist;
-
-        // //Keep track of the closest spheres
-        if (overlap > -attrs.min_dist)
+        // Only EXTERNAL pairs affect timestep selection.
+        if (!same_group)
         {
-            attrs.min_dist = -overlap;
+            if (gap <= 0.0)
+            {
+                // Two distinct aggregates/particles are currently in contact
+                local_active_contact = 1;
+            }
+            else
+            {
+                // Nearest not-yet-contacting pair
+                local_min_gap = std::min(local_min_gap, gap);
+            }
         }
 
-        
+
+        double overlap = -gap;
 
         vec3 totalForceOnA{0, 0, 0};
 
@@ -5048,7 +5215,6 @@ void Ball_group::sim_one_step(int step,bool write_step)
         // Check for collision between Ball and otherBall.
         if (overlap > 0) 
         {
-
             double k;
             if (dist >= oldDist) {
                 k = kout;
@@ -5249,7 +5415,35 @@ void Ball_group::sim_one_step(int step,bool write_step)
         double local_PE = PE;
         PE = 0.0;
         MPI_Reduce(&local_PE,&PE,1,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
+
+        double global_min_gap;
+        int global_active_contact;
+
+        MPI_Allreduce(
+            &local_min_gap,
+            &global_min_gap,
+            1,
+            MPI_DOUBLE,
+            MPI_MIN,
+            MPI_COMM_WORLD
+        );
+
+        MPI_Allreduce(
+            &local_active_contact,
+            &global_active_contact,
+            1,
+            MPI_INT,
+            MPI_MAX,
+            MPI_COMM_WORLD
+        );
+
+        attrs.min_gap = global_min_gap;
+        attrs.active_contact = (global_active_contact != 0);
+    #else
+        attrs.min_gap = local_min_gap;
+        attrs.active_contact = (local_active_contact != 0);
     #endif
+
 
     if (attrs.weld)
     {
@@ -6123,34 +6317,81 @@ Ball_group::sim_looper(unsigned long long start_step=1)
     attrs.OMPthreads = get_num_threads();
 
 
-    for (Step = start_step; Step < attrs.steps; Step++)  // Steps start at 1 for non-restart because the 0 step is initial conditions.
+
+    Step = start_step;
+    bool run_sim = true;
+
+    unsigned long long next_write_index =
+        static_cast<unsigned long long>(
+            std::floor(attrs.currTime / attrs.timeResolution)
+        ) + 1;
+
+    unsigned long long restructuring_steps = 0;
+
+    if (attrs.dynamicTime)
     {
-        // simTimeElapsed += dt; //New code #1
-        // Check if this is a write step:
-        if (Step % attrs.skip == 0) {
-            // if (world_rank == 0)
-            // {
-            //     t.start_event("writeProgressReport");
-            // }
-            write_step = true;
+        // Establish initial aggregate identities.
+        attrs.weld = true;
 
-            // #ifdef GPU_ENABLE
-            //     #pragma acc update device(attrs.write_step)
-            // #endif
-            // std::cerr<<"Write step "<<Step<<std::endl;
+        captureGroups();
+        allocate_weld_group(attrs.num_groups);
+        init_weld_vectors();
 
-            /////////////////////// Original code #1
-            attrs.simTimeElapsed += attrs.dt * attrs.skip;
-            ///////////////////////
+        // Now evaluate distances using those aggregate IDs.
+        updateExternalPairState();
 
-            if (attrs.world_rank == 0)
+        // Let this determine whether we should begin
+        // large+welded or small+unwelded.
+        setDistBasedDT(start_step);
+    }
+
+    // for (Step = start_step; Step < attrs.steps; Step++)  // Steps start at 1 for non-restart because the 0 step is initial conditions.
+    while(run_sim)  // Steps start at 1 for non-restart because the 0 step is initial conditions.
+    {
+
+        bool scheduled_write = false;
+
+        if (attrs.dynamicTime)
+        {
+            const double next_write_time =
+                next_write_index * attrs.timeResolution;
+
+            const double time_to_write =
+                next_write_time - attrs.currTime;
+
+            // First determine whether our normal dt reaches a scheduled output.
+            if (attrs.dt >= time_to_write)
+            {
+                attrs.dt = time_to_write;
+                scheduled_write = true;
+            }
+
+            // Don't go beyond the requested final time.
+            if (attrs.typeSim != bigbox)
+            {
+                const double time_to_end =
+                    attrs.simTimeSeconds - attrs.currTime;
+
+                attrs.dt = std::min(attrs.dt, time_to_end);
+            }
+
+            write_step = scheduled_write || attrs.debug;
+        }
+        else
+        {
+            // Preserve existing fixed-dt behavior.
+            scheduled_write = (Step % attrs.skip == 0);
+            write_step = scheduled_write || attrs.debug;
+
+
+            if (scheduled_write && attrs.world_rank == 0)
             {
                 // Progress reporting:
                 float eta = ((time(nullptr) - attrs.startProgress) / static_cast<float>(attrs.skip) *
                              static_cast<float>(attrs.steps - Step)) /
                             3600.f;  // Hours.
                 float real = (time(nullptr) - attrs.start) / 3600.f;
-                float simmed = static_cast<float>(attrs.simTimeElapsed / 3600.f);
+                float simmed = static_cast<float>(attrs.currTime / 3600.f);
                 float progress = (static_cast<float>(Step) / static_cast<float>(attrs.steps) * 100.f);
                 fprintf(
                     stderr,
@@ -6167,14 +6408,10 @@ Ball_group::sim_looper(unsigned long long start_step=1)
                 attrs.startProgress = time(nullptr);
                 // t.end_event("writeProgressReport");
             }
-        } else {
-            write_step = attrs.debug;
         }
 
 
-        // std::cerr<<"step: "<<Step<<"\tskip: "<<attrs.skip<<std::endl;
-
-        attrs.min_dist = HUGE_VAL;
+        attrs.min_gap = HUGE_VAL;
 
         // Physics integration step:
         if (attrs.JKR)
@@ -6182,48 +6419,36 @@ Ball_group::sim_looper(unsigned long long start_step=1)
             sim_one_step_JKR(Step,write_step);
         }
         else
-        {
-            // if (Step == 1000)
-            // {
-            //     attrs.weld = true;
-            //     captureGroups();
-            //     allocate_weld_group(attrs.num_groups);
-            //     init_weld_vectors();
-            // }
-            
+        {   
             sim_one_step(Step,write_step);
         }
-        // #ifndef GPU_ENABLE
-        // #else
-        //     sim_one_step_GPU();
-        // #endif
+
+        attrs.currTime += attrs.dt;
+
+        if (attrs.dynamicTime && scheduled_write)
+        {
+            attrs.currTime =
+                next_write_index * attrs.timeResolution;
+
+            ++next_write_index;
+        }
+
 
         if (write_step) {
-
-            //test writing out the angular position
-            // std::ofstream outfile;
-            // outfile.open("/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/JKRTest/angularPosition.txt", std::ios_base::app);
-
-            // for (int i = 0; i < attrs.num_particles; ++i)
-            // {
-            //     outfile<<scientific(Eu0[i])<<','<<scientific(Eu[i])<<";";
-            // }
-            // outfile<<'\n';
-
 
 
 
             if (attrs.world_rank == 0)
             {    
                 int start = data->getWidth("energy")*(attrs.num_writes-1);
-                energyBuffer[start] = attrs.simTimeElapsed;
+                energyBuffer[start] = attrs.currTime;
                 energyBuffer[start+1] = PE;
                 energyBuffer[start+2] = KE;
                 energyBuffer[start+3] = PE+KE;
                 energyBuffer[start+4] = mom.norm();
                 energyBuffer[start+5] = ang_mom.norm();
 
-                if (Step / attrs.skip % 10 == 0) 
+                if (attrs.num_writes >= bufferlines) 
                 {
 
 
@@ -6261,32 +6486,95 @@ Ball_group::sim_looper(unsigned long long start_step=1)
             // t.end_event("writeStep");
         }  // writestep end
 
-        if (Step % 1000 == 0)
+        if (attrs.dynamicTime)
         {
-            attrs.weld = true;
-            captureGroups();
-            allocate_weld_group(attrs.num_groups);
-            init_weld_vectors();
+            if (!attrs.weld)
+            {
+                ++restructuring_steps;
+            }
+            else
+            {
+                restructuring_steps = 0;
+            }
+
+            if (!attrs.weld &&
+                restructuring_steps >= 10000)
+            {
+                // Temporarily recapture the current physical
+                // connected components.
+                attrs.weld = true;
+
+                captureGroups();
+                allocate_weld_group(attrs.num_groups);
+                init_weld_vectors();
+
+                // group[] has changed, so recalculate which
+                // nearby/contacting pairs are EXTERNAL.
+                updateExternalPairState();
+
+                restructuring_steps = 0;
+            }
+
+            setDistBasedDT(Step);
         }
 
-        if (attrs.dynamicTime) { setDistBasedDT(); }
+        if (attrs.typeSim == bigbox && Step % 10000 == 0)
+        {
+            if(isConnected(pos,R,attrs.num_particles,attrs.boxdims,attrs.typeSim))
+            {
+                MPIsafe_print(std::cerr,"Bigbox sim is fully connected after "+std::to_string(attrs.currTime)+" seconds! Exiting sim. . .\n");
+                run_sim = false;
+            }
+
+        }
+
+        Step++;
+        if (attrs.typeSim != bigbox && attrs.currTime >= attrs.simTimeSeconds)
+        {
+            run_sim = false;
+        }
     }
 
-    // #ifdef GPU_ENABLE
-    //     #pragma acc exit data delete(accsq[0:attrs.num_particles*attrs.num_particles],\
-    //         aaccsq[0:attrs.num_particles*attrs.num_particles],acc[0:attrs.num_particles],aacc[0:attrs.num_particles])
-    //     #pragma acc exit data delete(m[0:attrs.num_particles],w[0:attrs.num_particles],vel[0:attrs.num_particles],\
-    //         pos[0:attrs.num_particles],R[0:attrs.num_particles],distances[0:attrs.num_pairs])
-    //     #pragma acc exit data delete(attrs.dt,attrs.num_pairs,attrs.num_particles,attrs.Ha,\
-    //         attrs.kin,attrs.kout,attrs.h_min,attrs.u_s,attrs.u_r,attrs.world_rank,attrs.world_size,attrs.write_step,PE)
-    //     // #pragma acc exit data delete(this)
-    // #endif
+    // Flush any remaining data that did not fill an entire buffer.
+    if (attrs.world_rank == 0 && attrs.num_writes > 0)
+    {
+        const int remaining_writes = attrs.num_writes;
+
+        std::cerr
+            << "Writing final " << remaining_writes
+            << " buffered timesteps to "
+            << data->getFileName() << "\n";
+
+        // Remove the unused portion of the buffers.
+        ballBuffer.resize(
+            data->getWidth("simData") * remaining_writes
+        );
+
+        energyBuffer.resize(
+            data->getWidth("energy") * remaining_writes
+        );
+
+        // add_writes must equal the actual number of simData
+        // timesteps being written.
+        data->Write(
+            ballBuffer,
+            "simData",
+            remaining_writes
+        );
+
+        data->Write(
+            energyBuffer,
+            "energy"
+        );
+
+        attrs.num_writes = 0;
+    }
 
     //if this is an aggregation job, make sure the final state is all connected (we didnt miss the target)
     if (isAggregation())
     {
         // if (false)
-        if (!isConnected(pos,R,attrs.num_particles))
+        if (!isConnected(pos,R,attrs.num_particles,attrs.boxdims,attrs.typeSim))
         {
             attrs.isConnectedFails += 1;
             if (attrs.isConnectedFails < attrs.maxConnectedFails)
@@ -6313,7 +6601,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
 
         std::cerr << "Simulation complete! \n"
                   << attrs.num_particles << " Particles and " << Step << '/' << attrs.steps << " Steps.\n"
-                  << "Simulated time: " << attrs.steps * attrs.dt << " seconds\n"
+                  << "Simulated time: " << attrs.currTime << " seconds\n"
                   << "Computation time: " << end - attrs.start << " seconds\n";
         std::cerr << "\n===============================================================\n";
     }
@@ -6434,7 +6722,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
 
 
                 /////////////////////// Original code #1
-                attrs.simTimeElapsed += attrs.dt * attrs.skip;
+                // attrs.simTimeElapsed += attrs.dt * attrs.skip;
                 ///////////////////////
 
                 if (attrs.world_rank == 0)
@@ -6444,7 +6732,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
                                  static_cast<float>(attrs.steps - Step)) /
                                 3600.f;  // Hours.
                     float real = (time(nullptr) - attrs.start) / 3600.f;
-                    float simmed = static_cast<float>(attrs.simTimeElapsed / 3600.f);
+                    float simmed = static_cast<float>(attrs.currTime / 3600.f);
                     float progress = (static_cast<float>(Step) / static_cast<float>(attrs.steps) * 100.f);
                     fprintf(
                         stderr,
@@ -6473,12 +6761,14 @@ Ball_group::sim_looper(unsigned long long start_step=1)
             //     sim_one_step_GPU();
             // #endif
 
+            attrs.currTime += attrs.dt;
+
             if (write_step) {
 
                 if (attrs.world_rank == 0)
                 {    
                     int start = data->getWidth("energy")*(attrs.num_writes-1);
-                    energyBuffer[start] = attrs.simTimeElapsed;
+                    energyBuffer[start] = attrs.currTime;
                     energyBuffer[start+1] = PE;
                     energyBuffer[start+2] = KE;
                     energyBuffer[start+3] = PE+KE;
@@ -6572,7 +6862,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
     //if this is an aggregation job, make sure the final state is all connected (we didnt miss the target)
     if (isAggregation())
     {
-        if (!isConnected(pos,R,attrs.num_particles))
+        if (!isConnected(pos,R,attrs.num_particles,attrs.boxdims,attrs.typeSim))
         {
             //For now just stop the sim so I can verify this isConnected works
             MPIsafe_print(std::cerr,"ERROR: aggregate failed isConnected. Now exiting. . .\n");
@@ -6605,18 +6895,173 @@ Ball_group::sim_looper(unsigned long long start_step=1)
 //      or far away enough for large dt. 
 //returns true if dt has been changed by this function,
 //      false otherwise
-bool Ball_group::setDistBasedDT()
+bool Ball_group::setDistBasedDT(int step)
 {
-    attrs.dt_old = attrs.dt;
-    if (attrs.min_dist < attrs.min_dist_cutoff)
+    const double old_dt = attrs.dt;
+
+    const double vmax = getVelMax();
+    const double amax = getAccMax();
+
+    const double max_closure =
+        2.0 * vmax * attrs.dt_large
+        + amax * attrs.dt_large * attrs.dt_large;
+
+    constexpr double safety = 2.0;
+
+    const double switch_gap =
+        attrs.min_gap_cutoff
+        + safety * max_closure;
+
+    const bool need_small_dt =
+        attrs.active_contact ||
+        attrs.min_gap <= switch_gap;
+
+
+    // If we're already restructuring, we MUST stay on the
+    // small timestep until the restructuring period finishes
+    // and sim_looper() recaptures the groups.
+    if (!attrs.weld)
     {
         attrs.dt = attrs.dt_small;
     }
+
+    // Welded aggregates are approaching another aggregate.
+    // Enter restructuring mode.
+    else if (need_small_dt)
+    {
+        attrs.weld = false;
+        attrs.dt = attrs.dt_small;
+
+        MPIsafe_print(
+            std::cout,
+            "Turning weld OFF for restructuring on step "
+            + std::to_string(step) + "\n"
+        );
+    }
+
+    // Welded and all external aggregates are safely far apart.
     else
     {
         attrs.dt = attrs.dt_large;
     }
-    return attrs.dt != attrs.dt_old;
+
+
+    const bool changed = (attrs.dt != old_dt);
+
+    if (changed)
+    {
+        MPIsafe_print(
+            std::cout,
+            "dt changed from " + scientific(old_dt)
+            + "s to " + scientific(attrs.dt)
+            + "s on step " + std::to_string(step)
+            + "\nmin gap: " + scientific(attrs.min_gap)
+            + " cm | switch gap: " + scientific(switch_gap)
+            + " cm\n"
+        );
+    }
+
+    return changed;
+}
+
+void Ball_group::updateExternalPairState()
+{
+    double local_min_gap = HUGE_VAL;
+    int local_active_contact = 0;
+
+    const long long n = attrs.num_particles;
+
+    const int world_rank = getRank();
+    const int world_size = getSize();
+
+    for (
+        long long pc = world_rank + 1;
+        pc <= ((n * n - n) / 2);
+        pc += world_size
+    )
+    {
+        long double pd = static_cast<long double>(pc);
+
+        pd = (sqrt(pd * 8.0L + 1.0L) + 1.0L)
+             * 0.5L;
+
+        pd -= 0.00001L;
+
+        const long long A =
+            static_cast<long long>(pd);
+
+        const long long B =
+            static_cast<long long>(
+                static_cast<long double>(pc)
+                - static_cast<long double>(A)
+                  * static_cast<long double>(A - 1)
+                  * 0.5L
+                - 1.0L
+            );
+
+        // Only interested in different aggregates.
+        if (group[A] == group[B])
+        {
+            continue;
+        }
+
+        const vec3 dr =
+            (attrs.typeSim == bigbox)
+            ? periodic_displacement(
+                  pos[A],
+                  pos[B],
+                  attrs.boxdims
+              )
+            : pos[B] - pos[A];
+
+        const double gap =
+            dr.norm() - (R[A] + R[B]);
+
+        if (gap <= 0.0)
+        {
+            local_active_contact = 1;
+        }
+        else
+        {
+            local_min_gap =
+                std::min(local_min_gap, gap);
+        }
+    }
+
+    #ifdef MPI_ENABLE
+
+        double global_min_gap;
+        int global_active_contact;
+
+        MPI_Allreduce(
+            &local_min_gap,
+            &global_min_gap,
+            1,
+            MPI_DOUBLE,
+            MPI_MIN,
+            MPI_COMM_WORLD
+        );
+
+        MPI_Allreduce(
+            &local_active_contact,
+            &global_active_contact,
+            1,
+            MPI_INT,
+            MPI_MAX,
+            MPI_COMM_WORLD
+        );
+
+        attrs.min_gap = global_min_gap;
+        attrs.active_contact =
+            (global_active_contact != 0);
+
+    #else
+
+        attrs.min_gap = local_min_gap;
+        attrs.active_contact =
+            (local_active_contact != 0);
+
+    #endif
 }
 
 
@@ -6674,12 +7119,12 @@ bool get_JKR(const std::string folder)
 }
 
 //Checks if all spheres in the sim are connected
-bool isConnected(vec3* pos, double* R, int n)
+bool isConnected(vec3* pos, double* R, int n, vec3 boxdims, simType type)
 {
     Graph g;
 
-    MPIsafe_print(std::cerr,"n: "+std::to_string(n)+'\n');
-    makeGraph(g,pos,R,n);
+    // MPIsafe_print(std::cerr,"n: "+std::to_string(n)+'\n');
+    makeGraph(g,pos,R,n,boxdims,type==bigbox);
 
     if (g.empty()) //If it is empty we have a problem somewhere
     {
@@ -6698,9 +7143,9 @@ bool isConnected(vec3* pos, double* R, int n)
 
     while (!q.empty()) 
     {
-        int current = q.front();
+        const int current = q.front();
         q.pop();
-        for (int neighbor : g[current]) 
+        for (const int neighbor : g[current]) 
         {
             if (!visited[neighbor]) 
             {
@@ -6760,26 +7205,27 @@ vec3 periodic_displacement(const vec3& rA, const vec3& rB, const vec3& boxdims)
 {
     vec3 dr = rB - rA;
 
-    if (dr.x >  0.5 * boxdims.x) dr.x -= boxdims.x;
-    if (dr.x < -0.5 * boxdims.x) dr.x += boxdims.x;
-
-    if (dr.y >  0.5 * boxdims.y) dr.y -= boxdims.y;
-    if (dr.y < -0.5 * boxdims.y) dr.y += boxdims.y;
-
-    if (dr.z >  0.5 * boxdims.z) dr.z -= boxdims.z;
-    if (dr.z < -0.5 * boxdims.z) dr.z += boxdims.z;
+    dr.x -= boxdims.x * std::round(dr.x / boxdims.x);
+    dr.y -= boxdims.y * std::round(dr.y / boxdims.y);
+    dr.z -= boxdims.z * std::round(dr.z / boxdims.z);
 
     return dr;
 }
 
 void wrap_position(vec3& r, const vec3& boxdims)
 {
-    if (r.x >=  0.5 * boxdims.x) r.x -= boxdims.x;
-    if (r.x <  -0.5 * boxdims.x) r.x += boxdims.x;
+    r.x -= boxdims.x *
+        std::floor(
+            (r.x + 0.5 * boxdims.x) / boxdims.x
+        );
 
-    if (r.y >=  0.5 * boxdims.y) r.y -= boxdims.y;
-    if (r.y <  -0.5 * boxdims.y) r.y += boxdims.y;
+    r.y -= boxdims.y *
+        std::floor(
+            (r.y + 0.5 * boxdims.y) / boxdims.y
+        );
 
-    if (r.z >=  0.5 * boxdims.z) r.z -= boxdims.z;
-    if (r.z <  -0.5 * boxdims.z) r.z += boxdims.z;
+    r.z -= boxdims.z *
+        std::floor(
+            (r.z + 0.5 * boxdims.z) / boxdims.z
+        );
 }

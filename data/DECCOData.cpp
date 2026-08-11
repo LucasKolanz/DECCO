@@ -1967,7 +1967,7 @@ std::string find_restart_point(std::string path, const int index,bool relax/*=fa
 		    	Ball_group temp(idx,/*JKR=*/false);
 		    	temp.parse_input_file(path);
 		    	temp.loadSim(path,name,/*verbose=*/false);
-		        if (!isConnected(temp.pos,temp.R,temp.attrs.num_particles))
+		        if (!isConnected(temp.pos,temp.R,temp.attrs.num_particles,temp.attrs.boxdims, temp.attrs.typeSim))
 		        {
 		            std::string file1 = path + name;
 	            	std::cerr<<"Removing the following files: \n\t"<<file1<<std::endl;

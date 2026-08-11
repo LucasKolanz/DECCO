@@ -18,7 +18,13 @@ using Graph = std::vector<std::vector<int>>;
 
 
 void addEdge(Graph& g, int u, int v);
-void makeGraph(Graph& g, vec3* pos, double* R, int n);
+void makeGraph(
+    Graph& g,
+    const vec3* pos,
+    const double* R,
+    int n,
+    const vec3& boxdims=vec3{0,0,0},
+    bool periodic=false);
 // bool isConnected(vec3* pos, double* R, int n);
 
 
