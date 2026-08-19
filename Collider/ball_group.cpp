@@ -1302,7 +1302,52 @@ void Ball_group::calc_v_collapse()
     }
 }
 
-/// get max velocity
+double Ball_group::getRigidAccMax()
+{
+    double amax = 0.0;
+
+    for (int Ball = 0; Ball < attrs.num_particles; ++Ball)
+    {
+        const int g = group[Ball];
+
+        const vec3 rho =
+            quatRotate(group_q[g], group_offset_body[Ball]);
+
+        const vec3 rigid_acc =
+            group_acc[g]
+            + group_aacc[g].cross(rho)
+            + group_w[g].cross(
+                group_w[g].cross(rho)
+            );
+
+        amax = std::max(amax, rigid_acc.norm());
+    }
+
+    return amax;
+}
+
+double Ball_group::getRigidVelMax()
+{
+    double vmax = 0.0;
+
+    for (int Ball = 0; Ball < attrs.num_particles; ++Ball)
+    {
+        const int g = group[Ball];
+
+        const vec3 rho =
+            quatRotate(group_q[g], group_offset_body[Ball]);
+
+        const vec3 rigid_vel =
+            group_vel[g]
+            + group_w[g].cross(rho);
+
+        vmax = std::max(vmax, rigid_vel.norm());
+    }
+
+    return vmax;
+}
+
+/// get max velocity of non-welded monomers
 [[nodiscard]] double Ball_group::getVelMax()
 {
     attrs.v_max = 0;
@@ -1316,7 +1361,7 @@ void Ball_group::calc_v_collapse()
 }
 
 
-/// get max acceleration
+/// get max acceleration of non-welded monomers
 [[nodiscard]] double Ball_group::getAccMax()
 {
     attrs.a_max = 0;
@@ -6321,6 +6366,13 @@ Ball_group::sim_looper(unsigned long long start_step=1)
     Step = start_step;
     bool run_sim = true;
 
+    bool post_connect = false;
+    unsigned int post_connect_writes = 0;
+
+    // Number of ADDITIONAL scheduled writes to run after
+    // full connectivity is first detected.
+    const unsigned int post_connect_writes_target = 5;
+
     unsigned long long next_write_index =
         static_cast<unsigned long long>(
             std::floor(attrs.currTime / attrs.timeResolution)
@@ -6337,6 +6389,10 @@ Ball_group::sim_looper(unsigned long long start_step=1)
         allocate_weld_group(attrs.num_groups);
         init_weld_vectors();
 
+        // Convert the current monomer forces/torques into
+        // net rigid-body accelerations.
+        group_accs_from_monomer();
+
         // Now evaluate distances using those aggregate IDs.
         updateExternalPairState();
 
@@ -6348,6 +6404,10 @@ Ball_group::sim_looper(unsigned long long start_step=1)
     // for (Step = start_step; Step < attrs.steps; Step++)  // Steps start at 1 for non-restart because the 0 step is initial conditions.
     while(run_sim)  // Steps start at 1 for non-restart because the 0 step is initial conditions.
     {
+
+        // Timestep selected by the dynamic timestep logic.
+        // This may be temporarily shortened below for output alignment.
+        const double nominal_dt = attrs.dt;
 
         bool scheduled_write = false;
 
@@ -6364,6 +6424,23 @@ Ball_group::sim_looper(unsigned long long start_step=1)
             {
                 attrs.dt = time_to_write;
                 scheduled_write = true;
+
+                // Only print if we actually shortened the timestep.
+                if (attrs.dt < nominal_dt)
+                {
+                    MPIsafe_print(
+                        std::cout,
+                        "dt temporarily shortened from "
+                        + scientific(nominal_dt)
+                        + "s to "
+                        + scientific(attrs.dt)
+                        + "s on step "
+                        + std::to_string(Step)
+                        + " to land on output time "
+                        + scientific(next_write_time)
+                        + "s\n"
+                    );
+                }
             }
 
             // Don't go beyond the requested final time.
@@ -6372,7 +6449,24 @@ Ball_group::sim_looper(unsigned long long start_step=1)
                 const double time_to_end =
                     attrs.simTimeSeconds - attrs.currTime;
 
-                attrs.dt = std::min(attrs.dt, time_to_end);
+                if (time_to_end < attrs.dt)
+                {
+                    attrs.dt = time_to_end;
+
+                     // We are stopping before the scheduled output time.
+                    scheduled_write = false;    
+
+                    MPIsafe_print(
+                        std::cout,
+                        "dt temporarily shortened from "
+                        + scientific(nominal_dt)
+                        + "s to "
+                        + scientific(attrs.dt)
+                        + "s on step "
+                        + std::to_string(Step)
+                        + " to land on final simulation time\n"
+                    );
+                }
             }
 
             write_step = scheduled_write || attrs.debug;
@@ -6434,7 +6528,8 @@ Ball_group::sim_looper(unsigned long long start_step=1)
         }
 
 
-        if (write_step) {
+        if (write_step) 
+        {
 
 
 
@@ -6486,46 +6581,113 @@ Ball_group::sim_looper(unsigned long long start_step=1)
             // t.end_event("writeStep");
         }  // writestep end
 
+        if (attrs.typeSim == bigbox &&
+            attrs.dynamicTime &&
+            post_connect &&
+            scheduled_write)        
+        {
+            ++post_connect_writes;
+
+            MPIsafe_print(
+                std::cerr,
+                "Post-connect scheduled write "
+                + std::to_string(post_connect_writes)
+                + "/"
+                + std::to_string(post_connect_writes_target)
+                + " at "
+                + std::to_string(attrs.currTime)
+                + " seconds.\n"
+            );
+
+            if (post_connect_writes >= post_connect_writes_target)
+            {
+                MPIsafe_print(
+                    std::cerr,
+                    "Completed requested post-connect writes. Ending simulation.\n"
+                );
+
+                run_sim = false;
+            }
+        }
+
         if (attrs.dynamicTime)
         {
-            if (!attrs.weld)
+            // Restore the nominal timestep after any temporary
+            // output-alignment shortening.
+            attrs.dt = nominal_dt;
+            
+            if (post_connect)
             {
-                ++restructuring_steps;
+                // Once fully connected, permanently remain deformable
+                // and use the small timestep until the requested number
+                // of additional writes has been completed.
+                attrs.weld = false;
+                attrs.dt = attrs.dt_small;
+
+                restructuring_steps = 0;
             }
             else
             {
-                restructuring_steps = 0;
+                if (!attrs.weld)
+                {
+                    ++restructuring_steps;
+                }
+                else
+                {
+                    restructuring_steps = 0;
+                }
+
+                if (!attrs.weld &&
+                    restructuring_steps >= 10000)
+                {
+                    attrs.weld = true;
+
+                    captureGroups();
+                    allocate_weld_group(attrs.num_groups);
+                    init_weld_vectors();
+
+                    // Calculate the acceleration/angular acceleration of the
+                    // newly captured rigid groups from the current monomer forces.
+                    group_accs_from_monomer();
+
+                    updateExternalPairState();
+
+                    restructuring_steps = 0;
+                }
+
+                setDistBasedDT(Step);
             }
-
-            if (!attrs.weld &&
-                restructuring_steps >= 10000)
-            {
-                // Temporarily recapture the current physical
-                // connected components.
-                attrs.weld = true;
-
-                captureGroups();
-                allocate_weld_group(attrs.num_groups);
-                init_weld_vectors();
-
-                // group[] has changed, so recalculate which
-                // nearby/contacting pairs are EXTERNAL.
-                updateExternalPairState();
-
-                restructuring_steps = 0;
-            }
-
-            setDistBasedDT(Step);
         }
 
-        if (attrs.typeSim == bigbox && Step % 10000 == 0)
+        if (attrs.typeSim == bigbox &&
+            Step % 10000 == 0 &&
+            !post_connect)
         {
-            if(isConnected(pos,R,attrs.num_particles,attrs.boxdims,attrs.typeSim))
+            if (isConnected(
+                    pos,
+                    R,
+                    attrs.num_particles,
+                    attrs.boxdims,
+                    attrs.typeSim))
             {
-                MPIsafe_print(std::cerr,"Bigbox sim is fully connected after "+std::to_string(attrs.currTime)+" seconds! Exiting sim. . .\n");
-                run_sim = false;
-            }
+                post_connect = true;
+                post_connect_writes = 0;
 
+                // Enter final deformable evolution phase.
+                attrs.weld = false;
+                attrs.dt = attrs.dt_small;
+                restructuring_steps = 0;
+
+                MPIsafe_print(
+                    std::cerr,
+                    "Bigbox sim is fully connected after "
+                    + std::to_string(attrs.currTime)
+                    + " seconds. Turning weld OFF and switching to dt_small. "
+                    "Will run for "
+                    + std::to_string(post_connect_writes_target)
+                    + " additional scheduled writes before stopping.\n"
+                );
+            }
         }
 
         Step++;
@@ -6899,18 +7061,63 @@ bool Ball_group::setDistBasedDT(int step)
 {
     const double old_dt = attrs.dt;
 
-    const double vmax = getVelMax();
-    const double amax = getAccMax();
+    const double vmax = attrs.weld ? getRigidVelMax() : getVelMax();
+    const double amax = attrs.weld ? getRigidAccMax() : getAccMax();
+
+    // if (attrs.weld && old_dt == attrs.dt_small)
+    // {
+    //     const double monomer_vmax = getVelMax();
+    //     const double monomer_amax = getAccMax();
+
+    //     MPIsafe_print(
+    //         std::cout,
+    //         "RIGID BODY DT DIAGNOSTIC"
+    //         "\nstep: " + std::to_string(step) +
+    //         "\nmonomer vmax: " + scientific(monomer_vmax) +
+    //         "\nrigid vmax:   " + scientific(vmax) +
+    //         "\nmonomer amax: " + scientific(monomer_amax) +
+    //         "\nrigid amax:   " + scientific(amax) +
+    //         "\n"
+    //     );
+    // }
+
+    const double velocity_closure =
+        2.0 * vmax * attrs.dt_large;
+
+    const double acceleration_closure =
+        amax * attrs.dt_large * attrs.dt_large;
 
     const double max_closure =
-        2.0 * vmax * attrs.dt_large
-        + amax * attrs.dt_large * attrs.dt_large;
+        velocity_closure + acceleration_closure;
+
+    // const double max_closure =
+    //     2.0 * vmax * attrs.dt_large
+    //     + amax * attrs.dt_large * attrs.dt_large;
 
     constexpr double safety = 2.0;
 
     const double switch_gap =
         attrs.min_gap_cutoff
         + safety * max_closure;
+
+    // if (attrs.weld && old_dt == attrs.dt_small) 
+    // {
+    //     MPIsafe_print(
+    //         std::cout,
+    //         "DT DIAGNOSTIC"
+    //         "\nstep: " + std::to_string(step) +
+    //         "\nweld: " + std::to_string(attrs.weld) +
+    //         "\nnum groups: " + std::to_string(attrs.num_groups) +
+    //         "\nactive contact: " + std::to_string(attrs.active_contact) +
+    //         "\nmin gap: " + scientific(attrs.min_gap) +
+    //         "\nvmax: " + scientific(vmax) +
+    //         "\namax: " + scientific(amax) +
+    //         "\nvelocity closure: " + scientific(velocity_closure) +
+    //         "\nacceleration closure: " + scientific(acceleration_closure) +
+    //         "\nswitch gap: " + scientific(switch_gap) +
+    //         "\n"
+    //     );
+    // }
 
     const bool need_small_dt =
         attrs.active_contact ||

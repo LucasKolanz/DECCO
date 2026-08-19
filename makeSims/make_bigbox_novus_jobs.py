@@ -51,29 +51,29 @@ if __name__ == '__main__':
 		exit(-1)
 		
 	job_set_name = "JKRTestest"
-	job_set_name = "bigboxtest"
+	job_set_name = "bigbox"
 	# folder_name_scheme = "T_"
 
 	runs_at_once = 1
-	# attempts = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] 
-	# attempts = [0,1,2,3,4,5] 
-	attempts = [0] 
+ 
+	# attempts = [0] 
+	attempts = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14] 
 	N = [1000]
 	Temps = [3]
-	box_sizes = [1e-3]
-	# box_sizes = [5e-4]
+	# box_sizes = [1e-3,3e-3,7e-3,1e-2,3e-2]
+	box_sizes = [3e-3]
 	folders = []
 
 	totalNodes = 1
 	MPITasksPerNode = 1
 	totalMPITasks = totalNodes*MPITasksPerNode
-	threadsPerTask = 64
+	threadsPerTask = 28
 
 	for attempt in attempts:
 		for n in N:
 			for b in box_sizes:
 				for Temp in Temps:
-					job_name = f"bigboxtesta={attempt},n={n},b={b:.3e},t={Temp}"
+					job_name = f"bigboxa={attempt},n={n},b={b:.3e},t={Temp}"
 					#load default input file
 					with open(project_path+"default_files/default_input.json",'r') as fp:
 						input_json = json.load(fp)
@@ -101,8 +101,8 @@ if __name__ == '__main__':
 						input_json['temp'] = Temp
 						input_json['dynamicTime'] = True
 						# input_json['dynamicTime'] = False
-						input_json['seed'] = u.rand_int()
-						# input_json['seed'] = 101
+						# input_json['seed'] = u.rand_int()
+						input_json['seed'] = 101
 						input_json['radiiDistribution'] = 'constant'
 						# input_json['radiiDistribution'] = 'lognormal'
 						input_json['simType'] = 'bigbox'
@@ -126,7 +126,7 @@ if __name__ == '__main__':
 						# input_json['simTimeSeconds'] = 1e-4
 						# input_json['simTimeSeconds'] = 3e-3
 						input_json['simTimeSeconds'] = 1e-5
-						input_json['timeResolution'] = 1e-5
+						input_json['timeResolution'] = 1e-3
 						# input_json['timeResolution'] = 1e-5
 						# input_json['material'] = "amorphousCarbon"
 						# input_json['material'] = "quartz"
@@ -158,20 +158,25 @@ if __name__ == '__main__':
 						# sbatchfile += "#SBATCH -C gpu\n"
 						# sbatchfile += "#SBATCH -q regular\n"
 						# sbatchfile += "#SBATCH -t 0:10:00\n"
-						# sbatchfile += f'#SBATCH --account=lazzati\n'
-						# sbatchfile += f'#SBATCH --partition=lazzati.q\n'
+						sbatchfile += f'#SBATCH --account=lazzati\n'
+						sbatchfile += f'#SBATCH --partition=lazzati.q\n'
 
 						#NAME ORDER needs to be same as the file path order
 						sbatchfile += f"#SBATCH -J {job_name}\n"
 						sbatchfile += f"#SBATCH --nodes {totalNodes}\n"
 						sbatchfile += f"#SBATCH --ntasks-per-node {totalMPITasks}\n"
+						sbatchfile += f"#SBATCH --threads-per-core 1\n"
+						sbatchfile += f"#SBATCH --hint=nomultithread\n"
+						sbatchfile += f"#SBATCH --exclusive\n"
 						sbatchfile += f"#SBATCH --cpus-per-task {threadsPerTask}\n\n"
 						# sbatchfile += "#SBATCH -N {}\n".format(1)#(node)
 
 						# sbatchfile += "#SBATCH -G {}\n".format(node)
 						# sbatchfile += 'module load gpu\n'
 
-						sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(threadsPerTask)
+						sbatchfile += f'export OMP_NUM_THREADS={threadsPerTask}\n'
+						sbatchfile += f'export OMP_PLACES=cores\n'
+						sbatchfile += f'export OMP_PROC_BIND=close\n'
 						# sbatchfile += 'export SLURM_CPU_BIND="socket"\n'
 						# sbatchfile += 'module load hdf5/1.14.3\n'
 						sbatchfile += 'module load gnu12/12.3.0\n'

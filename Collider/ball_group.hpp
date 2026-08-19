@@ -523,6 +523,8 @@ public:
     void calibrate_dt(const int Step, const double& customSpeed);
     bool setDistBasedDT(int step);
     void calc_v_collapse();
+    double getRigidVelMax();
+    double getRigidAccMax();
     [[nodiscard]] double getVelMax();
     [[nodiscard]] double getAccMax();
     void calc_helpfuls(const bool includeRadius=true);
