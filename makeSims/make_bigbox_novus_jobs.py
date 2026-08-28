@@ -101,8 +101,8 @@ if __name__ == '__main__':
 						input_json['temp'] = Temp
 						input_json['dynamicTime'] = True
 						# input_json['dynamicTime'] = False
-						# input_json['seed'] = u.rand_int()
-						input_json['seed'] = 101
+						input_json['seed'] = u.rand_seed()
+						# input_json['seed'] = 101
 						input_json['radiiDistribution'] = 'constant'
 						# input_json['radiiDistribution'] = 'lognormal'
 						input_json['simType'] = 'bigbox'
