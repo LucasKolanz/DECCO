@@ -2339,12 +2339,8 @@ class o3doctree(object):
 				if self.visualize_octree:
 					self.show_octree(octree,self.verbose)
 
-				print(
-				    f"Current RSS after octree is defined: "
-				    f"{current_rss_gib():.2f} GiB",
-				    flush=True,
-				)
-				# points = np.asarray(pcd.points)
+
+				points = np.asarray(pcd.points)
 				# print(f"max_depth: {self.max_depth}", flush=True)
 				# print(f"Number of points: {len(points):,}", flush=True)
 				# print(f"Point dtype: {points.dtype}", flush=True)
@@ -2359,11 +2355,7 @@ class o3doctree(object):
 				
 				octree.convert_from_point_cloud(pcd, size_expand=0.01)
 
-				print(
-				    f"Current RSS after octree is made from pointcloud: "
-				    f"{current_rss_gib():.2f} GiB",
-				    flush=True,
-				)
+
 				
 				#Until the documentation for open3d says what file extension works for octree data, this can't be saved
 				# o3d.io.write_octree(oct_file, octree)
@@ -2394,19 +2386,6 @@ class o3doctree(object):
 			save_data[:,1] = self.Ns_data
 			np.savetxt(fractdim_data_file,save_data, delimiter=',',header=str(octree.size))
 			self.octree_size = octree.size
-
-			# Delete NumPy views before deleting the Open3D object whose
-			# memory they reference.
-			if "points" in locals():
-			    del points
-
-			del octree
-			del pcd
-			
-			if hasattr(self, "dm"):
-			    del self.dm
-
-			gc.collect()
 		# else:
 			
 	#TODO  This function should find the orientation that minimizes 
