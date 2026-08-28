@@ -137,16 +137,19 @@ def calc_porosity_fes(data_folder,size,relax=False,**kwargs):
 	return porosity
 
 def calc_asymmetry_parameter(data_folder,size,relax=False,**kwargs):
-	data,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
-	if data is None:
+	pos,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
+	if pos is None:
 		return np.nan
 	# num_balls = data.shape[0]
+	if "bigbox" in data_folder:
+		boxsize = u.value_from_directory("B",data_folder)
+		pos = u.unwrap_periodic_positions(pos,boxsize)
 
 	vol = [(4*np.pi/3)*r**3 for r in radius]
 
 	effective_radius = np.power(np.sum(np.power(radius,3)),1/3) 
 		
-	principal_moi = u.get_principal_moi(mass,data)[::-1]
+	principal_moi = u.get_principal_moi(mass,pos)[::-1]
 	alphai = principal_moi/(0.4*np.sum(mass)*effective_radius**2)
 
 	# return alphai[0]/np.sqrt(alphai[1]*alphai[2]) #From Draine Sensitivity of Polarization to Grain Shape. I. Convex Shapes
@@ -173,6 +176,10 @@ def calc_porosity_abc(data_folder,size,relax=False, **kwargs):
 	makeVisual = kwargs.get("makeVisual", False)
 
 	pos,radius,mass,moi = u.get_data(data_folder,data_index=size,relax=relax)
+	if "bigbox" in data_folder:
+		boxsize = u.value_from_directory("B",data_folder)
+		pos = u.unwrap_periodic_positions(pos,boxsize)
+
 	if pos is None:
 		return np.nan
 
@@ -302,10 +309,10 @@ if __name__ == '__main__':
 
 
 
-	N = [300]
+	N = [1000]
 	# N = [-1] 
-	C = 30
-	M = [1,3,5,10,15,20,30,50,60,75,100,150]
+	# C = 30
+	# M = [1,3,5,10,15,20,30,50,60,75,100,150]
 	# M = [3,15,100]
 
 	#list of the functions that calculate the data you want
@@ -318,13 +325,13 @@ if __name__ == '__main__':
 	# bool_headers = [1,1,0,0,1,0,0,0]
 
 	bool_headers = [1,1,0,0,1,0,0,0,0,0,0]
-	bool_headers = [0,0,0,1,0,0,0,0,0,0,0]
 	bool_headers = [1,1,0,1,1,1,0,0,0,1,0]
+	bool_headers = [1,0,0,0,1,0,0,0,0,0,0]
 
 	# requested_data_functions = [data_functions[i] for i in range(len(data_functions)) if bool_headers[i]]
 	requested_data_headers = [data_headers[i] for i in range(len(data_headers)) if bool_headers[i]]
 
-	overwritedata = False
+	overwritedata = True
 	makeVisual = False
 
 	print("=========================START GEN DATA=========================")
@@ -336,15 +343,19 @@ if __name__ == '__main__':
 		# data_folders += [path + 'jobs/CBAPA_*']
 		# data_folders += [path + 'jobs/BAPAWELD_*']
 		# data_folders += [path + 'jobs/BAPA_*']
+		data_folders += ["/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/" + 'jobs/bigbox_*']
 
-		data_folders += [path + 'jobs/CBAPA_*/M_60/N_1800/T_1000/']
+
+		# data_folders += [path + 'jobs/CBAPA_*/M_60/N_1800/T_1000/']
 		# data_folders += [path + 'jobs/CBAPA_10/M_60/N_1800/T_1000/']
 		# data_folders += [path + 'jobs/CBAPA_10/M_3/N_90/T_1000/']
 
 
 		possible_dirs = []
 		for data_folder in data_folders:
+			# print(data_folder)
 			possible_dirs.extend(u.get_directores_containing(data_folder,["timing.txt"]))
+		# print(possible_dirs)
 
 		#list of intermediate sizes to calculate data for.
 
@@ -406,7 +417,9 @@ if __name__ == '__main__':
 					#Or if overwrite is true then overwrite anyway
 					if overwritedata or size in requested_sizes:
 					# if overwritedata or size in requested_sizes[d_i]:
-						headers,values = calc_from_size(size,directory,existing_headers_for_size,existing_values_for_size,requested_data_headers,relax,overwritedata,makeVisual)
+						headers,values = calc_from_size(size,directory,existing_headers_for_size,
+														existing_values_for_size,requested_data_headers,
+														relax,overwritedata,makeVisual)
 						print(headers)
 						print(values)
 					else:

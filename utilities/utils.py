@@ -18,6 +18,7 @@ import time
 from itertools import combinations
 from itertools import product
 import subprocess
+import matplotlib.pyplot as plt
 import re
 import resource
 # cwd = os.getcwd()
@@ -82,9 +83,17 @@ def get_plottable_value_from_saved_value(value,header,folder,data_index,relax):
 #could be T for temperature, N for number of particles, etc.
 def value_from_directory(pattern,directory):
 	if pattern != "job_group" and pattern != "attempt" and pattern != "a":
-		val = re.search(rf"{re.escape(pattern)}_(\d+)", directory)
-		intVal = int(val.group(1)) if val else None
-		return intVal
+	    # Matches integers (e.g., 42) or decimals (e.g., 42.5)
+	    val = re.search(rf"{re.escape(pattern)}_([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)", directory)
+	    
+	    if val:
+	        num_str = val.group(1)
+	        # Keeps distinct types: float if a dot is present, otherwise int
+	        numVal = float(num_str) if '.' in num_str else int(num_str)
+	    else:
+	        numVal = None
+	        
+	    return numVal
 
 	else:
 		split_dir = directory.split("/")[::-1]
@@ -381,6 +390,7 @@ def get_data_file(data_folder,data_index=-1,relax=False): #Works with csv or h5
 				old = True
 		if file.endswith(f"{rel}data.h5"):
 			file_suffix = f"_{rel}data.h5"
+
 	try:
 		file_indicies = np.array([file.split('_')[0] for file in files\
 					if file.endswith(file_suffix)],dtype=np.int64)
@@ -1802,6 +1812,190 @@ def get_groups(data_folder,data_index=-1,linenum=-1,relax=False):
 	groups = format_groups(data)
 	return groups
 
+
+def plot_aggregate_3d(
+    positions,
+    radii,
+    color="tab:blue",
+    sphere_resolution=12,
+    alpha=1.0,
+    ax=None,
+    show=True,
+):
+    """
+    Plot a dust aggregate as a collection of 3D spheres.
+
+    Parameters
+    ----------
+    positions : array_like, shape (N, 3)
+        Monomer center positions.
+    radii : float or array_like, shape (N,)
+        Monomer radii. A scalar gives every monomer the same radius.
+    color : str, tuple, or array_like
+        Sphere color. May be one color or one color per monomer.
+    sphere_resolution : int
+        Sphere mesh resolution. Lower values are faster.
+    alpha : float
+        Sphere opacity.
+    ax : matplotlib 3D axis, optional
+        Existing axis on which to plot.
+    show : bool
+        Call plt.show() when True.
+
+    Returns
+    -------
+    fig, ax
+        Matplotlib figure and 3D axis.
+    """
+    positions = np.asarray(positions, dtype=float)
+
+    if positions.ndim != 2 or positions.shape[1] != 3:
+        raise ValueError("positions must have shape (N, 3)")
+
+    n_particles = len(positions)
+
+    radii = np.asarray(radii, dtype=float)
+
+    if radii.ndim == 0:
+        radii = np.full(n_particles, radii)
+    elif radii.shape != (n_particles,):
+        raise ValueError("radii must be a scalar or have shape (N,)")
+
+    if np.any(radii <= 0):
+        raise ValueError("All radii must be positive")
+
+    # Allow either one color or one color per particle.
+    if (
+        isinstance(color, (list, np.ndarray))
+        and len(color) == n_particles
+    ):
+        colors = color
+    else:
+        colors = [color] * n_particles
+
+    if ax is None:
+        fig = plt.figure(figsize=(9, 9))
+        ax = fig.add_subplot(111, projection="3d")
+    else:
+        fig = ax.figure
+
+    # Unit-sphere coordinates.
+    u = np.linspace(0, 2 * np.pi, 2 * sphere_resolution)
+    v = np.linspace(0, np.pi, sphere_resolution)
+
+    unit_x = np.outer(np.cos(u), np.sin(v))
+    unit_y = np.outer(np.sin(u), np.sin(v))
+    unit_z = np.outer(np.ones_like(u), np.cos(v))
+
+    for center, radius, sphere_color in zip(positions, radii, colors):
+        x = center[0] + radius * unit_x
+        y = center[1] + radius * unit_y
+        z = center[2] + radius * unit_z
+
+        ax.plot_surface(
+            x,
+            y,
+            z,
+            color=sphere_color,
+            linewidth=0,
+            antialiased=True,
+            shade=True,
+            alpha=alpha,
+        )
+
+    # Limits include the full extent of every sphere.
+    xyz_min = np.min(positions - radii[:, None], axis=0)
+    xyz_max = np.max(positions + radii[:, None], axis=0)
+
+    center = 0.5 * (xyz_min + xyz_max)
+    half_width = 0.5 * np.max(xyz_max - xyz_min)
+
+    # Prevent singular limits for a one-particle aggregate.
+    if half_width == 0:
+        half_width = np.max(radii)
+
+    ax.set_xlim(center[0] - half_width, center[0] + half_width)
+    ax.set_ylim(center[1] - half_width, center[1] + half_width)
+    ax.set_zlim(center[2] - half_width, center[2] + half_width)
+
+    ax.set_box_aspect((1, 1, 1))
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_zlabel("z")
+
+    if show:
+        plt.show()
+
+    return fig, ax
+
+def unwrap_periodic_positions(positions, box_size, box_min=None, recenter=True):
+    """
+    Unwrap an aggregate split across periodic boundaries.
+
+    Parameters
+    ----------
+    positions : array_like, shape (N, 3)
+        Wrapped particle positions.
+    box_size : float or array_like, shape (3,)
+        Periodic box length. A scalar assumes a cubic box.
+    box_min : float or array_like, shape (3,), optional
+        Lower edge of the periodic box. Defaults to -box_size / 2.
+        Use 0 if your box runs from 0 to box_size.
+    recenter : bool, default=True
+        If True, move the aggregate's center of mass to the box center.
+
+    Returns
+    -------
+    unwrapped : ndarray, shape (N, 3)
+        Contiguous particle positions. These may temporarily lie outside
+        the original periodic box when recenter=False.
+    """
+    positions = np.asarray(positions, dtype=float)
+
+    if positions.ndim != 2 or positions.shape[1] != 3:
+        raise ValueError("positions must have shape (N, 3)")
+
+    box_size = np.broadcast_to(
+        np.asarray(box_size, dtype=float), 3
+    ).copy()
+
+    if np.any(box_size <= 0):
+        raise ValueError("box_size must be positive")
+
+    if box_min is None:
+        box_min = -box_size / 2
+    else:
+        box_min = np.broadcast_to(
+            np.asarray(box_min, dtype=float), 3
+        ).copy()
+
+    # First map everything into [0, L).
+    wrapped = (positions - box_min) % box_size
+    unwrapped = wrapped.copy()
+
+    for axis in range(3):
+        L = box_size[axis]
+        order = np.argsort(wrapped[:, axis])
+        sorted_x = wrapped[order, axis]
+
+        # Gaps between adjacent particles, including the periodic gap.
+        gaps = np.diff(np.concatenate((sorted_x, [sorted_x[0] + L])))
+        largest_gap_index = np.argmax(gaps)
+
+        # Put the periodic cut immediately after the largest empty gap.
+        cut = sorted_x[(largest_gap_index + 1) % len(sorted_x)]
+
+        unwrapped[:, axis] = (wrapped[:, axis] - cut) % L
+
+    if recenter:
+        aggregate_center = np.mean(unwrapped, axis=0)
+        box_center = box_min + box_size / 2
+        unwrapped += box_center - aggregate_center
+    else:
+        unwrapped += box_min
+
+    return unwrapped
+
 def get_data(data_folder,data_index=-1,linenum=-1,relax=False): #Works with both csv and h5
 	if data_folder == '/home/kolanzl/Desktop/bin/merger.csv':
 		data = np.loadtxt(data_folder,delimiter=',')
@@ -2073,6 +2267,9 @@ class datamgr(object):
 		#how many points in single ball pointcloud shell
 		self.ppb = ppb
 		self.data,self.radius,self.mass,self.moi = get_data(self.data_folder,self.index,relax=self.relax)
+		if "bigbox" in data_folder:
+			boxsize = u.value_from_directory("B",self.data_folder)
+			self.data = u.unwrap_periodic_positions(self.data,boxsize)
 		self.nBalls = self.data.shape[0]
 		# self.buffer = voxel_buffer # how many extra voxels in each direction 
 		self.data_range = get_data_range(self.data_folder,self.index,relax=self.relax)

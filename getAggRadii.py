@@ -20,6 +20,8 @@ import glob
 import numpy as np
 import subprocess
 import sys
+import traceback
+from pathlib import Path
 
 relative_path = ""
 relative_path = '/'.join(__file__.split('/')[:-1]) + '/' + relative_path
@@ -45,42 +47,63 @@ def calc_agg_radii(pos,COM):
 
 def main():
 
-	#Open SpaceLab default file for directory information
-	with open(project_path+"default_files/default_input.json",'r') as fp:
+
+	# Open SpaceLab default file for directory information
+	with open(project_path + "default_files/default_input.json", "r") as fp:
 		input_json = json.load(fp)
 
-	job_templates = [input_json["data_directory"] + 'jobsCosine/' + 'lognorm_relax' + '{a}/N_{n}/T_{t}/']
-	job_templates.append(input_json["data_directory"] + 'jobsNovus/' + 'const_relax' + '{a}/N_{n}/T_{t}/')
+	data_directory = Path(input_json["data_directory"])
 
-	attempts = [i for i in range(30)]
+	jobs_root = Path(input_json["data_directory"]) / "jobs"
 
-	N = [30,100,300]
-	# N=[300]
+	job_globs = [
+		"BAPA_*/M_*/N_*/T_*",
+		"CBAPA_*/M_*/N_*/T_*",
+		"DBAPA_*/M_*/N_*/T_*",
+		"BAPAWELD_*/M_*/N_*/T_*",
+	]
 
-	Temps = [3,10,30,100,300,1000]
-	# Temps = [1000]
+	folders = sorted(
+		folder
+		for pattern in job_globs
+		for folder in jobs_root.glob(pattern)
+		if folder.is_dir() and (folder / "timing.txt").is_file()
+	)
 
-	radii = np.full(shape=(len(job_templates)*len(N)*len(Temps)*len(attempts)),fill_value=np.nan)
-	i = 0
+	print(f"Found {len(folders)} completed folders")
 
-	for job_template in job_templates:
-		for a in attempts:
-			for n in N:
-				for t in Temps:
-					folder = job_template.replace("{a}",str(a)).replace("{n}",str(n)).replace("{t}",str(t))
-					
-					try:
-						pos,_,mass,_ = u.get_data(folder,relax=True)
+	aggradii = []
+	monomerradii = []
+	agg_folders = []
 
-						radii[i] = calc_agg_radii(pos,u.calcCOM(pos,mass))
-						# print(radii[i])
-					except:
-						print(folder)
+	for folder in folders:
+		agg_folders.append(str(folder) + "/")
+		try:
+			pos, radii, mass, _ = u.get_data(str(folder) + "/", relax=False)
+			# print(pos.shape)
+			aggradii.append(calc_agg_radii(pos, u.calcCOM(mass, pos)))
 
-					i+=1
-					
-	print(np.nanmax(radii))
-	print(np.nanmin(radii))
+			monomerradii.append(max(radii))
+			monomerradii.append(min(radii))
+
+		except Exception:
+			print(f"Error processing: {folder}")
+			traceback.print_exc()
+			exit(0)
+
+	aggradii = np.asarray(aggradii, dtype=np.float64)
+
+	if aggradii.size > 0:
+		print(f"Processed {len(aggradii)} folders")
+		print(f"Maximum aggregate radius: {np.nanmax(aggradii)} cm")
+		print(f"Maximum aggregate folder: {agg_folders[np.nanargmax(aggradii)]} cm")
+		print(f"Minimum aggregate radius: {np.nanmin(aggradii)} cm")
+		print(f"Minimum aggregate folder: {agg_folders[np.nanargmin(aggradii)]} cm")
+
+		print(f"Maximum monomer radius: {np.nanmax(monomerradii)} cm")
+		print(f"Minimum monomer radius: {np.nanmin(monomerradii)} cm")
+	else:
+		print("No matching folders were successfully processed.")
 
 if __name__ == '__main__':
 	main()
