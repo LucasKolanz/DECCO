@@ -221,10 +221,14 @@ def calc_number_of_contacts(data_folder,data_index=-1,relax=False,**kwargs):
 
 def calc_fractal_dimension(data_folder,size,relax=False,**kwargs):
 	makeVisual = kwargs.get("makeVisual", False)
-
+	print(
+	    f"Before aggregate {directory}: "
+	    f"max RSS = {u.max_rss_gib():.2f} GiB",
+	    flush=True,
+	)
 	overwrite_octree_data = True
 	show_FD_plots = False
-	o3dv = u.o3doctree(data_folder,overwrite_data=overwrite_octree_data,index=size,Temp=-1,relax=relax)
+	o3dv = u.o3doctree(data_folder,ppb=20000,overwrite_data=overwrite_octree_data,index=size,Temp=-1,relax=relax)
 	o3dv.make_tree()
 	FD = o3dv.calc_fractal_dimension(show_graph=show_FD_plots)
 	return FD
@@ -314,7 +318,7 @@ if __name__ == '__main__':
 	# bool_headers = [1,1,0,0,1,0,0,0]
 
 	bool_headers = [1,1,0,0,1,0,0,0,0,0,0]
-	bool_headers = [0,0,0,0,0,1,0,0,0,0,0]
+	bool_headers = [0,0,0,1,0,0,0,0,0,0,0]
 	bool_headers = [1,1,0,1,1,1,0,0,0,1,0]
 
 	# requested_data_functions = [data_functions[i] for i in range(len(data_functions)) if bool_headers[i]]
@@ -323,14 +327,19 @@ if __name__ == '__main__':
 	overwritedata = False
 	makeVisual = False
 
+	print("=========================START GEN DATA=========================")
+
 	for n_i,n in enumerate(N):
 	
 		data_folders = []
-		data_folders += [path + 'jobs/DBAPA_*']
-		data_folders += [path + 'jobs/CBAPA_*']
-		data_folders += [path + 'jobs/BAPAWELD_*']
-		data_folders += [path + 'jobs/BAPA_*']
+		# data_folders += [path + 'jobs/DBAPA_*']
+		# data_folders += [path + 'jobs/CBAPA_*']
+		# data_folders += [path + 'jobs/BAPAWELD_*']
+		# data_folders += [path + 'jobs/BAPA_*']
 
+		data_folders += [path + 'jobs/CBAPA_*/M_60/N_1800/T_1000/']
+		# data_folders += [path + 'jobs/CBAPA_10/M_60/N_1800/T_1000/']
+		# data_folders += [path + 'jobs/CBAPA_10/M_3/N_90/T_1000/']
 
 
 		possible_dirs = []

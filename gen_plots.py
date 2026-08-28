@@ -2688,9 +2688,9 @@ def gen_other_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
     raw_dbapa_permute, raw_cbapa_permute = permutate_data(raw_dbapa_permute, raw_cbapa_permute,permutation)
     
     all_data[0,asym_param_index,:,DBAPA_M_ind,0] = raw_dbapa_permute
-    np.savetxt(f"{path}/temp/dbapa_permutation.csv",raw_dbapa_permute)
+    np.savetxt(f"{path}temp/dbapa_permutation.csv",raw_dbapa_permute)
     all_data[1,asym_param_index,:,CBAPA_M_ind,0] = raw_cbapa_permute
-    np.savetxt(f"{path}/temp/cbapa_permutation.csv", raw_cbapa_permute)
+    np.savetxt(f"{path}temp/cbapa_permutation.csv", raw_cbapa_permute)
 
     for d_i,data_prefolder in enumerate(data_prefolders):
         avg_data = np.nanmean(all_data[d_i],axis=1)
@@ -2709,6 +2709,11 @@ def gen_other_BAPA_plots(show_plots=True,save_plots=False,include_totals=False):
             std_data_CBAPA = std_data
             num_data_CBAPA = num_data
             err_data_CBAPA = err_data
+
+            print(all_data[d_i,0,:,8,0])
+            print()
+            print(all_data[d_i,2,:,8,0])
+            exit(0)
 
     # #ensure average for repeated sims
     # avg = (avg_data_DBAPA[3,9,0] + avg_data_CBAPA[3,5,0])/2.0
@@ -6983,8 +6988,8 @@ if __name__ == '__main__':
 
     ##Plots for paper 2
     gen_other_BAPA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
-    gen_DBAPA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
-    gen_BAPA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
+    # gen_DBAPA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
+    # gen_BAPA_plots(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
     # gen_BAPA_plots_images(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
     # gen_BAPA_porosity_vs_asymmetry(show_plots=show_plots,save_plots=save_plots,include_totals=include_totals)
     # gen_geometry_plot(save_plots=save_plots,show_plots=show_plots)
