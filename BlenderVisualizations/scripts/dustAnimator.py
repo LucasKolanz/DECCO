@@ -194,14 +194,23 @@ path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobsNovus/constr
 path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/JKRTestest_0/'
 path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/spinTest0/N_3/T_3/'
 path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/WELDTEST_1/M_10/N_30/T_1000/'
-path = '/home/kolanzl/Desktop/Visualize/V1/'
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/CBAPA_27/M_20/N_600/T_1000/'
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/DBAPA_27/M_20/N_600/T_1000/'
+path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/CBAPA_11/M_60/N_1800/T_1000/'
+path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/DBAPA_16/M_20/N_20/T_1000/'
+path = '/home/kolanzl/Desktop/Visualize/V3/'
 #9,12,
 
-simStart = 600
-simEnd = 600
-just_last_line = True 
+simStart = 1000
+simEnd = 1000
+just_last_line = False
+
+startline = 1100
+endline = -1
+stepline = 1
+
+
+if endline == -1:
+    with open(path + f"{simStart}_simData.csv", "rb") as f:
+        endline =  sum(chunk.count(b"\n") for chunk in iter(lambda: f.read(1024 * 1024), b"")) -1
 
 
 #csv = False
@@ -307,7 +316,8 @@ for i,sim in enumerate(sims):
     if just_last_line:
         show_steps = [steps-1]
     else:
-        show_steps = list(range(steps))
+        # show_steps = list(range(steps))
+        show_steps = list(range(startline,endline,stepline))
     for step in show_steps:
         if step%stepSkip == 0:
             print("step: ",step) 

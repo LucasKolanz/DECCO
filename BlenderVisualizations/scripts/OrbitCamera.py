@@ -1383,7 +1383,7 @@ target_point = (0.0, 0.0, 0.0)
 
 
 def r_of_t(t):
-   return 250
+   return 1000
 
 def theta_of_t(t):
    return 180*(13.0/51.0)
@@ -1415,7 +1415,8 @@ animate_parameterized_camera(
 
 print("setting up rendering image sequence")
 setup_image_sequence_render(
-   output_dir="/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/data/videos/aggregate_orbit/",
+   # output_dir="/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/data/videos/aggregate_orbit/",
+   output_dir="/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/data/videos/bigbox_orbit/",
    frame_start=frame_start,
    frame_end=frame_end,
    fps=20,
@@ -1436,5 +1437,4 @@ setup_image_sequence_render(
 print("rendering image sequence")
 render_image_sequence()
 
-# ffmpeg -framerate 20 -pattern_type glob -i "aggregate_*.png" \
-#   -c:v libx264 -pix_fmt yuv420p aggregate_orbit_test.mp4
+# ffmpeg -framerate 20 -pattern_type glob -i "aggregate_*.png" -c:v libx264 -pix_fmt yuv420p bigbox_orbit.mp4
