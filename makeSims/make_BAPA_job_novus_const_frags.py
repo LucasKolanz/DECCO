@@ -73,7 +73,7 @@ if __name__ == '__main__':
 	# M = [100]
 	#Other node M
 	# M = [3,5,10,15,20,30]
-	M = [50,60] 
+	M = [50,60,100] 
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [1000]
@@ -162,8 +162,8 @@ if __name__ == '__main__':
 					# sbatchfile += "#SBATCH -C gpu\n"
 					# sbatchfile += "#SBATCH -q regular\n"
 					# sbatchfile += "#SBATCH -t 0:10:00\n"
-					# sbatchfile += f'#SBATCH --account=lazzati\n'
-					# sbatchfile += f'#SBATCH --partition=lazzati.q\n'
+					sbatchfile += f'#SBATCH --account=lazzati\n'
+					sbatchfile += f'#SBATCH --partition=lazzati.q\n'
 
 					#NAME ORDER needs to be same as the file path order
 					sbatchfile += f"#SBATCH -J {job_name}\n"

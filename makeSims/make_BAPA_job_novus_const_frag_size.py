@@ -157,7 +157,7 @@ if __name__ == '__main__':
 					# sbatchfile += "#SBATCH -A m2651\n"
 					# sbatchfile += "#SBATCH -C gpu\n"
 					# sbatchfile += "#SBATCH -q regular\n"
-					# sbatchfile += "#SBATCH -t 0:10:00\n"
+					sbatchfile += "#SBATCH -t 5-00:00:00\n"
 					# sbatchfile += f'#SBATCH --account=lazzati\n'
 					# sbatchfile += f'#SBATCH --partition=lazzati.q\n'
 
