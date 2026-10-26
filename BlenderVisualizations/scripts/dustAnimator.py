@@ -6,6 +6,7 @@ from mathutils import *
 from math import *
 import fnmatch
 import os
+import re
 
 import sys
 sys.path.append('/home/kolanzl/.local/lib/python3.11/site-packages')
@@ -21,6 +22,118 @@ sys.path.append('/home/kolanzl/.local/lib/python3.11/site-packages')
 # ## sys.path.append("/home/kolanzl/Desktop/SpaceLab/")
 # import utils as u
 
+
+def unwrap_periodic_positions(positions, box_size, box_min=None, recenter=True):
+    """
+    Unwrap an aggregate split across periodic boundaries.
+
+    Parameters
+    ----------
+    positions : array_like, shape (N, 3)
+        Wrapped particle positions.
+    box_size : float or array_like, shape (3,)
+        Periodic box length. A scalar assumes a cubic box.
+    box_min : float or array_like, shape (3,), optional
+        Lower edge of the periodic box. Defaults to -box_size / 2.
+        Use 0 if your box runs from 0 to box_size.
+    recenter : bool, default=True
+        If True, move the aggregate's center of mass to the box center.
+
+    Returns
+    -------
+    unwrapped : ndarray, shape (N, 3)
+        Contiguous particle positions. These may temporarily lie outside
+        the original periodic box when recenter=False.
+    """
+    positions = np.asarray(positions, dtype=float)
+
+    if positions.ndim != 2 or positions.shape[1] != 3:
+        raise ValueError("positions must have shape (N, 3)")
+
+    box_size = np.broadcast_to(
+        np.asarray(box_size, dtype=float), 3
+    ).copy()
+
+    if np.any(box_size <= 0):
+        raise ValueError("box_size must be positive")
+
+    if box_min is None:
+        box_min = -box_size / 2
+    else:
+        box_min = np.broadcast_to(
+            np.asarray(box_min, dtype=float), 3
+        ).copy()
+
+    # First map everything into [0, L).
+    wrapped = (positions - box_min) % box_size
+    unwrapped = wrapped.copy()
+
+    for axis in range(3):
+        L = box_size[axis]
+        order = np.argsort(wrapped[:, axis])
+        sorted_x = wrapped[order, axis]
+
+        # Gaps between adjacent particles, including the periodic gap.
+        gaps = np.diff(np.concatenate((sorted_x, [sorted_x[0] + L])))
+        largest_gap_index = np.argmax(gaps)
+
+        # Put the periodic cut immediately after the largest empty gap.
+        cut = sorted_x[(largest_gap_index + 1) % len(sorted_x)]
+
+        unwrapped[:, axis] = (wrapped[:, axis] - cut) % L
+
+    if recenter:
+        aggregate_center = np.mean(unwrapped, axis=0)
+        box_center = box_min + box_size / 2
+        unwrapped += box_center - aggregate_center
+    else:
+        unwrapped += box_min
+
+    return unwrapped
+
+#finds the integer corresponding to a particular part of the directory structure
+#could be T for temperature, N for number of particles, etc.
+def value_from_directory(pattern,directory):
+    if pattern != "job_group" and pattern != "attempt" and pattern != "a":
+        # Matches integers (e.g., 42) or decimals (e.g., 42.5)
+        val = re.search(rf"{re.escape(pattern)}_([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)", directory)
+        
+        if val:
+            num_str = val.group(1)
+            # Keeps distinct types: float if a dot is present, otherwise int
+            numVal = float(num_str) if '.' in num_str else int(num_str)
+        else:
+            numVal = None
+            
+        return numVal
+
+    else:
+        split_dir = directory.split("/")[::-1]
+        split_again = [folder.split('_') for folder in split_dir]
+        # print(split_again)
+
+        group_index = -1
+        for i in range(len(split_dir)):
+            # if split_again[i][0] == "N":
+            # print(split_again[i][0])
+            # print(i)
+            # print(split_again[i+1][0])
+            # print(i+1)
+            if split_again[i][0] == "N" and split_again[i+1][0] == "M":
+                group_index = i+2
+            elif split_again[i][0] == "N" and split_again[i+1][0] != "M":
+                group_index = i+1
+        if group_index < 0:
+            print(f"Group index not found for {directory}.\nNow exiting...")
+            exit(-1)
+
+        if pattern == "job_group":
+            return split_again[group_index][0]
+        elif pattern == "attempt" or pattern == 'a':
+            return int(split_again[group_index][1])
+        else:
+            print("This should never happen :))")
+            exit(-1)
 
 #returns all indices in a directory if {index}_checkpoint.txt exists, or 
 #if the data file exits and timing.txt exists.
@@ -194,16 +307,17 @@ path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobsNovus/constr
 path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/JKRTestest_0/'
 path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/spinTest0/N_3/T_3/'
 path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/WELDTEST_1/M_10/N_30/T_1000/'
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/CBAPA_11/M_60/N_1800/T_1000/'
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/DBAPA_16/M_20/N_20/T_1000/'
 path = '/home/kolanzl/Desktop/Visualize/V3/'
+path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/jobs/bigbox_5/N_1000/B_3.000e-03/T_3/'
+path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/weldVerificationCollision_6/'
 #9,12,
 
-simStart = 1000
-simEnd = 1000
+simStart = 300
+simEnd = 300
 just_last_line = False
+bigbox = False
 
-startline = 1100
+startline = 0
 endline = -1
 stepline = 1
 
@@ -233,7 +347,7 @@ sims = [i for i in sims if i >= simStart and i <= simEnd]
 print(f"sims: {sims}")
 
 
-simData,constants,numSpheres,steps = get_simData_and_consts(path,sims[0],relax=rel)  
+simData,constants,numSpheres,steps = get_simData_and_consts(path,sims[0],relax=rel)
 if len(simData.shape) == 1:
     simData = simData[np.newaxis,:]
 if isinstance(simData,int) and simData == -1:
@@ -243,6 +357,10 @@ if isinstance(simData,int) and simData == -1:
 # print(simData.shape)
 pos,m,r = pos_m_r(simData,constants) 
 
+if bigbox or "bigbox" in path:
+    boxsize = value_from_directory("B",path)
+    for i,p in enumerate(pos):
+        pos[i] = unwrap_periodic_positions(p,boxsize)  
 
 
 sphereSet = []
@@ -287,6 +405,10 @@ for i,sim in enumerate(sims):
 #        print(simData.shape)        
         simData,constants,numSpheres,steps = get_simData_and_consts(path,sim,rel)
         pos,m,r = pos_m_r(simData,constants)
+        if bigbox or "bigbox" in path:
+            boxsize = value_from_directory("B",path)
+            for i,p in enumerate(pos):
+                pos[i] = unwrap_periodic_positions(p,boxsize)
         print(f"Steps: {steps}")
 #	    print(simData.shape)
         print(f"total spheres in sim {i}: {numSpheres}")
