@@ -32,11 +32,11 @@ import utils as u
 
 
 
-def calc_agg_radii(pos,COM):
+def calc_agg_radii(pos,monomer_radii,COM):
 	
 	radii = 0
-	for p in pos:
-		r = np.linalg.norm(p-COM)
+	for i,p in enumerate(pos):
+		r = np.linalg.norm(p-COM) + monomer_radii[i]
 		
 		if r > radii:
 			radii = r 
@@ -81,7 +81,7 @@ def main():
 		try:
 			pos, radii, mass, _ = u.get_data(str(folder) + "/", relax=False)
 			# print(pos.shape)
-			aggradii.append(calc_agg_radii(pos, u.calcCOM(mass, pos)))
+			aggradii.append(calc_agg_radii(pos, radii, u.calcCOM(mass, pos)))
 
 			monomerradii.append(max(radii))
 			monomerradii.append(min(radii))
