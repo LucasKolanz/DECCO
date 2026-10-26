@@ -228,7 +228,7 @@ void runCollider(std::string path)
     // std::cerr<<"Ball_group initiated"<<std::endl;
     safetyChecks(O);
     // std::cerr<<"safety checked"<<std::endl;
-    O.sim_init_write();
+    O.sim_init_write(O.attrs.num_particles);
     // std::cerr<<"sim init wrote"<<std::endl;
     O.sim_looper(O.attrs.start_step);
     // std::cerr<<"looper finished"<<std::endl;

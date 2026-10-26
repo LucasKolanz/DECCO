@@ -407,9 +407,6 @@ vec3
 perpendicular_shift(const double3x3 local_basis, const double y, const double z)
 {
     return to_vec3(local_basis.y * y + local_basis.z * z);
-
-    // const auto basis33_transpose = transpose(local_basis);
-    // return to_vec3(mul(basis33_transpose, double3(0, y, z)));
 }
 
 void

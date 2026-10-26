@@ -1,3 +1,7 @@
+//TODO: 
+//  Check type being passed to each input parameter to give better info if a 
+//      wrong type is passed.
+
 
 #include <omp.h>
 #include <thread>
@@ -266,6 +270,7 @@ void Ball_group::colliderInit(const std::string path)
     calc_v_collapse(); //Move this into sim_init_two_clusters so it is run when aggregates are centered at origin. Use the larger of the two if different
     calibrate_dt(0, attrs.v_custom);
     simInit_cond_and_center(true);
+    attrs.start_index = attrs.num_particles;
 }
 
 // Initializes BPCA, BCCA, and BAPA job for restart or new job.
@@ -683,26 +688,30 @@ void Ball_group::init_data(int counter = 0)
 //increase by 1 each time a new group is added
 int Ball_group::set_num_groups()
 {
-    int g = 0;
-    for (int i = 0; i < attrs.num_particles; ++i)
-    {
-        if (group[i] == g)
-        {
-            g++;
-            continue;
-        }
-    }
-
-    attrs.num_groups = g;
+    attrs.num_groups = count_num_groups();
     return attrs.num_groups;
 }
+// int Ball_group::set_num_groups()
+// {
+//     int g = 0;
+//     for (int i = 0; i < attrs.num_particles; ++i)
+//     {
+//         if (group[i] == g)
+//         {
+//             g++;
+//             continue;
+//         }
+//     }
+
+//     attrs.num_groups = g;
+//     return attrs.num_groups;
+// }
 
 
 
 //Parses input.json file that is in the same folder the executable is in
 void Ball_group::parse_input_file(std::string location)
 {
-
     MPIsafe_print(std::cerr,std::string("Parsing input file: "+location+"input.json\n"));
     json inputs = getJsonFromFolder(location);
     set_attribute(inputs,"output_folder",attrs.output_folder);
@@ -1353,13 +1362,81 @@ vec3 Ball_group::calc_momentum(const std::string& of = "") const
     return pTotal;
 }
 
-// offset cluster
-void Ball_group::offset(const double& rad1, const double& rad2, const double& impactParam) const
+// // offset cluster
+// void Ball_group::offset(const double& rad1, const double& rad2, const double& impactParam) const
+// {
+//     for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
+//         pos[Ball].x += (rad1 + rad2) * cos(impactParam);
+//         pos[Ball].y += (rad1 + rad2) * sin(impactParam);
+//     }
+// }
+
+//impactParam is the normalized impact parameter
+void Ball_group::offset(
+    const double& rad1,
+    const double& rad2,
+    const double& impactParam) const
 {
-    for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
-        pos[Ball].x += (rad1 + rad2) * cos(impactParam);
-        pos[Ball].y += (rad1 + rad2) * sin(impactParam);
-    }
+    const vec3 projectile_vcom = getVCOM();
+
+    const double3x3 local_coords =
+        local_coordinates(to_double3(projectile_vcom));
+
+    const double distance = rad1 + rad2;
+
+
+    const vec3 shift = perpendicular_shift(
+        local_coords,
+        distance * impactParam,
+        0
+    );
+
+    move(-shift);
+}
+
+//@brief gives the projectile an offset (making sure projectile and target will still collide)
+//@param local_coords is plane perpendicular to direction of projectile
+//@param projectile is projectile's position before offset is applied
+//@param projectile_vel is projectile's velocity
+//@returns the vector from the original particle position to the new position
+vec3 Ball_group::random_offset(
+    Ball_group &projectile,
+    Ball_group &target)
+{
+
+    const auto possible_radius = target.getRadius(target.getCOM()) + projectile.getRadius(projectile.getCOM());
+    const auto projectile_vcom = projectile.getVCOM();
+    // const auto projectile_radius = projectile.getRadius(projectile.getCOM());
+    bool intersect = false;
+    int count = 0;
+    vec3 shift;
+    vec3 new_position = vec3(0,0,0);
+    const double3x3 local_coords = local_coordinates(to_double3(projectile_vcom));
+    do {
+        const auto rand_y = rand_between(-possible_radius, possible_radius);
+        const auto rand_z = rand_between(-possible_radius, possible_radius);
+        count++;
+
+        for (size_t i = 0; i < projectile.attrs.num_particles; ++i) {
+            shift = perpendicular_shift(local_coords, rand_y, rand_z);
+            auto test_pos = projectile.pos[i] + shift;
+            for (size_t j = 0; j < target.attrs.num_particles; j++) {
+                // Check that velocity intersects one of the spheres:
+                if (line_sphere_intersect(test_pos, projectile_vcom, target.pos[j], target.R[j] + projectile.R[i])) {
+                    // new_position = projectile.getCOM()+shift;
+                    intersect = true;
+                    break;
+                }
+            }
+            if (intersect)
+            {
+                break;
+            }
+        }
+    } while (!intersect);
+
+    projectile.move(-shift);
+    return shift;
 }
 
 /// Approximate the radius of the ballGroup.
@@ -1544,7 +1621,7 @@ void Ball_group::sim_init_write(int counter)
         vec3 com = comNumerator / attrs.m_total;
         return com;
     } else {
-        std::cerr << "Mass of cluster is zero.\n";
+        std::cerr << "Mass of cluster is zero in getCOM().\n";
         exit(EXIT_FAILURE);
     }
 }
@@ -1557,7 +1634,7 @@ void Ball_group::sim_init_write(int counter)
         vec3 vcom = vcomNumerator / attrs.m_total;
         return vcom;
     } else {
-        std::cerr << "Mass of cluster is zero.\n";
+        std::cerr << "Mass of cluster is zero in getVCOM().\n";
         exit(EXIT_FAILURE);
     }
 }
@@ -1797,50 +1874,7 @@ Ball_group Ball_group::spawn_particles(const int count)
 //     return projectile_pos-new_position;
 // }
 
-//@brief gives the projectile an offset (making sure projectile and target will still collide)
-//@param local_coords is plane perpendicular to direction of projectile
-//@param projectile is projectile's position before offset is applied
-//@param projectile_vel is projectile's velocity
-//@returns the vector from the original particle position to the new position
-vec3 Ball_group::random_offset(
-    Ball_group &projectile,
-    Ball_group &target)
-{
 
-    const auto possible_radius = target.getRadius(target.getCOM()) + projectile.getRadius(projectile.getCOM());
-    const auto projectile_vcom = projectile.getVCOM();
-    // const auto projectile_radius = projectile.getRadius(projectile.getCOM());
-    bool intersect = false;
-    int count = 0;
-    vec3 shift;
-    vec3 new_position = vec3(0,0,0);
-    const double3x3 local_coords = local_coordinates(to_double3(projectile_vcom));
-    do {
-        const auto rand_y = rand_between(-possible_radius, possible_radius);
-        const auto rand_z = rand_between(-possible_radius, possible_radius);
-        count++;
-
-        for (size_t i = 0; i < projectile.attrs.num_particles; ++i) {
-            shift = perpendicular_shift(local_coords, rand_y, rand_z);
-            auto test_pos = projectile.pos[i] + shift;
-            for (size_t j = 0; j < target.attrs.num_particles; j++) {
-                // Check that velocity intersects one of the spheres:
-                if (line_sphere_intersect(test_pos, projectile_vcom, target.pos[j], target.R[j] + projectile.R[i])) {
-                    // new_position = projectile.getCOM()+shift;
-                    intersect = true;
-                    break;
-                }
-            }
-            if (intersect)
-            {
-                break;
-            }
-        }
-    } while (!intersect);
-
-    projectile.move(-shift);
-    return shift;
-}
 
 //This function should calculate the Potential energy of a group.
 //This Potential energy should not include elastic PE.
@@ -2002,9 +2036,9 @@ Ball_group Ball_group::BPCA_projectile_init()
     //Update v_custom if temp or eta are greater than zero
     overwrite_v_custom(projectile);
 
-    if (attrs.JKR){pos_and_vel_for_collision_JKR(projectile);}
-    else{pos_and_vel_for_collision(projectile);}
-    
+    // if (attrs.JKR){pos_and_vel_for_collision_JKR(projectile);}
+    // else{pos_and_vel_for_collision(projectile);}
+    pos_and_vel_for_collision(projectile);
     
     return projectile;
 }
@@ -2051,8 +2085,9 @@ Ball_group Ball_group::BCCA_projectile_init(const bool symmetric=true)
     //Update v_custom if temp or eta are greater than zero
     overwrite_v_custom(projectile);
 
-    if (attrs.JKR){pos_and_vel_for_collision_JKR(projectile);}
-    else{pos_and_vel_for_collision(projectile);}
+    // if (attrs.JKR){pos_and_vel_for_collision_JKR(projectile);}
+    // else{pos_and_vel_for_collision(projectile);}
+    pos_and_vel_for_collision(projectile);
 
     
     return projectile;
@@ -2131,8 +2166,9 @@ Ball_group Ball_group::BAPA_projectile_init()
 
     overwrite_v_custom(projectile);
 
-    if (attrs.JKR){pos_and_vel_for_collision_JKR(projectile);}
-    else{pos_and_vel_for_collision(projectile);}
+    // if (attrs.JKR){pos_and_vel_for_collision_JKR(projectile);}
+    // else{pos_and_vel_for_collision(projectile);}
+    pos_and_vel_for_collision(projectile);
 
     
     return projectile;
@@ -2231,22 +2267,6 @@ void Ball_group::merge_ball_group(const Ball_group& src,const bool includeRadius
 {
     int dst_start = attrs.num_particles_added;
     int count = src.attrs.num_particles;
-    // Copy incoming data to the end of the currently loaded data.
-    // std::memcpy(
-    //     &distances[attrs.num_particles_added], src.distances, sizeof(src.distances[0]) * src.attrs.num_particles);
-    // checked_copy(distances,attrs.num_particles,dst_start,src.distances,src.attrs.num_particles,count,"distances");
-
-    // std::memcpy(&pos[attrs.num_particles_added], src.pos, sizeof(src.pos[0]) * src.attrs.num_particles);
-    // std::memcpy(&vel[attrs.num_particles_added], src.vel, sizeof(src.vel[0]) * src.attrs.num_particles);
-    // std::memcpy(&velh[attrs.num_particles_added], src.velh, sizeof(src.velh[0]) * src.attrs.num_particles);
-    // std::memcpy(&acc[attrs.num_particles_added], src.acc, sizeof(src.acc[0]) * src.attrs.num_particles);
-    // std::memcpy(&w[attrs.num_particles_added], src.w, sizeof(src.w[0]) * src.attrs.num_particles);
-    // std::memcpy(&wh[attrs.num_particles_added], src.wh, sizeof(src.wh[0]) * src.attrs.num_particles);
-    // std::memcpy(&aacc[attrs.num_particles_added], src.aacc, sizeof(src.aacc[0]) * src.attrs.num_particles);
-    // std::memcpy(&R[attrs.num_particles_added], src.R, sizeof(src.R[0]) * src.attrs.num_particles);
-    // std::memcpy(&m[attrs.num_particles_added], src.m, sizeof(src.m[0]) * src.attrs.num_particles);
-    // std::memcpy(&moi[attrs.num_particles_added], src.moi, sizeof(src.moi[0]) * src.attrs.num_particles);
-    // std::memcpy(&group[attrs.num_particles_added], src.group, sizeof(src.group[0]) * src.attrs.num_particles);
 
     checked_copy(distances, attrs.num_particles, dst_start,
                  src.distances, src.attrs.num_particles, count, "distances");
@@ -2284,53 +2304,6 @@ void Ball_group::merge_ball_group(const Ball_group& src,const bool includeRadius
     checked_copy(group, attrs.num_particles, dst_start,
                  src.group, src.attrs.num_particles, count, "group");
 
-    // if (this->attrs.weld)
-    // {
-    //     std::cerr<<"------------------------------------------------------------"<<std::endl;
-    //     std::cerr << "&src = " << &src << " this = " << this << "\n";
-    //     assert(&src != this);
-    //     assert(attrs.num_groups_added + src.attrs.num_groups <= group_pos.size());
-    //     assert(attrs.num_groups_added + src.attrs.num_groups <= group_velh.size());
-    //     assert(attrs.num_groups_added + src.attrs.num_groups <= group_vel.size());
-    //     assert(attrs.num_groups_added + src.attrs.num_groups <= group_q.size());
-    //     assert(attrs.num_groups_added + src.attrs.num_groups <= group_wh.size());
-    //     assert(attrs.num_groups_added + src.attrs.num_groups <= group_w.size());
-    //     assert(attrs.num_groups_added + src.attrs.num_groups <= group_aacc.size());
-    //     assert(attrs.num_groups_added + src.attrs.num_groups <= group_acc.size());
-    //     assert(attrs.num_groups_added + src.attrs.num_groups <= group_mass.size());
-
-    //     assert(attrs.num_particles_added + src.attrs.num_particles <= group_offset_body.size());
-
-    //     std::cerr<<"src.attrs.num_groups: "<<src.attrs.num_groups<<std::endl;
-    //     std::cerr<<"src.group_pos.size(): "<<src.group_pos.size()<<std::endl;
-    //     assert(src.attrs.num_groups <= src.group_pos.size());
-    //     assert(src.attrs.num_groups <= src.group_velh.size());
-    //     assert(src.attrs.num_groups <= src.group_vel.size());
-    //     assert(src.attrs.num_groups <= src.group_q.size());
-    //     assert(src.attrs.num_groups <= src.group_wh.size());
-    //     assert(src.attrs.num_groups <= src.group_w.size());
-    //     assert(src.attrs.num_groups <= src.group_aacc.size());
-    //     assert(src.attrs.num_groups <= src.group_acc.size());
-    //     assert(src.attrs.num_groups <= src.group_mass.size());
-
-    //     assert(src.attrs.num_particles <= src.group_offset_body.size());
-    //     std::cerr<<"ASSERTIONS PASSED"<<std::endl;
-
-    //     std::copy(src.group_pos.begin(),src.group_pos.begin()+src.attrs.num_groups,group_pos.begin()+attrs.num_groups_added);
-    //     std::copy(src.group_velh.begin(),src.group_velh.begin()+src.attrs.num_groups,group_velh.begin()+attrs.num_groups_added);
-    //     std::copy(src.group_vel.begin(),src.group_vel.begin()+src.attrs.num_groups,group_vel.begin()+attrs.num_groups_added);
-    //     std::copy(src.group_q.begin(),src.group_q.begin()+src.attrs.num_groups,group_q.begin()+attrs.num_groups_added);
-    //     std::copy(src.group_wh.begin(),src.group_wh.begin()+src.attrs.num_groups,group_wh.begin()+attrs.num_groups_added);
-    //     std::copy(src.group_w.begin(),src.group_w.begin()+src.attrs.num_groups,group_w.begin()+attrs.num_groups_added);
-    //     std::copy(src.group_aacc.begin(),src.group_aacc.begin()+src.attrs.num_groups,group_aacc.begin()+attrs.num_groups_added);
-    //     std::copy(src.group_acc.begin(),src.group_acc.begin()+src.attrs.num_groups,group_acc.begin()+attrs.num_groups_added);
-    //     std::copy(src.group_mass.begin(),src.group_mass.begin()+src.attrs.num_groups,group_mass.begin()+attrs.num_groups_added);
-    //     std::copy(src.group_moi_body.begin(),src.group_moi_body.begin()+src.attrs.num_groups,group_moi_body.begin()+attrs.num_groups_added);
-    //     std::copy(src.group_moi_inv_body.begin(),src.group_moi_inv_body.begin()+src.attrs.num_groups,group_moi_inv_body.begin()+attrs.num_groups_added);
-
-    //     std::copy(src.group_offset_body.begin(),src.group_offset_body.begin()+src.attrs.num_particles,group_offset_body.begin()+attrs.num_particles_added);
-    //     std::cerr<<"COPIES COMPLETE"<<std::endl;
-    // }
 
     //JKR stuff
     if (attrs.JKR)
@@ -2347,7 +2320,12 @@ void Ball_group::merge_ball_group(const Ball_group& src,const bool includeRadius
     attrs.num_particles_added += src.attrs.num_particles;
     // attrs.num_groups_added += src.attrs.num_groups_added;
 
-    calc_helpfuls(includeRadius);
+    // attrs.m_total += src.attrs.m_total;
+
+    if (attrs.num_particles_added == attrs.num_particles)
+    {
+        calc_helpfuls(includeRadius);
+    }
 }
 
 void Ball_group::allocate_group_JKR(const int nBalls)
@@ -2417,6 +2395,7 @@ void Ball_group::allocate_group(const int nBalls)
             //vectors
             if (attrs.weld)
             {
+                attrs.num_groups = set_num_groups();
                 allocate_weld_group(attrs.num_groups);
             }
 
@@ -2437,6 +2416,7 @@ void Ball_group::allocate_group(const int nBalls)
 //It does not set any values, only allocates.
 void Ball_group::allocate_weld_group(const int num_groups)
 {
+    
     attrs.num_groups = num_groups;
     group_wh.resize(num_groups);
     group_w.resize(num_groups);
@@ -3306,11 +3286,11 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename,co
         MPIsafe_print(std::cerr,message);
     }
 
-    // if (attrs.weld)
-    // {
-    //     attrs.num_groups = count_num_groups();
-    //     allocate_weld_group(attrs.num_groups);
-    // }
+    if (attrs.weld)
+    {
+        set_num_groups();
+        allocate_weld_group(attrs.num_groups);
+    }
 
 }
 
@@ -3695,79 +3675,79 @@ inline void Ball_group::setMass()
 //of the velocities is both down the x-axis at eachother. Also positions
 //the projectile such that any offsets are taken into account and the projectile is 
 //placed down the x-axis a bit. FOR JKR SIMULATIONS
-void Ball_group::pos_and_vel_for_collision_JKR(Ball_group &projectile)
-{
-    pos_and_vel_for_collision_JKR(projectile,*this);
-}
-void Ball_group::pos_and_vel_for_collision_JKR(Ball_group &projectile,Ball_group &target)
-{
+// void Ball_group::pos_and_vel_for_collision_JKR(Ball_group &projectile)
+// {
+//     pos_and_vel_for_collision_JKR(projectile,*this);
+// }
+// void Ball_group::pos_and_vel_for_collision_JKR(Ball_group &projectile,Ball_group &target)
+// {
 
-    target.attrs.initial_radius = target.getRadius(target.getCOM());
+//     target.attrs.initial_radius = target.getRadius(target.getCOM());
 
-    // Collision velocity calculation:
-    // Make it so collision velocity is v_custom and 
-    // the velocity of the center of mass is zero
-    const double mSmall = projectile.attrs.m_total;
-    const double mBig = target.attrs.m_total;
-    const double mTot = mBig + mSmall;
-    // const double vSmall = -sqrt(2 * KEfactor * fabs(PEsys) * (mBig / (mSmall * mTot))); // Negative
-    // because small offsets right.
-    const double vBig = std::fabs(attrs.v_custom)*(mSmall)/(mTot);     //-(mSmall / mBig) * vSmall;  // Negative to oppose projectile.
-    const double vSmall = std::fabs(vBig-attrs.v_custom);  
-    // const double vBig = 0; // Dymorphous override.
+//     // Collision velocity calculation:
+//     // Make it so collision velocity is v_custom and 
+//     // the velocity of the center of mass is zero
+//     const double mSmall = projectile.attrs.m_total;
+//     const double mBig = target.attrs.m_total;
+//     const double mTot = mBig + mSmall;
+//     // const double vSmall = -sqrt(2 * KEfactor * fabs(PEsys) * (mBig / (mSmall * mTot))); // Negative
+//     // because small offsets right.
+//     const double vBig = std::fabs(attrs.v_custom)*(mSmall)/(mTot);     //-(mSmall / mBig) * vSmall;  // Negative to oppose projectile.
+//     const double vSmall = std::fabs(vBig-attrs.v_custom);  
+//     // const double vBig = 0; // Dymorphous override.
 
-    if (std::isnan(vSmall) || std::isnan(vBig)) {
-        MPIsafe_print(std::cerr,"A VELOCITY WAS NAN!!!!!!!!!!!!!!!!!!!!!!\n\n");
-        MPIsafe_exit(EXIT_FAILURE);
-    }
+//     if (std::isnan(vSmall) || std::isnan(vBig)) {
+//         MPIsafe_print(std::cerr,"A VELOCITY WAS NAN!!!!!!!!!!!!!!!!!!!!!!\n\n");
+//         MPIsafe_exit(EXIT_FAILURE);
+//     }
 
-    vec3 projectile_direction;
-    if (attrs.typeSim == BCCA || attrs.typeSim == BPCA || attrs.typeSim == BAPA)
-    {
-        projectile_direction = rand_unit_vec3();
-        // projectile_direction = vec3(-1,0,0);
-    }
-    else
-    {
-        projectile_direction = vec3(-1,0,0);
-    }
+//     vec3 projectile_direction;
+//     if (attrs.typeSim == BCCA || attrs.typeSim == BPCA || attrs.typeSim == BAPA)
+//     {
+//         projectile_direction = rand_unit_vec3();
+//         // projectile_direction = vec3(-1,0,0);
+//     }
+//     else
+//     {
+//         projectile_direction = vec3(-1,0,0);
+//     }
 
-    MPIsafe_print(std::cerr,"Projectile direction: ("+dToSci(projectile_direction.x)+','+dToSci(projectile_direction.y)+','+dToSci(projectile_direction.z)+")\n");
+//     MPIsafe_print(std::cerr,"Projectile direction: ("+dToSci(projectile_direction.x)+','+dToSci(projectile_direction.y)+','+dToSci(projectile_direction.z)+")\n");
 
-    projectile.kick(vSmall*projectile_direction);
-    target.kick(vBig*(-projectile_direction));
+//     projectile.kick(vSmall*projectile_direction);
+//     target.kick(vBig*(-projectile_direction));
 
 
-    if (attrs.impactParameter < 0.0)
-    {
-        //move the projectile so it is barely not touching the target        
-        projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*(-projectile_direction));
+//     if (attrs.impactParameter < 0.0)
+//     {
+//         //move the projectile so it is barely not touching the target        
+//         projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*(-projectile_direction));
 
-        //give the projectile a random offset such that they still collide
-        vec3 offset = random_offset(projectile, target);
+//         //give the projectile a random offset such that they still collide
+//         vec3 offset = random_offset(projectile, target);
         
-        MPIsafe_print(std::cerr,"Applying random offset of "+vToSci(offset)+" cm.\n");
+//         MPIsafe_print(std::cerr,"Applying random offset of "+vToSci(offset)+" cm.\n");
 
-    }
-    else
-    {
-        // TODO::MAke this work in any direction, not just xy plane  
-        MPIsafe_print(std::cerr,"ERROR::if you made it here, you need to finish this code before this can run.\n");
-        MPIsafe_exit(-1);
-        // projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*projectile_direction);
-        projectile.offset(
-            projectile.attrs.initial_radius + projectile.getRmax(), target.attrs.initial_radius + target.getRmax(), attrs.impactParameter);
-        MPIsafe_print(std::cerr,"Applying impact parameter of "+std::to_string(attrs.impactParameter)+" cm.\n");
-            // //Next line was the original
-            // projectile.attrs.initial_radius, target.attrs.initial_radius + target.getRmax() * 2, attrs.impactParameter);
-            // (projectile.attrs.initial_radius + target.attrs.initial_radius)*3, 0.0, attrs.impactParameter);
-    }
+//     }
+//     else
+//     {
+//         // TODO::MAke this work in any direction, not just xy plane  
+//         MPIsafe_print(std::cerr,"ERROR::if you made it here, you need to finish this code before this can run.\n");
+//         MPIsafe_exit(-1);
+//         // projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*projectile_direction);
+//         projectile.offset(
+//             projectile.attrs.initial_radius + projectile.getRmax(), target.attrs.initial_radius + target.getRmax(), attrs.impactParameter);
+//         MPIsafe_print(std::cerr,"Applying impact parameter of "+std::to_string(attrs.impactParameter)+" cm.\n");
+//             // //Next line was the original
+//             // projectile.attrs.initial_radius, target.attrs.initial_radius + target.getRmax() * 2, attrs.impactParameter);
+//             // (projectile.attrs.initial_radius + target.attrs.initial_radius)*3, 0.0, attrs.impactParameter);
+//     }
 
-    //Now we can move the aggregates apart a little bit if they are touching
-    //If they are touching, move the projectile in projectile_direction
-    moveApart(projectile_direction,projectile,target);
+//     //Now we can move the aggregates apart a little bit if they are touching
+//     //If they are touching, move the projectile in projectile_direction
+//     moveApart(projectile_direction,projectile,target);
 
-}
+// }
 
 //Gives the projectile and target a velocity based on v_custom such that they collide
 //at a speed of v_custom but the velocity of the center of mass is zero. The direction
@@ -3830,15 +3810,13 @@ void Ball_group::pos_and_vel_for_collision(Ball_group &projectile,Ball_group &ta
     else
     {
         // TODO::MAke this work in any direction, not just xy plane  
-        MPIsafe_print(std::cerr,"ERROR::if you made it here, you need to finish this code before this can run.");
-        MPIsafe_exit(-1);
-        // projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*projectile_direction);
+        // MPIsafe_print(std::cerr,"ERROR::if you made it here, you need to finish this code before this can run.");
+        // MPIsafe_exit(-1);
+        projectile.move((projectile.attrs.initial_radius + target.attrs.initial_radius)*(-projectile_direction));
+
         projectile.offset(
             projectile.attrs.initial_radius + projectile.getRmax(), target.attrs.initial_radius + target.getRmax(), attrs.impactParameter);
-        MPIsafe_print(std::cerr,"Applying impact parameter of "+std::to_string(attrs.impactParameter)+" cm.\n");
-            // //Next line was the original
-            // projectile.attrs.initial_radius, target.attrs.initial_radius + target.getRmax() * 2, attrs.impactParameter);
-            // (projectile.attrs.initial_radius + target.attrs.initial_radius)*3, 0.0, attrs.impactParameter);
+        MPIsafe_print(std::cerr,"Applying impact parameter of "+std::to_string(attrs.impactParameter)+".\n");
     }
 
     //Now we can move the aggregates apart a little bit if they are touching
@@ -4090,22 +4068,15 @@ void Ball_group::sim_init_two_cluster(
     const std::string& projectileName,
     const std::string& targetName)
 {
-    if (attrs.weld)
-    {
-        MPIsafe_print(std::cerr,"ERROR: this function isn't compatable with WELD. Fix this to continue. . . now exiting.");
-        MPIsafe_exit(0);
-    }
+    // if (attrs.weld)
+    // {
+    //     MPIsafe_print(std::cerr,"ERROR: this function isn't compatable with WELD. Fix this to continue. . . now exiting.");
+    //     MPIsafe_exit(0);
+    // }
     // Load file data:
     std::string message("TWO CLUSTER SIM\nFile 1: " + projectileName + "\nFile 2: " + targetName + '\n');
     MPIsafe_print(std::cerr,message);
-    // DART PROBE
-    // ballGroup projectile(1);
-    // projectile.pos[0] = { 8814, 0, 0 };
-    // projectile.w[0] = { 0, 0, 0 };
-    // projectile.vel[0] = { 0, 0, 0 };
-    // projectile.R[0] = 78.5;
-    // projectile.m[0] = 560000;
-    // projectile.moi[0] = .4 * projectile.m[0] * projectile.R[0] * projectile.R[0];
+
 
     std::string projectilePath = projectileName.substr(0,projectileName.find_last_of('/')+1);
     std::string targetPath = targetName.substr(0,targetName.find_last_of('/')+1);
@@ -4124,6 +4095,16 @@ void Ball_group::sim_init_two_cluster(
     target.calc_v_collapse();
     target.to_origin();
 
+    if (attrs.weld)
+    {
+        //Order matters here since target is merged first
+        //If order changes, set_num_groups wont work.
+        target.setGroup(0);
+        target.set_num_groups();
+        projectile.setGroup(1);
+        projectile.set_num_groups();
+    }
+
     attrs.num_particles = projectile.attrs.num_particles + target.attrs.num_particles;
     
     //Update v_custom if temp or eta are greater than zero
@@ -4137,49 +4118,9 @@ void Ball_group::sim_init_two_cluster(
     target.zeroAngVel();
     target.zeroVel();
 
-    if (attrs.JKR){pos_and_vel_for_collision_JKR(projectile);}
-    else{pos_and_vel_for_collision(projectile);}
-
-    // //move projectile so it is down the x-axis 
-    // projectile.move(vec3(projectile.attrs.initial_radius + projectile.getRmax()*2 + target.attrs.initial_radius + target.getRmax() * 2, 0, 0));
-
-    // //This takes care of offsetting the target and projectile, but still need to move them apart
-    // projectile.offset(
-    //     projectile.attrs.initial_radius + projectile.getRmax()*2, target.attrs.initial_radius + target.getRmax() * 2, attrs.impactParameter);
-    //     //Next line was the original
-    //     // projectile.attrs.initial_radius, target.attrs.initial_radius + target.getRmax() * 2, attrs.impactParameter);
-    //     // (projectile.attrs.initial_radius + target.attrs.initial_radius)*3, 0.0, attrs.impactParameter);
-
-    // //Now we can move the aggregates apart
-    // projectile.move(vec3((projectile.attrs.initial_radius + projectile.getRmax()*2 + target.attrs.initial_radius + target.getRmax() * 2)*2, 0, 0));
-
-
-    // // Collision velocity calculation:
-    // // Make it so collision velocity is v_custom and 
-    // // the velocity of the center of mass is zero
-    // const double mSmall = projectile.attrs.m_total;
-    // const double mBig = target.attrs.m_total;
-    // const double mTot = mBig + mSmall;
-    // // const double vSmall = -sqrt(2 * KEfactor * fabs(PEsys) * (mBig / (mSmall * mTot))); // Negative
-    // // because small offsets right.
-    // const double vBig = attrs.v_custom*(mSmall)/(mTot);     //-(mSmall / mBig) * vSmall;  // Negative to oppose projectile.
-    // const double vSmall = (vBig-attrs.v_custom);                
-    // // const double vBig = 0; // Dymorphous override.
-
-    // if (std::isnan(vSmall) || std::isnan(vBig)) {
-    //     MPIsafe_print(std::cerr,"A VELOCITY WAS NAN!!!!!!!!!!!!!!!!!!!!!!\n\n");
-    //     MPIsafe_exit(EXIT_FAILURE);
-    // }
-
-    // projectile.kick(vec3(vSmall, 0, 0));
-    // target.kick(vec3(vBig, 0, 0));
-
-    // std::ostringstream oss;
-    // oss << "\nTarget Velocity: " << std::scientific << vBig
-    //     << "\nProjectile Velocity: " << vSmall << "\n\n";
-    // MPIsafe_print(std::cerr,oss.str());
-    //This is jobs line. Keeping it in case this new printing fails
-    // fprintf(message, "\nTarget Velocity: %.2e\nProjectile Velocity: %.2e\n", vBig, vSmall);
+    pos_and_vel_for_collision(projectile,target);
+    // if (attrs.JKR){pos_and_vel_for_collision_JKR(projectile,target);}
+    // else{pos_and_vel_for_collision(projectile,target);}
 
     projectile.calc_momentum("Projectile");
     target.calc_momentum("Target");
@@ -4189,13 +4130,23 @@ void Ball_group::sim_init_two_cluster(
     {
         allocate_group_JKR(projectile.attrs.num_particles + target.attrs.num_particles);
     }
-
+    if (attrs.weld)
+    {
+        allocate_weld_group(projectile.attrs.num_groups + target.attrs.num_groups);
+    }
     // double new_v_collapse = (projectile.attrs.v_collapse >= target.attrs.v_collapse) ? projectile.attrs.v_collapse : target.attrs.v_collapse;
 
     merge_ball_group(target);
     merge_ball_group(projectile);  // projectile second so smallest ball at end and largest ball at front
                                    // for dt/k calcs.
+
+    if (attrs.weld)
+    {
+        set_num_groups();
+    }
+
     // attrs.v_collapse = new_v_collapse;
+
 
     //move center of mass to origin
     to_origin();
@@ -4568,7 +4519,7 @@ void Ball_group::group_w_from_monomer()
 //Goes from accelerations summed in sim_one_step to group accelerations
 //needed for using the groups forces, torques, and angular velocities.
 //Sums forces/torques of each group based on monomer forces/torques. 
-void Ball_group::group_accs_from_monomer()
+void Ball_group::group_accs_from_monomer(int step)
 {
     // std::cerr<<"GROUP ACCS FROM MONOMER: "<<std::endl;
     // std::cerr<<"attrs.num_particles: "<<attrs.num_particles<<std::endl;
@@ -4594,7 +4545,6 @@ void Ball_group::group_accs_from_monomer()
                 // g_mass += m[Ball];
             }
         }
-
 
 
         // group_acc[currgroup] = group_force_world/g_mass;
@@ -4623,6 +4573,7 @@ void Ball_group::group_accs_from_monomer()
 
         if (group_acc[currgroup][0] != group_acc[currgroup][0] || group_aacc[currgroup][0] != group_aacc[currgroup][0])
         {
+            std::cerr<<"step: "<<step<<std::endl;
             std::cerr<<"group_acc[currgroup]: "<<group_acc[currgroup]<<std::endl;
             std::cerr<<"group_aacc[currgroup]: "<<group_aacc[currgroup]<<std::endl;
             std::cerr<<"group_mass[currgroup]: "<<group_mass[currgroup]<<std::endl;
@@ -4798,12 +4749,12 @@ void Ball_group::sim_one_step(int step,bool write_step)
     double t0 = omp_get_wtime();
     
     //Turned off for testing. Turn back on if you see this
-    #pragma omp declare reduction(vec3_sum : vec3 : omp_out += omp_in)
-    #pragma omp parallel for num_threads(threads)\
-            reduction(vec3_sum:acc[:num_parts],aacc[:num_parts]) reduction(+:PE) \
-            shared(world_rank,world_size,Ha,write_step,lllen,R,pos,vel,m,w,\
-                u_r,u_s,moi,kin,kout,distances,h_min,dt)\
-            default(none) private(A,B,pc) 
+    // #pragma omp declare reduction(vec3_sum : vec3 : omp_out += omp_in)
+    // #pragma omp parallel for num_threads(threads)\
+    //         reduction(vec3_sum:acc[:num_parts],aacc[:num_parts]) reduction(+:PE) \
+    //         shared(world_rank,world_size,Ha,write_step,lllen,R,pos,vel,m,w,\
+    //             u_r,u_s,moi,kin,kout,distances,h_min,dt)\
+    //         default(none) private(A,B,pc) 
     for (pc = world_rank + 1; pc <= (((lllen*lllen)-lllen)/2); pc += world_size)
     {
         long double pd = (long double)pc;
@@ -5033,6 +4984,14 @@ void Ball_group::sim_one_step(int step,bool write_step)
         // Newton's equal and opposite forces applied to acceleration of each ball:
         acc[A] += totalForceOnA / m[A];
         acc[B] -= totalForceOnA / m[B];        
+        if (A == 2 && B == 2)
+        {
+            std::cerr<<totalForceOnA<<std::endl;
+        }
+        if (A == 2 && B == 2)
+        {
+            std::cerr<<m[A]<<std::endl;
+        }
 
 
         // So last distance can be known for COR:
@@ -5050,7 +5009,7 @@ void Ball_group::sim_one_step(int step,bool write_step)
 
     if (attrs.weld)
     {
-        group_accs_from_monomer();
+        group_accs_from_monomer(step);
     }
 
     

@@ -484,7 +484,7 @@ public:
     void init_weld_vectors();
     void group_vel_from_monomer();
     void group_w_from_monomer();
-    void group_accs_from_monomer();
+    void group_accs_from_monomer(int step=-1);
     mat3 calc_group_moi_local(const int& group_num);
     mat3 calc_group_moi_world(const int& group_num,const vec3& group_com);
     vec3 calc_group_com(const int group_num);
