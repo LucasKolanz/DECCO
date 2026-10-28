@@ -832,7 +832,7 @@ bool HDF5Handler::sim_finished(std::string path, std::string file)
     return false;
 }
 
-int HDF5Handler::get_num_groups(std::string path, std::string filename)
+int HDF5Handler::get_num_groups(std::string path, std::string file)
 {
 	std::unordered_set<int> group_local;
 	int n_particles = get_num_particles(path,file);
@@ -1465,6 +1465,7 @@ std::vector<double> DECCOData::Read(std::string data_type, bool all, int line,st
 	{
 		file = filename;
 	}
+
 	
 	std::vector<double> data_read;
 	if (file.substr(file.size()-3,file.size()) == ".h5")
@@ -1500,13 +1501,14 @@ std::vector<double> DECCOData::Read(std::string data_type, bool all, int line,st
 					// start = line*widths[data_index];
 				}
 
-				data_read = H.readFile(data_type,start,widths[data_index]);
+				data_read = H.static_readFile(data_type,start,widths[data_index],false,file);
 
 			}
 		#else // csv's are still being read by functions in ball_group
 			MPIsafe_print(std::cerr,"ERROR: csv file type not yet readable by DECCOData.\n");
 			MPIsafe_exit(-1);
 		#endif	
+		// std::cerr<<data_read<<std::endl;
 	}
 	else if (file.substr(file.size()-4,file.size()) == ".csv")
 	{
