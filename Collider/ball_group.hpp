@@ -455,6 +455,8 @@ public:
     Ball_group& operator=(const Ball_group& rhs);
 
     //Functions directly related to changing the state of a Ball_group
+    void wspin(const int g, const vec3& angvel) const;
+    void spin(const vec3& angvel) const;
     void kick(const vec3& vec) const;
     void move(const vec3& vec) const;
     void offset(const double& rad1, const double& rad2, const double& impactParam) const;
@@ -470,7 +472,6 @@ public:
     void rotAll(const char axis, const double angle) const;
     // vec3 random_offset(const double3x3 local_coords,vec3 projectile_pos,vec3 projectile_vel,const double projectile_rad);
     vec3 random_offset(Ball_group &projectile, Ball_group &target);
-    void comSpinner(const double& spinX, const double& spinY, const double& spinZ) const;
 
     void calc_offsets_coms();
     void full_step_updates(const int write_step, const int world_rank);
@@ -484,13 +485,15 @@ public:
     void init_weld_vectors();
     void group_vel_from_monomer();
     void group_w_from_monomer();
-    void group_accs_from_monomer(int step=-1);
+    void group_accs_from_monomer(int step=-1,const bool use_half_step=true);
     mat3 calc_group_moi_local(const int& group_num);
     mat3 calc_group_moi_world(const int& group_num,const vec3& group_com);
     vec3 calc_group_com(const int group_num);
     void set_group_masses();
     double calc_group_mass(const int group_num);
     int count_num_groups();
+
+    vec3 get_group_L_world(int g);
 
     
     //Functions which calculate/set values for Ball_group

@@ -1341,7 +1341,39 @@ void Ball_group::calc_helpfuls(const bool includeRadius)
 
 }   
 
-// Kick ballGroup (give the whole thing a velocity)
+// Spin a specific weld group with angular velocity angvel (rad/s)
+void Ball_group::wspin(const int g, const vec3& angvel) const
+{
+    const vec3 com = getCOM();
+
+    for (int Ball = 0; Ball < attrs.num_particles; Ball++)
+    {
+        if (group[Ball] == g)
+        {
+            const vec3 r = pos[Ball] - com;
+            vel[Ball] += angvel.cross(r);
+
+            w[Ball] += angvel;
+        }
+    }
+}
+
+// Spin the entire Ball_group with angular velocity angvel (rad/s)
+void Ball_group::spin(const vec3& angvel) const
+{
+    const vec3 com = getCOM();
+
+    for (int Ball = 0; Ball < attrs.num_particles; Ball++)
+    {
+        const vec3 r = pos[Ball] - com;
+        vel[Ball] += angvel.cross(r);
+
+        w[Ball] += angvel;
+    }
+}
+
+
+// Kick ballGroup (give the whole thing a velocity in cm/s)
 void Ball_group::kick(const vec3& vec) const
 {
     for (int Ball = 0; Ball < attrs.num_particles; Ball++) { vel[Ball] += vec; }
@@ -1641,11 +1673,15 @@ void Ball_group::sim_init_write(int counter)
 
 void Ball_group::zeroVel() const
 {
+    std::string message = "Zeroing linear velocity of Ball_group.\n";
+    MPIsafe_print(std::cerr,message);
     for (int Ball = 0; Ball < attrs.num_particles; Ball++) { vel[Ball] = {0, 0, 0}; }
 }
 
 void Ball_group::zeroAngVel() const
 {
+    std::string message = "Zeroing angular velocity of Ball_group.\n";
+    MPIsafe_print(std::cerr,message);
     for (int Ball = 0; Ball < attrs.num_particles; Ball++) { w[Ball] = {0, 0, 0}; }
 }
 
@@ -1655,16 +1691,6 @@ void Ball_group::to_origin() const
 
     move(-com);
     // for (int Ball = 0; Ball < attrs.num_particles; Ball++) { pos[Ball] -= com; }
-}
-
-// Set velocity of all balls such that the cluster spins:
-void Ball_group::comSpinner(const double& spinX, const double& spinY, const double& spinZ) const
-{
-    const vec3 comRot = {spinX, spinY, spinZ};  // Rotation axis and magnitude
-    for (int Ball = 0; Ball < attrs.num_particles; Ball++) {
-        vel[Ball] += comRot.cross(pos[Ball] - getCOM());
-        w[Ball] += comRot;
-    }
 }
 
 void Ball_group::rotAll(const char axis, const double angle) const
@@ -2204,8 +2230,8 @@ Ball_group Ball_group::add_projectile(const simType simtype)
     
     
 
-    projectile.calc_momentum("Projectile");
-    calc_momentum("Target");
+    // projectile.calc_momentum("Projectile");
+    // calc_momentum("Target");
     Ball_group new_group{projectile.attrs.num_particles + attrs.num_particles,attrs.JKR};
 
     int new_num_particles = projectile.attrs.num_particles + attrs.num_particles;
@@ -2712,12 +2738,16 @@ void Ball_group::init_weld_vectors()
         group_acc[g] = {0.0,0.0,0.0};
         group_aacc[g] = {0.0,0.0,0.0};
         group_q[g] = {1,{0,0,0}};
-        group_moi_body[g] = calc_group_moi_local(g);
-        group_moi_inv_body[g] = inverse3x3(group_moi_body[g]);
     }
     calc_offsets_coms();//This needs to be after group_q is initialized 
 
     set_group_masses();
+    
+    for (int g = 0; g < attrs.num_groups; ++g)
+    {
+        group_moi_body[g] = calc_group_moi_local(g);
+        group_moi_inv_body[g] = inverse3x3(group_moi_body[g]);
+    }
     
     group_vel_from_monomer();
     group_w_from_monomer();//This must come after the group velocities are set
@@ -2932,7 +2962,7 @@ void Ball_group::init_conditions()
 
     if (attrs.weld)
     {
-        group_accs_from_monomer();
+        group_accs_from_monomer(0,false);
     }
 
     // Calc energy:
@@ -3256,6 +3286,7 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename,co
     size_t _pos;
     int file_index;
 
+
     if (file.substr(file.size()-4,file.size()) == ".csv")
     {
         loadDatafromCSV(path,file);
@@ -3291,7 +3322,6 @@ void Ball_group::loadSim(const std::string& path, const std::string& filename,co
         set_num_groups();
         allocate_weld_group(attrs.num_groups);
     }
-
 }
 
 void Ball_group::parse_meta_data(std::string metadata)
@@ -3986,6 +4016,8 @@ void Ball_group::updateDTK(const double& velocity)
         const double regime_adjust = regime / (attrs.maxOverlap * attrs.r_min);
 
         attrs.dt = .01 * sqrt((attrs.fourThirdsPiRho / regime_adjust) * attrs.r_min * attrs.r_min * attrs.r_min); //NORMAL ONE
+        // attrs.dt /= 2.0;
+
     }
     MPIsafe_print(std::cerr,initMessage);
     calc_helpfuls();
@@ -4034,7 +4066,6 @@ void Ball_group::simInit_cond_and_center(bool add_prefix)
         to_origin();
     }
 
-    calc_momentum("After Zeroing");  // Is total mom zero like it should be?
     
 
     // Compute physics between all balls. Distances, collision forces, energy totals, total mass:
@@ -4118,12 +4149,16 @@ void Ball_group::sim_init_two_cluster(
     target.zeroAngVel();
     target.zeroVel();
 
+    const vec3 com = target.getCOM();
+    const vec3 vcom = target.getVCOM();
+
+
     pos_and_vel_for_collision(projectile,target);
     // if (attrs.JKR){pos_and_vel_for_collision_JKR(projectile,target);}
     // else{pos_and_vel_for_collision(projectile,target);}
 
-    projectile.calc_momentum("Projectile");
-    target.calc_momentum("Target");
+    // projectile.calc_momentum("Projectile");
+    // target.calc_momentum("Target");
 
     allocate_group(projectile.attrs.num_particles + target.attrs.num_particles);
     if (get_JKR(path))
@@ -4146,6 +4181,8 @@ void Ball_group::sim_init_two_cluster(
     }
 
     // attrs.v_collapse = new_v_collapse;
+
+
 
 
     //move center of mass to origin
@@ -4488,38 +4525,43 @@ void Ball_group::group_vel_from_monomer()
 
 void Ball_group::group_w_from_monomer()
 {
+
     for (int g = 0; g < attrs.num_groups; ++g)
     {
         vec3 L = {0,0,0};
 
         // Make sure this is the world-frame inertia tensor of group g
         // about the group COM.
-        mat3 moi = calc_group_moi_world(g,group_pos[g]);
+        mat3 moi_group = calc_group_moi_world(g,group_pos[g]);
         // mat3 moi = calc_group_moi_local(g);
 
         for (int Ball = 0; Ball < attrs.num_particles; ++Ball)
         {
+
             if (group[Ball] == g)
             {
                 // Body-frame stored offset -> world-frame offset
                 vec3 rho = quatRotate(group_q[g],group_offset_body[Ball]);
 
+                vec3 rho_expected = pos[Ball] - group_pos[g];
+
                 // Velocity relative to group translation
                 vec3 vrel = vel[Ball] - group_vel[g];
 
                 // Angular momentum from translational motion about COM
-                L += rho.cross(m[Ball] * vrel);
+                L += rho.cross(m[Ball] * vrel) + w[Ball]*moi[Ball];
             }
         }
 
-        group_w[g] = matTimesVec(inverse3x3(moi),L);
+        group_w[g] = matTimesVec(inverse3x3(moi_group),L);
+
     }
 }
 
 //Goes from accelerations summed in sim_one_step to group accelerations
 //needed for using the groups forces, torques, and angular velocities.
 //Sums forces/torques of each group based on monomer forces/torques. 
-void Ball_group::group_accs_from_monomer(int step)
+void Ball_group::group_accs_from_monomer(int step, const bool use_half_step)
 {
     // std::cerr<<"GROUP ACCS FROM MONOMER: "<<std::endl;
     // std::cerr<<"attrs.num_particles: "<<attrs.num_particles<<std::endl;
@@ -4550,26 +4592,72 @@ void Ball_group::group_accs_from_monomer(int step)
         // group_acc[currgroup] = group_force_world/g_mass;
         group_acc[currgroup] = group_force_world/group_mass[currgroup];
 
-        // mat3 moi = calc_group_moi_world(currgroup, group_pos[currgroup]);//world
-        mat3 moi = group_moi_body[currgroup];//local
-        vec3 omega_local = group_q[currgroup].worldToLocal(group_w[currgroup]);//local
-        vec3 group_torque_local = group_q[currgroup].worldToLocal(group_torque_world);//local
 
-        //Do this calculation in local frame and convert final answer back to world
-        //Iw
-        vec3 Iw = matTimesVec(moi,omega_local);//local
-        // vec3 Iw = matTimesVec(moi,group_w[currgroup]);//world
-        //w cross (Iw)
-        vec3 wcrossIw = omega_local.cross(Iw);//local
-        // vec3 wcrossIw = group_w[currgroup].cross(Iw);//world
+        const mat3 moi = group_moi_body[currgroup];
+        const mat3 moi_inverse = group_moi_inv_body[currgroup];
 
-        mat3 moi_inverse = group_moi_inv_body[currgroup];
+        const vec3 torque_local =
+            group_q[currgroup].worldToLocal(group_torque_world);
 
-        vec3 tot_torque = group_torque_local - wcrossIw;//local
-        // vec3 tot_torque = group_torque_world - wcrossIw;//world
+        // Calculate angular acceleration for a given world-frame angular velocity
+        auto calc_alpha = [&](const vec3& omega_world) -> vec3
+        {
+            const vec3 omega_local =
+                group_q[currgroup].worldToLocal(omega_world);
 
-        group_aacc[currgroup] = group_q[currgroup].localToWorld(matTimesVec(moi_inverse,tot_torque));//local (change back to local)
-        // group_aacc[currgroup] = matTimesVec(moi_inverse,tot_torque);//world
+            const vec3 Iw = matTimesVec(moi, omega_local);
+
+            const vec3 total_torque =
+                torque_local - omega_local.cross(Iw);
+
+            const vec3 alpha_local =
+                matTimesVec(moi_inverse, total_torque);
+
+            return group_q[currgroup].localToWorld(alpha_local);
+        };
+
+        if (use_half_step)
+        {
+            // Predict acceleration using half-step angular velocity
+            const vec3 alpha_pred = calc_alpha(group_wh[currgroup]);
+
+            // Predict end-of-step angular velocity
+            const vec3 omega_pred =
+                group_wh[currgroup] + 0.5 * attrs.dt * alpha_pred;
+
+            // Calculate acceleration using predicted end-of-step velocity
+            group_aacc[currgroup] = calc_alpha(omega_pred);
+        }
+        else
+        {
+            // Initialization: use actual initial angular velocity
+            group_aacc[currgroup] = calc_alpha(group_w[currgroup]);
+        }
+
+        // // mat3 moi = calc_group_moi_world(currgroup, group_pos[currgroup]);//world
+        // mat3 moi = group_moi_body[currgroup];//local
+        // const vec3 omega_world =
+        //     use_half_step
+        //         ? group_wh[currgroup]
+        //         : group_w[currgroup];
+        // vec3 omega_local = group_q[currgroup].worldToLocal(omega_world);//local
+        // vec3 group_torque_local = group_q[currgroup].worldToLocal(group_torque_world);//local
+
+        // //Do this calculation in local frame and convert final answer back to world
+        // //Iw
+        // vec3 Iw = matTimesVec(moi,omega_local);//local
+        // // vec3 Iw = matTimesVec(moi,group_w[currgroup]);//world
+        // //w cross (Iw)
+        // vec3 wcrossIw = omega_local.cross(Iw);//local
+        // // vec3 wcrossIw = group_w[currgroup].cross(Iw);//world
+
+        // mat3 moi_inverse = group_moi_inv_body[currgroup];
+
+        // vec3 tot_torque = group_torque_local - wcrossIw;//local
+        // // vec3 tot_torque = group_torque_world - wcrossIw;//world
+
+        // group_aacc[currgroup] = group_q[currgroup].localToWorld(matTimesVec(moi_inverse,tot_torque));//local (change back to local)
+        // // group_aacc[currgroup] = matTimesVec(moi_inverse,tot_torque);//world
 
         if (group_acc[currgroup][0] != group_acc[currgroup][0] || group_aacc[currgroup][0] != group_aacc[currgroup][0])
         {
@@ -4584,6 +4672,15 @@ void Ball_group::group_accs_from_monomer(int step)
 
     }
     
+}
+
+vec3 Ball_group::get_group_L_world(int g)
+{
+    vec3 omega_body = group_q[g].worldToLocal(group_w[g]);
+
+    vec3 L_body = matTimesVec(group_moi_body[g], omega_body);
+
+    return group_q[g].localToWorld(L_body);
 }
 
 void Ball_group::half_step_updates()
@@ -4621,9 +4718,9 @@ void Ball_group::half_step_updates()
             group_acc[g] = {0,0,0};
 
             vec3 omega_local = group_q[g].worldToLocal(group_wh[g]);
-            
-            group_q[g].exponential_integrate(omega_local, attrs.dt);
+    
 
+            group_q[g].exponential_integrate(omega_local, attrs.dt);
         }
 
         for (int Ball = 0; Ball < attrs.num_particles; Ball++) 
@@ -4709,24 +4806,15 @@ void Ball_group::full_step_updates(const int write_step, const int world_rank)
 #ifndef GPU_ENABLE
 void Ball_group::sim_one_step(int step,bool write_step)
 {
-    // std::cerr<<"IN SIM ONE STEP: "<<std::endl;
-    // std::cerr<<"attrs.num_groups "<<attrs.num_groups<<std::endl;
-    // std::cerr<<"attrs.num_particles "<<attrs.num_particles<<std::endl;
-    // for (int i = 0; i < attrs.num_groups; i++)
-    // {
-    //     std::cerr<<"group "<<i<<" mass "<<group_mass[i]<<std::endl;
-    // }
-    // if (step > 10)
-    // {
-    //     exit(0);
-    //     std::cerr<<"-----------------------------STARTING STEP "<<step<<"-----------------------------"<<std::endl;
-    // }
+ 
     int world_rank = getRank();
     int world_size = getSize();
     /// FIRST PASS - Update Kinematic Parameters:
     // t.start_event("UpdateKinPar");
 
     half_step_updates();
+
+
     
     // t.end_event("UpdateKinPar");
 
@@ -4749,12 +4837,12 @@ void Ball_group::sim_one_step(int step,bool write_step)
     double t0 = omp_get_wtime();
     
     //Turned off for testing. Turn back on if you see this
-    // #pragma omp declare reduction(vec3_sum : vec3 : omp_out += omp_in)
-    // #pragma omp parallel for num_threads(threads)\
-    //         reduction(vec3_sum:acc[:num_parts],aacc[:num_parts]) reduction(+:PE) \
-    //         shared(world_rank,world_size,Ha,write_step,lllen,R,pos,vel,m,w,\
-    //             u_r,u_s,moi,kin,kout,distances,h_min,dt)\
-    //         default(none) private(A,B,pc) 
+    #pragma omp declare reduction(vec3_sum : vec3 : omp_out += omp_in)
+    #pragma omp parallel for num_threads(threads)\
+            reduction(vec3_sum:acc[:num_parts],aacc[:num_parts]) reduction(+:PE) \
+            shared(world_rank,world_size,Ha,write_step,lllen,R,pos,vel,m,w,\
+                u_r,u_s,moi,kin,kout,distances,h_min,dt)\
+            default(none) private(A,B,pc) 
     for (pc = world_rank + 1; pc <= (((lllen*lllen)-lllen)/2); pc += world_size)
     {
         long double pd = (long double)pc;
@@ -4894,11 +4982,14 @@ void Ball_group::sim_one_step(int step,bool write_step)
 
 
             // Total forces on a:
+            // totalForceOnA = {0.0,0.0,0.0};//viscoelaticforceOnA + gravForceOnA + elasticForceOnA + slideForceOnA + vdwForceOnA;
             totalForceOnA = viscoelaticforceOnA + gravForceOnA + elasticForceOnA + slideForceOnA + vdwForceOnA;
 
             
 
             // Total torque a and b:
+            // torqueA = {0.0,0.0,0.0};//r_a.cross(slideForceOnA + rollForceA);
+            // torqueB = {0.0,0.0,0.0};//r_b.cross(-slideForceOnA + rollForceA); // original code
             torqueA = r_a.cross(slideForceOnA + rollForceA);
             torqueB = r_b.cross(-slideForceOnA + rollForceA); // original code
 
@@ -4957,6 +5048,7 @@ void Ball_group::sim_one_step(int step,bool write_step)
             // ==========================================
            
             /////////////////////////////
+            // totalForceOnA = {0.0,0.0,0.0};//vdwForceOnA + gravForceOnA;
             totalForceOnA = vdwForceOnA + gravForceOnA;
             // totalForceOnA = vdwForceOnA;
             // totalForceOnA = gravForceOnA;
@@ -4984,14 +5076,7 @@ void Ball_group::sim_one_step(int step,bool write_step)
         // Newton's equal and opposite forces applied to acceleration of each ball:
         acc[A] += totalForceOnA / m[A];
         acc[B] -= totalForceOnA / m[B];        
-        if (A == 2 && B == 2)
-        {
-            std::cerr<<totalForceOnA<<std::endl;
-        }
-        if (A == 2 && B == 2)
-        {
-            std::cerr<<m[A]<<std::endl;
-        }
+
 
 
         // So last distance can be known for COR:
@@ -5009,12 +5094,16 @@ void Ball_group::sim_one_step(int step,bool write_step)
 
     if (attrs.weld)
     {
-        group_accs_from_monomer(step);
+        group_accs_from_monomer(step,true);
     }
 
     
     // THIRD PASS - Calculate velocity for next step:
     full_step_updates(write_step,world_rank);
+
+    vec3 L3 = get_group_L_world(0);
+
+
      // THIRD PASS END
     if (write_step && world_rank == 0)
     {
