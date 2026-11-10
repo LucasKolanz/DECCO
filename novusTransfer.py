@@ -46,7 +46,8 @@ import utils as u  # noqa: E402
 # Configuration
 # -----------------------------------------------------------------------------
 
-REMOTE_BASE_FOLDER = Path("/home/kolanzl/novus/kolanzl/SpaceLab_data")
+REMOTE_BASE_FOLDER = Path("/home/kolanzl/novus/kolanzl/SpaceLab_branch/DECCO_data")
+# REMOTE_BASE_FOLDER = Path("/home/kolanzl/novus/kolanzl/SpaceLab_data")
 DEFAULT_INPUT = PROJECT_PATH / "default_files" / "default_input.json"
 
 
@@ -56,11 +57,14 @@ class TransferConfig:
     job_set_names: tuple[str, ...] = ("BAPAWELD",)
     attempts: range = range(30)
     m_values: tuple[int, ...] = (3, 5, 10, 15, 20, 30, 50, 60, 75, 100, 150)
-    n_default: int = 300
+    b_values: tuple[float, ...] = (3.000e-03,)
+    n_values: tuple[int, ...] = (300)
     temps: tuple[int, ...] = (1000,)
     cbapa_c: int = 30
     dry_run: bool = False
     verbose_ssh: bool = False
+    copy_file: str | None = None
+
 
 
 def local_job_parent(job_set_name: str) -> str:
@@ -215,6 +219,7 @@ def build_job_paths(
     data_directory: Path,
     job_set_name: str,
     attempt: int,
+    b: float,
     m: int,
     n: int,
     temp: int,
@@ -227,21 +232,38 @@ def build_job_paths(
     """
     jobfolder = local_job_parent(job_set_name)
 
-    relative = (
-        Path(jobfolder)
-        / f"{job_set_name}_{attempt}"
-        / f"M_{m}"
-        / f"N_{n}"
-        / f"T_{temp}"
-    )
+    if job_set_name != "bigbox":
+        relative = (
+            Path(jobfolder)
+            / f"{job_set_name}_{attempt}"
+            / f"M_{m}"
+            / f"N_{n}"
+            / f"T_{temp}"
+        )
 
-    remote_relative = (
-        Path("jobs")
-        / f"{job_set_name}_{attempt}"
-        / f"M_{m}"
-        / f"N_{n}"
-        / f"T_{temp}"
-    )
+        remote_relative = (
+            Path("jobs")
+            / f"{job_set_name}_{attempt}"
+            / f"M_{m}"
+            / f"N_{n}"
+            / f"T_{temp}"
+        )
+    else:
+        relative = (
+            Path(jobfolder)
+            / f"{job_set_name}_{attempt}"
+            / f"N_{n}"
+            / f"B_{b:.3e}"
+            / f"T_{temp}"
+        )
+
+        remote_relative = (
+            Path("jobs")
+            / f"{job_set_name}_{attempt}"
+            / f"N_{n}"
+            / f"B_{b:.3e}"
+            / f"T_{temp}"
+        )
 
     local_job_folder = data_directory / relative
     local_copy_parent = local_job_folder.parent
@@ -262,20 +284,74 @@ def local_job_is_complete(local_job_folder: Path, n: int) -> bool:
 def iter_jobs(config: TransferConfig, data_directory: Path) -> Iterable[tuple[Path, Path, Path, int]]:
     """Yield all requested jobs as local_folder, local_parent, remote_folder, n."""
     for job_set_name in config.job_set_names:
-        for m in config.m_values:
-            n = n_for_job(job_set_name, m, config.n_default, config.cbapa_c)
-            for temp in config.temps:
-                for attempt in config.attempts:
-                    local_folder, local_parent, remote_folder = build_job_paths(
-                        data_directory=data_directory,
-                        job_set_name=job_set_name,
-                        attempt=attempt,
-                        m=m,
-                        n=n,
-                        temp=temp,
-                    )
-                    yield local_folder, local_parent, remote_folder, n
+        for b in config.b_values:
+            for m in config.m_values:
+                if len(config.n_values) > 0:
+                    nvals = config.n_values
+                else:
+                    nvals = [n_for_job(job_set_name, m, config.n_default, config.cbapa_c)]
+                for n in nvals:
+                    for temp in config.temps:
+                        for attempt in config.attempts:
+                            local_folder, local_parent, remote_folder = build_job_paths(
+                                data_directory=data_directory,
+                                job_set_name=job_set_name,
+                                attempt=attempt,
+                                b=b,
+                                m=m,
+                                n=n,
+                                temp=temp,
+                            )
+                            yield local_folder, local_parent, remote_folder, n
 
+def scp_get_file(config: TransferConfig, remote_file: Path, local_parent: Path) -> bool:
+    """
+    Copy one remote file into local_parent using system scp.
+
+    If the destination file already exists, scp overwrites it. This is useful for
+    replacing one file across many already-copied job folders.
+    """
+    local_parent.mkdir(parents=True, exist_ok=True)
+
+    remote_spec = f"{config.host_alias}:{str(remote_file)}"
+
+    command = [
+        "scp",
+        "-o", "BatchMode=yes",
+        "-o", "ConnectTimeout=20",
+        remote_spec,
+        str(local_parent),
+    ]
+
+    result = run_command(command)
+
+    if result.returncode == 0:
+        return True
+
+    if "No such file or directory" in result.stderr:
+        print(f"Remote file not found: {remote_file}")
+        return False
+
+    print("scp failed.")
+    print("Command:", " ".join(command))
+    print("stderr:")
+    print(result.stderr.strip())
+    raise RuntimeError(f"scp failed with exit code {result.returncode}")
+
+def checked_relative_file(filename: str) -> Path:
+    """Return filename as a safe relative path inside each job folder."""
+    relative_file = Path(filename)
+
+    if relative_file.is_absolute():
+        raise ValueError("--copy-file must be relative to each job folder, not an absolute path.")
+
+    if ".." in relative_file.parts:
+        raise ValueError("--copy-file cannot contain '..'.")
+
+    if str(relative_file) in ("", "."):
+        raise ValueError("--copy-file must name a file.")
+
+    return relative_file
 
 # -----------------------------------------------------------------------------
 # Main transfer logic
@@ -288,11 +364,15 @@ def transfer_finished_jobs(config: TransferConfig) -> None:
     print(f"Remote base folder:    {REMOTE_BASE_FOLDER}")
     print(f"Host alias:            {config.host_alias}")
     print(f"Dry run:               {config.dry_run}")
+    print(f"Copy one file:         {config.copy_file if config.copy_file else 'no'}")
     print()
 
     copied = 0
     skipped_local = 0
     unfinished = 0
+    missing_file = 0
+
+    relative_copy_file = checked_relative_file(config.copy_file) if config.copy_file else None
 
     # Fast sanity check: does the host alias work at all from Python?
     sanity = run_command(ssh_command(config, "echo SSH_OK"))
@@ -305,6 +385,27 @@ def transfer_finished_jobs(config: TransferConfig) -> None:
     for local_folder, local_parent, remote_folder, n in iter_jobs(config, data_directory):
         if str(local_folder) == str(remote_folder):
             raise RuntimeError("Remote and local folders are the same path; refusing to copy.")
+
+        if relative_copy_file is not None:
+            remote_file = remote_folder / relative_copy_file
+            local_file_parent = local_folder / relative_copy_file.parent
+
+            if not remote_files_exist(config, [remote_file]):
+                print(f"Missing file:   {remote_file}")
+                missing_file += 1
+                continue
+
+            print(f"Copying file:   {remote_file}")
+            print(f"    to folder:  {local_file_parent}")
+
+            if not config.dry_run:
+                success = scp_get_file(config, remote_file, local_file_parent)
+                if success:
+                    copied += 1
+            else:
+                copied += 1
+
+            continue
 
         if local_job_is_complete(local_folder, n):
             print(f"Already copied: {local_folder}")
@@ -333,6 +434,8 @@ def transfer_finished_jobs(config: TransferConfig) -> None:
     print(f"  copied/dry-run matches: {copied}")
     print(f"  already local:          {skipped_local}")
     print(f"  unfinished/missing:     {unfinished}")
+    if relative_copy_file is not None:
+        print(f"  missing requested file: {missing_file}")
 
 
 def parse_args() -> TransferConfig:
@@ -346,13 +449,37 @@ def parse_args() -> TransferConfig:
         dest="job_sets",
         help="Job set name, e.g. BAPAWELD. Can be given multiple times.",
     )
+    parser.add_argument(
+        "--copy-file",
+        default=None,
+        help=(
+            "Copy this file from every matching remote T_<temp> job folder into "
+            "the corresponding local T_<temp> folder, overwriting any existing "
+            "local copy and bypassing the already-copied check. The path must be "
+            "relative to each T_<temp> folder, e.g. timing.txt or index_300.csv."
+        ),
+    )
     parser.add_argument("--temps", nargs="+", type=int, default=[1000], help="Temperatures to copy.")
+    parser.add_argument(
+        "--n-values",
+        nargs="+",
+        type=int,
+        default=300,
+        help="N value to copy.",
+    )
     parser.add_argument(
         "--m-values",
         nargs="+",
         type=int,
         default=[3, 5, 10, 15, 20, 30, 50, 60, 75, 100, 150],
         help="M values to copy.",
+    )
+    parser.add_argument(
+        "--b-values",
+        nargs="+",
+        type=float,
+        default=[3.000e-03],
+        help="Box sizes to copy.",
     )
     parser.add_argument("--attempts", type=int, default=30, help="Number of attempts, starting from 0.")
 
@@ -362,10 +489,13 @@ def parse_args() -> TransferConfig:
         host_alias=args.host,
         job_set_names=tuple(args.job_sets) if args.job_sets else ("BAPAWELD",),
         attempts=range(args.attempts),
+        n_values=tuple(args.n_values),
         m_values=tuple(args.m_values),
+        b_values=tuple(args.b_values),
         temps=tuple(args.temps),
         dry_run=args.dry_run,
         verbose_ssh=args.verbose_ssh,
+        copy_file=args.copy_file,
     )
 
 
