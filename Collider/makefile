@@ -11,8 +11,8 @@ CXX = g++
 
 # Base CXXFLAGS, without HDF5-specific flags
 # CXXFLAGS = -g -O2 -std=c++17 -fopenmp -fopenacc -foffload=nvptx-none -#-fopenacc 
-CXXFLAGS = -g -O2 -std=c++17 -fopenmp #-fopenacc 
-# CXXFLAGS = -g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer -std=c++17 -fopenmp #debug CXXFLAGS
+# CXXFLAGS = -g -O2 -std=c++17 -fopenmp #-fopenacc 
+CXXFLAGS = -g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer -std=c++17 -fopenmp #debug CXXFLAGS
 
 # Detect HDF5
 # HDF5_TEST := $(shell ldconfig -p | grep hdf5 >/dev/null 2>&1 && echo 1 || echo 0)

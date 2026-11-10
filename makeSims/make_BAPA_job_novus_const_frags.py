@@ -63,7 +63,7 @@ if __name__ == '__main__':
 	# attempts = [i for i in range(25,30)]
 	# attempts = [i for i in range(0,30)]
 	attempts = [i for i in range(0,30)]
-	attempts = [2,3,4,5]
+	# attempts = [2,3,4,5]
 	# attempts = [0]
 
 	#C is the number of projectiles each aggregate will consist of
@@ -73,7 +73,7 @@ if __name__ == '__main__':
 	# M = [100]
 	#Other node M
 	# M = [3,5,10,15,20,30]
-	M = [50] 
+	M = [50,60,100] 
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [1000]
@@ -82,7 +82,7 @@ if __name__ == '__main__':
 	totalNodes = 1
 	MPITasksPerNode = 1
 	totalMPITasks = totalNodes*MPITasksPerNode
-	threadsPerTask = 4
+	threadsPerTask = 8
 
 	#load default input file
 	with open(project_path+"default_files/default_input.json",'r') as fp:
@@ -211,13 +211,11 @@ if __name__ == '__main__':
 						sfp.write(sbatchfile)
 
 
-
 					#add run script and executable to folders
-					# os.system(f"cp {project_path}default_files/run_sim.py {job}run_sim.py")
-					os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
-					os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
-					os.system(f"cp {project_path}Collider/ball_group.cpp {job}ball_group.cpp")
-					os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
+					# os.system(f"cp {project_path}Collider/Collider.x {job}Collider.x")
+					# os.system(f"cp {project_path}Collider/Collider.cpp {job}Collider.cpp")
+					# os.system(f"cp {project_path}Collider/ball_group.cpp {job}ball_group.cpp")
+					# os.system(f"cp {project_path}Collider/ball_group.hpp {job}ball_group.hpp")
 
 					randint = random.randint(0, 29)
 					# os.system(f"cp /media/kolanzl/easystore/SpaceLab_data/jobsCosine/lognorm_relax{randint}/N_30/T_3/27_RELAXconstants.csv {job}{m}_constants.csv")

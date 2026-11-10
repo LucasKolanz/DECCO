@@ -234,10 +234,10 @@ vec3 vec3::arbitrary_orthogonal() const
 }
 
 
-// inline vec3
-// operator*(const double scalar, const vec3& v)
+ 
+// vec3 vec3::operator*(const double scalar)
 // {
-// return v * scalar;
+//     return {scalar*this[0],scalar*this[1],scalar*this[2]};
 // }
 
 

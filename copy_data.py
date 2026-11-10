@@ -24,25 +24,9 @@ def main():
 
 	source_prefolder = path + 'jobsCosine/lognormrelax_'
 	dest_prefolder = path + 'jobs/BAPA_'
-
-	# dataset_name = data_prefolder.split("/")[-1]
-
-	# sav = path+'data/{}_averageData.csv'.format(dataset_name)
-	# # figure_folder = 'figuresCompare/'
-	# figure_folder = path+'data/figures/'
-
-
-	# temps = [3,10,30,100,300,1000]
-	# # temps = [1000]
-	# Nums = [30,100,300]
-	# Nums = [300]
-	# M = [1]
 	
 	
-	# attempts = [i for i in range(20)]
-	attempts = [i for i in range(20,30)]
-	print(attempts)
-	# exit(0)
+	attempts = [i for i in range(30)]
 
 	source_dir_pattern = source_prefolder+"$a$/N_300/T_1000/"
 	dest_dir_pattern = dest_prefolder+"$a$/M_1/N_300/T_1000/"
@@ -56,23 +40,6 @@ def main():
 		os.system(f"cp {source_dir}* {dest_dir}.")
 		print(source_dir)
 		print(dest_dir) 
-
-	# 	os
-
-
-				
-	# for a,attempt in enumerate(attempts):
-	# 	# print(a)
-	# 	directory = dest_dir_pattern.replace("$a$",f"{attempt}")
-	# 	for file in glob.glob(directory+"297_*"):
-	# 		file_dir = "/".join(file.split('/')[:-1])
-	# 		file_name = file.split('/')[-1]
-	# 		# print(f"{file_dir}")
-	# 		os.system(f"mv {file} {file_dir}/{file_name.replace('297_','300_')}")
-	# 		# print(f"mv {file} {file_dir}/{file_name.replace("297","300")}")
-	# 		# print(file_name)
-	# 	# exit(0)
-
 
 
 

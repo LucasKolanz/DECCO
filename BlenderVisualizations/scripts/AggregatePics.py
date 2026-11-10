@@ -527,21 +527,29 @@ def makeFrames(path,camera_angle="default",shift=(0,0),focal_length=30.0,camera_
     frameNum = 0
     
     A_index = -5
+    # A_index = -4
 #    M_index = -4
     N_index = -3
     T_index = -2
     
     print(path)
 
-    att = ""
-    group = path.split("/")[A_index]
-    print(f'group: {group}')
-    job_group = group.split('_')[0]
-    attempt = int(group.split("_")[-1])
+    # att = ""
+    # group = path.split("/")[A_index]
+    # print(f'group: {group}')
+    # job_group = group.split('_')[0]
+    # attempt = int(group.split("_")[-1])
+    attempt = u.value_from_directory("attempt",path)
+    job_group = u.value_from_directory("job_group",path)
+    print(f"path: {path}")
+    print(f"attempt: {attempt}")
+    print(f"job_group: {job_group}")
 
 #    M = int(path.split("/")[M_index].split("_")[-1])
 #    print(f"M: {M}")
     M = u.value_from_directory("M",path)
+    if M is None:
+        M = 1
     print(f"M: {M}")
 
 
@@ -651,13 +659,14 @@ def makeFrames(path,camera_angle="default",shift=(0,0),focal_length=30.0,camera_
         sphereSet[sphere_num].location = (scaleUp*simData[properties*sphere_num+0],scaleUp*simData[properties*sphere_num+1],scaleUp*simData[properties*sphere_num+2])
         sphereSet[sphere_num].rotation_mode = "XYZ"
        
-    print(f"{data_directory}data/figures/aggRenders/BAOA/Coloredagg-{job_group}_a-{attempt}_N-{N}_T-{Temp}.png")
+    # print(f"{data_directory}data/figures/aggRenders/BAPA/Coloredagg-{job_group}_a-{attempt}_N-{N}_T-{Temp}.png")
     if render: 
 #        render_scene(f"{data_directory}data/figures/aggRenders/agg-{group}_a-{attempt}_N-{N}_seqStick.png")
 #        render_scene(f"{data_directory}data/figures/aggRenders/agg-{group}_a-{attempt}_M-{M}_N-{N}_T-{Temp}_niether.png")
         # render_scene(f"{data_directory}data/figures/aggRenders/Coloredagg-{job_group}_a-{attempt}_N-{N}_T-{Temp}.png")
        # render_scene(f"{data_directory}data/figures/aggRenders/ColoredFragg-{job_group}_a-{attempt}_M-{M}_T-{Temp}.png")
-       render_scene(f"{data_directory}data/figures/aggRenders/BAPA/ColoredFragg-{job_group}_a-{attempt}_M-{M}_N-{N}_T-{Temp}.png")
+       render_scene(f"{data_directory}data/figures/aggRenders/paper2/ColoredFragg-{job_group}_a-{attempt}_M-{M}_N-{N}_T-{Temp}.png")
+       # render_scene(f"{data_directory}data/figures/aggRenders/BAPA/ColoredFragg-CBAPA_a-{attempt}_M-{M}_N-{N}_T-{Temp}.png")
 #        render_scene(f"{data_directory}data/figures/aggRenders/BAPA/ColoredAsymFragg-{job_group}_a-{attempt}_N-{N}_T-{Temp}.png")
 #        render_scene(f"{data_directory}data/figures/aggRenders/ColoredAgg-{job_group}_a-{attempt}_N-{N}.png")
 
@@ -784,71 +793,83 @@ dist = 100
 emerald_green = '#008000'
 energy = 5
 
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_1/M_3/N_300/T_1000/'
-paths.append(path)
-camera_dic[path] = [dist,-1.7904,-0.0041,0.9354]
-color_dic[path] = hex_to_rgb(emerald_green)
-energy_dic[path] = energy
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_1/M_1/N_300/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,1.3962665796279907,-3.0412348905883846e-07,-2.286388635635376]
+# color_dic[path] = hex_to_rgb(emerald_green)
+# energy_dic[path] = energy
 
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_5/M_5/N_300/T_1000/'
-paths.append(path)
-camera_dic[path] = [dist,1.4668,-3.1416,0.0126]
-color_dic[path] = hex_to_rgb(emerald_green)
-energy_dic[path] = energy
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_1/M_3/N_300/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,-1.7904,-0.0041,0.9354]
+# color_dic[path] = hex_to_rgb(emerald_green)
+# energy_dic[path] = energy
 
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_1/M_10/N_300/T_1000/'
-paths.append(path)
-camera_dic[path] = [dist,-1.9051,1.4459e-7,0.9621]
-color_dic[path] = hex_to_rgb(emerald_green)
-energy_dic[path] = energy
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_5/M_5/N_300/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,1.4668,-3.1416,0.0126]
+# color_dic[path] = hex_to_rgb(emerald_green)
+# energy_dic[path] = energy
 
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_2/M_15/N_300/T_1000/'
-paths.append(path)
-camera_dic[path] = [dist,-2.0029,8.489e-7,-2.0608]
-color_dic[path] = hex_to_rgb(emerald_green)
-energy_dic[path] = energy
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_1/M_10/N_300/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,-1.9051,1.4459e-7,0.9621]
+# color_dic[path] = hex_to_rgb(emerald_green)
+# energy_dic[path] = energy
 
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_1/M_20/N_300/T_1000/'
-paths.append(path)
-camera_dic[path] = [dist,-1.8074,6.7734e-7,1.7231]
-color_dic[path] = hex_to_rgb(emerald_green)
-energy_dic[path] = energy
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_2/M_15/N_300/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,-2.0029,8.489e-7,-2.0608]
+# color_dic[path] = hex_to_rgb(emerald_green)
+# energy_dic[path] = energy
 
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_6/M_30/N_300/T_1000/'
-paths.append(path)
-camera_dic[path] = [dist,-1.4862,9.9269e-7,1.2204]
-color_dic[path] = hex_to_rgb(emerald_green)
-energy_dic[path] = energy
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_1/M_20/N_300/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,-1.8074,6.7734e-7,1.7231]
+# color_dic[path] = hex_to_rgb(emerald_green)
+# energy_dic[path] = energy
 
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_4/M_50/N_300/T_1000/'
-paths.append(path)
-camera_dic[path] = [dist,-1.0604,1.2118e-6,-1.2789]
-color_dic[path] = hex_to_rgb(emerald_green)
-energy_dic[path] = energy
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_6/M_30/N_300/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,-1.4862,9.9269e-7,1.2204]
+# color_dic[path] = hex_to_rgb(emerald_green)
+# energy_dic[path] = energy
 
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_0/M_60/N_300/T_1000/'
-paths.append(path)
-camera_dic[path] = [dist,1.8089,1.2434e-6,0.2919]
-color_dic[path] = hex_to_rgb(emerald_green)
-energy_dic[path] = energy
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_4/M_50/N_300/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,-1.0604,1.2118e-6,-1.2789]
+# color_dic[path] = hex_to_rgb(emerald_green)
+# energy_dic[path] = energy
 
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_0/M_75/N_300/T_1000/'
-paths.append(path)
-camera_dic[path] = [dist,-1.1938034296035767,4.779301434609806e-07,2.3910927772521973]
-color_dic[path] = hex_to_rgb(emerald_green)
-energy_dic[path] = energy
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_0/M_60/N_300/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,1.8089,1.2434e-6,0.2919]
+# color_dic[path] = hex_to_rgb(emerald_green)
+# energy_dic[path] = energy
 
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_0/M_100/N_300/T_1000/'
-paths.append(path)
-camera_dic[path] = [dist,-0.5282,-2.6997,-1.1036]
-color_dic[path] = hex_to_rgb(emerald_green)
-energy_dic[path] = energy
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_0/M_75/N_300/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,-1.1938034296035767,4.779301434609806e-07,2.3910927772521973]
+# color_dic[path] = hex_to_rgb(emerald_green)
+# energy_dic[path] = energy
 
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_1/M_150/N_300/T_1000/'
-paths.append(path)
-camera_dic[path] = [dist,-1.6545690298080444,5.609205686596397e-07,-0.4433220624923706]
-color_dic[path] = hex_to_rgb(emerald_green)
-energy_dic[path] = energy
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_0/M_100/N_300/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,-0.5282,-2.6997,-1.1036]
+# color_dic[path] = hex_to_rgb(emerald_green)
+# energy_dic[path] = energy
+
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_1/M_150/N_300/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,-1.6545690298080444,5.609205686596397e-07,-0.4433220624923706]
+# color_dic[path] = hex_to_rgb(emerald_green)
+# energy_dic[path] = energy
+
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPA_1/M_300/N_300/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,1.3962665796279907,-3.0412348905883846e-07,-2.286388635635376]
+# color_dic[path] = hex_to_rgb(emerald_green)
+# energy_dic[path] = energy
 #######################################################################################################################
 
 ######################################################################################################################
@@ -857,74 +878,154 @@ dist = 100
 primary_blue = "#0000FF"
 energy = 3
 
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/CBAPA_1/M_3/N_90/T_1000/'
-paths.append(path)
-camera_dic[path] = [dist,1.6755133867263794,-1.4381688515641144e-06,-2.261948585510254]
-color_dic[path] = hex_to_rgb(primary_blue)
-energy_dic[path] = energy
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/CBAPA_1/M_1/N_30/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist, 1.4451369047164917,-1.126496442793723e-07,-0.6527613401412964]
+# color_dic[path] = hex_to_rgb(primary_blue)
+# energy_dic[path] = energy
 
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/CBAPA_1/M_5/N_150/T_1000/'
-paths.append(path)
-camera_dic[path] = [dist,1.3962609767913818,-1.5987382084858837e-06,-2.5761075019836426]
-color_dic[path] = hex_to_rgb(primary_blue)
-energy_dic[path] = energy
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/CBAPA_1/M_3/N_90/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,1.6755133867263794,-1.4381688515641144e-06,-2.261948585510254]
+# color_dic[path] = hex_to_rgb(primary_blue)
+# energy_dic[path] = energy
 
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/CBAPA_1/M_10/N_300/T_1000/'
-paths.append(path)
-camera_dic[path] = [dist,1.4800359010696411,-1.856592120930145e-06,-0.06981465965509415]
-color_dic[path] = hex_to_rgb(primary_blue)
-energy_dic[path] = energy
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/CBAPA_1/M_5/N_150/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,1.3962609767913818,-1.5987382084858837e-06,-2.5761075019836426]
+# color_dic[path] = hex_to_rgb(primary_blue)
+# energy_dic[path] = energy
 
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/CBAPA_1/M_15/N_450/T_1000/'
-paths.append(path)
-camera_dic[path] = [dist,1.3745945692062378,-0.7757140398025513,-0.4411630630493164]
-color_dic[path] = hex_to_rgb(primary_blue)
-energy_dic[path] = energy
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/CBAPA_1/M_10/N_300/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,1.4800359010696411,-1.856592120930145e-06,-0.06981465965509415]
+# color_dic[path] = hex_to_rgb(primary_blue)
+# energy_dic[path] = energy
 
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/CBAPA_1/M_20/N_600/T_1000/'
-paths.append(path)
-camera_dic[path] = [dist,-3.2578693208051845e-05,-1.4730552434921265,0.20947183668613434]
-color_dic[path] = hex_to_rgb(primary_blue)
-energy_dic[path] = energy
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/CBAPA_1/M_15/N_450/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,1.3745945692062378,-0.7757140398025513,-0.4411630630493164]
+# color_dic[path] = hex_to_rgb(primary_blue)
+# energy_dic[path] = energy
 
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/CBAPA_1/M_30/N_900/T_1000/'
-paths.append(path)
-camera_dic[path] = [dist,-0.0015141572803258896,-1.4800372123718262,1.6810728311538696]
-color_dic[path] = hex_to_rgb(primary_blue)
-energy_dic[path] = energy
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/CBAPA_1/M_20/N_600/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,-3.2578693208051845e-05,-1.4730552434921265,0.20947183668613434]
+# color_dic[path] = hex_to_rgb(primary_blue)
+# energy_dic[path] = energy
 
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/CBAPA_3/M_50/N_1500/T_1000/'
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/CBAPA_1/M_30/N_900/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,-0.0015141572803258896,-1.4800372123718262,1.6810728311538696]
+# color_dic[path] = hex_to_rgb(primary_blue)
+# energy_dic[path] = energy
+
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/CBAPA_3/M_50/N_1500/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,1.3334301710128784,2.4294113245559856e-06,-3.019420862197876]
+# color_dic[path] = hex_to_rgb(primary_blue)
+# energy_dic[path] = energy
+
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/CBAPA_3/M_60/N_1800/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,1.30551016330719,-1.9113298321826733e-07,-2.719231128692627]
+# color_dic[path] = hex_to_rgb(primary_blue)
+# energy_dic[path] = energy
+######################################################################################################################
+
+######################################################################################################################
+#DBAPA for paper 2
+dist = 100
+electric_pink = "#FF1493"
+energy = 3
+
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/DBAPA_0/M_20/N_20/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist, 1.3892877101898193,-4.4330184323371213e-07,2.349207878112793]
+# color_dic[path] = hex_to_rgb(electric_pink)
+# energy_dic[path] = energy
+
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/DBAPA_0/M_20/N_40/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,1.4102312326431274,2.761186692623596e-07,-1.0157873630523682]
+# color_dic[path] = hex_to_rgb(electric_pink)
+# energy_dic[path] = energy
+
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/DBAPA_0/M_20/N_60/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,1.4590998888015747,2.3489144496124936e-07,-1.3927781581878662]
+# color_dic[path] = hex_to_rgb(electric_pink)
+# energy_dic[path] = energy
+
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/DBAPA_0/M_20/N_80/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,1.4660807847976685,5.77940966195456e-07,-1.49749755859375]
+# color_dic[path] = hex_to_rgb(electric_pink)
+# energy_dic[path] = energy
+
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/DBAPA_0/M_20/N_100/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,0.607378363609314,4.1410379481021664e-07,0.1640557050704956]
+# color_dic[path] = hex_to_rgb(electric_pink)
+# energy_dic[path] = energy
+
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/DBAPA_0/M_20/N_120/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,-0.8726687431335449,3.6537102232614416e-07,2.5027971267700195]
+# color_dic[path] = hex_to_rgb(electric_pink)
+# energy_dic[path] = energy
+
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/DBAPA_1/M_20/N_200/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,1.5847631692886353,8.123874550847177e-08,0.1919819861650467]
+# color_dic[path] = hex_to_rgb(electric_pink)
+# energy_dic[path] = energy
+
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/DBAPA_0/M_20/N_300/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,2.4574272632598877,1.9517780458500056e-07,-0.4712454378604889]
+# color_dic[path] = hex_to_rgb(electric_pink)
+# energy_dic[path] = energy
+
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/DBAPA_0/M_20/N_400/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,1.675519585609436,1.1326490323426697e-07,-0.205955371260643]
+# color_dic[path] = hex_to_rgb(electric_pink)
+# energy_dic[path] = energy
+
+path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/DBAPA_9/M_20/N_600/T_1000/'
 paths.append(path)
-camera_dic[path] = [dist,1.3334301710128784,2.4294113245559856e-06,-3.019420862197876]
-color_dic[path] = hex_to_rgb(primary_blue)
+camera_dic[path] = [dist,0.18849888443946838,-1.3702323542474915e-07,1.4765418767929077]
+color_dic[path] = hex_to_rgb(electric_pink)
 energy_dic[path] = energy
 ######################################################################################################################
+
 ######################################################################################################################
 #BAPAWELD for paper 2
 dist = 100
 yellowish_orange = "#FFA500"
 energy = 2
 
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPAWELD_0/M_3/N_300/T_1000/'
-paths.append(path)
-camera_dic[path] = [dist,1.6755133867263794,-1.4381688515641144e-06,-2.261948585510254]
-color_dic[path] = hex_to_rgb(yellowish_orange)
-energy_dic[path] = energy
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPAWELD_0/M_3/N_300/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,1.6755133867263794,-1.4381688515641144e-06,-2.261948585510254]
+# color_dic[path] = hex_to_rgb(yellowish_orange)
+# energy_dic[path] = energy
 
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPAWELD_3/M_15/N_300/T_1000/'
-paths.append(path)
-camera_dic[path] = [dist,0.5724671483039856,1.8504164245314314e-06,-1.0786194801330566]
-color_dic[path] = hex_to_rgb(yellowish_orange)
-energy_dic[path] = energy
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPAWELD_3/M_15/N_300/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,0.5724671483039856,1.8504164245314314e-06,-1.0786194801330566]
+# color_dic[path] = hex_to_rgb(yellowish_orange)
+# energy_dic[path] = energy
 
-path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPAWELD_0/M_100/N_300/T_1000/'
-paths.append(path)
-camera_dic[path] = [dist,-1.528909683227539,2.9132195322745247e-06,1.5463529825210571]
-color_dic[path] = hex_to_rgb(yellowish_orange)
-energy_dic[path] = energy
+# path = '/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_data/jobs/BAPAWELD_0/M_100/N_300/T_1000/'
+# paths.append(path)
+# camera_dic[path] = [dist,-1.528909683227539,2.9132195322745247e-06,1.5463529825210571]
+# color_dic[path] = hex_to_rgb(yellowish_orange)
+# energy_dic[path] = energy
 ######################################################################################################################
 
-render = True
+render = False
 for key in camera_dic.keys():
     if len(camera_dic[key]) > 3:
         makeFrames(key,camera_dic[key][1:4],camera_dist=camera_dic[key][0],color=color_dic[key],sun_energy=energy_dic[key],render=render)

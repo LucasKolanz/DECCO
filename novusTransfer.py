@@ -18,6 +18,11 @@ Run a dry-run first:
 Then actually copy:
 
     python3 novusTransferNew.py --job-set BAPAWELD
+
+To force-copy one specific file from every matching remote job folder into the
+corresponding local job folder, even when the job is already present locally:
+
+    python3 novusTransferNew.py --job-set BAPAWELD --copy-file timing.txt
 """
 
 from __future__ import annotations
@@ -59,12 +64,12 @@ class TransferConfig:
     m_values: tuple[int, ...] = (3, 5, 10, 15, 20, 30, 50, 60, 75, 100, 150)
     b_values: tuple[float, ...] = (3.000e-03,)
     n_values: tuple[int, ...] = (300)
+    c_values: tuple[int, ...] = (30)
     temps: tuple[int, ...] = (1000,)
     cbapa_c: int = 30
     dry_run: bool = False
     verbose_ssh: bool = False
     copy_file: str | None = None
-
 
 
 def local_job_parent(job_set_name: str) -> str:
@@ -78,7 +83,7 @@ def local_job_parent(job_set_name: str) -> str:
 
 def n_for_job(job_set_name: str, m: int, n_default: int, cbapa_c: int) -> int:
     """CBAPA jobs use N = C*M; other current jobs use the configured default N."""
-    if job_set_name == "CBAPA":
+    if job_set_name == "CBAPA" or job_set_name == "DBAPA":
         return cbapa_c * m
     return n_default
 
@@ -197,6 +202,41 @@ def scp_get_folder(config: TransferConfig, remote_folder: Path, local_parent: Pa
     raise RuntimeError(f"scp failed with exit code {result.returncode}")
 
 
+def scp_get_file(config: TransferConfig, remote_file: Path, local_parent: Path) -> bool:
+    """
+    Copy one remote file into local_parent using system scp.
+
+    If the destination file already exists, scp overwrites it. This is useful for
+    replacing one file across many already-copied job folders.
+    """
+    local_parent.mkdir(parents=True, exist_ok=True)
+
+    remote_spec = f"{config.host_alias}:{str(remote_file)}"
+
+    command = [
+        "scp",
+        "-o", "BatchMode=yes",
+        "-o", "ConnectTimeout=20",
+        remote_spec,
+        str(local_parent),
+    ]
+
+    result = run_command(command)
+
+    if result.returncode == 0:
+        return True
+
+    if "No such file or directory" in result.stderr:
+        print(f"Remote file not found: {remote_file}")
+        return False
+
+    print("scp failed.")
+    print("Command:", " ".join(command))
+    print("stderr:")
+    print(result.stderr.strip())
+    raise RuntimeError(f"scp failed with exit code {result.returncode}")
+
+
 def shlex_quote(s: str) -> str:
     """Small wrapper so the rest of the code reads cleanly."""
     import shlex
@@ -303,6 +343,23 @@ def iter_jobs(config: TransferConfig, data_directory: Path) -> Iterable[tuple[Pa
                                 temp=temp,
                             )
                             yield local_folder, local_parent, remote_folder, n
+
+
+
+def checked_relative_file(filename: str) -> Path:
+    """Return filename as a safe relative path inside each job folder."""
+    relative_file = Path(filename)
+
+    if relative_file.is_absolute():
+        raise ValueError("--copy-file must be relative to each job folder, not an absolute path.")
+
+    if ".." in relative_file.parts:
+        raise ValueError("--copy-file cannot contain '..'.")
+
+    if str(relative_file) in ("", "."):
+        raise ValueError("--copy-file must name a file.")
+
+    return relative_file
 
 def scp_get_file(config: TransferConfig, remote_file: Path, local_parent: Path) -> bool:
     """
@@ -444,6 +501,16 @@ def parse_args() -> TransferConfig:
     parser.add_argument("--dry-run", action="store_true", help="Print what would be copied without copying.")
     parser.add_argument("--verbose-ssh", action="store_true", help="Add -v to ssh checks for debugging.")
     parser.add_argument(
+        "--copy-file",
+        default=None,
+        help=(
+            "Copy this file from every matching remote T_<temp> job folder into "
+            "the corresponding local T_<temp> folder, overwriting any existing "
+            "local copy and bypassing the already-copied check. The path must be "
+            "relative to each T_<temp> folder, e.g. timing.txt or index_300.csv."
+        ),
+    )
+    parser.add_argument(
         "--job-set",
         action="append",
         dest="job_sets",
@@ -481,6 +548,13 @@ def parse_args() -> TransferConfig:
         default=[3.000e-03],
         help="Box sizes to copy.",
     )
+    parser.add_argument(
+        "--c-values",
+        nargs="+",
+        type=int,
+        default=[30],
+        help="C values to copy.",
+    )
     parser.add_argument("--attempts", type=int, default=30, help="Number of attempts, starting from 0.")
 
     args = parser.parse_args()
@@ -492,6 +566,7 @@ def parse_args() -> TransferConfig:
         n_values=tuple(args.n_values),
         m_values=tuple(args.m_values),
         b_values=tuple(args.b_values),
+        c_values=tuple(args.c_values),
         temps=tuple(args.temps),
         dry_run=args.dry_run,
         verbose_ssh=args.verbose_ssh,

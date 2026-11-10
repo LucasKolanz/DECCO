@@ -62,7 +62,7 @@ if __name__ == '__main__':
 	runs_at_once = 1
 	# attempts = [2] 
 	# attempts = [i for i in range(0,30)]#[0,1,2,3,4,5,6,7,8,9]#,11,12,13,14,15,16,17,18,19,20] 
-	attempts = [2]
+	attempts = [11]
 	N = [30] #final size
 	M = [10] #starting sizes
 	# M = [20] #starting sizes
