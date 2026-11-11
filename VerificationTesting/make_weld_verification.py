@@ -1,0 +1,173 @@
+import os
+import json
+import multiprocessing as mp
+import subprocess
+import re
+import argparse
+import random
+import sys
+
+from pathlib import Path
+
+project_path = Path(__file__).resolve().parent.parent
+sys.path.append(str(project_path / "utilities"))
+
+import utils as u
+
+
+def run_job(location):
+	output_file = location + "sim_output.txt"
+	error_file = location + "sim_errors.txt"
+	cmd = [f"{location}Collider.x",location]
+
+	with open(output_file,"a") as out, open(error_file,"a") as err:
+		subprocess.run(cmd,stdout=out,stderr=err)
+
+if __name__ == '__main__':
+
+	#load default input file
+	with open(f"{project_path}/default_files/default_input.json",'r') as fp:
+		input_json = json.load(fp)
+	parser = argparse.ArgumentParser(
+	description="Prepare DEM jobs and optionally submit them via Slurm."
+	)
+	parser.add_argument(
+		"-r",
+		"--run",
+		action="store_true",
+		help="Actually submit jobs with sbatch (otherwise do a dry run).",
+	)
+
+	args = parser.parse_args()
+
+	try:
+		subprocess.run(["make","-C",f"{project_path}/Collider"], check=True)
+	except:
+		print('compilation failed')
+		exit(-1)
+		
+	job_set_name = "weldCollisionVerification"
+
+	attempts = [0] 
+	folders = []
+
+	totalNodes = 1
+	MPITasksPerNode = 1
+	totalMPITasks = totalNodes*MPITasksPerNode
+	threadsPerTask = 16
+	
+	for attempt in attempts:
+		
+		# job = curr_folder + 'jobs/' + job_set_name + str(attempt) + '/'
+		job = input_json["data_directory"] + 'testJobs/' + job_set_name + '_' + str(attempt) + '/'
+		
+		job_name = f"WELDVerification_a={attempt}"
+
+		if not os.path.exists(job):
+			os.makedirs(job)
+		else:
+			print(f"Job already exists: {job}")
+
+
+		if os.path.exists(job+"timing.txt"):
+			print(f"Sim already complete: {job}")
+
+		elif u.on_queue(job_name):
+			print(f"Sim already on queue: {job}")
+		else:
+
+			####################################
+			######Change input values here######
+			# input_json['temp'] = 3
+			# input_json['N'] = 5
+			input_json['seed'] = 101
+			# input_json['weld'] = 'false'
+			input_json['weld'] = 'true'
+			input_json['JKR'] = "false"
+			input_json['output_folder'] = job
+			input_json['OMPthreads'] = threadsPerTask
+			input_json['MPInodes'] = totalMPITasks
+
+			# input_json['simTimeSeconds'] = 0.001  
+			# input_json['timeResolution'] = 1e-5
+
+			input_json['simTimeSeconds'] = 0.001
+			input_json['timeResolution'] = 0.001/(1000.0)
+
+			input_json['v_custom'] = '10'
+			# input_json['h_min'] = 0.5
+			input_json['dataFormat'] = "csv"
+			# input_json['simType'] = "BPCA"
+			input_json['simType'] = "collider"
+			input_json['impactParameter'] = 0.5
+			
+			input_json['projectileName'] = input_json["data_directory"]+"testData/BAPA_0/M_150/N_300/T_1000/150_simData.csv"
+			input_json['targetName'] = input_json["data_directory"]+"testData/BAPA_1/M_150/N_300/T_1000/150_simData.csv"
+
+			####################################
+			with open(job + "input.json",'w') as fp:
+				json.dump(input_json,fp,indent=4)
+
+
+
+			sbatchfile = ""
+			sbatchfile += "#!/bin/bash\n"
+			# sbatchfile += "#SBATCH -A m2651\n"
+			# sbatchfile += "#SBATCH -C gpu\n"
+			# sbatchfile += "#SBATCH -q regular\n"
+			# sbatchfile += "#SBATCH -t 0:10:00\n"
+			# sbatchfile += f'#SBATCH --partition=dri.q\n'
+			sbatchfile += f"#SBATCH -J {job_name}\n"
+			sbatchfile += f"#SBATCH --nodes {totalNodes}\n"
+			sbatchfile += f"#SBATCH --ntasks-per-node {totalMPITasks}\n"
+			sbatchfile += f"#SBATCH --cpus-per-task {threadsPerTask}\n\n"
+			# sbatchfile += "#SBATCH -N {}\n".format(1)#(node)
+
+			# sbatchfile += "#SBATCH -G {}\n".format(node)
+			# sbatchfile += 'module load gpu\n'
+
+			sbatchfile += 'export OMP_NUM_THREADS={}\n'.format(threadsPerTask)
+			# sbatchfile += 'export SLURM_CPU_BIND="socket"\n'
+			# sbatchfile += 'module load hdf5/1.14.3\n'
+			# sbatchfile += 'module load hdf5/1.10.8\n'
+			# sbatchfile += 'module load gnu12/12.3.0\n'
+			# sbatchfile += 'module load openmpi4/4.1.6\n'
+			# sbatchfile += 'module swap openmpi4/4.1.6 mpich\n'
+
+			
+			sbatchfile += f"srun -n {totalMPITasks} -c {threadsPerTask} --cpu-bind=cores {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+			# sbatchfile += f"srun --ntasks-per-node={MPITasksPerNode} --cpus-per-task={threadsPerTask} --cpu-bind=socket numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+			# sbatchfile += f"mpirun --bind-to socket --map-by node numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+			# sbatchfile += f"mpirun -n {totalMPITasks} numactl --interleave=all {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+			# sbatchfile += f"mpirun -n {totalMPITasks} {job}Collider.x {job} 2>>sim_err.log 1>>sim_out.log\n"
+
+
+			
+			with open(job+"sbatchMulti.bash",'w') as sfp:
+				sfp.write(sbatchfile)
+
+			os.system(f"cp {project_path}/Collider/Collider.x {job}Collider.x")
+
+			folders.append(job)
+
+
+
+	print(folders)
+
+	if args.run:
+		###############For running locally
+		# with mp.Pool(processes=runs_at_once) as pool:
+		# 	for folder in folders:
+		# 		# input_data = inputs[i:i+runs_at_once]
+		# 		pool.apply_async(run_job, (folder,))
+
+		# 	pool.close()
+		# 	pool.join()
+
+		###############For running on a cluster with slurm
+		cwd = os.getcwd()
+		for folder in folders:
+			os.chdir(folder)
+			os.system('sbatch sbatchMulti.bash')
+		os.chdir(cwd)
+	
