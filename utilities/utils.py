@@ -768,13 +768,21 @@ def get_energy(data_folder,data_index=-1,relax=False):
     else:
         print(f"ERROR: file extension not recognized for file '{energy_file}'")
 
-    print(energy)
-    time = energy[:,0]
-    PE = energy[:,1]
-    KE = energy[:,2]
-    E = energy[:,3]
-    p = energy[:,4]
-    L = energy[:,5]
+    if energy.ndim > 1:
+        time = energy[:,0]
+        PE = energy[:,1]
+        KE = energy[:,2]
+        E = energy[:,3]
+        p = energy[:,4]
+        L = energy[:,5]
+    else:
+        time = [energy[0]]
+        PE = [energy[1]]
+        KE = [energy[2]]
+        E = [energy[3]]
+        p = [energy[4]]
+        L = [energy[5]]
+
 
     return time,PE,KE,E,p,L
 
@@ -2096,6 +2104,13 @@ def unwrap_periodic_positions(positions, box_size, box_min=None, recenter=True):
         unwrapped += box_min
 
     return unwrapped
+
+def get_input_json(path):
+    with open(path+"input.json",'r') as fp:
+        return json.load(fp)
+
+def get_box_size(path):
+    return get_input_json(path)["boxDims"]
 
 def get_data(data_folder,data_index=-1,linenum=-1,relax=False): #Works with both csv and h5
     if data_folder == '/home/kolanzl/Desktop/bin/merger.csv':
