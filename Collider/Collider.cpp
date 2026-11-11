@@ -252,6 +252,7 @@ void runBigBox(std::string path)
     
     safetyChecks(O);
     O.sim_init_write(O.attrs.N);
+
     O.sim_looper(O.attrs.start_step);
     // t.end_event("collider");
     O.freeMemory();

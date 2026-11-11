@@ -1732,6 +1732,7 @@ void Ball_group::sim_init_write(int counter)
         ballBuffer[pt+9] = vel[i].z;
         ballBuffer[pt+10] = group[i];
         pt += jump;
+
     }
     data->Write(ballBuffer,"simData",1);
 
@@ -3794,6 +3795,8 @@ void Ball_group::boxInit()
     attrs.m_total = getMass();
 
     placeBallsInBox(attrs.num_particles);
+
+
 }
 
 void Ball_group::unwrap_groups(const Graph& g)
@@ -4444,7 +4447,7 @@ void Ball_group::simInit_cond_and_center(bool add_prefix)
     MPIsafe_print(std::cerr,message);
 
 
-    if (attrs.num_particles > 1)
+    if (attrs.num_particles > 1 && attrs.typeSim != bigbox)
     {
         to_origin();
     }
@@ -5197,6 +5200,7 @@ void Ball_group::full_step_updates(const int write_step, const int world_rank)
             ballBuffer[start+8] = vel[Ball][1];
             ballBuffer[start+9] = vel[Ball][2];
             ballBuffer[start+10] = group[Ball];
+
 
             KE += .5 * m[Ball] * vel[Ball].normsquared() +
                     .5 * moi[Ball] * w[Ball].normsquared();  // Now includes rotational kinetic energy.

@@ -56,6 +56,6 @@
     "targetName": "",
     "output_prefix": "default",
     "output_folder": "default",
-    "data_directory": "/scratch/kolanzl/kolanzl/SpaceLab_branch/DECCO_data/",
-    "project_directory": "/scratch/kolanzl/kolanzl/SpaceLab_branch/DECCO/"
+    "data_directory": "/fs2/home/pi/kolanzl/DECCO_branch/DECCO_data/",
+    "project_directory": "/fs2/home/pi/kolanzl/DECCO_branch/DECCO/"
 }
