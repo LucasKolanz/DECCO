@@ -65,8 +65,11 @@ if __name__ == '__main__':
 	# attempts = [21]
 
 	N = [300] #final size
-	M = [3,15,100] #starting sizes
-	M = [3] 
+	# M = [3,15,100] #starting sizes
+	# M = [20,60,75,150] #Lazzati partition 1 core
+	M = [5,10,20] #Lazzati partition 2 cores
+	# M = [30,50] #regular partition
+	# M = [3] 
 	threads = []
 	# Temps = [3,10,30,100,300,1000]
 	Temps = [1000]
@@ -163,6 +166,7 @@ if __name__ == '__main__':
 						sbatchfile += f"#SBATCH --nodes {totalNodes}\n"
 						sbatchfile += f"#SBATCH --ntasks-per-node {totalMPITasks}\n"
 						sbatchfile += f"#SBATCH --cpus-per-task {threadsPerTask}\n\n"
+						sbatchfile += f"#SBATCH --mem=500M\n"
 						# sbatchfile += "#SBATCH -N {}\n".format(1)#(node)
 
 						# sbatchfile += "#SBATCH -G {}\n".format(node)
