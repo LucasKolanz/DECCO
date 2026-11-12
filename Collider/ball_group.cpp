@@ -5221,8 +5221,10 @@ void Ball_group::sim_one_step(int step,bool write_step)
     /// FIRST PASS - Update Kinematic Parameters:
     // t.start_event("UpdateKinPar");
 
+    // std::cerr<<"PRE HALF STEP"<<std::endl;
     half_step_updates();
 
+    // std::cerr<<"POST HALF STEP"<<std::endl;
 
     
     // t.end_event("UpdateKinPar");
@@ -5289,7 +5291,7 @@ void Ball_group::sim_one_step(int step,bool write_step)
         // negative = overlapping
 
         // Only EXTERNAL pairs affect timestep selection.
-        if (!same_group)
+        if (attrs.dynamicTime && !same_group)
         {
             if (gap <= 0.0)
             {
@@ -5523,32 +5525,38 @@ void Ball_group::sim_one_step(int step,bool write_step)
         PE = 0.0;
         MPI_Reduce(&local_PE,&PE,1,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
 
-        double global_min_gap;
-        int global_active_contact;
+        if (attrs.dynamicTime)
+        {
+            double global_min_gap;
+            int global_active_contact;
 
-        MPI_Allreduce(
-            &local_min_gap,
-            &global_min_gap,
-            1,
-            MPI_DOUBLE,
-            MPI_MIN,
-            MPI_COMM_WORLD
-        );
+            MPI_Allreduce(
+                &local_min_gap,
+                &global_min_gap,
+                1,
+                MPI_DOUBLE,
+                MPI_MIN,
+                MPI_COMM_WORLD
+            );
 
-        MPI_Allreduce(
-            &local_active_contact,
-            &global_active_contact,
-            1,
-            MPI_INT,
-            MPI_MAX,
-            MPI_COMM_WORLD
-        );
+            MPI_Allreduce(
+                &local_active_contact,
+                &global_active_contact,
+                1,
+                MPI_INT,
+                MPI_MAX,
+                MPI_COMM_WORLD
+            );
 
-        attrs.min_gap = global_min_gap;
-        attrs.active_contact = (global_active_contact != 0);
+            attrs.min_gap = global_min_gap;
+            attrs.active_contact = (global_active_contact != 0);
+        }
     #else
-        attrs.min_gap = local_min_gap;
-        attrs.active_contact = (local_active_contact != 0);
+        if (attrs.dynamicTime)
+        {
+            attrs.min_gap = local_min_gap;
+            attrs.active_contact = (local_active_contact != 0);
+        }
     #endif
 
 
@@ -5561,7 +5569,7 @@ void Ball_group::sim_one_step(int step,bool write_step)
     // THIRD PASS - Calculate velocity for next step:
     full_step_updates(write_step,world_rank);
 
-    vec3 L3 = get_group_L_world(0);
+    // vec3 L3 = get_group_L_world(0);
 
 
      // THIRD PASS END
@@ -6467,6 +6475,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
         setDistBasedDT(start_step);
     }
 
+
     // for (Step = start_step; Step < attrs.steps; Step++)  // Steps start at 1 for non-restart because the 0 step is initial conditions.
     while(run_sim)  // Steps start at 1 for non-restart because the 0 step is initial conditions.
     {
@@ -6582,6 +6591,7 @@ Ball_group::sim_looper(unsigned long long start_step=1)
         {   
             sim_one_step(Step,write_step);
         }
+
 
         attrs.currTime += attrs.dt;
 
