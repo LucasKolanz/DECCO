@@ -55,7 +55,7 @@ if __name__ == '__main__':
 	totalNodes = 1
 	MPITasksPerNode = 1
 	totalMPITasks = totalNodes*MPITasksPerNode
-	threadsPerTask = 32
+	threadsPerTask = 2
 
 	for attempt in attempts:
 		for n in N:

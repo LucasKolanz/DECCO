@@ -91,18 +91,18 @@ if __name__ == '__main__':
 			# input_json['simTimeSeconds'] = 0.001  
 			# input_json['timeResolution'] = 1e-5
 
-			input_json['simTimeSeconds'] = 0.001
-			input_json['timeResolution'] = 0.001/(1000.0)
+			input_json['simTimeSeconds'] = 0.00025
+			input_json['timeResolution'] = 0.00025/(500.0)
 
-			input_json['v_custom'] = '10'
+			input_json['v_custom'] = '5'
 			# input_json['h_min'] = 0.5
 			input_json['dataFormat'] = "csv"
 			# input_json['simType'] = "BPCA"
 			input_json['simType'] = "collider"
 			input_json['impactParameter'] = 0.5
 			
-			input_json['projectileName'] = input_json["data_directory"]+"testData/BAPA_0/M_150/N_300/T_1000/150_simData.csv"
-			input_json['targetName'] = input_json["data_directory"]+"testData/BAPA_1/M_150/N_300/T_1000/150_simData.csv"
+			input_json['projectileName'] = input_json["data_directory"]+"testData/lognorm_0/N_300/T_1000/150_simData.csv"
+			input_json['targetName'] = input_json["data_directory"]+"testData/lognorm_1/N_300/T_1000/150_simData.csv"
 
 			####################################
 			with open(job + "input.json",'w') as fp:
