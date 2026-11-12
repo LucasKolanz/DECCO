@@ -2,6 +2,8 @@
 #include <iostream>
 #include <fstream>
 #include <cmath>
+#include <limits>
+#include <iomanip>
 #include <algorithm>
 #include <regex>
 #include <cstring>
@@ -285,6 +287,7 @@ bool CSVHandler::writeSimData(std::vector<double> data, int width, std::string f
 
 		std::ofstream simWrite;
 		simWrite.open(filename, std::ofstream::app);
+		simWrite << std::setprecision(std::numeric_limits<double>::max_digits10);
 
 
 		simWrite << meta;
@@ -325,6 +328,7 @@ bool CSVHandler::writeEnergy(std::vector<double> data, int width, std::string fi
 		
 		std::ofstream energyWrite;
 		energyWrite.open(filename, std::ofstream::app);
+		energyWrite << std::setprecision(std::numeric_limits<double>::max_digits10);
 
 		energyWrite << meta;
 
@@ -365,6 +369,7 @@ bool CSVHandler::writeConstants(std::vector<double> data, int width, std::string
 		
 		std::ofstream constsWrite;
 		constsWrite.open(filename, std::ofstream::app);
+		constsWrite << std::setprecision(std::numeric_limits<double>::max_digits10);
 
 		for (int i = 0; i < data.size(); ++i)
 		{

@@ -237,7 +237,7 @@ def calc_number_of_contacts(data_folder,data_index=-1,relax=False,**kwargs):
 def calc_fractal_dimension(data_folder,size,relax=False,**kwargs):
     makeVisual = kwargs.get("makeVisual", False)
     print(
-        f"Before aggregate {directory}: "
+        f"Before aggregate {data_folder}: "
         f"max RSS = {u.max_rss_gib():.2f} GiB",
         flush=True,
     )
@@ -473,7 +473,7 @@ def main():
 
     bool_headers = [1,1,0,0,1,0,0,0,0,0,0]
     bool_headers = [1,0,0,0,1,0,0,0,0,0,0]
-    bool_headers = [1,1,0,0,1,1,0,0,0,1,0]
+    bool_headers = [1,1,0,1,1,1,0,0,0,1,0]
 
     # requested_data_functions = [data_functions[i] for i in range(len(data_functions)) if bool_headers[i]]
     requested_data_headers = [data_headers[i] for i in range(len(data_headers)) if bool_headers[i]]
@@ -488,7 +488,7 @@ def main():
         data_folders = []
         # data_folders += [path + 'jobs/DBAPA_*']
         # data_folders += [path + 'jobs/CBAPA_*']
-        data_folders += [path + 'jobs/BAPAWELD_*']
+        data_folders += [path + 'jobs/REBAPAWELD_*']
         # data_folders += [path + 'jobs/BAPA_*']
         # data_folders += [path + 'jobsCosine/lognorm_*/N_300/T_1000/']
         # data_folders += ["/mnt/49f170a6-c9bd-4bab-8e52-05b43b248577/SpaceLab_branch/SpaceLab_data/" + 'jobs/bigbox_*']
@@ -599,6 +599,7 @@ def main():
             else:
                 print(f"Job is not finished in {directory}")
             
+    print("=========================END GEN DATA=========================")
 
 def add_fractal_dimension(
     folder,

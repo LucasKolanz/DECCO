@@ -2,9 +2,9 @@
 #SBATCH -J gen_data
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH -c 1
-#SBATCH --account=lazzati
-#SBATCH --partition=lazzati.q
+#SBATCH -c 32
+##SBATCH --account=lazzati
+##SBATCH --partition=lazzati.q
 ##SBATCH --mem=5G
 #SBATCH --mem=180G
 

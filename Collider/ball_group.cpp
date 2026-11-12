@@ -2999,8 +2999,14 @@ void Ball_group::init_conditions()
                 totalForceOnA = gravForceOnA + elasticForceOnA + slideForceOnA + vdwForceOnA;
 
                 // Total torque a and b:
-                torqueA = r_a.cross(slideForceOnA + rollForceA);
-                torqueB = r_b.cross(-slideForceOnA + rollForceA);
+                // torqueA = r_a.cross(slideForceOnA + rollForceA);
+                // torqueB = r_b.cross(-slideForceOnA + rollForceA);
+
+                const vec3 rollTorqueA =
+                    (0.5 * (r_a - r_b)).cross(rollForceA);
+
+                torqueA = r_a.cross(slideForceOnA) + rollTorqueA;
+                torqueB = r_b.cross(-slideForceOnA) - rollTorqueA;
 
                 aacc[A] += torqueA / moi[A];
                 aacc[B] += torqueB / moi[B];
@@ -5422,12 +5428,14 @@ void Ball_group::sim_one_step(int step,bool write_step)
             
 
             // Total torque a and b:
-            // torqueA = {0.0,0.0,0.0};//r_a.cross(slideForceOnA + rollForceA);
-            // torqueB = {0.0,0.0,0.0};//r_b.cross(-slideForceOnA + rollForceA); // original code
-            torqueA = r_a.cross(slideForceOnA + rollForceA);
-            torqueB = r_b.cross(-slideForceOnA + rollForceA); // original code
+            // torqueA = r_a.cross(slideForceOnA + rollForceA);
+            // torqueB = r_b.cross(-slideForceOnA + rollForceA); // original code
+            // Rolling resistance as an equal-and-opposite torque pair
+            const vec3 rollTorqueA =
+                (0.5 * (r_a - r_b)).cross(rollForceA);
 
-
+            torqueA = r_a.cross(slideForceOnA) + rollTorqueA;
+            torqueB = r_b.cross(-slideForceOnA) - rollTorqueA;
 
             aacc[A] += torqueA / moi[A];
             aacc[B] += torqueB / moi[B];
@@ -5568,8 +5576,6 @@ void Ball_group::sim_one_step(int step,bool write_step)
     
     // THIRD PASS - Calculate velocity for next step:
     full_step_updates(write_step,world_rank);
-
-    // vec3 L3 = get_group_L_world(0);
 
 
      // THIRD PASS END
